@@ -23,7 +23,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from . import Dialog, Turn, Event, Instruction
 from .orchestrators import BaseOrchestrator
-from .util import make_serializable
+from .util import make_serializable, camel_or_snake_to_words
 
 
 class __Meta__(type):
@@ -51,6 +51,10 @@ class BasePersona(metaclass=__Meta__):
 
         :param kwargs: Arbitrary persona attributes.
         """
+        for key in kwargs:
+            # if key if not part of the class attributes, raise value error
+            if not hasattr(self, key):
+                raise ValueError(f"Unknown attribute '{key}' passed to {type(self).__name__}.")
         self.__dict__.update(kwargs)
 
     def description(self) -> str:
@@ -60,7 +64,8 @@ class BasePersona(metaclass=__Meta__):
         :return: Description of the persona.
         :rtype: str
         """
-        return "\n".join(f"Your {key}: {value}" for key, value in self.__dict__.items())
+        return "\n".join(f"- {camel_or_snake_to_words(key).capitalize()}: {value}"
+                         for key, value in self.__dict__.items())
 
     def __str__(self) -> str:
         """
@@ -93,6 +98,14 @@ class Persona(BasePersona):
 
     :ivar name: Name of the persona.
     :vartype name: str
+    :ivar age: Age of the persona.
+    :vartype age: int
+    :ivar race: Race of the persona.
+    :vartype race: str
+    :ivar gender: Gender of the persona.
+    :vartype gender: str
+    :ivar language: Preferred language.
+    :vartype language: str
     :ivar role: Role or occupation.
     :vartype role: str
     :ivar background: Background information.
@@ -103,16 +116,18 @@ class Persona(BasePersona):
     :vartype circumstances: str
     :ivar rules: Rules or constraints.
     :vartype rules: str
-    :ivar language: Preferred language.
-    :vartype language: str
     """
+
     name: str = ""
+    age: int = None
+    race: str = ""
+    gender: str = ""
+    language: str = ""
     role: str = ""
     background: str = ""
     personality: str = ""
     circumstances: str = ""
     rules: str = ""
-    language: str = ""
 
 
 class PersonaAgent:

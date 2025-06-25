@@ -7,6 +7,7 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import re
 import json
 
 
@@ -30,3 +31,20 @@ def make_serializable(data: dict) -> dict:
             data[key] = str(value)
 
     return data
+
+
+def camel_or_snake_to_words(varname: str) -> str:
+    """
+    Converts a camelCase or snake_case variable name to a space-separated string of words.
+
+    :param varname: The variable name in camelCase or snake_case.
+    :type varname: str
+    :return: The variable name as space-separated words.
+    :rtype: str
+    """
+    # Replace underscores with spaces (snake_case)
+    s = varname.replace('_', ' ')
+    # Insert spaces before capital letters (camelCase, PascalCase)
+    s = re.sub(r'(?<=[a-z0-9])([A-Z])', r' \1', s)
+    # Normalize multiple spaces
+    return ' '.join(s.split())
