@@ -1,4 +1,5 @@
-from sdialog.personas import Persona, PersonaAgent, BasePersona
+from sdialog.personas import PersonaAgent
+from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient
 from sdialog.generators import LLMDialogOutput, Turn
 from sdialog import Dialog
 
@@ -24,8 +25,8 @@ class DummyLLM:
         return "dummy"
 
 
-def test_base_persona_description_and_json():
-    p = BasePersona(name="Test", role="tester")
+def test_persona_description_and_json():
+    p = Persona(name="Test", role="tester")
     desc = p.description()
     assert "Test" in desc
     js = p.json()
@@ -81,3 +82,73 @@ def test_persona_agent_dialog_with():
     assert len(dialog.turns) > 0
     assert "A" in dialog.personas
     assert "B" in dialog.personas
+
+
+def test_extended_persona_fields_and_description():
+    p = ExtendedPersona(
+        name="Bob",
+        age=40,
+        race="Asian",
+        gender="male",
+        language="English",
+        weight="70kg",
+        height=175.0,
+        occupation="Engineer",
+        education="PhD",
+        socioeconomic_status="middle",
+        interests="AI, robotics",
+        hobbies="chess",
+        politeness="high",
+        forgetfulness="low",
+        attentiveness="high",
+        communication_style="direct",
+        empathy_level="medium",
+        political_views="moderate",
+        religious_beliefs="agnostic"
+    )
+    desc = p.description()
+    assert "Bob" in desc
+    assert "Engineer" in desc
+    js = p.json()
+    assert isinstance(js, dict)
+    assert js["name"] == "Bob"
+    assert js["occupation"] == "Engineer"
+
+
+def test_patient_fields_and_description():
+    p = Patient(
+        name="Jane",
+        age=30,
+        symptoms="cough, fever",
+        vital_signs="BP 120/80",
+        health_literacy="high",
+        medical_conditions="asthma",
+        medications="inhaler",
+        allergies="penicillin",
+        family_history="diabetes"
+    )
+    desc = p.description()
+    assert "Jane" in desc
+    assert "cough" in desc
+    js = p.json()
+    assert isinstance(js, dict)
+    assert js["symptoms"] == "cough, fever"
+    assert js["medical_conditions"] == "asthma"
+
+
+def test_doctor_fields_and_description():
+    d = Doctor(
+        name="Dr. Smith",
+        age=50,
+        specialty="Cardiology",
+        years_of_experience=25,
+        certifications="Board Certified",
+        work_experience="Hospital A, Hospital B"
+    )
+    desc = d.description()
+    assert "Dr. Smith" in desc
+    assert "Cardiology" in desc
+    js = d.json()
+    assert isinstance(js, dict)
+    assert js["specialty"] == "Cardiology"
+    assert js["years_of_experience"] == 25
