@@ -1,14 +1,12 @@
 """
-util: Utility Functions for sdialog
-
-This module provides helper functions for the sdialog package, including serialization utilities to ensure
-objects can be safely converted to JSON for storage or transmission.
+This module provides functionality to generate audio from text utterances in a dialog.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import json
 import numpy as np
+from typing import List, Tuple
 
 # Audio processing
 import soundfile as sf
@@ -16,7 +14,35 @@ from kokoro import KPipeline
 
 from sdialog import Dialog
 
+
 pipeline = KPipeline(lang_code='a')
+
+
+def _master_audio(dialogue_audios: list) -> np.ndarray:
+    """
+    Combines multiple audio segments into a single master audio track.
+    """
+    return np.concatenate(dialogue_audios)
+
+
+def generate_utterances_audios(dialog: Dialog) -> List[Tuple[np.ndarray, str]]:
+    """
+    Generates audio for each utterance in a Dialog object.
+
+    :param dialog: The Dialog object containing the conversation.
+    :type dialog: Dialog
+    :return: A list of numpy arrays, each representing the audio of an utterance.
+    :rtype: list
+    """
+
+    dialogue_audios = []
+
+    for turn in dialog.turns:
+
+        utterance_audio = generate_utterance(turn.text, dialog.personas[turn.speaker])
+        dialogue_audios.append((utterance_audio, turn.speaker))
+
+    return dialogue_audios
 
 
 def generate_utterance(text: str, persona: dict, voice: str = "af_heart") -> np.ndarray:
@@ -40,38 +66,11 @@ def generate_utterance(text: str, persona: dict, voice: str = "af_heart") -> np.
     return audio
 
 
-def master_audio(dialogue_audios: list) -> np.ndarray:
-    """
-    Combines multiple audio segments into a single master audio track.
-    """
-    return np.concatenate(dialogue_audios)
-
-
-def to_wav(audio, output_file, sampling_rate=24000) -> None:
+def to_wav(audio, output_file, sampling_rate=16_000) -> None:
     """
     Combines multiple audio segments into a single master audio track.
     """
     sf.write(output_file, audio, sampling_rate)
-
-
-def generate_audios(dialog: Dialog) -> list:
-    """
-    Generates audio for each utterance in a Dialog object.
-
-    :param dialog: The Dialog object containing the conversation.
-    :type dialog: Dialog
-    :return: A list of numpy arrays, each representing the audio of an utterance.
-    :rtype: list
-    """
-
-    dialogue_audios = []
-
-    for turn in dialog.turns:
-
-        utterance_audio = generate_utterance(turn.text, dialog.personas[turn.speaker])
-        dialogue_audios.append(utterance_audio)
-
-    return dialogue_audios
 
 
 def dialog_to_audio(dialog: Dialog) -> np.ndarray:
@@ -84,9 +83,9 @@ def dialog_to_audio(dialog: Dialog) -> np.ndarray:
     :rtype: np.ndarray
     """
 
-    dialogue_audios = generate_audios(dialog)
+    dialogue_audios = generate_utterances_audios(dialog)
 
-    combined_audio = master_audio(dialogue_audios)
+    combined_audio = _master_audio(dialogue_audios)
 
     return combined_audio
 
