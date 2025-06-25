@@ -130,6 +130,122 @@ class Persona(BasePersona):
     rules: str = ""
 
 
+class ExtendedPersona(BasePersona):
+    """
+    Extended persona class with additional demographic, personality, and background attributes.
+
+    :ivar name: Name of the persona.
+    :vartype name: str
+    :ivar age: Age of the persona.
+    :vartype age: int
+    :ivar race: Race of the persona.
+    :vartype race: str
+    :ivar gender: Gender of the persona.
+    :vartype gender: str
+    :ivar language: Preferred language.
+    :vartype language: str
+    :ivar weight: Weight of the persona.
+    :vartype weight: str
+    :ivar height: Height of the persona.
+    :vartype height: float
+    :ivar occupation: Occupation of the persona.
+    :vartype occupation: str
+    :ivar education: Education background.
+    :vartype education: str
+    :ivar socioeconomic_status: Socioeconomic status.
+    :vartype socioeconomic_status: str
+    :ivar interests: Interests of the persona.
+    :vartype interests: str
+    :ivar hobbies: Hobbies of the persona.
+    :vartype hobbies: str
+    :ivar politeness: Politeness trait.
+    :vartype politeness: str
+    :ivar forgetfulness: Forgetfulness trait.
+    :vartype forgetfulness: str
+    :ivar attentiveness: Attentiveness trait.
+    :vartype attentiveness: str
+    :ivar communication_style: Communication style.
+    :vartype communication_style: str
+    :ivar empathy_level: Empathy level.
+    :vartype empathy_level: str
+    :ivar political_views: Political views (e.g., conservative, liberal, moderate, etc.).
+    :vartype political_views: str
+    :ivar religious_beliefs: Religious beliefs (e.g., religious, agnostic, atheist, etc.).
+    :vartype religious_beliefs: str
+    """
+    name: str = ""
+    # Demographics
+    age: int = None
+    race: str = ""
+    gender: str = ""
+    language: str = ""
+    weight: str = ""
+    height: float = ""
+    # Background
+    occupation: str = ""
+    education: str = ""
+    socioeconomic_status: str = ""
+    # Interests and hobbies
+    interests: str = ""
+    hobbies: str = ""
+    # Personality traits
+    politeness: str = ""
+    forgetfulness: str = ""
+    attentiveness: str = ""
+    communication_style: str = ""
+    empathy_level: str = ""
+    # Political and social views
+    political_views: str = ""  # conservative, liberal, not polital, moderate, other
+    religious_beliefs: str = ""  # religious, agnostic, atheist, etc.
+
+
+class Patient(ExtendedPersona):
+    """
+    Patient persona with medical and health-related attributes.
+
+    :ivar symptoms: Reason for visit or chief complaint.
+    :vartype symptoms: str
+    :ivar vital_signs: Vital signs of the patient.
+    :vartype vital_signs: str
+    :ivar health_literacy: Health literacy level.
+    :vartype health_literacy: str
+    :ivar medical_conditions: Medical conditions in history.
+    :vartype medical_conditions: str
+    :ivar medications: Current medications.
+    :vartype medications: str
+    :ivar allergies: Known allergies.
+    :vartype allergies: str
+    :ivar family_history: Family medical history.
+    :vartype family_history: str
+    """
+    symptoms: str = ""
+    vital_signs: str = ""
+    health_literacy: str = ""
+    medical_conditions: str = ""
+    medications: str = ""
+    allergies: str = ""
+    family_history: str = ""
+
+
+class Doctor(ExtendedPersona):
+    """
+    Doctor persona with medical expertise and professional background.
+
+    :ivar specialty: Medical specialty.
+    :vartype specialty: str
+    :ivar years_of_experience: Years of experience as a doctor.
+    :vartype years_of_experience: int
+    :ivar certifications: Certifications held by the doctor.
+    :vartype certifications: str
+    :ivar work_experience: Professional work experience.
+    :vartype work_experience: str
+    """
+    specialty: str = ""
+    years_of_experience: int = 0
+    certifications: str = ""
+    work_experience: str = ""
+
+
 class PersonaAgent:
     """
     Agent that simulates a persona in dialogue using an LLM.
