@@ -13,8 +13,10 @@ import random
 import torch
 import transformers
 
+from abc import ABC
 from time import time
 from tqdm.auto import trange
+from pydantic import BaseModel
 from typing import List, Union
 
 from langchain_ollama.chat_models import ChatOllama
@@ -26,37 +28,12 @@ from .orchestrators import BaseOrchestrator
 from .util import make_serializable, camel_or_snake_to_words
 
 
-class __Meta__(type):
-    """
-    Metaclass for enabling automatic __init__ chaining in subclasses.
-    """
-    def __init__(cls, name, bases, dct):
-        def auto__call__init__(self, *a, **kw):
-            for base in cls.__bases__:
-                base.__init__(self, *a, **kw)
-            cls.__init__child_(self, *a, **kw)
-            cls.__init__child_ = cls.__init__
-            cls.__init__ = auto__call__init__
-
-
-class BasePersona(metaclass=__Meta__):
+class BasePersona(BaseModel, ABC):
     """
     Base class for defining a persona (character profile) for role-play.
 
     :param kwargs: Arbitrary keyword arguments are stored as persona attributes.
     """
-    def __init__(self, **kwargs):
-        """
-        Initializes the persona with arbitrary attributes.
-
-        :param kwargs: Arbitrary persona attributes.
-        """
-        for key in kwargs:
-            # if key if not part of the class attributes, raise value error
-            if not hasattr(self, key):
-                raise ValueError(f"Unknown attribute '{key}' passed to {type(self).__name__}.")
-        self.__dict__.update(kwargs)
-
     def description(self) -> str:
         """
         Returns a string description of the persona's attributes.
@@ -65,7 +42,8 @@ class BasePersona(metaclass=__Meta__):
         :rtype: str
         """
         return "\n".join(f"- {camel_or_snake_to_words(key).capitalize()}: {value}"
-                         for key, value in self.__dict__.items())
+                         for key, value in self.__dict__.items()
+                         if value not in [None, ""])
 
     def __str__(self) -> str:
         """
@@ -87,7 +65,7 @@ class BasePersona(metaclass=__Meta__):
         :return: The serialized persona.
         :rtype: Union[str, dict]
         """
-        data = self.__dict__.copy()
+        data = {key: value for key, value in self.__dict__.items() if value not in [None, ""]}
         make_serializable(data)
         return json.dumps(data, indent=indent) if string else data
 
