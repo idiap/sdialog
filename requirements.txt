@@ -11,3 +11,4 @@ pytest
 pytest-cov
 codecov
 flake8
+Jinja2
