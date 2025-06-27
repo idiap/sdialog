@@ -170,7 +170,7 @@ class Dialog(BaseModel):
         if type == "auto":
             type = "json" if path.endswith(".json") else "txt"
 
-        if makedir:
+        if makedir and os.path.split(path)[0]:
             os.makedirs(os.path.split(path)[0], exist_ok=True)
 
         with open(path, "w") as writer:

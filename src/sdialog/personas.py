@@ -41,7 +41,7 @@ class BasePersona(BaseModel, ABC):
         :return: Description of the persona.
         :rtype: str
         """
-        return "\n".join(f"- {camel_or_snake_to_words(key).capitalize()}: {value}"
+        return "\n".join(f"* {camel_or_snake_to_words(key).capitalize()}: {value}"
                          for key, value in self.__dict__.items()
                          if value not in [None, ""])
 
