@@ -4,7 +4,6 @@ This module provides functionality to generate audio from text utterances in a d
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
-import json
 import numpy as np
 from typing import List, Tuple
 
@@ -18,11 +17,11 @@ from sdialog import Dialog
 pipeline = KPipeline(lang_code='a')
 
 
-def _master_audio(dialogue_audios: list) -> np.ndarray:
+def _master_audio(dialogue_audios: List[Tuple[np.ndarray, str]]) -> np.ndarray:
     """
     Combines multiple audio segments into a single master audio track.
     """
-    return np.concatenate(dialogue_audios)
+    return np.concatenate([da[0] for da in dialogue_audios])
 
 
 def generate_utterances_audios(dialog: Dialog) -> List[Tuple[np.ndarray, str]]:
@@ -66,7 +65,7 @@ def generate_utterance(text: str, persona: dict, voice: str = "af_heart") -> np.
     return audio
 
 
-def to_wav(audio, output_file, sampling_rate=16_000) -> None:
+def to_wav(audio, output_file, sampling_rate=24_000) -> None:
     """
     Combines multiple audio segments into a single master audio track.
     """
@@ -88,25 +87,3 @@ def dialog_to_audio(dialog: Dialog) -> np.ndarray:
     combined_audio = _master_audio(dialogue_audios)
 
     return combined_audio
-
-
-def make_serializable(data: dict) -> dict:
-    """
-    Converts non-serializable values in a dictionary to strings so the dictionary can be safely serialized to JSON.
-
-    :param data: The dictionary to process.
-    :type data: dict
-    :return: The dictionary with all values JSON-serializable.
-    :rtype: dict
-    """
-
-    if type(data) is not dict:
-        raise TypeError("Input must be a dictionary")
-
-    for key, value in data.items():
-        try:
-            json.dumps(value)
-        except (TypeError, OverflowError):
-            data[key] = str(value)
-
-    return data
