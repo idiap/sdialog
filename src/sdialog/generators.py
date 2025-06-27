@@ -328,6 +328,8 @@ class PersonaGenerator:
 
         :param seed: Optional random seed for reproducibility.
         :type seed: int, optional
+        :param temperature: Temperature for LLM generation (if applicable).
+        :type temperature: float, optional
         :return: A validated persona instance.
         :rtype: BasePersona
         :raises ValueError: If required files for templates are missing.
@@ -342,7 +344,7 @@ class PersonaGenerator:
         target_persona_dict.update(self._persona_rnd_attributes)
         for key, value in target_persona_dict.items():
             if callable(value):
-                random_persona_dict[key] = value()
+                random_persona_dict[key] = value  # a callable
             elif isinstance(value, list):
                 random_persona_dict[key] = random.choice(value)
             elif isinstance(value, str) and value:
@@ -397,6 +399,13 @@ class PersonaGenerator:
                     random_persona_dict[key] = value
             elif self.default_attributes and (self.default_attributes == "all" or key in self.default_attributes):
                 random_persona_dict[key] = None  # to be filled by the LLM
+
+        for key, value in random_persona_dict.items():
+            if callable(value):
+                try:
+                    random_persona_dict[key] = value(**random_persona_dict)
+                except TypeError:
+                    random_persona_dict[key] = value()  # in case user-proved function has no arguments
 
         # If there are None value, we need to fill them using the LLM
         if any(value is None for value in random_persona_dict.values()):

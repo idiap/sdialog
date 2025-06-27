@@ -159,6 +159,7 @@ class ExtendedPersona(BasePersona):
     language: str = ""
     weight: str = ""
     height: float = ""
+    voice_characteristics: str = ""  # e.g., accent, tone, etc.
     # Background
     occupation: str = ""
     education: str = ""
@@ -238,7 +239,7 @@ class PersonaAgent:
     STOP_WORD_TEXT = "(bye bye!)"
 
     def __init__(self,
-                 model: Union[str, ChatOllama],
+                 model: Union[str, ChatOllama] = "qwen2.5:14b",
                  persona: BasePersona = Persona(),
                  name: str = None,
                  dialogue_details: str = "",
@@ -281,8 +282,8 @@ class PersonaAgent:
                                                  f"immediately after you **MUST** output '{self.STOP_WORD}' to "
                                                  "indicate it is the end of it.")
             else:
-                conversation_end_instructions = ("When the user finish the conversation you should say good bye and "
-                                                 "also finish the conversation")
+                conversation_end_instructions = ("When the other speaker finishes the conversation you should say "
+                                                 "good bye and also finish the conversation")
 
             # system_prompt = prompt_template.format(role=role, ...)
             system_prompt = f"""Role play as a character that is described by the persona defined in the following lines. You always stay in character.
@@ -294,8 +295,7 @@ class PersonaAgent:
 {"Details about your responses: " + response_details if response_details else ""}
 Finally, remember:
    1. You always stay on character. You are the character described above.
-   2. Your first utterance / turn MUST always be a short generic greeting (e.g. "Hello, how are you?", "Hi!", "hey! what's up?", etc.), and nothing else, wait for a reply before start with the actual conversation.
-   3. {conversation_end_instructions}."""  # noqa: E501
+   2. {conversation_end_instructions}."""  # noqa: E501
 
         llm_kwargs = llm_kwargs or {}
         self.hf_model = False

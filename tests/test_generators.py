@@ -107,6 +107,19 @@ def test_persona_generator_function():
     assert persona.age == 42
 
 
+def test_persona_generator_function_dependency():
+    def get_hobby(**attributes):
+        if attributes["name"].split()[0][-1] == "a":
+            return "Party"
+        return "Dancying"
+    gen = PersonaGenerator(DummyPersona)
+    gen.set_random_attributes(name=["Loco Polaco", "Loca Polaca"],
+                              hobby=get_hobby)
+
+    p = gen.generate()
+    assert (p.name[-1] == "a" and p.hobby == "Party") or (p.name[-1] == "o" and p.hobby == "Dancying")
+
+
 def test_persona_generator_list():
     gen = PersonaGenerator(DummyPersona, default_attributes={"city": ["Paris", "London"]})
     persona = gen.generate()
