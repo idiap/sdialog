@@ -99,19 +99,21 @@ def test_persona_dialog_generator_with_agents(monkeypatch):
     assert "B" in dialog.personas
 
 
-def test_persona_generator_function():
+def test_persona_generator_function(monkeypatch):
     def random_age():
         return 42
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona, default_attributes={"age": random_age})
     persona = gen.generate()
     assert persona.age == 42
 
 
-def test_persona_generator_function_dependency():
+def test_persona_generator_function_dependency(monkeypatch):
     def get_hobby(**attributes):
         if attributes["name"].split()[0][-1] == "a":
             return "Party"
         return "Dancying"
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona)
     gen.set_random_attributes(name=["Loco Polaco", "Loca Polaca"],
                               hobby=get_hobby)
@@ -120,19 +122,22 @@ def test_persona_generator_function_dependency():
     assert (p.name[-1] == "a" and p.hobby == "Party") or (p.name[-1] == "o" and p.hobby == "Dancying")
 
 
-def test_persona_generator_list():
+def test_persona_generator_list(monkeypatch):
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona, default_attributes={"city": ["Paris", "London"]})
     persona = gen.generate()
     assert persona.city in ["Paris", "London"]
 
 
-def test_persona_generator_fixed_value():
+def test_persona_generator_fixed_value(monkeypatch):
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona, default_attributes={"hobby": "reading"})
     persona = gen.generate()
     assert persona.hobby == "reading"
 
 
 def test_persona_generator_txt_template(monkeypatch):
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
     txt_path = os.path.join(PATH_TEST_DATA, "occupations.txt")
     gen = PersonaGenerator(DummyPersona, default_attributes={"occupation": "{{txt:%s}}" % txt_path})
     persona = gen.generate()
