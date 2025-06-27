@@ -90,7 +90,7 @@ class DialogGenerator:
         self.model_name = model
         self.set(dialogue_details, scenario)
 
-    def generate(self, seed: int = None, id: int = None):
+    def generate(self, seed: int = None, id: int = None, notes: str = None):
         """
         Generates a synthetic dialogue using the LLM.
 
@@ -98,6 +98,8 @@ class DialogGenerator:
         :type seed: int
         :param id: Dialogue ID.
         :type id: int
+        :param notes: Optional notes to include in the dialogue.
+        :type notes: str
         :return: The generated dialogue or output object.
         :rtype: Union[Dialog, dict, BaseModel]
         """
@@ -123,6 +125,7 @@ class DialogGenerator:
                               seed=self.llm.seed,
                               personas=self._personas,
                               scenario=self.scenario if self.scenario else self.dialogue_details,
+                              notes=notes,
                               turns=llm_output.dialog)
             else:
                 return llm_output
@@ -215,14 +218,15 @@ Finally, remember:
                              persona_b.name: persona_b.json()
                          })
 
-    def generate(self, seed: int = None, id: int = None, max_iterations: int = 20):
+    def generate(self, seed: int = None, id: int = None, max_iterations: int = 20, notes: str = None):
         if self._agent_a and self._agent_b:
             return self._agent_a.dialog_with(self._agent_b,
                                              max_iterations=max_iterations,
                                              id=id,
-                                             seed=seed)
+                                             seed=seed,
+                                             notes=notes)
         else:
-            return super().generate(seed=seed, id=id)
+            return super().generate(seed=seed, id=id, notes=notes)
 
     __call__ = generate  # alias for generate method
 

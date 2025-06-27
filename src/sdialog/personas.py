@@ -570,6 +570,7 @@ Finally, remember:
                     max_iterations: int = 20,
                     id: int = None,
                     seed: int = None,
+                    notes: str = None,
                     keep_bar: bool = True):
         """
         Simulates a dialogue between this agent and another PersonaAgent.
@@ -582,6 +583,8 @@ Finally, remember:
         :type id: int
         :param seed: Random seed for reproducibility.
         :type seed: int
+        :param notes: Optional notes to include in the dialogue.
+        :type notes: str
         :param keep_bar: If True, keeps the progress bar visible.
         :type keep_bar: bool
         :return: The generated dialogue object.
@@ -658,6 +661,7 @@ Finally, remember:
                 self.get_name(): self.persona.json(),
                 agent.get_name(default="Other"): agent.persona.json()},
             scenario=scenario,
+            notes=notes,
             turns=dialog,
             events=events
         )

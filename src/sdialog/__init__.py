@@ -98,6 +98,8 @@ class Dialog(BaseModel):
     :vartype turns: List[Turn]
     :ivar events: List of dialogue events (optional).
     :vartype events: Optional[List[Event]]
+    :ivar notes: Free-text notes or comments about the dialogue.
+    :vartype notes: Optional[str]
     """
     formatVersion: Optional[str] = Field(default_factory=_get_dynamic_version)  # Version of the format
     model: Optional[str] = None  # the model used to generate the dialogue
@@ -108,6 +110,7 @@ class Dialog(BaseModel):
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
     turns: List[Turn]  # the list of turns of the conversation
     events: Optional[List[Event]] = None
+    notes: Optional[str] = None  # Free-text notes or comments about the dialogue
 
     def __len__(self):
         """
