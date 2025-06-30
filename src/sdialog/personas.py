@@ -101,7 +101,7 @@ class Persona(BasePersona):
     age: int = None
     race: str = ""
     gender: str = ""
-    language: str = ""
+    language: str = "English"
     role: str = ""
     background: str = ""
     personality: str = ""
@@ -157,7 +157,7 @@ class ExtendedPersona(BasePersona):
     age: int = None
     race: str = ""
     gender: str = ""
-    language: str = ""
+    language: str = "English"
     weight: str = ""
     height: float = ""
     voice_characteristics: str = ""  # e.g., accent, tone, etc.
