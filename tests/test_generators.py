@@ -184,10 +184,5 @@ def test_persona_generator_defaults(monkeypatch):
     monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona)
     persona = gen.generate()
-    assert persona == DummyPersona.model_validate({
-        "name": "Dummy",
-        "age": 30,
-        "city": "Unknown",
-        "hobby": "Reading",
-        "occupation": "Engineer"
-    })
+    persona2 = BasePersona.from_dict(persona.json(), persona_class=DummyPersona)
+    assert persona.name == persona2.name

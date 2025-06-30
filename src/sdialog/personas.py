@@ -8,25 +8,56 @@ complex behaviors.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Séverin Baroudi <severin.baroudi@lis-lab.fr>
 # SPDX-License-Identifier: MIT
+import os
+import sys
 import json
-import random
 import torch
+import random
+import inspect
 import transformers
 
 from abc import ABC
 from time import time
 from tqdm.auto import trange
-from pydantic import BaseModel
-from typing import List, Union
+from pydantic import BaseModel, Field
+from typing import List, Union, Optional
 
 from langchain_ollama.chat_models import ChatOllama
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
-from . import Dialog, Turn, Event, Instruction
+from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .orchestrators import BaseOrchestrator
 from .util import config, make_serializable, camel_or_snake_to_words
 from jinja2 import Template
+
+
+class PersonaMetadata(BaseModel):
+    """
+    Wrapper class for persona objects with additional metadata.
+
+    :ivar version: Version of the persona format (matches sdialog version).
+    :vartype version: Optional[str]
+    :ivar model: The model used to generate the persona.
+    :vartype model: Optional[str]
+    :ivar seed: The random seed used for persona generation.
+    :vartype seed: Optional[int]
+    :ivar id: Unique identifier for the persona.
+    :vartype id: Optional[int]
+    :ivar parentId: ID of the parent persona, if any.
+    :vartype parentId: Optional[int]
+    :ivar notes: Free-text notes or comments about the generated persona.
+    :vartype notes: Optional[str]
+    :ivar className: The class name of the persona (a subclass of BasePersona).
+    :vartype className: str
+    """
+    version: Optional[str] = Field(default_factory=_get_dynamic_version)
+    model: Optional[str] = None
+    seed: Optional[int] = None
+    id: Optional[int] = None
+    parentId: Optional[int] = None
+    className: str = None
+    notes: Optional[str] = None
 
 
 class BasePersona(BaseModel, ABC):
@@ -35,6 +66,8 @@ class BasePersona(BaseModel, ABC):
 
     :param kwargs: Arbitrary keyword arguments are stored as persona attributes.
     """
+    _metadata: Optional[PersonaMetadata] = None
+
     def description(self) -> str:
         """
         Returns a string description of the persona's attributes.
@@ -55,7 +88,7 @@ class BasePersona(BaseModel, ABC):
         """
         return self.description()
 
-    def json(self, string: bool = False, indent=None):
+    def json(self, string: bool = False, indent=2):
         """
         Serializes the persona to JSON.
 
@@ -67,8 +100,85 @@ class BasePersona(BaseModel, ABC):
         :rtype: Union[str, dict]
         """
         data = {key: value for key, value in self.__dict__.items() if value not in [None, ""]}
-        make_serializable(data)
+        if self._metadata:
+            data["_metadata"] = self._metadata.model_dump()
         return json.dumps(data, indent=indent) if string else data
+
+    def to_file(self, path: str, makedir: bool = True):
+        """
+        Saves the persona to a file in either JSON or plain text format.
+
+        :param path: Output file path.
+        :type path: str
+        :param makedir: If True, creates parent directories as needed.
+        :type makedir: bool
+        """
+        if makedir and os.path.split(path)[0]:
+            os.makedirs(os.path.split(path)[0], exist_ok=True)
+
+        if self._metadata is None:
+            self._metadata = PersonaMetadata(className=self.__class__.__name__)
+
+        with open(path, "w") as writer:
+            writer.write(self.json(string=True))
+
+    @staticmethod
+    def from_file(path: str):
+        """
+        Loads persona from a file.
+
+        :param path: Path to the persona file.
+        :type path: str
+        :return: The loaded persona object.
+        :rtype: MetaPersona
+        """
+        return BasePersona.from_json(open(path, "r", encoding="utf-8").read())
+
+    @staticmethod
+    def from_dict(data: dict, persona_class: Optional["BasePersona"] = None):
+        """
+        Creates a persona object from a dictionary.
+
+        :param data: The dictionary containing persona data.
+        :type data: dict
+        :param persona_class: Optional specific class to use for the persona.
+        :type persona_class: Optional[BasePersona]
+        :return: The created persona object.
+        :rtype: MetaPersona
+        """
+        # Assign to "persona" the instance of the right class using the `className`
+        if "_metadata" in data and "className" in data["_metadata"] and data["_metadata"]["className"]:
+            persona_class_name = data["_metadata"]["className"]
+            if persona_class and persona_class_name == persona_class.__name__:
+                # If the class name matches the given class, use it directly
+                return persona_class.model_validate(data)
+            else:  # Assuming the class name is from one of the built-in classes
+                # Automatically get all classes in the module that inherit from BasePersona
+                current_module = sys.modules[__name__]
+                persona_class_map = {
+                    cls.__name__: cls
+                    for _, cls in inspect.getmembers(current_module, inspect.isclass)
+                    if issubclass(cls, BasePersona) and cls is not BasePersona
+                }
+                persona_class = persona_class_map.get(persona_class_name)
+                if persona_class:
+                    return persona_class.model_validate(data)
+                else:
+                    raise ValueError(f"Unknown persona class given in the `className` field: {persona_class_name}.")
+        else:
+            raise ValueError("Metadata with `className` is required to create a persona from a dict or json.")
+
+    @staticmethod
+    def from_json(json_str: str):
+        """
+        Creates a persona object from a JSON string.
+
+        :param json_str: The JSON string containing persona data.
+        :type json_str: str
+        :return: The created persona object.
+        :rtype: MetaPersona
+        """
+        return BasePersona.from_dict(json.loads(json_str))
 
 
 class Persona(BasePersona):
@@ -107,6 +217,14 @@ class Persona(BasePersona):
     personality: str = ""
     circumstances: str = ""
     rules: str = ""
+
+    @staticmethod
+    def from_file(path: str):
+        return BasePersona.from_file(path)
+
+    @staticmethod
+    def from_json(json_str: str):
+        return BasePersona.from_json(json_str)
 
 
 class ExtendedPersona(BasePersona):

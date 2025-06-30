@@ -19,7 +19,7 @@ from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
-from .personas import BasePersona, Persona, PersonaAgent
+from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 from .util import config
 
 
@@ -344,15 +344,26 @@ class PersonaGenerator:
         self._check_attributes(persona_rnd_attributes)
         self._persona_rnd_attributes = persona_rnd_attributes
 
-    def generate(self, seed: int = None, temperature: float = 0.8):
+    def generate(self,
+                 temperature: float = 0.8,
+                 seed: int = None,
+                 id: int = None,
+                 parent_id: int = None,
+                 notes: str = None):
         """
         Generate a persona instance with attributes filled by random selection, templates, or LLM as needed.
 
-        :param seed: Optional random seed for reproducibility.
-        :type seed: int, optional
         :param temperature: Temperature for LLM generation (if applicable).
         :type temperature: float, optional
-        :return: A validated persona instance.
+        :param seed: Optional random seed for reproducibility.
+        :type seed: int, optional
+        :param id: Optional unique identifier for the persona.
+        :type id: int, optional
+        :param parent_id: Optional parent persona ID (if any).
+        :type parent_id: int, optional
+        :param notes: Optional notes to include in the persona metadata.
+        :type notes: str, optional
+        :return: A validated persona instance with metadata.
         :rtype: BasePersona
         :raises ValueError: If required files for templates are missing.
         """
@@ -429,6 +440,7 @@ class PersonaGenerator:
                 except TypeError:
                     random_persona_dict[key] = value()  # in case user-proved function has no arguments
 
+        llm = None
         # If there are None value, we need to fill them using the LLM
         if any(value is None for value in random_persona_dict.values()):
             if llm_attribute_instructions:
@@ -477,4 +489,14 @@ class PersonaGenerator:
             random_persona_dict.update(missing_attributes)
             random_persona = self._persona.model_validate(random_persona_dict)
 
+        # Adding metadata to the generated persona
+        # TODO: shall we also add generator parameters? (e.g. self._persona_rnd_attributes, self.default_*)
+        random_persona._metadata = PersonaMetadata(
+            model=str(llm) if llm else None,
+            seed=seed,
+            id=id,
+            parentId=parent_id,
+            className=type(random_persona).__name__,
+            notes=notes
+        )
         return random_persona

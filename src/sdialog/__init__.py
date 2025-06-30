@@ -136,7 +136,7 @@ class Dialog(BaseModel):
         return "\n".join(turn_template.format(speaker=turn.speaker, text=turn.text.replace("\n", " "))
                          for turn in self.turns)
 
-    def json(self, string: bool = False, indent: int = None):
+    def json(self, string: bool = False, indent: int = 2):
         """
         Serializes the dialogue to JSON.
 
