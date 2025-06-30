@@ -37,10 +37,13 @@ def make_serializable(data: dict) -> dict:
         raise TypeError("Input must be a dictionary")
 
     for key, value in data.items():
-        try:
-            json.dumps(value)
-        except (TypeError, OverflowError):
-            data[key] = str(value)
+        if hasattr(value, "json") and callable(value.json):
+            data[key] = value.json()
+        else:
+            try:
+                json.dumps(value)
+            except (TypeError, OverflowError):
+                data[key] = str(value)
 
     return data
 
