@@ -1,4 +1,12 @@
+import os
+
+from sdialog.util import config
 from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version
+
+
+def test_prompt_paths():
+    for path in config["prompts"].values():
+        assert os.path.isabs(path)
 
 
 def test_turn_and_event():

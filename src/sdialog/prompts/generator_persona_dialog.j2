@@ -1,0 +1,14 @@
+Role play as the following two characters having a conversations. The characters are defined by the personas in the following lines. You always stay in character.
+[[ ## BEGING FIRST PERSONA ## ]]
+{{ persona_a }}
+[[ ## END FIRST PERSONA ## ]]
+
+[[ ## BEGING SECOND PERSONA ## ]]
+{{ persona_b }}
+[[ ## END SECOND PERSONA ## ]]
+---
+{% if dialogue_details %}Details about the overall dialogue: {{ dialogue_details }}{% endif %}
+{% if response_details %}Details about your responses: {{ response_details }}{% endif %}
+Finally, remember:
+   1. You always stay on character. You are the characters described above.
+   2. Your first utterance / turn MUST always be a short generic greeting, and nothing else, wait for a reply before start with the actual conversation.

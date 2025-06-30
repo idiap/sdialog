@@ -25,7 +25,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from . import Dialog, Turn, Event, Instruction
 from .orchestrators import BaseOrchestrator
-from .util import make_serializable, camel_or_snake_to_words
+from .util import config, make_serializable, camel_or_snake_to_words
+from jinja2 import Template
 
 
 class BasePersona(BaseModel, ABC):
@@ -277,26 +278,15 @@ class PersonaAgent:
         """
 
         if not system_prompt:
-            if can_finish:
-                conversation_end_instructions = ("To finish the conversation you first have to say good bye and "
-                                                 f"immediately after you **MUST** output '{self.STOP_WORD}' to "
-                                                 "indicate it is the end of it.")
-            else:
-                conversation_end_instructions = ("When the other speaker finishes the conversation you should say "
-                                                 "good bye and also finish the conversation")
-
-            # system_prompt = prompt_template.format(role=role, ...)
-            system_prompt = f"""Role play as a character that is described by the persona defined in the following lines. You always stay in character.
-[[ ## BEGING PERSONA ## ]]
-{persona}
-[[ ## END PERSONA ## ]]
----
-{"Details about the overall dialogue: " + dialogue_details if dialogue_details else ""}
-{"Details about your responses: " + response_details if response_details else ""}
-Finally, remember:
-   1. You always stay on character. You are the character described above.
-   2. {conversation_end_instructions}."""  # noqa: E501
-
+            with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
+                system_prompt_template = Template(f.read())
+            system_prompt = system_prompt_template.render(
+                persona=persona,
+                dialogue_details=dialogue_details,
+                response_details=response_details,
+                can_finish=can_finish,
+                stop_word=self.STOP_WORD
+            )
         llm_kwargs = llm_kwargs or {}
         self.hf_model = False
         if isinstance(model, str):

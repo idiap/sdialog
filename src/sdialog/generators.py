@@ -20,6 +20,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
 from .personas import BasePersona, Persona, PersonaAgent
+from .util import config
 
 
 class LLMDialogOutput(BaseModel):
@@ -139,14 +140,13 @@ class DialogGenerator:
         :param scenario: Scenario metadata.
         :type scenario: dict
         """
+        # Load system message from prompt file
+        with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
+            system_message = Template(f.read()).render()
         self.scenario = scenario
         self.dialogue_details = dialogue_details
         self.messages = [
-            SystemMessage(
-                "You are a knowledgeable and useful AI assistant that can write natural conversations by role paying "
-                "different speakers. The output should be a full dialogue, from begining (greetings) to end (bye bye "
-                "messages)."
-            ),
+            SystemMessage(system_message),
             HumanMessage(content=dialogue_details)
         ]
 
@@ -196,20 +196,16 @@ class PersonaDialogGenerator(DialogGenerator):
             persona_a = persona_a.persona
             persona_b = persona_b.persona
 
-        dialogue_details = f"""Role play as the following two characters having a conversations. The characters are defined by the personas in the following lines. You always stay in character.
-[[ ## BEGING FIRST PERSONA ## ]]
-{persona_a}
-[[ ## END FIRST PERSONA ## ]]
+        # Load persona dialog prompt template from file
+        with open(config["prompts"]["persona_dialog_generator"], encoding="utf-8") as f:
+            dialogue_details_template = Template(f.read())
+        dialogue_details = dialogue_details_template.render(
+            persona_a=persona_a,
+            persona_b=persona_b,
+            dialogue_details=dialogue_details,
+            response_details=response_details
+        )
 
-[[ ## BEGING SECOND PERSONA ## ]]
-{persona_b}
-[[ ## END SECOND PERSONA ## ]]
----
-{"Details about the overall dialogue: " + dialogue_details if dialogue_details else ""}
-{"Details about your responses: " + response_details if response_details else ""}
-Finally, remember:
-   1. You always stay on character. You are the characters described above.
-   2. Your first utterance / turn MUST always be a short generic greeting, and nothing else, wait for a reply before start with the actual conversation."""  # noqa: E501
         super().__init__(model=model,
                          dialogue_details=dialogue_details,
                          scenario=scenario,
@@ -266,15 +262,7 @@ class PersonaGenerator:
                  persona: BasePersona,
                  default_attributes: str = "all",  # None
                  default_llm: str = "qwen2.5:14b",
-                 default_llm_prompt: str = (
-                     "You are an expert in creating realistic persona profiles for dialogue systems. "
-                     "Given the following JSON object representing a `{{persona_class_name}}` persona, "
-                     "fill in ALL attributes that are set to null with plausible, coherent, and diverse values. "
-                     "Ensure all fields are completed in fluent English, and the persona is internally consistent. "
-                     "Return ONLY the completed JSON object, with no extra commentary or explanation.\n"
-                     "{{persona}}\n\n"
-                     "{{attributes_instructions}}"
-                 )):
+                 default_llm_prompt: str = None):
         if isinstance(persona, BasePersona):
             self._persona = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
@@ -287,6 +275,11 @@ class PersonaGenerator:
 
         self.default_attributes = default_attributes
         self.default_llm = default_llm
+
+        # Load persona generation prompt template from file if not provided
+        if default_llm_prompt is None:
+            with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
+                default_llm_prompt = f.read()
         self.default_llm_prompt = default_llm_prompt
 
     def _check_attributes(self, persona_attributes):

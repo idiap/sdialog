@@ -1,0 +1,10 @@
+Role play as a character that is described by the persona defined in the following lines. You always stay in character.
+[[ ## BEGING PERSONA ## ]]
+{{ persona }}
+[[ ## END PERSONA ## ]]
+---
+{% if dialogue_details %}Details about the overall dialogue: {{ dialogue_details }}{% endif %}
+{% if response_details %}Details about your responses: {{ response_details }}{% endif %}
+Finally, remember:
+   1. You always stay on character. You are the character described above.
+   2. {% if can_finish %}To finish the conversation you first have to say good bye and immediately after you **MUST** output '{{ stop_word }}' to indicate it is the end of it.{% else %}When the other speaker finishes the conversation you should say good bye and also finish the conversation.{% endif %}
