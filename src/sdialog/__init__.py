@@ -89,6 +89,8 @@ class Dialog(BaseModel):
     :vartype seed: Optional[int]
     :ivar dialogId: Unique identifier for the dialogue.
     :vartype dialogId: Optional[int]
+    :ivar dialogIdParent: ID of the parent dialogue, if any.
+    :vartype dialogIdParent: Optional[int]
     :ivar complete: Whether the dialogue is complete.
     :vartype complete: Optional[bool]
     :ivar personas: Personas used in the dialogue, mapping speaker names to their attributes.
@@ -104,7 +106,8 @@ class Dialog(BaseModel):
     formatVersion: Optional[str] = Field(default_factory=_get_dynamic_version)  # Version of the format
     model: Optional[str] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generated
-    dialogId: Optional[int] = None
+    dialogId: Optional[int] = None  # Unique ID for the dialogue
+    dialogIdParent: Optional[int] = None  # ID of the parent dialogue, if any
     complete: Optional[bool] = None
     personas: Optional[dict[str, dict[str, Any]]] = None  # personas used in the dialogue
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue

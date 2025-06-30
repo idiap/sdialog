@@ -559,6 +559,7 @@ class PersonaAgent:
                     agent: "PersonaAgent",
                     max_iterations: int = 20,
                     id: int = None,
+                    parent_id: int = None,
                     seed: int = None,
                     notes: str = None,
                     keep_bar: bool = True):
@@ -571,6 +572,8 @@ class PersonaAgent:
         :type max_iterations: int
         :param id: Dialogue ID.
         :type id: int
+        :param parent_id: ID of the parent dialogue, if any.
+        :type parent_id: int
         :param seed: Random seed for reproducibility.
         :type seed: int
         :param notes: Optional notes to include in the dialogue.
@@ -644,6 +647,7 @@ class PersonaAgent:
 
         return Dialog(
             dialogId=id if id else None,
+            dialogIdParent=parent_id,
             complete=completion,  # incomplete if ran out of iterations (reached max_iteration number)
             model=self.model_name,
             seed=seed,

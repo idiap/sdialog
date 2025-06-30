@@ -91,7 +91,7 @@ class DialogGenerator:
         self.model_name = model
         self.set(dialogue_details, scenario)
 
-    def generate(self, seed: int = None, id: int = None, notes: str = None):
+    def generate(self, seed: int = None, id: int = None, parent_id: int = None, notes: str = None):
         """
         Generates a synthetic dialogue using the LLM.
 
@@ -99,6 +99,8 @@ class DialogGenerator:
         :type seed: int
         :param id: Dialogue ID.
         :type id: int
+        :param parent_id: ID of the parent dialogue, if any.
+        :type parent_id: int
         :param notes: Optional notes to include in the dialogue.
         :type notes: str
         :return: The generated dialogue or output object.
@@ -122,6 +124,7 @@ class DialogGenerator:
 
             if self.output_format is LLMDialogOutput:
                 return Dialog(dialogId=id if id else None,
+                              dialogIdParent=parent_id,
                               model=self.model_name,
                               seed=self.llm.seed,
                               personas=self._personas,
@@ -214,15 +217,37 @@ class PersonaDialogGenerator(DialogGenerator):
                              persona_b.name: persona_b.json()
                          })
 
-    def generate(self, seed: int = None, id: int = None, max_iterations: int = 20, notes: str = None):
+    def generate(self,
+                 seed: int = None,
+                 id: int = None,
+                 parent_id: int = None,
+                 max_iterations: int = 20,
+                 notes: str = None):
+        """
+        Generates a dialogue between two personas using the LLM or PersonaAgents.
+
+        :param seed: Random seed for reproducibility.
+        :type seed: int, optional
+        :param id: Dialogue ID.
+        :type id: int, optional
+        :param parent_id: ID of the parent dialogue, if any.
+        :type parent_id: int, optional
+        :param max_iterations: Maximum number of dialogue turns. Only used if both agents are PersonaAgent.
+        :type max_iterations: int, optional
+        :param notes: Optional notes to include in the dialogue.
+        :type notes: str, optional
+        :return: The generated dialogue as a Dialog object, or the output format specified.
+        :rtype: Dialog or output object
+        """
         if self._agent_a and self._agent_b:
             return self._agent_a.dialog_with(self._agent_b,
                                              max_iterations=max_iterations,
                                              id=id,
                                              seed=seed,
-                                             notes=notes)
+                                             notes=notes,
+                                             parent_id=parent_id)
         else:
-            return super().generate(seed=seed, id=id, notes=notes)
+            return super().generate(seed=seed, id=id, notes=notes, parent_id=parent_id)
 
     __call__ = generate  # alias for generate method
 
