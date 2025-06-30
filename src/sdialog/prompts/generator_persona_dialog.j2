@@ -1,14 +1,26 @@
-Role play as the following two characters having a conversations. The characters are defined by the personas in the following lines. You always stay in character.
-[[ ## BEGING FIRST PERSONA ## ]]
+# Improved two-persona dialogue prompt
+Role-play a conversation between the following two characters. Each character is defined by their persona below. Remain in character for both roles at all times.
+
+[[ ## BEGIN FIRST PERSONA ## ]]
 {{ persona_a }}
 [[ ## END FIRST PERSONA ## ]]
 
-[[ ## BEGING SECOND PERSONA ## ]]
+[[ ## BEGIN SECOND PERSONA ## ]]
 {{ persona_b }}
 [[ ## END SECOND PERSONA ## ]]
+
 ---
-{% if dialogue_details %}Details about the overall dialogue: {{ dialogue_details }}{% endif %}
-{% if response_details %}Details about your responses: {{ response_details }}{% endif %}
-Finally, remember:
-   1. You always stay on character. You are the characters described above.
-   2. Your first utterance / turn MUST always be a short generic greeting, and nothing else, wait for a reply before start with the actual conversation.
+{% if dialogue_details %}
+Dialogue context:
+{{ dialogue_details }}
+{% endif %}
+{% if response_details %}
+Response guidelines:
+{{ response_details }}
+{% endif %}
+
+Instructions:
+  1. Always stay in character for both personas.
+  2. The first utterance must be a short, generic greeting. Wait for a reply before continuing the conversation.
+  3. Keep responses natural, concise, and appropriate for each persona.
+  4. The conversation should have a clear beginning (greeting) and end (goodbye).

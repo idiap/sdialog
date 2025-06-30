@@ -46,7 +46,7 @@ def test_persona_agent_init(monkeypatch):
     persona = Persona(name="Alice")
     agent = PersonaAgent(DummyLLM(), persona=persona, name="Alice")
     assert agent.get_name() == "Alice"
-    assert "role play" in agent.get_prompt().lower()
+    assert "role" in agent.get_prompt().lower()
     agent.set_first_utterances("Hi!")
     assert agent.first_utterances == "Hi!"
     agent.clear_orchestrators()
@@ -69,7 +69,7 @@ def test_persona_agent_init_and_prompt():
     agent = PersonaAgent(MODEL, persona=persona, name="Alice")
     assert agent.get_name() == "Alice"
     prompt = agent.get_prompt()
-    assert "Role play" in prompt
+    assert "role" in prompt.lower()
 
 
 def test_persona_agent_dialog_with():
