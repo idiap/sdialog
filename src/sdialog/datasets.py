@@ -95,7 +95,7 @@ class STAR:
                 e["Agent"] = "System"
 
         return Dialog(
-            dialogId=id,
+            id=id,
             scenario=dialog["Scenario"],
             turns=[Turn(speaker=e["Agent"], text=e["Text"])
                    for e in dialog["Events"]

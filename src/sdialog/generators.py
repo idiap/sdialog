@@ -123,8 +123,8 @@ class DialogGenerator:
             llm_output = self.output_format.model_validate(json.loads(dialogue))
 
             if self.output_format is LLMDialogOutput:
-                return Dialog(dialogId=id if id else None,
-                              dialogIdParent=parent_id,
+                return Dialog(id=id if id else None,
+                              parentId=parent_id,
                               model=self.model_name,
                               seed=self.llm.seed,
                               personas=self._personas,

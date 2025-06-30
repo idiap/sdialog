@@ -646,8 +646,8 @@ class PersonaAgent:
             }
 
         return Dialog(
-            dialogId=id if id else None,
-            dialogIdParent=parent_id,
+            id=id if id else None,
+            parentId=parent_id,
             complete=completion,  # incomplete if ran out of iterations (reached max_iteration number)
             model=self.model_name,
             seed=seed,

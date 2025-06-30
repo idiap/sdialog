@@ -106,8 +106,8 @@ class Dialog(BaseModel):
     formatVersion: Optional[str] = Field(default_factory=_get_dynamic_version)  # Version of the format
     model: Optional[str] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generated
-    dialogId: Optional[int] = None  # Unique ID for the dialogue
-    dialogIdParent: Optional[int] = None  # ID of the parent dialogue, if any
+    id: Optional[int] = None  # Unique ID for the dialogue
+    parentId: Optional[int] = None  # ID of the parent dialogue, if any
     complete: Optional[bool] = None
     personas: Optional[dict[str, dict[str, Any]]] = None  # personas used in the dialogue
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
@@ -286,8 +286,8 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
     speaker_utt_colors = ["grey", "white"]
     # speaker_utt_colors = ["black", "grey"]
 
-    if dialog.dialogId:
-        print(dialog.dialogId, tag="dialog_id", tag_color="purple", color="magenta", format="bold")
+    if dialog.id:
+        print(dialog.id, tag="dialog_id", tag_color="purple", color="magenta", format="bold")
     if dialog.complete:
         print(dialog.complete, tag="complete", tag_color="purple", color="magenta", format="bold")
     if dialog.model:
