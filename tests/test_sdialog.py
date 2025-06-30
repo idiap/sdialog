@@ -25,7 +25,7 @@ def test_dialog_serialization_and_str():
     turns = [Turn(speaker="A", text="Hi"), Turn(speaker="B", text="Hello")]
     dialog = Dialog(turns=turns)
     json_obj = dialog.json()
-    assert dialog.formatVersion == _get_dynamic_version()
+    assert dialog.version == _get_dynamic_version()
     assert isinstance(json_obj, dict)
     assert "turns" in json_obj
     assert dialog.description().startswith("A: Hi")
