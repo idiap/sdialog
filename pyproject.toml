@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "sdialog"
 authors = [
   { name="Sergio Burdisso", email="sergio.burdisso@gmail.com" },
+  { name="Severin Baroudi", email="sevbargal@outlook.fr" },
+  { name="Yanis Labrak", email="yanis.labrak@univ-avignon.fr" },
 ]
 description = "Synthetic Dialogue Generation and Analysis"
 readme = "README.md"
@@ -14,7 +16,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development",
