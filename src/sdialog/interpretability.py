@@ -1,3 +1,8 @@
+# COPY
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>
+# SPDX-License-Identifier: MIT
+
 import torch
 from langchain_core.messages import SystemMessage
 
