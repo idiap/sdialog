@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionnaire de Personas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .card {
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .btn-generate {
+            margin-bottom: 20px;
+        }
+        .furniture-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Gestionnaire de Personas et Configuration de Salle</h1>
+        
+        <div class="row">
+            <!-- Patient Persona -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">Patient</h3>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success btn-generate w-100 mb-3" onclick="generatePersona('patient')">
+                            <i class="fas fa-magic"></i> Générer Patient
+                        </button>
+                        <form id="patientForm">
+                            <!-- Demographics -->
+                            <h4>Informations Démographiques</h4>
+                            <div class="form-group">
+                                <label>Nom</label>
+                                <input type="text" class="form-control" name="name">
+                            </div>
+                            <div class="form-group">
+                                <label>Âge</label>
+                                <input type="number" class="form-control" name="age">
+                            </div>
+                            <div class="form-group">
+                                <label>Race</label>
+                                <input type="text" class="form-control" name="race">
+                            </div>
+                            <div class="form-group">
+                                <label>Genre</label>
+                                <select class="form-control" name="gender">
+                                    <option value="">Sélectionner</option>
+                                    <option value="male">Homme</option>
+                                    <option value="female">Femme</option>
+                                    <option value="other">Autre</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Langue</label>
+                                <input type="text" class="form-control" name="language" value="French">
+                            </div>
+                            <div class="form-group">
+                                <label>Poids</label>
+                                <input type="text" class="form-control" name="weight">
+                            </div>
+                            <div class="form-group">
+                                <label>Taille</label>
+                                <input type="text" class="form-control" name="height">
+                            </div>
+
+                            <!-- Medical Information -->
+                            <h4 class="mt-4">Informations Médicales</h4>
+                            <div class="form-group">
+                                <label>Symptômes</label>
+                                <textarea class="form-control" name="symptoms" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Signes Vitaux</label>
+                                <textarea class="form-control" name="vital_signs" rows="2"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Conditions Médicales</label>
+                                <textarea class="form-control" name="medical_conditions" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Médicaments</label>
+                                <textarea class="form-control" name="medications" rows="2"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Allergies</label>
+                                <textarea class="form-control" name="allergies" rows="2"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Historique Familial</label>
+                                <textarea class="form-control" name="family_history" rows="3"></textarea>
+                            </div>
+
+                            <!-- Background -->
+                            <h4 class="mt-4">Contexte</h4>
+                            <div class="form-group">
+                                <label>Éducation</label>
+                                <input type="text" class="form-control" name="education">
+                            </div>
+                            <div class="form-group">
+                                <label>Statut Socio-économique</label>
+                                <input type="text" class="form-control" name="socioeconomic_status">
+                            </div>
+                            <div class="form-group">
+                                <label>Intérêts</label>
+                                <textarea class="form-control" name="interests" rows="2"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctor Persona -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="card-title mb-0">Médecin</h3>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success btn-generate w-100 mb-3" onclick="generatePersona('doctor')">
+                            <i class="fas fa-magic"></i> Générer Médecin
+                        </button>
+                        <form id="doctorForm">
+                            <!-- Demographics -->
+                            <h4>Informations Démographiques</h4>
+                            <div class="form-group">
+                                <label>Nom</label>
+                                <input type="text" class="form-control" name="name">
+                            </div>
+                            <div class="form-group">
+                                <label>Âge</label>
+                                <input type="number" class="form-control" name="age">
+                            </div>
+                            <div class="form-group">
+                                <label>Race</label>
+                                <input type="text" class="form-control" name="race">
+                            </div>
+                            <div class="form-group">
+                                <label>Genre</label>
+                                <select class="form-control" name="gender">
+                                    <option value="">Sélectionner</option>
+                                    <option value="male">Homme</option>
+                                    <option value="female">Femme</option>
+                                    <option value="other">Autre</option>
+                                </select>
+                            </div>
+
+                            <!-- Professional Information -->
+                            <h4 class="mt-4">Informations Professionnelles</h4>
+                            <div class="form-group">
+                                <label>Spécialité</label>
+                                <input type="text" class="form-control" name="specialty">
+                            </div>
+                            <div class="form-group">
+                                <label>Années d'Expérience</label>
+                                <input type="number" class="form-control" name="years_of_experience">
+                            </div>
+                            <div class="form-group">
+                                <label>Certifications</label>
+                                <textarea class="form-control" name="certifications" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Expérience Professionnelle</label>
+                                <textarea class="form-control" name="work_experience" rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Configuration -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h3 class="card-title mb-0">Configuration de la Salle</h3>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success btn-generate w-100 mb-3" onclick="generateRoom()">
+                            <i class="fas fa-magic"></i> Générer Salle
+                        </button>
+                        <form id="roomForm">
+                            <!-- Room Dimensions -->
+                            <h4>Dimensions</h4>
+                            <div class="form-group">
+                                <label>Largeur (m)</label>
+                                <input type="number" class="form-control" id="roomWidth" name="width" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Longueur (m)</label>
+                                <input type="number" class="form-control" id="roomLength" name="length" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Hauteur (m)</label>
+                                <input type="number" class="form-control" id="roomHeight" name="height" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Volume (m³)</label>
+                                <input type="number" class="form-control" id="roomVolume" name="volume" readonly>
+                            </div>
+
+                            <!-- Room Properties -->
+                            <h4 class="mt-4">Propriétés</h4>
+                            <div class="form-group">
+                                <label>Type de Mur (Coefficient d'absorption)</label>
+                                <select class="form-control" name="wall_type">
+                                    <option value="0.02">Béton (0.02)</option>
+                                    <option value="0.05">Brique (0.05)</option>
+                                    <option value="0.10">Plâtre (0.10)</option>
+                                    <option value="0.30">Panneau acoustique (0.30)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Rôle de la Salle</label>
+                                <select class="form-control" name="room_role">
+                                    <option value="examination">Examen</option>
+                                    <option value="treatment">Traitement</option>
+                                    <option value="patient">Chambre Patient</option>
+                                </select>
+                            </div>
+
+                            <!-- Recording Device -->
+                            <h4 class="mt-4">Dispositif d'Enregistrement</h4>
+                            <div class="form-group">
+                                <label>Type de Dispositif</label>
+                                <select class="form-control" name="recording_device">
+                                    <option value="cellphone">Téléphone portable</option>
+                                    <option value="webcam">Webcam</option>
+                                    <option value="high_quality_mic">Microphone haute qualité</option>
+                                    <option value="tablet">Tablette</option>
+                                    <option value="beamforming_mic">Microphone beamforming</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Position du Microphone (x, y, z en mètres)</label>
+                                <div class="row">
+                                    <div class="col">
+                                        <input type="number" class="form-control" name="mic_x" placeholder="X" step="0.01">
+                                    </div>
+                                    <div class="col">
+                                        <input type="number" class="form-control" name="mic_y" placeholder="Y" step="0.01">
+                                    </div>
+                                    <div class="col">
+                                        <input type="number" class="form-control" name="mic_z" placeholder="Z" step="0.01">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Furniture -->
+                            <h4 class="mt-4">Mobilier</h4>
+                            <div id="furnitureList">
+                                <!-- Furniture items will be added here -->
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" onclick="addFurniture()">
+                                <i class="fas fa-plus"></i> Ajouter un Meuble
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="row mt-4 mb-4">
+            <div class="col-12 text-center">
+                <button class="btn btn-primary btn-lg" onclick="saveAll()">
+                    <i class="fas fa-save"></i> Sauvegarder la Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRoomForm();
+        });
+
+        function initializeRoomForm() {
+            const widthInput = document.getElementById('roomWidth');
+            const lengthInput = document.getElementById('roomLength');
+            const heightInput = document.getElementById('roomHeight');
+            
+            [widthInput, lengthInput, heightInput].forEach(input => {
+                if (input) {
+                    input.addEventListener('input', updateVolume);
+                }
+            });
+        }
+
+        // Furniture counter for unique IDs
+        let furnitureCounter = 0;
+
+        // Add new furniture item
+        function addFurniture() {
+            const furnitureList = document.getElementById('furnitureList');
+            const furnitureId = furnitureCounter++;
+            
+            const furnitureHtml = `
+                <div class="furniture-item" id="furniture-${furnitureId}">
+                    <h5>Meuble</h5>
+                    <div class="form-group">
+                        <label>Nom du Meuble</label>
+                        <input type="text" class="form-control" name="furniture_name_${furnitureId}">
+                    </div>
+                    <div class="form-group">
+                        <label>Dimensions (Largeur, Longueur, Hauteur en m)</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="number" class="form-control" id="furniture_width_${furnitureId}" name="furniture_width_${furnitureId}" placeholder="Largeur" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
+                            </div>
+                            <div class="col">
+                                <input type="number" class="form-control" id="furniture_length_${furnitureId}" name="furniture_length_${furnitureId}" placeholder="Longueur" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
+                            </div>
+                            <div class="col">
+                                <input type="number" class="form-control" id="furniture_height_${furnitureId}" name="furniture_height_${furnitureId}" placeholder="Hauteur" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Volume (m³)</label>
+                        <input type="number" class="form-control" id="furniture_volume_${furnitureId}" name="furniture_volume_${furnitureId}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Position (x, y, z en mètres)</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="number" class="form-control" name="furniture_x_${furnitureId}" placeholder="X" step="0.01">
+                            </div>
+                            <div class="col">
+                                <input type="number" class="form-control" name="furniture_y_${furnitureId}" placeholder="Y" step="0.01">
+                            </div>
+                            <div class="col">
+                                <input type="number" class="form-control" name="furniture_z_${furnitureId}" placeholder="Z" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeFurniture(${furnitureId})">
+                        <i class="fas fa-trash"></i> Supprimer
+                    </button>
+                </div>
+            `;
+            
+            furnitureList.insertAdjacentHTML('beforeend', furnitureHtml);
+        }
+
+        // Remove furniture item
+        function removeFurniture(id) {
+            const furniture = document.getElementById(`furniture-${id}`);
+            if (furniture) {
+                furniture.remove();
+            }
+        }
+
+        function updateFurnitureVolume(id) {
+            const width = parseFloat(document.getElementById(`furniture_width_${id}`).value.replace(',', '.')) || 0;
+            const length = parseFloat(document.getElementById(`furniture_length_${id}`).value.replace(',', '.')) || 0;
+            const height = parseFloat(document.getElementById(`furniture_height_${id}`).value.replace(',', '.')) || 0;
+            
+            const volume = width * length * height;
+            const volumeInput = document.getElementById(`furniture_volume_${id}`);
+            if(volumeInput) {
+                volumeInput.value = (Math.round(volume * 100) / 100).toFixed(2);
+            }
+        }
+
+        // Update volume when dimensions change
+        function updateVolume() {
+            const width = parseFloat(document.getElementById('roomWidth').value.replace(',', '.')) || 0;
+            const length = parseFloat(document.getElementById('roomLength').value.replace(',', '.')) || 0;
+            const height = parseFloat(document.getElementById('roomHeight').value.replace(',', '.')) || 0;
+            
+            const volume = width * length * height;
+            const volumeInput = document.getElementById('roomVolume');
+            if(volumeInput) {
+                volumeInput.value = (Math.round(volume * 100) / 100).toFixed(2);
+            }
+        }
+
+        // Generate room configuration
+        function generateRoom() {
+            // Standard room dimensions
+            const roomWidth = Math.round((Math.random() * 2 + 3) * 100) / 100;  // 3-5m
+            const roomLength = Math.round((Math.random() * 2 + 3) * 100) / 100; // 3-5m
+            const roomHeight = 3; // Standard height
+            
+            // Set dimensions
+            document.getElementById('roomWidth').value = roomWidth;
+            document.getElementById('roomLength').value = roomLength;
+            document.getElementById('roomHeight').value = roomHeight;
+            
+            // Calculate volume
+            updateVolume();
+            
+            // Set random wall type
+            const wallTypes = ['0.02', '0.05', '0.10', '0.30'];
+            document.querySelector('[name="wall_type"]').value = wallTypes[Math.floor(Math.random() * wallTypes.length)];
+            
+            // Set random room role
+            const roomRoles = ['examination', 'treatment', 'patient'];
+            document.querySelector('[name="room_role"]').value = roomRoles[Math.floor(Math.random() * roomRoles.length)];
+            
+            // Set random recording device
+            const devices = ['cellphone', 'webcam', 'high_quality_mic', 'tablet', 'beamforming_mic'];
+            document.querySelector('[name="recording_device"]').value = devices[Math.floor(Math.random() * devices.length)];
+            
+            // Set random microphone position within room bounds
+            document.querySelector('[name="mic_x"]').value = Math.round(Math.random() * roomWidth * 100) / 100;
+            document.querySelector('[name="mic_y"]').value = Math.round(Math.random() * roomLength * 100) / 100;
+            document.querySelector('[name="mic_z"]').value = Math.round((Math.random() * 1.5 + 1) * 100) / 100; // Height between 1-2.5m
+            
+            // Generate some random furniture
+            const furnitureList = document.getElementById('furnitureList');
+            furnitureList.innerHTML = ''; // Clear existing furniture
+            
+            // Add some basic furniture
+            const basicFurniture = [
+                {name: 'Bureau', width: 1.2, length: 0.6, height: 0.75},
+                {name: 'Chaise', width: 0.5, length: 0.5, height: 0.9},
+                {name: 'Lit médical', width: 0.9, length: 2.0, height: 0.8},
+                {name: 'Armoire', width: 1.0, length: 0.6, height: 1.8}
+            ];
+            
+            // Add 2-4 pieces of furniture
+            const numFurniture = Math.floor(Math.random() * 3) + 2;
+            for(let i = 0; i < numFurniture; i++) {
+                const furniture = basicFurniture[Math.floor(Math.random() * basicFurniture.length)];
+                addFurniture();
+                const lastFurniture = furnitureList.lastElementChild;
+                
+                // Fill in the furniture details
+                if(lastFurniture) {
+                    const furnitureId = parseInt(lastFurniture.id.split('-')[1]);
+                    lastFurniture.querySelector(`[name^="furniture_name_"]`).value = furniture.name;
+                    document.getElementById(`furniture_width_${furnitureId}`).value = furniture.width;
+                    document.getElementById(`furniture_length_${furnitureId}`).value = furniture.length;
+                    document.getElementById(`furniture_height_${furnitureId}`).value = furniture.height;
+                    updateFurnitureVolume(furnitureId);
+                    
+                    lastFurniture.querySelector('[name^="furniture_x_"]').value = 
+                        Math.round(Math.random() * roomWidth * 100) / 100;
+                    lastFurniture.querySelector('[name^="furniture_y_"]').value = 
+                        Math.round(Math.random() * roomLength * 100) / 100;
+                    lastFurniture.querySelector('[name^="furniture_z_"]').value = 0; // On the floor
+                }
+            }
+        }
+
+        // Generate persona using the backend API
+        async function generatePersona(type) {
+            try {
+                const response = await fetch(`/api/generate/persona/${type}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const form = document.getElementById(`${type}Form`);
+                    
+                    // Fill in all the form fields from the generated persona
+                    Object.entries(data).forEach(([key, value]) => {
+                        if (key !== '_metadata') {
+                            const input = form.elements[key];
+                            if (input) {
+                                input.value = value;
+                            }
+                        }
+                    });
+                } else {
+                    console.error('Error generating persona:', data.error);
+                    alert('Erreur lors de la génération du persona');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Erreur lors de la génération du persona');
+            }
+        }
+
+        // Save all configurations to the backend
+        async function saveAll() {
+            const config = {
+                patient: getFormData('patientForm'),
+                doctor: getFormData('doctorForm'),
+                room: getRoomData()
+            };
+            
+            try {
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Configuration sauvegardée avec succès !');
+                } else {
+                    console.error('Error saving configuration:', data.error);
+                    alert('Erreur lors de la sauvegarde de la configuration');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Erreur lors de la sauvegarde de la configuration');
+            }
+        }
+
+        // Helper function to get form data
+        function getFormData(formId) {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            return data;
+        }
+
+        // Helper function to get room data including furniture
+        function getRoomData() {
+            const roomData = getFormData('roomForm');
+            roomData.furniture = [];
+            
+            const furnitureItems = document.querySelectorAll('.furniture-item');
+            furnitureItems.forEach((item) => {
+                const furnitureId = parseInt(item.id.split('-')[1]);
+                roomData.furniture.push({
+                    name: item.querySelector(`[name="furniture_name_${furnitureId}"]`).value,
+                    width: parseFloat(document.getElementById(`furniture_width_${furnitureId}`).value),
+                    length: parseFloat(document.getElementById(`furniture_length_${furnitureId}`).value),
+                    height: parseFloat(document.getElementById(`furniture_height_${furnitureId}`).value),
+                    volume: parseFloat(document.getElementById(`furniture_volume_${furnitureId}`).value),
+                    position: {
+                        x: parseFloat(item.querySelector(`[name="furniture_x_${furnitureId}"]`).value),
+                        y: parseFloat(item.querySelector(`[name="furniture_y_${furnitureId}"]`).value),
+                        z: parseFloat(item.querySelector(`[name="furniture_z_${furnitureId}"]`).value)
+                    }
+                });
+            });
+            
+            return roomData;
+        }
+    </script>
+</body>
+</html>
