@@ -1,7 +1,7 @@
 pydantic
 print-color
 tqdm
-langchain
+langchain>=0.3.26
 langchain-ollama
 langchain-huggingface
 numpy
@@ -12,3 +12,5 @@ pytest-cov
 codecov
 flake8
 Jinja2
+PyYAML
+pre-commit

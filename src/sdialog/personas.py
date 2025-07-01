@@ -13,6 +13,7 @@ import sys
 import json
 import torch
 import random
+import logging
 import inspect
 import transformers
 
@@ -30,6 +31,13 @@ from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .orchestrators import BaseOrchestrator
 from .util import config, camel_or_snake_to_words
 from jinja2 import Template
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 class PersonaMetadata(BaseModel):
@@ -468,7 +476,7 @@ class PersonaAgent:
             # If model name has a slash, assume it's a Hugging Face model
             # Otherwise, assume it's an Ollama model
             if "/" in model:
-                print("Loading Hugging Face model:", model)
+                logging.info(f"Loading Hugging Face model: {model}")
                 self.hf_model = True
 
                 # Default HuggingFace parameters
@@ -492,7 +500,7 @@ class PersonaAgent:
                                             model_kwargs={'temperature': hf_params.get("temperature", 0.3)})
                 )
             else:
-                print("Loading ChatOllama model:", model)
+                logging.info(f"Loading ChatOllama model: {model}")
                 # Default Ollama params
                 ollama_defaults = dict(
                     model=model,

@@ -7,12 +7,20 @@ This module provides functions to evaluate the consistency of speaker audio acro
 import torch
 import whisperx
 import numpy as np
+import logging
 from typing import List, Tuple
 from collections import defaultdict
 from scipy.spatial.distance import cdist
 
 from pyannote.audio import Model
 from pyannote.audio import Inference
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 model = Model.from_pretrained("pyannote/embedding")
 inference = Inference(model, window="whole")
@@ -120,5 +128,5 @@ def timestamps_alignment(audio: np.ndarray) -> dict:
         return aligned_segments
 
     except Exception as e:
-        print(f"Error during alignment: {e}")
+        logging.error(f"Error during alignment: {e}")
         return None

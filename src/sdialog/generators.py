@@ -11,6 +11,7 @@ import re
 import csv
 import json
 import random
+import logging
 
 from jinja2 import Template
 from typing import Union, List, Any
@@ -21,6 +22,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from . import Dialog, Turn
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 from .util import config
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 class LLMDialogOutput(BaseModel):
@@ -493,17 +501,22 @@ class PersonaGenerator:
             except ValidationError:
                 missing_attributes = {k: v for k, v in self._persona.model_dump().items()
                                       if k not in random_persona_dict or random_persona_dict[k] is None}
-                print(f"\n\nWARNING! The following {len(missing_attributes)} attributes are missing in the "
-                      f"generated persona: {', '.join(missing_attributes.keys())}."
-                      f"Tyring to fill the missing attributes again (attempt {attempt + 1} out of {max_attempts})...")
+                logging.warning(
+                    f"The following {len(missing_attributes)} attributes are missing in the "
+                    f"generated persona: {', '.join(missing_attributes.keys())}. "
+                    f"Trying to fill the missing attributes again (attempt {attempt + 1} out of {max_attempts})..."
+                )
+
                 target_persona_dict = {k: v if k in missing_attributes else random_persona_dict[k]
                                        for k, v in target_persona_dict.items()}
 
         # If we ran out of attempts and still have missing attributes...
         # we return a persona with missing attributes filled with default null values
         if random_persona is None:
-            print(f"WARNING! the generated persona is missing the following {len(missing_attributes)} attributes: "
-                  f"{', '.join(missing_attributes.keys())}. ")
+            logging.warning(
+                f"The generated persona is missing the following {len(missing_attributes)} attributes: "
+                f"{', '.join(missing_attributes.keys())}."
+            )
             random_persona_dict.update(missing_attributes)
             random_persona = self._persona.model_validate(random_persona_dict)
 
