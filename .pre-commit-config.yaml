@@ -8,7 +8,7 @@ repos:
         always_run: true
         language: system
         types: [python]
-        stages: [commit]
+        stages: [pre-commit]
       - id: pytest
         name: pytest
         entry: pytest tests
@@ -16,4 +16,4 @@ repos:
         always_run: true
         language: system
         types: [python]
-        stages: [push]
+        stages: [pre-push]
