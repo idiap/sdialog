@@ -1,6 +1,6 @@
 import os
 
-from sdialog.util import config
+from sdialog.config import config
 from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version
 
 

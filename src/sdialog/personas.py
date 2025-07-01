@@ -29,7 +29,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .orchestrators import BaseOrchestrator
-from .util import config, camel_or_snake_to_words
+from .util import camel_or_snake_to_words
+from .config import config
 from jinja2 import Template
 
 
@@ -423,9 +424,9 @@ class PersonaAgent:
     STOP_WORD_TEXT = "(bye bye!)"
 
     def __init__(self,
-                 model: Union[str, ChatOllama] = "qwen2.5:14b",
-                 persona: BasePersona = Persona(),
+                 persona: BasePersona,
                  name: str = None,
+                 model: Union[str, ChatOllama] = None,
                  dialogue_details: str = "",
                  response_details: str = "responses SHOULD NOT be too long and wordy, should be "
                                          "approximately one utterance long",
@@ -438,10 +439,10 @@ class PersonaAgent:
         """
         Initializes a PersonaAgent for role-play dialogue.
 
-        :param model: The LLM or model name to use.
-        :type model: Union[str, ChatOllama]
         :param persona: The persona to role-play.
         :type persona: BasePersona
+        :param model: The LLM or model name to use.
+        :type model: Union[str, ChatOllama]
         :param name: Name of the agent.
         :type name: str
         :param dialogue_details: Additional details about the dialogue.
@@ -460,6 +461,9 @@ class PersonaAgent:
         :type llm_kwargs: dict
         """
 
+        if model is None:
+            model = config["llm"]["model"]
+
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
                 system_prompt_template = Template(f.read())
@@ -470,7 +474,9 @@ class PersonaAgent:
                 can_finish=can_finish,
                 stop_word=self.STOP_WORD
             )
-        llm_kwargs = llm_kwargs or {}
+
+        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+        llm_kwargs = llm_kwargs or llm_config_params
         self.hf_model = False
         if isinstance(model, str):
             # If model name has a slash, assume it's a Hugging Face model
@@ -501,14 +507,9 @@ class PersonaAgent:
                 )
             else:
                 logging.info(f"Loading ChatOllama model: {model}")
-                # Default Ollama params
-                ollama_defaults = dict(
-                    model=model,
-                    temperature=0.8,
-                    seed=13
-                )
-                ollama_params = {**ollama_defaults, **llm_kwargs}
-                self.llm = ChatOllama(**ollama_params)
+                # Collect LLM parameters from config, only if not None
+                # llm_kwargs overrides config
+                self.llm = ChatOllama(model=model, **llm_kwargs)
         else:
             # Assume model is already an instance
             self.llm = model
