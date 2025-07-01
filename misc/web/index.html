@@ -419,6 +419,20 @@
             }
         }
 
+        // Collision detection for furniture
+        function checkCollision(newItem, existingItems) {
+            for (const existingItem of existingItems) {
+                // AABB collision detection (2D)
+                if (newItem.position.x < existingItem.position.x + existingItem.width &&
+                    newItem.position.x + newItem.width > existingItem.position.x &&
+                    newItem.position.y < existingItem.position.y + existingItem.length &&
+                    newItem.position.y + newItem.length > existingItem.position.y) {
+                    return true; // Collision detected
+                }
+            }
+            return false; // No collision
+        }
+
         // Generate room configuration
         function generateRoom() {
             const roomWidth = Math.round((Math.random() * 2 + 3) * 100) / 100;  // 3-5m
@@ -453,6 +467,7 @@
             // Generate some random furniture
             const furnitureList = document.getElementById('furnitureList');
             furnitureList.innerHTML = ''; // Clear existing furniture
+            const placedFurniture = [];
             
             // Add some basic furniture
             const basicFurniture = [
@@ -465,24 +480,51 @@
             // Add 2-4 pieces of furniture
             const numFurniture = Math.floor(Math.random() * 3) + 2;
             for(let i = 0; i < numFurniture; i++) {
-                const furniture = basicFurniture[Math.floor(Math.random() * basicFurniture.length)];
-                addFurniture();
-                const lastFurniture = furnitureList.lastElementChild;
+                const furnitureTemplate = basicFurniture[Math.floor(Math.random() * basicFurniture.length)];
                 
-                // Fill in the furniture details
-                if(lastFurniture) {
-                    const furnitureId = parseInt(lastFurniture.id.split('-')[1]);
-                    lastFurniture.querySelector(`[name^="furniture_name_"]`).value = furniture.name;
-                    document.getElementById(`furniture_width_${furnitureId}`).value = furniture.width;
-                    document.getElementById(`furniture_length_${furnitureId}`).value = furniture.length;
-                    document.getElementById(`furniture_height_${furnitureId}`).value = furniture.height;
-                    updateFurnitureVolume(furnitureId);
-                    
-                    lastFurniture.querySelector('[name^="furniture_x_"]').value = 
-                        Math.round(Math.random() * roomWidth * 100) / 100;
-                    lastFurniture.querySelector('[name^="furniture_y_"]').value = 
-                        Math.round(Math.random() * roomLength * 100) / 100;
-                    lastFurniture.querySelector('[name^="furniture_z_"]').value = 0; // On the floor
+                let newFurniture = {
+                    name: furnitureTemplate.name,
+                    width: furnitureTemplate.width,
+                    length: furnitureTemplate.length,
+                    height: furnitureTemplate.height,
+                    position: { x: 0, y: 0, z: 0 }
+                };
+
+                let isPlaced = false;
+                const maxAttempts = 20;
+
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                    // Generate random position within room bounds
+                    newFurniture.position.x = Math.random() * (roomWidth - newFurniture.width);
+                    newFurniture.position.y = Math.random() * (roomLength - newFurniture.length);
+                    newFurniture.position.z = 0;
+
+                    if (!checkCollision(newFurniture, placedFurniture)) {
+                        placedFurniture.push(newFurniture);
+
+                        addFurniture(); // Add HTML element
+                        const lastFurnitureElement = furnitureList.lastElementChild;
+                        
+                        if(lastFurnitureElement) {
+                            const furnitureId = parseInt(lastFurnitureElement.id.split('-')[1]);
+                            lastFurnitureElement.querySelector(`[name^="furniture_name_"]`).value = newFurniture.name;
+                            
+                            document.getElementById(`furniture_width_${furnitureId}`).value = newFurniture.width.toFixed(2);
+                            document.getElementById(`furniture_length_${furnitureId}`).value = newFurniture.length.toFixed(2);
+                            document.getElementById(`furniture_height_${furnitureId}`).value = newFurniture.height.toFixed(2);
+                            updateFurnitureVolume(furnitureId);
+                            
+                            lastFurnitureElement.querySelector(`[name^="furniture_x_"]`).value = newFurniture.position.x.toFixed(2);
+                            lastFurnitureElement.querySelector(`[name^="furniture_y_"]`).value = newFurniture.position.y.toFixed(2);
+                            lastFurnitureElement.querySelector(`[name^="furniture_z_"]`).value = newFurniture.position.z.toFixed(2);
+                        }
+                        isPlaced = true;
+                        break; // Found a valid spot
+                    }
+                }
+
+                if (!isPlaced) {
+                    console.warn(`Could not place furniture '${newFurniture.name}' after ${maxAttempts} attempts.`);
                 }
             }
         }

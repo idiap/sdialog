@@ -26,22 +26,8 @@ try:
     # Load default configuration
     logger.info("Loading configuration...")
     
-    # Initialize generators with default configuration
-    base_patient = Patient(
-        name="",
-        age=30,
-        gender="",
-        language="English"
-    )
-    base_doctor = Doctor(
-        name="",
-        age=40,
-        gender="",
-        language="English"
-    )
-    
-    patient_generator = PersonaGenerator(persona=base_patient)
-    doctor_generator = PersonaGenerator(persona=base_doctor)
+    patient_generator = PersonaGenerator(persona=Patient)
+    doctor_generator = PersonaGenerator(persona=Doctor)
     logger.info("Persona generators initialized successfully")
     
 except Exception as e:
