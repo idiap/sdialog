@@ -68,6 +68,25 @@ class BasePersona(BaseModel, ABC):
     """
     _metadata: Optional[PersonaMetadata] = None
 
+    def clone(self, **kwargs) -> "BasePersona":
+        """
+        Creates a clone of the persona with optional overrides.
+
+        :param kwargs: Attributes to override in the cloned persona.
+        :return: A new instance of the persona with updated attributes.
+        :rtype: BasePersona
+        """
+        data = self.json()
+        data.update(kwargs)
+        new_persona = self.__class__(**data)
+        if self._metadata:
+            new_persona._metadata = self._metadata.model_dump()
+            new_persona._metadata.parent_id = self._metadata.id if self._metadata.id else None
+        else:
+            new_persona._metadata = PersonaMetadata(className=self.__class__.__name__,
+                                                    parent_id=self._metadata.id if self._metadata else None)
+        return new_persona
+
     def description(self) -> str:
         """
         Returns a string description of the persona's attributes.

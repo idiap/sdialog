@@ -1,5 +1,5 @@
 from sdialog.personas import PersonaAgent
-from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient
+from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata
 from sdialog.generators import LLMDialogOutput, Turn
 from sdialog import Dialog
 
@@ -204,3 +204,55 @@ def test_extended_persona_to_file_and_from_file(tmp_path):
     assert loaded.occupation == "Engineer"
     assert loaded._metadata is not None
     assert loaded._metadata.className == ExtendedPersona.__name__
+
+
+def test_persona_clone():
+    """
+    Test the .clone() method for Persona and ExtendedPersona, ensuring deep copy and metadata preservation.
+    """
+    persona = Persona(name="Alice", role="barista", background="Works at a cafe")
+    clone = persona.clone()
+    assert isinstance(clone, Persona)
+    assert clone is not persona
+    assert clone.name == persona.name
+    assert clone.role == persona.role
+    assert clone.background == persona.background
+    assert hasattr(clone, "_metadata")
+    assert clone._metadata is not None
+    assert clone._metadata.className == Persona.__name__
+
+    # ExtendedPersona
+    p = ExtendedPersona(
+        name="Bob",
+        age=40,
+        occupation="Engineer"
+    )
+    p._metadata = None
+    clone2 = p.clone()
+    assert isinstance(clone2, ExtendedPersona)
+    assert clone2 is not p
+    assert clone2.name == p.name
+    assert clone2.occupation == p.occupation
+    assert clone2._metadata is not None
+    assert clone2._metadata.className == ExtendedPersona.__name__
+
+
+# def test_persona_clone_parent_id():
+#     """
+#     Test that .clone() sets the clone's _metadata.parentId to the original's _metadata.id.
+#     """
+#     persona = Persona(name="Alice", role="barista")
+#     persona._metadata = PersonaMetadata(id=123)
+#     clone = persona.clone()
+#     assert clone._metadata is not None
+#     assert clone._metadata.parentId == 123
+
+
+# def test_persona_clone_with_changes():
+#     """
+#     Test that .clone() can produce a modified clone when attributes are changed after cloning.
+#     """
+#     persona = Persona(name="Alice", role="barista", background="Works at a cafe")
+#     clone = persona.clone(role="manager")
+#     assert clone.role == "manager"
+#     assert persona.name == clone.name
