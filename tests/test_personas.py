@@ -237,22 +237,22 @@ def test_persona_clone():
     assert clone2._metadata.className == ExtendedPersona.__name__
 
 
-# def test_persona_clone_parent_id():
-#     """
-#     Test that .clone() sets the clone's _metadata.parentId to the original's _metadata.id.
-#     """
-#     persona = Persona(name="Alice", role="barista")
-#     persona._metadata = PersonaMetadata(id=123)
-#     clone = persona.clone()
-#     assert clone._metadata is not None
-#     assert clone._metadata.parentId == 123
+def test_persona_clone_parent_id():
+    """
+    Test that .clone() sets the clone's _metadata.parentId to the original's _metadata.id.
+    """
+    persona = Persona(name="Alice", role="barista")
+    persona._metadata = PersonaMetadata(id=123)
+    clone = persona.clone()
+    assert clone._metadata is not None
+    assert clone._metadata.parentId == 123
 
 
-# def test_persona_clone_with_changes():
-#     """
-#     Test that .clone() can produce a modified clone when attributes are changed after cloning.
-#     """
-#     persona = Persona(name="Alice", role="barista", background="Works at a cafe")
-#     clone = persona.clone(role="manager")
-#     assert clone.role == "manager"
-#     assert persona.name == clone.name
+def test_persona_clone_with_changes():
+    """
+    Test that .clone() can produce a modified clone when attributes are changed after cloning.
+    """
+    persona = Persona(name="Alice", role="barista", background="Works at a cafe")
+    clone = persona.clone(role="manager")
+    assert clone.role == "manager"
+    assert persona.name == clone.name

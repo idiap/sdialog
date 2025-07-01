@@ -68,7 +68,7 @@ class BasePersona(BaseModel, ABC):
     """
     _metadata: Optional[PersonaMetadata] = None
 
-    def clone(self, **kwargs) -> "BasePersona":
+    def clone(self, new_id: int = None, **kwargs) -> "BasePersona":
         """
         Creates a clone of the persona with optional overrides.
 
@@ -80,11 +80,13 @@ class BasePersona(BaseModel, ABC):
         data.update(kwargs)
         new_persona = self.__class__(**data)
         if self._metadata:
-            new_persona._metadata = self._metadata.model_dump()
-            new_persona._metadata.parent_id = self._metadata.id if self._metadata.id else None
+            new_persona._metadata = self._metadata.model_copy()
+            new_persona._metadata.parentId = self._metadata.id if self._metadata.id else None
+            new_persona._metadata.id = new_id if new_id is not None else self._metadata.id
         else:
             new_persona._metadata = PersonaMetadata(className=self.__class__.__name__,
-                                                    parent_id=self._metadata.id if self._metadata else None)
+                                                    id=new_id if new_id is not None else None,
+                                                    parentId=self._metadata.id if self._metadata else None)
         return new_persona
 
     def description(self) -> str:
