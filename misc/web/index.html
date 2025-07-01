@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionnaire de Personas</title>
+    <title>Persona Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -26,7 +26,7 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1 class="text-center mb-4">Gestionnaire de Personas et Configuration de Salle</h1>
+        <h1 class="text-center mb-4">Persona Manager & Room Configuration</h1>
         
         <div class="row">
             <!-- Patient Persona -->
@@ -37,17 +37,17 @@
                     </div>
                     <div class="card-body">
                         <button class="btn btn-success btn-generate w-100 mb-3" onclick="generatePersona('patient')">
-                            <i class="fas fa-magic"></i> Générer Patient
+                            <i class="fas fa-magic"></i> Generate Patient
                         </button>
                         <form id="patientForm">
                             <!-- Demographics -->
-                            <h4>Informations Démographiques</h4>
+                            <h4>Demographics</h4>
                             <div class="form-group">
-                                <label>Nom</label>
+                                <label>Name</label>
                                 <input type="text" class="form-control" name="name">
                             </div>
                             <div class="form-group">
-                                <label>Âge</label>
+                                <label>Age</label>
                                 <input type="number" class="form-control" name="age">
                             </div>
                             <div class="form-group">
@@ -55,43 +55,43 @@
                                 <input type="text" class="form-control" name="race">
                             </div>
                             <div class="form-group">
-                                <label>Genre</label>
+                                <label>Gender</label>
                                 <select class="form-control" name="gender">
-                                    <option value="">Sélectionner</option>
-                                    <option value="male">Homme</option>
-                                    <option value="female">Femme</option>
-                                    <option value="other">Autre</option>
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>Langue</label>
-                                <input type="text" class="form-control" name="language" value="French">
+                                <label>Language</label>
+                                <input type="text" class="form-control" name="language" value="English">
                             </div>
                             <div class="form-group">
-                                <label>Poids</label>
+                                <label>Weight</label>
                                 <input type="text" class="form-control" name="weight">
                             </div>
                             <div class="form-group">
-                                <label>Taille</label>
+                                <label>Height</label>
                                 <input type="text" class="form-control" name="height">
                             </div>
 
                             <!-- Medical Information -->
-                            <h4 class="mt-4">Informations Médicales</h4>
+                            <h4 class="mt-4">Medical Information</h4>
                             <div class="form-group">
-                                <label>Symptômes</label>
+                                <label>Symptoms</label>
                                 <textarea class="form-control" name="symptoms" rows="3"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Signes Vitaux</label>
+                                <label>Vital Signs</label>
                                 <textarea class="form-control" name="vital_signs" rows="2"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Conditions Médicales</label>
+                                <label>Medical Conditions</label>
                                 <textarea class="form-control" name="medical_conditions" rows="3"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Médicaments</label>
+                                <label>Medications</label>
                                 <textarea class="form-control" name="medications" rows="2"></textarea>
                             </div>
                             <div class="form-group">
@@ -99,22 +99,22 @@
                                 <textarea class="form-control" name="allergies" rows="2"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Historique Familial</label>
+                                <label>Family History</label>
                                 <textarea class="form-control" name="family_history" rows="3"></textarea>
                             </div>
 
                             <!-- Background -->
-                            <h4 class="mt-4">Contexte</h4>
+                            <h4 class="mt-4">Background</h4>
                             <div class="form-group">
-                                <label>Éducation</label>
+                                <label>Education</label>
                                 <input type="text" class="form-control" name="education">
                             </div>
                             <div class="form-group">
-                                <label>Statut Socio-économique</label>
+                                <label>Socioeconomic Status</label>
                                 <input type="text" class="form-control" name="socioeconomic_status">
                             </div>
                             <div class="form-group">
-                                <label>Intérêts</label>
+                                <label>Interests</label>
                                 <textarea class="form-control" name="interests" rows="2"></textarea>
                             </div>
                         </form>
@@ -126,21 +126,21 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header bg-success text-white">
-                        <h3 class="card-title mb-0">Médecin</h3>
+                        <h3 class="card-title mb-0">Doctor</h3>
                     </div>
                     <div class="card-body">
                         <button class="btn btn-success btn-generate w-100 mb-3" onclick="generatePersona('doctor')">
-                            <i class="fas fa-magic"></i> Générer Médecin
+                            <i class="fas fa-magic"></i> Generate Doctor
                         </button>
                         <form id="doctorForm">
                             <!-- Demographics -->
-                            <h4>Informations Démographiques</h4>
+                            <h4>Demographics</h4>
                             <div class="form-group">
-                                <label>Nom</label>
+                                <label>Name</label>
                                 <input type="text" class="form-control" name="name">
                             </div>
                             <div class="form-group">
-                                <label>Âge</label>
+                                <label>Age</label>
                                 <input type="number" class="form-control" name="age">
                             </div>
                             <div class="form-group">
@@ -148,23 +148,23 @@
                                 <input type="text" class="form-control" name="race">
                             </div>
                             <div class="form-group">
-                                <label>Genre</label>
+                                <label>Gender</label>
                                 <select class="form-control" name="gender">
-                                    <option value="">Sélectionner</option>
-                                    <option value="male">Homme</option>
-                                    <option value="female">Femme</option>
-                                    <option value="other">Autre</option>
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
                                 </select>
                             </div>
 
                             <!-- Professional Information -->
-                            <h4 class="mt-4">Informations Professionnelles</h4>
+                            <h4 class="mt-4">Professional Information</h4>
                             <div class="form-group">
-                                <label>Spécialité</label>
+                                <label>Specialty</label>
                                 <input type="text" class="form-control" name="specialty">
                             </div>
                             <div class="form-group">
-                                <label>Années d'Expérience</label>
+                                <label>Years of Experience</label>
                                 <input type="number" class="form-control" name="years_of_experience">
                             </div>
                             <div class="form-group">
@@ -172,7 +172,7 @@
                                 <textarea class="form-control" name="certifications" rows="3"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Expérience Professionnelle</label>
+                                <label>Work Experience</label>
                                 <textarea class="form-control" name="work_experience" rows="3"></textarea>
                             </div>
                         </form>
@@ -184,25 +184,25 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header bg-info text-white">
-                        <h3 class="card-title mb-0">Configuration de la Salle</h3>
+                        <h3 class="card-title mb-0">Room Configuration</h3>
                     </div>
                     <div class="card-body">
                         <button class="btn btn-success btn-generate w-100 mb-3" onclick="generateRoom()">
-                            <i class="fas fa-magic"></i> Générer Salle
+                            <i class="fas fa-magic"></i> Generate Room
                         </button>
                         <form id="roomForm">
                             <!-- Room Dimensions -->
                             <h4>Dimensions</h4>
                             <div class="form-group">
-                                <label>Largeur (m)</label>
+                                <label>Width (m)</label>
                                 <input type="number" class="form-control" id="roomWidth" name="width" step="0.01">
                             </div>
                             <div class="form-group">
-                                <label>Longueur (m)</label>
+                                <label>Length (m)</label>
                                 <input type="number" class="form-control" id="roomLength" name="length" step="0.01">
                             </div>
                             <div class="form-group">
-                                <label>Hauteur (m)</label>
+                                <label>Height (m)</label>
                                 <input type="number" class="form-control" id="roomHeight" name="height" step="0.01">
                             </div>
                             <div class="form-group">
@@ -211,39 +211,39 @@
                             </div>
 
                             <!-- Room Properties -->
-                            <h4 class="mt-4">Propriétés</h4>
+                            <h4 class="mt-4">Properties</h4>
                             <div class="form-group">
-                                <label>Type de Mur (Coefficient d'absorption)</label>
+                                <label>Wall Type (Absorption Coefficient)</label>
                                 <select class="form-control" name="wall_type">
-                                    <option value="0.02">Béton (0.02)</option>
-                                    <option value="0.05">Brique (0.05)</option>
-                                    <option value="0.10">Plâtre (0.10)</option>
-                                    <option value="0.30">Panneau acoustique (0.30)</option>
+                                    <option value="0.02">Concrete (0.02)</option>
+                                    <option value="0.05">Brick (0.05)</option>
+                                    <option value="0.10">Plaster (0.10)</option>
+                                    <option value="0.30">Acoustic Panel (0.30)</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>Rôle de la Salle</label>
+                                <label>Room Role</label>
                                 <select class="form-control" name="room_role">
-                                    <option value="examination">Examen</option>
-                                    <option value="treatment">Traitement</option>
-                                    <option value="patient">Chambre Patient</option>
+                                    <option value="examination">Examination</option>
+                                    <option value="treatment">Treatment</option>
+                                    <option value="patient">Patient Room</option>
                                 </select>
                             </div>
 
                             <!-- Recording Device -->
-                            <h4 class="mt-4">Dispositif d'Enregistrement</h4>
+                            <h4 class="mt-4">Recording Device</h4>
                             <div class="form-group">
-                                <label>Type de Dispositif</label>
+                                <label>Device Type</label>
                                 <select class="form-control" name="recording_device">
-                                    <option value="cellphone">Téléphone portable</option>
+                                    <option value="cellphone">Cellphone</option>
                                     <option value="webcam">Webcam</option>
-                                    <option value="high_quality_mic">Microphone haute qualité</option>
-                                    <option value="tablet">Tablette</option>
-                                    <option value="beamforming_mic">Microphone beamforming</option>
+                                    <option value="high_quality_mic">High-quality Mic</option>
+                                    <option value="tablet">Tablet</option>
+                                    <option value="beamforming_mic">Beamforming Mic</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>Position du Microphone (x, y, z en mètres)</label>
+                                <label>Microphone Position (x, y, z in meters)</label>
                                 <div class="row">
                                     <div class="col">
                                         <input type="number" class="form-control" name="mic_x" placeholder="X" step="0.01">
@@ -258,12 +258,12 @@
                             </div>
 
                             <!-- Furniture -->
-                            <h4 class="mt-4">Mobilier</h4>
+                            <h4 class="mt-4">Furniture</h4>
                             <div id="furnitureList">
                                 <!-- Furniture items will be added here -->
                             </div>
                             <button type="button" class="btn btn-primary w-100" onclick="addFurniture()">
-                                <i class="fas fa-plus"></i> Ajouter un Meuble
+                                <i class="fas fa-plus"></i> Add Furniture
                             </button>
                         </form>
                     </div>
@@ -275,10 +275,10 @@
         <div class="row mt-4 mb-4">
             <div class="col-12 text-center">
                 <button class="btn btn-primary btn-lg" onclick="saveAll()">
-                    <i class="fas fa-save"></i> Sauvegarder la Configuration
+                    <i class="fas fa-save"></i> Save Configuration
                 </button>
                 <button class="btn btn-info btn-lg" onclick="visualizeRoom()">
-                    <i class="fas fa-eye"></i> Visualiser la Salle
+                    <i class="fas fa-eye"></i> Visualize Room
                 </button>
             </div>
         </div>
@@ -289,7 +289,7 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title mb-0">Vue de Dessus (2D)</h3>
+                        <h3 class="card-title mb-0">Top-Down View (2D)</h3>
                     </div>
                     <div class="card-body text-center">
                         <canvas id="topViewCanvas" width="500" height="500" style="border: 1px solid #ddd; background: #f9f9f9;"></canvas>
@@ -301,7 +301,7 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title mb-0">Vue Isométrique (3D)</h3>
+                        <h3 class="card-title mb-0">Isometric View (3D)</h3>
                     </div>
                     <div class="card-body p-0">
                         <div id="isometricViewContainer" style="width: 100%; height: 512px;"></div>
@@ -340,22 +340,22 @@
             
             const furnitureHtml = `
                 <div class="furniture-item" id="furniture-${furnitureId}">
-                    <h5>Meuble</h5>
+                    <h5>Furniture</h5>
                     <div class="form-group">
-                        <label>Nom du Meuble</label>
+                        <label>Furniture Name</label>
                         <input type="text" class="form-control" name="furniture_name_${furnitureId}">
                     </div>
                     <div class="form-group">
-                        <label>Dimensions (Largeur, Longueur, Hauteur en m)</label>
+                        <label>Dimensions (Width, Length, Height in m)</label>
                         <div class="row">
                             <div class="col">
-                                <input type="number" class="form-control" id="furniture_width_${furnitureId}" name="furniture_width_${furnitureId}" placeholder="Largeur" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
+                                <input type="number" class="form-control" id="furniture_width_${furnitureId}" name="furniture_width_${furnitureId}" placeholder="Width" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
                             </div>
                             <div class="col">
-                                <input type="number" class="form-control" id="furniture_length_${furnitureId}" name="furniture_length_${furnitureId}" placeholder="Longueur" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
+                                <input type="number" class="form-control" id="furniture_length_${furnitureId}" name="furniture_length_${furnitureId}" placeholder="Length" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
                             </div>
                             <div class="col">
-                                <input type="number" class="form-control" id="furniture_height_${furnitureId}" name="furniture_height_${furnitureId}" placeholder="Hauteur" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
+                                <input type="number" class="form-control" id="furniture_height_${furnitureId}" name="furniture_height_${furnitureId}" placeholder="Height" step="0.01" oninput="updateFurnitureVolume(${furnitureId})">
                             </div>
                         </div>
                     </div>
@@ -364,7 +364,7 @@
                         <input type="number" class="form-control" id="furniture_volume_${furnitureId}" name="furniture_volume_${furnitureId}" readonly>
                     </div>
                     <div class="form-group">
-                        <label>Position (x, y, z en mètres)</label>
+                        <label>Position (x, y, z in meters)</label>
                         <div class="row">
                             <div class="col">
                                 <input type="number" class="form-control" name="furniture_x_${furnitureId}" placeholder="X" step="0.01">
@@ -378,7 +378,7 @@
                         </div>
                     </div>
                     <button type="button" class="btn btn-danger btn-sm mt-2" onclick="removeFurniture(${furnitureId})">
-                        <i class="fas fa-trash"></i> Supprimer
+                        <i class="fas fa-trash"></i> Remove
                     </button>
                 </div>
             `;
@@ -421,7 +421,6 @@
 
         // Generate room configuration
         function generateRoom() {
-            // Standard room dimensions
             const roomWidth = Math.round((Math.random() * 2 + 3) * 100) / 100;  // 3-5m
             const roomLength = Math.round((Math.random() * 2 + 3) * 100) / 100; // 3-5m
             const roomHeight = 3; // Standard height
@@ -457,10 +456,10 @@
             
             // Add some basic furniture
             const basicFurniture = [
-                {name: 'Bureau', width: 1.2, length: 0.6, height: 0.75},
-                {name: 'Chaise', width: 0.5, length: 0.5, height: 0.9},
-                {name: 'Lit médical', width: 0.9, length: 2.0, height: 0.8},
-                {name: 'Armoire', width: 1.0, length: 0.6, height: 1.8}
+                {name: 'Desk', width: 1.2, length: 0.6, height: 0.75},
+                {name: 'Chair', width: 0.5, length: 0.5, height: 0.9},
+                {name: 'Medical Bed', width: 0.9, length: 2.0, height: 0.8},
+                {name: 'Cabinet', width: 1.0, length: 0.6, height: 1.8}
             ];
             
             // Add 2-4 pieces of furniture
@@ -486,101 +485,6 @@
                     lastFurniture.querySelector('[name^="furniture_z_"]').value = 0; // On the floor
                 }
             }
-        }
-
-        // Generate persona using the backend API
-        async function generatePersona(type) {
-            try {
-                const response = await fetch(`/api/generate/persona/${type}`);
-                const data = await response.json();
-                
-                if (response.ok) {
-                    const form = document.getElementById(`${type}Form`);
-                    
-                    // Fill in all the form fields from the generated persona
-                    Object.entries(data).forEach(([key, value]) => {
-                        if (key !== '_metadata') {
-                            const input = form.elements[key];
-                            if (input) {
-                                input.value = value;
-                            }
-                        }
-                    });
-                } else {
-                    console.error('Error generating persona:', data.error);
-                    alert('Erreur lors de la génération du persona');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Erreur lors de la génération du persona');
-            }
-        }
-
-        // Save all configurations to the backend
-        async function saveAll() {
-            const config = {
-                patient: getFormData('patientForm'),
-                doctor: getFormData('doctorForm'),
-                room: getRoomData()
-            };
-            
-            try {
-                const response = await fetch('/api/save', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(config)
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    alert('Configuration sauvegardée avec succès !');
-                } else {
-                    console.error('Error saving configuration:', data.error);
-                    alert('Erreur lors de la sauvegarde de la configuration');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Erreur lors de la sauvegarde de la configuration');
-            }
-        }
-
-        // Helper function to get form data
-        function getFormData(formId) {
-            const form = document.getElementById(formId);
-            const formData = new FormData(form);
-            const data = {};
-            for (let [key, value] of formData.entries()) {
-                data[key] = value;
-            }
-            return data;
-        }
-
-        // Helper function to get room data including furniture
-        function getRoomData() {
-            const roomData = getFormData('roomForm');
-            roomData.furniture = [];
-            
-            const furnitureItems = document.querySelectorAll('.furniture-item');
-            furnitureItems.forEach((item) => {
-                const furnitureId = parseInt(item.id.split('-')[1]);
-                roomData.furniture.push({
-                    name: item.querySelector(`[name="furniture_name_${furnitureId}"]`).value,
-                    width: parseFloat(document.getElementById(`furniture_width_${furnitureId}`).value),
-                    length: parseFloat(document.getElementById(`furniture_length_${furnitureId}`).value),
-                    height: parseFloat(document.getElementById(`furniture_height_${furnitureId}`).value),
-                    volume: parseFloat(document.getElementById(`furniture_volume_${furnitureId}`).value),
-                    position: {
-                        x: parseFloat(item.querySelector(`[name="furniture_x_${furnitureId}"]`).value),
-                        y: parseFloat(item.querySelector(`[name="furniture_y_${furnitureId}"]`).value),
-                        z: parseFloat(item.querySelector(`[name="furniture_z_${furnitureId}"]`).value)
-                    }
-                });
-            });
-            
-            return roomData;
         }
 
         // --- VISUALIZATION CODE ---
@@ -654,10 +558,12 @@
 
             // 2. Camera (Orthographic for isometric view)
             const aspect = container.clientWidth / container.clientHeight;
-            const d = Math.max(room.width, room.length) * 1.2; // Frustum size
+            const d = Math.max(room.width, room.length, room.height || 3) * 1.2;
             const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-            camera.position.set(20, 20, 20); // Angled view
-            camera.lookAt(scene.position);
+            
+            const roomCenter = new THREE.Vector3(room.width / 2, (room.height || 3) / 2, room.length / 2);
+            camera.position.set(roomCenter.x + d, roomCenter.y + d, roomCenter.z + d);
+            camera.lookAt(roomCenter);
 
             // 3. Renderer
             const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -680,8 +586,25 @@
             floor.position.set(room.width / 2, 0, room.length / 2); // Center it
             scene.add(floor);
 
+            // Walls
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd, side: THREE.DoubleSide });
+            const wallHeight = room.height || 3; // Use form height or default to 3
+
+            // Wall at back (X-Z plane, z=0)
+            const backWallGeometry = new THREE.PlaneGeometry(room.width, wallHeight);
+            const backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
+            backWall.position.set(room.width / 2, wallHeight / 2, 0);
+            scene.add(backWall);
+
+            // Wall at side (Y-Z plane, x=0)
+            const sideWallGeometry = new THREE.PlaneGeometry(room.length, wallHeight);
+            const sideWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
+            sideWall.rotation.y = Math.PI / 2;
+            sideWall.position.set(0, wallHeight / 2, room.length / 2);
+            scene.add(sideWall);
+
             // Furniture color map
-            const furnitureColors = { 'Bureau': 0x8B4513, 'Chaise': 0x5F4C3F, 'Lit médical': 0xADD8E6, 'Armoire': 0xCD853F };
+            const furnitureColors = { 'Desk': 0x8B4513, 'Chair': 0x5F4C3F, 'Medical Bed': 0xADD8E6, 'Cabinet': 0xCD853F };
 
             // Furniture
             room.furniture.forEach(item => {
@@ -707,6 +630,101 @@
 
             threeJsApp = { renderer, scene, camera };
             renderer.render(scene, camera);
+        }
+
+        // Generate persona using the backend API
+        async function generatePersona(type) {
+            try {
+                const response = await fetch(`/api/generate/persona/${type}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const form = document.getElementById(`${type}Form`);
+                    
+                    // Fill in all the form fields from the generated persona
+                    Object.entries(data).forEach(([key, value]) => {
+                        if (key !== '_metadata') {
+                            const input = form.elements[key];
+                            if (input) {
+                                input.value = value;
+                            }
+                        }
+                    });
+                } else {
+                    console.error('Error generating persona:', data.error);
+                    alert('Error generating persona');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error generating persona');
+            }
+        }
+
+        // Save all configurations to the backend
+        async function saveAll() {
+            const config = {
+                patient: getFormData('patientForm'),
+                doctor: getFormData('doctorForm'),
+                room: getRoomData()
+            };
+            
+            try {
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Configuration saved successfully!');
+                } else {
+                    console.error('Error saving configuration:', data.error);
+                    alert('Error saving configuration');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving configuration');
+            }
+        }
+
+        // Helper function to get form data
+        function getFormData(formId) {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            return data;
+        }
+
+        // Helper function to get room data including furniture
+        function getRoomData() {
+            const roomData = getFormData('roomForm');
+            roomData.furniture = [];
+            
+            const furnitureItems = document.querySelectorAll('.furniture-item');
+            furnitureItems.forEach((item) => {
+                const furnitureId = parseInt(item.id.split('-')[1]);
+                roomData.furniture.push({
+                    name: item.querySelector(`[name="furniture_name_${furnitureId}"]`).value,
+                    width: parseFloat(document.getElementById(`furniture_width_${furnitureId}`).value),
+                    length: parseFloat(document.getElementById(`furniture_length_${furnitureId}`).value),
+                    height: parseFloat(document.getElementById(`furniture_height_${furnitureId}`).value),
+                    volume: parseFloat(document.getElementById(`furniture_volume_${furnitureId}`).value),
+                    position: {
+                        x: parseFloat(item.querySelector(`[name="furniture_x_${furnitureId}"]`).value),
+                        y: parseFloat(item.querySelector(`[name="furniture_y_${furnitureId}"]`).value),
+                        z: parseFloat(item.querySelector(`[name="furniture_z_${furnitureId}"]`).value)
+                    }
+                });
+            });
+            
+            return roomData;
         }
     </script>
 </body>

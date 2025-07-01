@@ -31,13 +31,13 @@ try:
         name="",
         age=30,
         gender="",
-        language="French"
+        language="English"
     )
     base_doctor = Doctor(
         name="",
         age=40,
         gender="",
-        language="French"
+        language="English"
     )
     
     patient_generator = PersonaGenerator(persona=base_patient)
@@ -58,7 +58,7 @@ def generate_patient() -> Dict[str, Any]:
     try:
         logger.info("Generating new patient persona...")
         patient = patient_generator.generate()
-        patient.language = "French"  # Force French language for our interface
+        patient.language = "English"  # Force English language for our interface
         logger.info("Patient persona generated successfully")
         return patient.json()
     except Exception as e:
@@ -70,7 +70,7 @@ def generate_doctor() -> Dict[str, Any]:
     try:
         logger.info("Generating new doctor persona...")
         doctor = doctor_generator.generate()
-        doctor.language = "French"  # Force French language for our interface
+        doctor.language = "English"  # Force English language for our interface
         logger.info("Doctor persona generated successfully")
         return doctor.json()
     except Exception as e:
