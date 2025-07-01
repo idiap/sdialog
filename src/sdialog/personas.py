@@ -70,10 +70,22 @@ class BasePersona(BaseModel, ABC):
 
     def clone(self, new_id: int = None, **kwargs) -> "BasePersona":
         """
-        Creates a clone of the persona with optional overrides.
+        Creates a deep copy of the persona, with optional attribute overrides.
 
+        The cloned persona will have all attributes copied from the original, with any provided keyword arguments
+        (`kwargs`) used to override or update specific fields. The clone receives a new metadata object:
+
+        - The `parentId` field in the clone's metadata is set to the original persona's `id` (if present).
+        - The `id` field in the clone's metadata is set to `new_id` if provided, otherwise to the original's `id`.
+        - All other metadata fields are copied from the original.
+
+        This method is useful for generating variations of a persona for ablation, branching, or scenario testing
+        without modifying the original instance. The clone is a fully independent object.
+
+        :param new_id: Optional new unique ID for the cloned persona.
+        :type new_id: int, optional
         :param kwargs: Attributes to override in the cloned persona.
-        :return: A new instance of the persona with updated attributes.
+        :return: A new instance of the persona with updated attributes and metadata.
         :rtype: BasePersona
         """
         data = self.json()
