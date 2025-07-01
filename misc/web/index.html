@@ -277,11 +277,42 @@
                 <button class="btn btn-primary btn-lg" onclick="saveAll()">
                     <i class="fas fa-save"></i> Sauvegarder la Configuration
                 </button>
+                <button class="btn btn-info btn-lg" onclick="visualizeRoom()">
+                    <i class="fas fa-eye"></i> Visualiser la Salle
+                </button>
+            </div>
+        </div>
+
+        <!-- Visualizations -->
+        <div class="row">
+            <!-- 2D Top View -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title mb-0">Vue de Dessus (2D)</h3>
+                    </div>
+                    <div class="card-body text-center">
+                        <canvas id="topViewCanvas" width="500" height="500" style="border: 1px solid #ddd; background: #f9f9f9;"></canvas>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- 3D Isometric View -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title mb-0">Vue Isométrique (3D)</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="isometricViewContainer" style="width: 100%; height: 512px;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             initializeRoomForm();
@@ -550,6 +581,132 @@
             });
             
             return roomData;
+        }
+
+        // --- VISUALIZATION CODE ---
+
+        let threeJsApp = null; // To hold the three.js scene, camera, etc.
+
+        // Main function to trigger visualizations
+        function visualizeRoom() {
+            const roomData = getRoomData();
+            drawTopView(roomData);
+            drawIsometricView(roomData);
+        }
+
+        // Draw the 2D top-down view
+        function drawTopView(room) {
+            const canvas = document.getElementById('topViewCanvas');
+            const ctx = canvas.getContext('2d');
+            const PADDING = 20;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate scale to fit the room in the canvas
+            const scaleX = (canvas.width - 2 * PADDING) / room.width;
+            const scaleY = (canvas.height - 2 * PADDING) / room.length;
+            const scale = Math.min(scaleX, scaleY);
+
+            ctx.save();
+            ctx.translate(PADDING, PADDING);
+
+            // Draw room border
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, room.width * scale, room.length * scale);
+
+            // Draw furniture and mic
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            room.furniture.forEach(item => {
+                ctx.fillStyle = 'rgba(100, 100, 200, 0.7)';
+                ctx.fillRect(item.position.x * scale, item.position.y * scale, item.width * scale, item.length * scale);
+                ctx.fillStyle = '#fff';
+                ctx.fillText(item.name, (item.position.x + item.width / 2) * scale, (item.position.y + item.length / 2) * scale);
+            });
+
+            // Draw microphone
+            ctx.beginPath();
+            ctx.arc(room.mic_x * scale, room.mic_y * scale, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.fillText('Mic', room.mic_x * scale, room.mic_y * scale + 10);
+            
+            ctx.restore();
+        }
+
+        // Draw the 3D isometric view
+        function drawIsometricView(room) {
+            const container = document.getElementById('isometricViewContainer');
+            // Clean up previous instance if it exists
+            if (threeJsApp && threeJsApp.renderer) {
+                container.removeChild(threeJsApp.renderer.domElement);
+                threeJsApp.renderer.dispose();
+            }
+
+            // 1. Scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // 2. Camera (Orthographic for isometric view)
+            const aspect = container.clientWidth / container.clientHeight;
+            const d = Math.max(room.width, room.length) * 1.2; // Frustum size
+            const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+            camera.position.set(20, 20, 20); // Angled view
+            camera.lookAt(scene.position);
+
+            // 3. Renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // 4. Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(10, 20, 5);
+            scene.add(directionalLight);
+
+            // 5. Objects
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(room.width, room.length);
+            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2; // Lay it flat
+            floor.position.set(room.width / 2, 0, room.length / 2); // Center it
+            scene.add(floor);
+
+            // Furniture color map
+            const furnitureColors = { 'Bureau': 0x8B4513, 'Chaise': 0x5F4C3F, 'Lit médical': 0xADD8E6, 'Armoire': 0xCD853F };
+
+            // Furniture
+            room.furniture.forEach(item => {
+                const geometry = new THREE.BoxGeometry(item.width, item.height, item.length);
+                const material = new THREE.MeshLambertMaterial({ color: furnitureColors[item.name] || 0x999999 });
+                const box = new THREE.Mesh(geometry, material);
+                
+                // Position is based on corner, but Three.js uses center, so we offset
+                box.position.set(
+                    item.position.x + item.width / 2,
+                    item.position.z + item.height / 2,
+                    item.position.y + item.length / 2
+                );
+                scene.add(box);
+            });
+            
+            // Microphone
+            const micGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const micMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const mic = new THREE.Mesh(micGeometry, micMaterial);
+            mic.position.set(room.mic_x, room.mic_z, room.mic_y);
+            scene.add(mic);
+
+            threeJsApp = { renderer, scene, camera };
+            renderer.render(scene, camera);
         }
     </script>
 </body>
