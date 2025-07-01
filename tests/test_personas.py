@@ -152,3 +152,55 @@ def test_doctor_fields_and_description():
     assert isinstance(js, dict)
     assert js["specialty"] == "Cardiology"
     assert js["years_of_experience"] == 25
+
+
+def test_persona_to_file_and_from_file(tmp_path):
+    """
+    Test saving and loading a Persona (BasePersona subclass) to/from file, including metadata.
+    """
+    persona = Persona(name="Alice", role="barista", background="Works at a cafe")
+    file_path = tmp_path / "persona.json"
+    persona.to_file(str(file_path))
+    loaded = Persona.from_file(str(file_path))
+    assert isinstance(loaded, Persona)
+    assert loaded.name == "Alice"
+    assert loaded.role == "barista"
+    assert loaded.background == "Works at a cafe"
+    assert hasattr(loaded, "_metadata")
+    assert loaded._metadata is not None
+    assert loaded._metadata.className == Persona.__name__
+
+
+def test_extended_persona_to_file_and_from_file(tmp_path):
+    """
+    Test saving and loading an ExtendedPersona (BasePersona subclass) to/from file, including metadata.
+    """
+    p = ExtendedPersona(
+        name="Bob",
+        age=40,
+        race="Asian",
+        gender="male",
+        language="English",
+        weight="70kg",
+        height=175.0,
+        occupation="Engineer",
+        education="PhD",
+        socioeconomic_status="middle",
+        interests="AI, robotics",
+        hobbies="chess",
+        politeness="high",
+        forgetfulness="low",
+        attentiveness="high",
+        communication_style="direct",
+        empathy_level="medium",
+        political_views="moderate",
+        religious_beliefs="agnostic"
+    )
+    file_path = tmp_path / "extended_persona.json"
+    p.to_file(str(file_path))
+    loaded = ExtendedPersona.from_file(str(file_path))
+    assert isinstance(loaded, ExtendedPersona)
+    assert loaded.name == "Bob"
+    assert loaded.occupation == "Engineer"
+    assert loaded._metadata is not None
+    assert loaded._metadata.className == ExtendedPersona.__name__

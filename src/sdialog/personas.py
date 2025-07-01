@@ -28,7 +28,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .orchestrators import BaseOrchestrator
-from .util import config, make_serializable, camel_or_snake_to_words
+from .util import config, camel_or_snake_to_words
 from jinja2 import Template
 
 
@@ -123,16 +123,18 @@ class BasePersona(BaseModel, ABC):
             writer.write(self.json(string=True))
 
     @staticmethod
-    def from_file(path: str):
+    def from_file(path: str, persona_class: Optional["BasePersona"] = None):
         """
         Loads persona from a file.
 
         :param path: Path to the persona file.
         :type path: str
+        :param persona_class: Optional specific class to use for the persona.
+        :type persona_class: Optional[BasePersona]
         :return: The loaded persona object.
         :rtype: MetaPersona
         """
-        return BasePersona.from_json(open(path, "r", encoding="utf-8").read())
+        return BasePersona.from_json(open(path, "r", encoding="utf-8").read(), persona_class)
 
     @staticmethod
     def from_dict(data: dict, persona_class: Optional["BasePersona"] = None):
@@ -149,9 +151,11 @@ class BasePersona(BaseModel, ABC):
         # Assign to "persona" the instance of the right class using the `className`
         if "_metadata" in data and "className" in data["_metadata"] and data["_metadata"]["className"]:
             persona_class_name = data["_metadata"]["className"]
-            if persona_class and persona_class_name == persona_class.__name__:
-                # If the class name matches the given class, use it directly
-                return persona_class.model_validate(data)
+            if persona_class and issubclass(persona_class, BasePersona):
+                # If the user provided a specific class, use it
+                persona = persona_class.model_validate(data)
+                persona._metadata = PersonaMetadata(**data["_metadata"])
+                return persona
             else:  # Assuming the class name is from one of the built-in classes
                 # Automatically get all classes in the module that inherit from BasePersona
                 current_module = sys.modules[__name__]
@@ -162,23 +166,27 @@ class BasePersona(BaseModel, ABC):
                 }
                 persona_class = persona_class_map.get(persona_class_name)
                 if persona_class:
-                    return persona_class.model_validate(data)
+                    persona = persona_class.model_validate(data)
+                    persona._metadata = PersonaMetadata(**data["_metadata"])
+                    return persona
                 else:
                     raise ValueError(f"Unknown persona class given in the `className` field: {persona_class_name}.")
         else:
             raise ValueError("Metadata with `className` is required to create a persona from a dict or json.")
 
     @staticmethod
-    def from_json(json_str: str):
+    def from_json(json_str: str, persona_class: Optional["BasePersona"] = None):
         """
         Creates a persona object from a JSON string.
 
         :param json_str: The JSON string containing persona data.
         :type json_str: str
+        :param persona_class: Optional specific class to use for the persona.
+        :type persona_class: Optional[BasePersona]
         :return: The created persona object.
         :rtype: MetaPersona
         """
-        return BasePersona.from_dict(json.loads(json_str))
+        return BasePersona.from_dict(json.loads(json_str), persona_class)
 
 
 class Persona(BasePersona):
@@ -219,12 +227,28 @@ class Persona(BasePersona):
     rules: str = ""
 
     @staticmethod
-    def from_file(path: str):
-        return BasePersona.from_file(path)
+    def from_file(path: str, persona_class: Optional["BasePersona"] = None):
+        """
+        Loads a persona from a file.
+
+        :param path: Path to the persona file.
+        :type path: str
+        :param persona_class: Optional specific class to use for the persona.
+        :type persona_class: Optional[BasePersona]
+        """
+        return BasePersona.from_file(path, persona_class)
 
     @staticmethod
-    def from_json(json_str: str):
-        return BasePersona.from_json(json_str)
+    def from_json(json_str: str, persona_class: Optional["BasePersona"] = None):
+        """
+        Creates a persona object from a JSON string.
+
+        :param json_str: The JSON string containing persona data.
+        :type json_str: str
+        :param persona_class: Optional specific class to use for the persona.
+        :type persona_class: Optional[BasePersona]
+        """
+        return BasePersona.from_json(json_str, persona_class)
 
 
 class ExtendedPersona(BasePersona):
