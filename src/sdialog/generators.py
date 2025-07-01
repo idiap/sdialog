@@ -221,7 +221,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
-                 max_iterations: int = 20,
+                 max_turns: int = 80,
                  notes: str = None):
         """
         Generates a dialogue between two personas using the LLM or PersonaAgents.
@@ -232,8 +232,8 @@ class PersonaDialogGenerator(DialogGenerator):
         :type id: int, optional
         :param parent_id: ID of the parent dialogue, if any.
         :type parent_id: int, optional
-        :param max_iterations: Maximum number of dialogue turns. Only used if both agents are PersonaAgent.
-        :type max_iterations: int, optional
+        :param max_turns: Maximum number of dialogue turns. Only used if both agents are PersonaAgent.
+        :type max_turns: int, optional
         :param notes: Optional notes to include in the dialogue.
         :type notes: str, optional
         :return: The generated dialogue as a Dialog object, or the output format specified.
@@ -241,7 +241,7 @@ class PersonaDialogGenerator(DialogGenerator):
         """
         if self._agent_a and self._agent_b:
             return self._agent_a.dialog_with(self._agent_b,
-                                             max_iterations=max_iterations,
+                                             max_turns=max_turns,
                                              id=id,
                                              seed=seed,
                                              notes=notes,

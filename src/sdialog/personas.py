@@ -732,7 +732,7 @@ class PersonaAgent:
 
     def dialog_with(self,
                     agent: "PersonaAgent",
-                    max_iterations: int = 20,
+                    max_turns: int = 80,
                     id: int = None,
                     parent_id: int = None,
                     seed: int = None,
@@ -743,8 +743,8 @@ class PersonaAgent:
 
         :param agent: The other agent to converse with.
         :type agent: PersonaAgent
-        :param max_iterations: Maximum number of dialogue turns.
-        :type max_iterations: int
+        :param max_turns: Maximum number of dialogue turns.
+        :type max_turns: int
         :param id: Dialogue ID.
         :type id: int
         :param parent_id: ID of the parent dialogue, if any.
@@ -769,7 +769,7 @@ class PersonaAgent:
 
         utter = None
         completion = False
-        tqdm_iterator = trange(max_iterations, desc="Dialogue", leave=keep_bar)
+        tqdm_iterator = trange(max_turns // 2, desc="Dialogue", leave=keep_bar)
         for _ in tqdm_iterator:
             utt_events = self(utter, return_events=True)
 

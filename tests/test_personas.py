@@ -77,7 +77,7 @@ def test_persona_agent_dialog_with():
     persona2 = Persona(name="B")
     agent1 = PersonaAgent(DummyLLM(), persona=persona1, name="A")
     agent2 = PersonaAgent(DummyLLM(), persona=persona2, name="B")
-    dialog = agent1.dialog_with(agent2, max_iterations=2, keep_bar=False)
+    dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
     assert isinstance(dialog, Dialog)
     assert len(dialog.turns) > 0
     assert "A" in dialog.personas
