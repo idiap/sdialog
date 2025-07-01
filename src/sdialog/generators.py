@@ -269,10 +269,8 @@ class PersonaGenerator:
     :type persona: BasePersona
     :param default_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
     :type default_attributes: str, list, or dict, optional
-    :param default_llm: The default language model to use for attribute population via LLM.
-    :type default_llm: str, optional
-    :param default_llm_prompt: The prompt template for the LLM to fill empty attributes.
-    :type default_llm_prompt: str, optional
+    :param llm_model: The default language model to use for attribute population via LLM.
+    :type llm_model: str, optional
 
     :raises ValueError: If specified attributes do not exist in the persona or if required files for templates are missing.
 
@@ -284,8 +282,7 @@ class PersonaGenerator:
     def __init__(self,
                  persona: BasePersona,
                  default_attributes: str = "all",  # None
-                 default_llm: str = None,
-                 default_llm_prompt: str = None,
+                 llm_model: str = None,
                  llm_kwargs: dict = None):
         if isinstance(persona, BasePersona):
             self._persona = persona
@@ -298,14 +295,12 @@ class PersonaGenerator:
         self._persona_rnd_attributes = default_attributes if isinstance(default_attributes, dict) else {}
 
         self.default_attributes = default_attributes
-        self.default_llm = default_llm if default_llm is not None else config["llm"]["model"]
+        self.llm_model = llm_model if llm_model is not None else config["llm"]["model"]
         self.llm_kwargs = llm_kwargs or {}
 
         # Load persona generation prompt template from file if not provided
-        if default_llm_prompt is None:
-            with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
-                default_llm_prompt = f.read()
-        self.default_llm_prompt = default_llm_prompt
+        with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
+            self.llm_prompt = f.read()
 
     def _check_attributes(self, persona_attributes):
         """
@@ -457,15 +452,15 @@ class PersonaGenerator:
                     llm_attribute_instructions_txt += "\n".join(
                         [f"* {k}: {v}." for k, v in llm_attribute_instructions.items()]
                     )
-                template = Template(self.default_llm_prompt)
+                template = Template(self.llm_prompt)
                 prompt = template.render(
                     persona=json.dumps(random_persona_dict, indent=2),
                     persona_class_name=str(type(self._persona).__name__),
                     attributes_instructions=llm_attribute_instructions_txt
                 )
 
-                if not isinstance(self.default_llm, str):
-                    llm = self.default_llm
+                if not isinstance(self.llm_model, str):
+                    llm = self.llm_model
                 else:
                     schema = self._persona.model_json_schema()
                     schema["properties"] = {k: v
@@ -478,7 +473,7 @@ class PersonaGenerator:
                     llm_kwargs["temperature"] = temperature
                     # llm_kwargs from __init__ override config
 
-                    llm = ChatOllama(model=self.default_llm,
+                    llm = ChatOllama(model=self.llm_model,
                                      format=schema,
                                      **llm_kwargs)
 
