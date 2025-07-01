@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Add the parent directory to the Python path to import sdialog
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sdialog.personas import Patient, Doctor, PersonaMetadata
+from sdialog.personas import Patient, Doctor, PersonaMetadata, PersonaAgent
 from sdialog.generators import PersonaGenerator
 from sdialog.util import config
 
@@ -23,11 +23,22 @@ try:
     # Initialize the persona generators with base personas
     logger.info("Initializing persona generators...")
     
-    # Load default configuration
-    logger.info("Loading configuration...")
+    # Initialize generators with default configuration
+    base_patient = Patient(
+        name="",
+        age=30,
+        gender="",
+        language="English"
+    )
+    base_doctor = Doctor(
+        name="",
+        age=40,
+        gender="",
+        language="English"
+    )
     
-    patient_generator = PersonaGenerator(persona=Patient)
-    doctor_generator = PersonaGenerator(persona=Doctor)
+    patient_generator = PersonaGenerator(persona=base_patient)
+    doctor_generator = PersonaGenerator(persona=base_doctor)
     logger.info("Persona generators initialized successfully")
     
 except Exception as e:
@@ -79,6 +90,45 @@ def generate_persona(type):
             return jsonify({'error': 'Invalid persona type'}), 400
     except Exception as e:
         logger.error(f"Error in generate_persona endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generate/dialog', methods=['POST'])
+def generate_dialog():
+    """Generate a dialogue between a patient and a doctor."""
+    try:
+        data = request.json
+        logger.info("Received request to generate dialogue")
+
+        patient_data = data.get('patient', {})
+        doctor_data = data.get('doctor', {})
+
+        if not patient_data or not doctor_data:
+            return jsonify({'error': 'Patient and Doctor data are required'}), 400
+
+        # Create persona instances from form data
+        patient_fields = {f for f in Patient.model_fields}
+        doctor_fields = {f for f in Doctor.model_fields}
+
+        patient_filtered_data = {k: v for k, v in patient_data.items() if k in patient_fields}
+        doctor_filtered_data = {k: v for k, v in doctor_data.items() if k in doctor_fields}
+
+        patient_persona = Patient(**patient_filtered_data)
+        doctor_persona = Doctor(**doctor_filtered_data)
+        
+        # Create PersonaAgents, ensuring they have a name.
+        patient_agent = PersonaAgent(persona=patient_persona, name=patient_persona.name or "Patient")
+        doctor_agent = PersonaAgent(persona=doctor_persona, name=doctor_persona.name or "Doctor")
+
+        # Generate dialogue, doctor starts.
+        logger.info(f"Starting dialogue generation between {doctor_agent.name} and {patient_agent.name}...")
+        dialogue = doctor_agent.dialog_with(patient_agent, max_turns=12, keep_bar=False) 
+        logger.info("Dialogue generation complete.")
+
+        return jsonify(dialogue.json())
+
+    except Exception as e:
+        # Using exc_info=True to log the full traceback
+        logger.error(f"Error during dialogue generation: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/save', methods=['POST'])
