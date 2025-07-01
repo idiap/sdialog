@@ -249,7 +249,7 @@ class Persona(BasePersona):
     """
 
     name: str = ""
-    age: int = None
+    age: Optional[Union[int, str]] = None
     race: str = ""
     gender: str = ""
     language: str = "English"
@@ -301,7 +301,7 @@ class ExtendedPersona(BasePersona):
     :ivar weight: Weight of the persona.
     :vartype weight: str
     :ivar height: Height of the persona.
-    :vartype height: float
+    :vartype height: str
     :ivar occupation: Occupation of the persona.
     :vartype occupation: str
     :ivar education: Education background.
@@ -329,12 +329,12 @@ class ExtendedPersona(BasePersona):
     """
     name: str = ""
     # Demographics
-    age: int = None
+    age: Optional[Union[int, str]] = None
     race: str = ""
     gender: str = ""
     language: str = "English"
     weight: str = ""
-    height: float = ""
+    height: Union[str, float] = ""
     voice_characteristics: str = ""  # e.g., accent, tone, etc.
     # Background
     occupation: str = ""
@@ -396,7 +396,7 @@ class Doctor(ExtendedPersona):
     :vartype work_experience: str
     """
     specialty: str = ""
-    years_of_experience: int = 0
+    years_of_experience: Optional[Union[int, str]] = None
     certifications: str = ""
     work_experience: str = ""
 
