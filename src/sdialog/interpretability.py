@@ -43,14 +43,10 @@ class UtteranceTokenHook(BaseHook):
     """
     def __init__(self, agent):
         super().__init__('model.embed_tokens', self._hook, agent=agent)
-        self.utterance_start = True
         self.utterance_list = []
         self.current_utterance_ids = None  # Now a tensor
         self.hook_state = {
-            'impl': lambda module, input, output: None,
             'tokenizer': None,
-            'finished': False,
-            'seen_first': True  # Assuming it's needed
         }
         self.representation_cache = {}
         self.agent = agent
@@ -217,7 +213,6 @@ class InspectionUtterance(Inspector):
         self.utterance = utterance
         self.tokens = utterance['tokens']
         self.text = utterance['text']
-        self.input_ids = utterance['input_ids']
         self.agent = agent
         # Store utterance_index if present
         self.utterance_index = utterance.get('utterance_index', 0)
