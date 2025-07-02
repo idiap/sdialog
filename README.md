@@ -54,8 +54,8 @@ alice = Persona(name="Alice", role="friendly barista", personality="cheerful and
 bob = Persona(name="Bob", role="customer", personality="curious and polite")
 
 # Create agents
-alice_agent = PersonaAgent(persona=alice, name="Alice")
-bob_agent = PersonaAgent(persona=bob, name="Bob")
+alice_agent = Agent(persona=alice, name="Alice")
+bob_agent = Agent(persona=bob, name="Bob")
 
 # Generate a dialogue
 dialog = alice_agent.dialog_with(bob_agent)
