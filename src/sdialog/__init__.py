@@ -19,6 +19,7 @@ import os
 import re
 import json
 import logging
+import importlib
 import subprocess
 
 from print_color import print as cprint
@@ -26,7 +27,6 @@ from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Any
 
 from .util import make_serializable
-
 
 __version__ = "0.0.2"
 
@@ -36,6 +36,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# import config sumbodule as "config" attribute of the package
+config = importlib.import_module("sdialog.config")
 
 
 def _get_dynamic_version() -> str:
