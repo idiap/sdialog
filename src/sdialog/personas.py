@@ -16,11 +16,13 @@ import random
 import logging
 import inspect
 import transformers
-from collections import defaultdict
+
 from abc import ABC
 from time import time
 from tqdm.auto import trange
+from collections import defaultdict
 from pydantic import BaseModel, Field
+from print_color import print as cprint
 from typing import List, Union, Optional
 
 from langchain_ollama.chat_models import ChatOllama
@@ -130,6 +132,24 @@ class BasePersona(BaseModel, ABC):
         :rtype: str
         """
         return self.description()
+
+    def print(self, *a, **kw):
+        """
+        Pretty-prints the persona, including its metadata information.
+        """
+        if hasattr(self, "_metadata") and self._metadata is not None:
+            for key, value in self._metadata.model_dump().items():
+                if value not in [None, ""]:
+                    cprint(value, tag=key, tag_color="purple", color="magenta", format="bold")
+        cprint("--- Persona Begins ---", color="magenta", format="bold")
+        for key, value in self.__dict__.items():
+            if key == "_metadata":
+                continue
+            cprint(value,
+                   tag=camel_or_snake_to_words(key).capitalize(),
+                   tag_color="red",
+                   color="white")
+        cprint("--- Persona Ends ---", color="magenta", format="bold")
 
     def json(self, string: bool = False, indent=2):
         """

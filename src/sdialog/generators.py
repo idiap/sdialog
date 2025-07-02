@@ -471,6 +471,7 @@ class PersonaGenerator:
                     llm_kwargs = self.llm_kwargs or llm_config_params
                     # temperature from function argument overrides config
                     llm_kwargs["temperature"] = temperature
+                    llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
                     # llm_kwargs from __init__ override config
 
                     llm = ChatOllama(model=self.llm_model,
@@ -488,11 +489,13 @@ class PersonaGenerator:
                                             if random_persona_dict[k] is None})
 
             try:
+                if any(value in [None, "", "null"] for value in random_persona_dict.values()):
+                    raise ValidationError([], [])
                 random_persona = self._persona.model_validate(random_persona_dict)
                 break
             except ValidationError:
                 missing_attributes = {k: v for k, v in self._persona.model_dump().items()
-                                      if k not in random_persona_dict or random_persona_dict[k] is None}
+                                      if k not in random_persona_dict or random_persona_dict[k] in [None, "", "null"]}
                 logging.warning(
                     f"The following {len(missing_attributes)} attributes are missing in the "
                     f"generated persona: {', '.join(missing_attributes.keys())}. "

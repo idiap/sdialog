@@ -20,7 +20,7 @@ import re
 import json
 import subprocess
 
-from print_color import print
+from print_color import print as cprint
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Any
 
@@ -287,21 +287,21 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
     # speaker_utt_colors = ["black", "grey"]
 
     if dialog.id:
-        print(dialog.id, tag="dialog_id", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.id, tag="dialog_id", tag_color="purple", color="magenta", format="bold")
     if dialog.complete:
-        print(dialog.complete, tag="complete", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.complete, tag="complete", tag_color="purple", color="magenta", format="bold")
     if dialog.model:
-        print(dialog.model, tag="model", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.model, tag="model", tag_color="purple", color="magenta", format="bold")
     if dialog.seed:
-        print(dialog.seed, tag="seed", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.seed, tag="seed", tag_color="purple", color="magenta", format="bold")
     if scenario and dialog.scenario:
-        print("", tag="scenario", tag_color="purple", color="magenta", format="bold")
+        cprint("", tag="scenario", tag_color="purple", color="magenta", format="bold")
         if type(dialog.scenario) is str:
-            print(dialog.scenario, color="magenta")
+            cprint(dialog.scenario, color="magenta")
         else:
-            print(json.dumps(dialog.scenario, indent=2), color="magenta")
+            cprint(json.dumps(dialog.scenario, indent=2), color="magenta")
 
-    print("--- Dialogue Begins ---", color="magenta", format="bold")
+    cprint("--- Dialogue Begins ---", color="magenta", format="bold")
     speakers = sorted(list(set(turn.speaker for turn in dialog.turns)))
     if orchestration:
         dialog = dialog.model_copy()
@@ -322,8 +322,8 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
             tag_color = speaker_tag_colors[speakers.index(speaker) % len(speaker_tag_colors)]
             color = speaker_utt_colors[speakers.index(speaker) % len(speaker_utt_colors)]
 
-        print(turn.text,
-              tag=speaker,
-              tag_color=tag_color,
-              color=color)
-    print("--- Dialogue Ends ---", color="magenta", format="bold")
+        cprint(turn.text,
+               tag=speaker,
+               tag_color=tag_color,
+               color=color)
+    cprint("--- Dialogue Ends ---", color="magenta", format="bold")
