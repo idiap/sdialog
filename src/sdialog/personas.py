@@ -16,7 +16,7 @@ import random
 import logging
 import inspect
 import transformers
-
+from collections import defaultdict
 from abc import ABC
 from time import time
 from tqdm.auto import trange
@@ -29,6 +29,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .orchestrators import BaseOrchestrator
+from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 from .util import camel_or_snake_to_words
 from .config import config
 from jinja2 import Template
@@ -433,6 +434,7 @@ class PersonaAgent:
                  system_prompt: str = None,
                  can_finish: bool = True,
                  orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,
+                 inspectors: Union['Inspector', List['Inspector']] = None,
                  scenario: Union[dict, str] = None,
                  llm_kwargs: dict = None):
 
@@ -455,6 +457,8 @@ class PersonaAgent:
         :type can_finish: bool
         :param orchestrators: Orchestrators for agent behavior.
         :type orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]]
+        :param inspectors: Inspector(s) to add to the agent.
+        :type inspectors: Union[Inspector, List[Inspector]]
         :param scenario: Scenario metadata.
         :type scenario: Union[dict, str]
         :param llm_kwargs: Additional parameters for the LLM.
@@ -484,6 +488,9 @@ class PersonaAgent:
             if "/" in model:
                 logging.info(f"Loading Hugging Face model: {model}")
                 self.hf_model = True
+
+                # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
+                llm_kwargs = {k: v for k, v in llm_kwargs.items() if k != "seed"}
 
                 # Default HuggingFace parameters
                 hf_defaults = dict(
@@ -525,6 +532,12 @@ class PersonaAgent:
         self.scenario = scenario
         self.orchestrators = None
         self.add_orchestrators(orchestrators)
+        self.inspectors = None
+        self.add_inspectors(inspectors)
+
+    @property
+    def utterance_list(self):
+        return self.utterance_hook.utterance_list
 
     def __call__(self, utterance: str = "", return_events: bool = False) -> str:
         """
@@ -573,6 +586,7 @@ class PersonaAgent:
                         else self.first_utterances)
             response = AIMessage(content=response)
         else:
+            current_memory = self.memory_dump()
             if self.hf_model and not isinstance(self.memory[-1], HumanMessage):
                 # Ensure last message is HumanMessage to avoid "Last message must be a HumanMessage!"
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
@@ -580,6 +594,9 @@ class PersonaAgent:
                 response = self.llm.invoke(self.memory + [HumanMessage(content="")])
             else:
                 response = self.llm.invoke(self.memory)
+
+        if self.inspectors:
+            self.utterance_hook.new_utterance_event(current_memory)
 
         if self.orchestrators:
             self.memory[:] = [msg for msg in self.memory
@@ -604,16 +621,21 @@ class PersonaAgent:
         else:
             return response if response else ""
 
-    def __or__(self, orchestrator: Union[BaseOrchestrator, List[BaseOrchestrator]]):
+    def __or__(self, other):
         """
-        Adds orchestrators to the agent using the | operator.
+        Adds enitity to the agent using the | operator.
 
         :param orchestrator: Orchestrator(s) to add.
         :type orchestrator: Union[BaseOrchestrator, List[BaseOrchestrator]]
         :return: The agent with orchestrators added.
         :rtype: PersonaAgent
         """
-        self.add_orchestrators(orchestrator)
+        if isinstance(other, Inspector):
+            self.set_utterance_hook()
+            self.add_inspectors(other)
+            other.add_agent(agent=self)
+        else:
+            self.add_orchestrators(other)
         return self
 
     def response_lookahead(self, utterance: str = None):
@@ -650,11 +672,79 @@ class PersonaAgent:
         for orchestrator in orchestrators:
             orchestrator._set_target_agent(self)
 
+    def add_inspectors(self, inspectors):
+        """
+        Adds inspectors to the agent.
+
+        :param inspectors: Inspector(s) to add.
+        :type inspectors: Union[Inspector, List[Inspector]]
+        """
+        if inspectors is None:
+            return
+
+        if self.inspectors is None:
+            self.inspectors = []
+
+        # Handle both single Inspector and list of Inspectors
+        if isinstance(inspectors, Inspector):
+            inspectors = [inspectors]
+        elif isinstance(inspectors, list):
+            inspectors = [ins for ins in inspectors if ins is not None]
+            if not inspectors:
+                return
+        else:
+            raise TypeError("inspectors must be an Inspector or a list of Inspectors")
+
+        self.inspectors.extend(inspectors)
+
+        for inspector in inspectors:
+            inspector.add_agent(self)
+        self.set_utterance_hook()
+
     def clear_orchestrators(self):
         """
         Removes all orchestrators from the agent.
         """
         self.orchestrators = None
+
+    def add_hooks(self, layer_name_to_key):
+        """
+        Registers RepresentationHooks for each layer in the given mapping.
+        Skips already registered layers. Adds new keys to the shared representation_cache.
+        """
+        # Get the model (assume HuggingFace pipeline)
+        model = self.llm.llm.pipeline.model if hasattr(self.llm, 'llm') and hasattr(self.llm.llm, 'pipeline') else None
+        if model is None:
+            raise RuntimeError("Model not found or not a HuggingFace pipeline.")
+
+        # Always re-initialize cache and hooks
+        self.representation_cache = defaultdict(lambda: defaultdict(list))
+        self.rep_hooks = []
+
+        # Register new hooks
+        for layer_name, cache_key in layer_name_to_key.items():
+            hook = RepresentationHook(layer_name, cache_key, self.representation_cache, self.utterance_list)
+            hook.register(model)
+            self.rep_hooks.append(hook)
+
+    def clear_hooks(self):
+        """
+        Resets all representation cached and removes all registered hooks from the agent.
+        """
+        for hook in getattr(self, 'rep_hooks', []):
+            hook.reset()
+            hook.remove()
+        self.rep_hooks = []
+        self.representation_cache = defaultdict(lambda: defaultdict(list))
+        self.set_utterance_hook()
+
+    def set_utterance_hook(self):
+        # Register UtteranceTokenHook and expose utterance_list
+        self.utterance_hook = UtteranceTokenHook(agent=self)
+        model_obj = self.llm.llm.pipeline.model
+        self.utterance_hook.register(model_obj)
+        # Automatically set the tokenizer in the hook
+        self.utterance_hook.hook_state['tokenizer'] = self.llm.llm.pipeline.tokenizer
 
     def instruct(self, instruction: str, persist: bool = False):
         """
@@ -719,6 +809,7 @@ class PersonaAgent:
     def reset(self, seed: int = None):
         """
         Resets the agent's memory and orchestrators, optionally reseeding the LLM.
+        Clears the interpretability state (utterance_list and representation_cache).
 
         :param seed: Random seed for reproducibility.
         :type seed: int
@@ -731,6 +822,8 @@ class PersonaAgent:
             for orchestrator in self.orchestrators:
                 orchestrator.reset()
 
+        self._reset_interpretability_state()
+
         if not self.hf_model:
             # hack to avoid seed bug in prompt cache
             # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
@@ -738,6 +831,22 @@ class PersonaAgent:
             self.llm.num_predict = 1
             self.llm.invoke(self.memory)
             self.llm.num_predict = _
+        else:
+            if seed is None:
+                torch.manual_seed(13)
+            else:
+                torch.manual_seed(seed)
+
+    def _reset_interpretability_state(self):
+        """
+        Clears the interpretability state: utterance_list and representation_cache, if present.
+        Does not reset or remove hooks.
+        """
+        if hasattr(self, 'utterance_hook') and self.utterance_hook is not None:
+            self.utterance_hook.utterance_list.clear()
+        if hasattr(self, 'representation_cache') and self.representation_cache is not None:
+            self.representation_cache.clear()
+            self.representation_cache.update(defaultdict(lambda: defaultdict(list)))
 
     def dialog_with(self,
                     agent: "PersonaAgent",
@@ -845,3 +954,11 @@ class PersonaAgent:
         )
 
     talk_with = dialog_with
+
+    def memory_dump(self):
+        """
+        Returns a copy of the agent's memory (list of messages).
+        :return: A copy of the memory list.
+        :rtype: list
+        """
+        return list(self.memory)
