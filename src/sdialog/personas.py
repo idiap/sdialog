@@ -524,7 +524,7 @@ class Agent:
                 hf_params = {**hf_defaults, **llm_kwargs}
 
                 pipe = transformers.pipeline("text-generation", **hf_params)
-                pipe.tokenizer.pad_token_id = pipe.model.config.eos_token_id
+                # TODO: avoid the eos token warning message for certain llm
                 # TODO: if tokenizer doesn't have a chat template, set a default one
 
                 self.llm = ChatHuggingFace(
