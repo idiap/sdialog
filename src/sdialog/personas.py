@@ -507,10 +507,10 @@ class Agent:
 
                 # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
                 llm_kwargs = {k: v for k, v in llm_kwargs.items() if k != "seed"}
+                llm_kwargs["model"] = model
 
                 # Default HuggingFace parameters
                 hf_defaults = dict(
-                    model=model,
                     torch_dtype=torch.bfloat16,
                     device_map="auto",
                     max_new_tokens=2048,
@@ -525,8 +525,7 @@ class Agent:
                 # TODO: if tokenizer doesn't have a chat template, set a default one
 
                 self.llm = ChatHuggingFace(
-                    llm=HuggingFacePipeline(pipeline=pipe,
-                                            model_kwargs={'temperature': hf_params.get("temperature", 0.3)})
+                    llm=HuggingFacePipeline(pipeline=pipe)
                 )
             else:
                 logger.info(f"Loading ChatOllama model: {model}")

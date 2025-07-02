@@ -5,7 +5,7 @@ prompts:
   persona_agent: ../prompts/agent_persona.j2
 llm:
   model: gemma3:27b
-  temperature: 0.8
+  temperature: null  # model's default
   seed: 13
   max_tokens: null
   top_p: null

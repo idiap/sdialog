@@ -338,7 +338,7 @@ class PersonaGenerator:
         self._persona_rnd_attributes = persona_rnd_attributes
 
     def generate(self,
-                 temperature: float = 0.8,
+                 temperature: float = None,
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
@@ -468,7 +468,8 @@ class PersonaGenerator:
                     llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
                     llm_kwargs = self.llm_kwargs or llm_config_params
                     # temperature from function argument overrides config
-                    llm_kwargs["temperature"] = temperature
+                    if temperature is not None:
+                        llm_kwargs["temperature"] = temperature
                     llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
                     # llm_kwargs from __init__ override config
 
