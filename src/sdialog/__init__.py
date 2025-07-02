@@ -132,14 +132,14 @@ class Dialog(BaseModel):
         """
         return len(self.turns)
 
-    def length(self, mode: str = "turns", words_per_minute: int = 130) -> int:
+    def length(self, mode: str = "words", words_per_minute: int = 130) -> int:
         """
-        Returns the length of the dialogue according to the specified mode.
+        Returns the length of the dialogue according to the specified mode (number of words by default).
 
         :param mode: The mode for measuring length. Options:
             - "turns": Number of turns (default)
             - "words": Total number of words in all turns
-            - "minutes": Approximate duration in minutes (`words_per_minute`/minute)
+            - "minutes" / "time": Approximate duration in minutes (`words_per_minute`/minute)
         :type mode: str
         :param words_per_minute: Words per minute for "minutes" mode (default is 130, which is a common estimate).
         :type words_per_minute: int
@@ -147,11 +147,12 @@ class Dialog(BaseModel):
         :rtype: int
         :raises ValueError: If an unknown mode is specified.
         """
+        mode = mode.lower()
         if mode == "turns":
             return len(self.turns)
         elif mode == "words":
             return sum(len(turn.text.split()) for turn in self.turns)
-        elif mode == "minutes":
+        elif mode in ["minutes", "time"]:
             total_words = sum(len(turn.text.split()) for turn in self.turns)
             return max(1, int(round(total_words / words_per_minute)))
         else:
