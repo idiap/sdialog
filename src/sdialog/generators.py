@@ -389,8 +389,8 @@ class PersonaGenerator:
                         #       and then have temples like {{name}} to use them?
                         m_range = re.match(r"{{(\d+)-(\d+)}}", value)  # match {{min-max}}
                         m_txt = re.match(r"{{txt:(.+)}}", value)  # path to txt file (one line per value)
-                        m_csv = re.match(r"{{csv:(\w+):(.+)}}", value)  # path to csv file (column to sample from)
-                        m_tsv = re.match(r"{{tsv:(\w+):(.+)}}", value)  # path to tsv file (column to sample from)
+                        m_csv = re.match(r"{{csv:([^:]+):(.+)}}", value)  # path to csv file (column to sample from)
+                        m_tsv = re.match(r"{{tsv:([^:]+):(.+)}}", value)  # path to tsv file (column to sample from)
                         m_llm = re.match(r"{{llm(:.+)?}}", value)  # LLM template with optional instruction
                         if m_range:
                             min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
