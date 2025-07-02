@@ -65,3 +65,14 @@ def test_dialog_print(capsys):
     assert "Dialogue Begins" in out
     assert "A" in out
     assert "Hi" in out
+
+
+def test_dialog_length():
+    turns = [Turn(speaker="A", text="Hi there!"), Turn(speaker="B", text="Hello world, how are you?")]
+    dialog = Dialog(turns=turns)
+    # turns: 2
+    assert dialog.length("turns") == 2
+    # words: 2 + 5 = 7
+    assert dialog.length("words") == 7
+    # minutes: 7/150 ≈ 0.0467, rounded to 1 by default (see implementation)
+    assert dialog.length("minutes") == 1

@@ -124,6 +124,31 @@ class Dialog(BaseModel):
         """
         return len(self.turns)
 
+    def length(self, mode: str = "turns", words_per_minute: int = 130) -> int:
+        """
+        Returns the length of the dialogue according to the specified mode.
+
+        :param mode: The mode for measuring length. Options:
+            - "turns": Number of turns (default)
+            - "words": Total number of words in all turns
+            - "minutes": Approximate duration in minutes (`words_per_minute`/minute)
+        :type mode: str
+        :param words_per_minute: Words per minute for "minutes" mode (default is 130, which is a common estimate).
+        :type words_per_minute: int
+        :return: The computed length according to the mode.
+        :rtype: int
+        :raises ValueError: If an unknown mode is specified.
+        """
+        if mode == "turns":
+            return len(self.turns)
+        elif mode == "words":
+            return sum(len(turn.text.split()) for turn in self.turns)
+        elif mode == "minutes":
+            total_words = sum(len(turn.text.split()) for turn in self.turns)
+            return max(1, int(round(total_words / words_per_minute)))
+        else:
+            raise ValueError(f"Unknown mode for get_length: {mode}")
+
     def description(self, turn_template: str = "{speaker}: {text}"):
         """
         Returns a human-readable string representation of the dialogue.
@@ -251,6 +276,28 @@ class Dialog(BaseModel):
             to_wav(audio, path)
 
         return audio
+
+    def get_length(self, mode: str = "turns") -> float:
+        """
+        Returns the length of the dialogue according to the specified mode.
+
+        :param mode: The mode for measuring length. Options are:
+            - "turns": Number of turns (default)
+            - "words": Total number of words in all turns
+            - "minutes": Approximate duration in minutes (assuming 150 words per minute)
+        :type mode: str
+        :return: The length of the dialogue according to the selected mode.
+        :rtype: float
+        """
+        if mode == "turns":
+            return float(len(self.turns))
+        elif mode == "words":
+            return float(sum(len(turn.text.split()) for turn in self.turns))
+        elif mode == "minutes":
+            total_words = sum(len(turn.text.split()) for turn in self.turns)
+            return float(total_words) / 150.0  # 150 words per minute is a common estimate
+        else:
+            raise ValueError(f"Unknown mode '{mode}'. Supported modes: 'turns', 'words', 'minutes'.")
 
     __str__ = description
 
