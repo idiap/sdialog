@@ -8,7 +8,7 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/idiap/sdialog/)
 ---
 
-> ⚠️ This library is currently undergoing significant updates as part of the JSALT workshop. As a result, some examples in this README and the tutorials may be outdated. Many new features have been added (including audio generation, evaluation, interpretability modules, personas generators, and more). We will update the README, documentation, and tutorials once the codebase stabilizes and matures. Thank you for your understanding and patience.
+> ⚠️ This library is currently undergoing significant updates as part of the JSALT workshop. As a result, some examples in this README and the tutorials may be outdated. Many new features have been added (including audio generation, evaluation, interpretability modules, persona generators, and more). We will update the README, documentation, and tutorials once the codebase stabilizes and matures. Thank you for your understanding and patience. **If you are interested in this project, we recommend clicking the “watch” icon above to stay informed about future updates and changes.**
 
 **SDialog** is a modular, extensible Python toolkit for synthetic dialogue generation and analysis, designed for research and development with instruction-tuned Large Language Models (LLMs). It enables flexible, persona-driven, multi-agent dialogue simulation, orchestration, and scenario management, making it ideal for building, evaluating, and experimenting with conversational agents.
 
