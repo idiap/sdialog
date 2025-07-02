@@ -427,7 +427,7 @@ class Doctor(ExtendedPersona):
     work_experience: str = ""
 
 
-class PersonaAgent:
+class Agent:
     """
     Agent that simulates a persona in dialogue using an LLM.
 
@@ -979,3 +979,6 @@ class PersonaAgent:
         :rtype: list
         """
         return list(self.memory)
+
+
+PersonaAgent = Agent
