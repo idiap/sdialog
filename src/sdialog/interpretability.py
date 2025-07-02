@@ -29,11 +29,7 @@ import logging
 from langchain_core.messages import SystemMessage
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = logging.getLogger(__name__)
 
 
 class BaseHook:
@@ -187,28 +183,28 @@ class Inspector:
         Includes any found instructions across utterances.
         """
         if self.agent is None:
-            logging.warning("No agent is currently assigned.")
+            logger.warning("No agent is currently assigned.")
             return None
 
         num_utterances = len(self.agent.utterance_list)
         if num_utterances == 0:
-            logging.info(f"{self.agent.name} has not spoken yet.")
+            logger.info(f"{self.agent.name} has not spoken yet.")
         else:
-            logging.info(f"{self.agent.name} has spoken for {num_utterances} utterance(s).")
+            logger.info(f"{self.agent.name} has spoken for {num_utterances} utterance(s).")
 
         if self.to_watch:
-            logging.info("\nWatching the following layers:\n")
+            logger.info("\nWatching the following layers:\n")
             for layer, key in self.to_watch.items():
-                logging.info(f"  • {layer}  →  '{key}'")
-            logging.info("")
+                logger.info(f"  • {layer}  →  '{key}'")
+            logger.info("")
 
         instruction_recap = self.find_instructs(verbose=False)
         num_instructs = len(instruction_recap)
 
-        logging.info(f"Found {num_instructs} instruction(s) in the system messages.")
+        logger.info(f"Found {num_instructs} instruction(s) in the system messages.")
 
         for match in instruction_recap:
-            logging.info(f"\nInstruction found at utterance index {match['index']}:\n{match['content']}\n")
+            logger.info(f"\nInstruction found at utterance index {match['index']}:\n{match['content']}\n")
 
     def find_instructs(self, verbose=False):
         """
@@ -229,7 +225,7 @@ class Inspector:
                 if isinstance(msg, SystemMessage):
                     match = {"index": utt.utterance_index, "content": msg.content}
                     if verbose:
-                        logging.info(f"\n[SystemMessage in utterance index {match['index']}]:\n{match['content']}\n")
+                        logger.info(f"\n[SystemMessage in utterance index {match['index']}]:\n{match['content']}\n")
                     matches.append(match)
                     break  # Only one SystemMessage per utterance is sufficient
 

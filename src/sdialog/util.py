@@ -9,8 +9,10 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-License-Identifier: MIT
 import re
 import json
-import subprocess
 import logging
+import subprocess
+
+logger = logging.getLogger(__name__)
 
 
 def check_and_pull_ollama_model(model_name: str) -> bool:
@@ -36,7 +38,7 @@ def check_and_pull_ollama_model(model_name: str) -> bool:
             return True
 
         # If not available locally, try to pull it
-        logging.info(f"Model '{model_name}' not found locally. Attempting to pull from hub...")
+        logger.info(f"Model '{model_name}' not found locally. Pulling it from the hub...")
         pull_result = subprocess.run(
             ["ollama", "pull", model_name],
             capture_output=True,
@@ -45,14 +47,14 @@ def check_and_pull_ollama_model(model_name: str) -> bool:
         )
 
         if pull_result.returncode == 0:
-            logging.info(f"Successfully pulled model '{model_name}'.")
+            logger.info(f"Successfully pulled model '{model_name}'.")
             return True
         else:
-            logging.error(f"Failed to pull model '{model_name}': {pull_result.stderr}")
+            logger.error(f"Failed to pull model '{model_name}': {pull_result.stderr}")
             return False
 
     except Exception as e:
-        logging.error(f"Unexpected error while pulling model '{model_name}' from ollama hub: {e}")
+        logger.error(f"Unexpected error while pulling model '{model_name}' from ollama hub: {e}")
         return False
 
 

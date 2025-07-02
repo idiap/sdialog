@@ -25,11 +25,7 @@ from .util import check_and_pull_ollama_model
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = logging.getLogger(__name__)
 
 
 class LLMDialogOutput(BaseModel):
@@ -499,7 +495,7 @@ class PersonaGenerator:
             except ValidationError:
                 missing_attributes = {k: v for k, v in self._persona.model_dump().items()
                                       if k not in random_persona_dict or random_persona_dict[k] in [None, "", "null"]}
-                logging.warning(
+                logger.warning(
                     f"The following {len(missing_attributes)} attributes are missing in the "
                     f"generated persona: {', '.join(missing_attributes.keys())}. "
                     f"Trying to fill the missing attributes again (attempt {attempt + 1} out of {max_attempts})..."
@@ -511,7 +507,7 @@ class PersonaGenerator:
         # If we ran out of attempts and still have missing attributes...
         # we return a persona with missing attributes filled with default null values
         if random_persona is None:
-            logging.warning(
+            logger.warning(
                 f"The generated persona is missing the following {len(missing_attributes)} attributes: "
                 f"{', '.join(missing_attributes.keys())}."
             )

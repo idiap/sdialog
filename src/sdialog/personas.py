@@ -37,11 +37,7 @@ from .util import camel_or_snake_to_words, check_and_pull_ollama_model
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = logging.getLogger(__name__)
 
 
 class PersonaMetadata(BaseModel):
@@ -506,7 +502,7 @@ class PersonaAgent:
             # If model name has a slash, assume it's a Hugging Face model
             # Otherwise, assume it's an Ollama model
             if "/" in model:
-                logging.info(f"Loading Hugging Face model: {model}")
+                logger.info(f"Loading Hugging Face model: {model}")
                 self.hf_model = True
 
                 # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
@@ -533,7 +529,7 @@ class PersonaAgent:
                                             model_kwargs={'temperature': hf_params.get("temperature", 0.3)})
                 )
             else:
-                logging.info(f"Loading ChatOllama model: {model}")
+                logger.info(f"Loading ChatOllama model: {model}")
                 # Collect LLM parameters from config, only if not None
                 # llm_kwargs overrides config
                 check_and_pull_ollama_model(model)

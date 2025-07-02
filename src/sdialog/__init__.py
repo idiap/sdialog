@@ -18,6 +18,7 @@ Main components:
 import os
 import re
 import json
+import logging
 import subprocess
 
 from print_color import print as cprint
@@ -28,6 +29,13 @@ from .util import make_serializable
 
 
 __version__ = "0.0.2"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 def _get_dynamic_version() -> str:

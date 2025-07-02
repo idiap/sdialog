@@ -16,11 +16,8 @@ from pyannote.audio import Model
 from pyannote.audio import Inference
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = logging.getLogger(__name__)
+
 
 model = Model.from_pretrained("pyannote/embedding")
 inference = Inference(model, window="whole")
@@ -128,5 +125,5 @@ def timestamps_alignment(audio: np.ndarray) -> dict:
         return aligned_segments
 
     except Exception as e:
-        logging.error(f"Error during alignment: {e}")
+        logger.error(f"Error during alignment: {e}")
         return None
