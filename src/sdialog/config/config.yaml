@@ -4,7 +4,7 @@ prompts:
   dialog_generator: ../prompts/generator_dialog.j2
   persona_agent: ../prompts/agent_persona.j2
 llm:
-  model: qwen2.5:14b
+  model: gemma3:27b
   temperature: 0.8
   seed: 13
   max_tokens: null
