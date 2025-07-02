@@ -20,8 +20,9 @@ from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
-from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 from .config import config
+from .util import check_and_pull_ollama_model
+from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 
 
 logging.basicConfig(
@@ -84,6 +85,7 @@ class DialogGenerator:
             self.output_format = output_format
 
         if type(model) is str:
+            check_and_pull_ollama_model(model)  # Ensure the model is available locally
             self.llm = ChatOllama(model=model,
                                   format=output_format_schema,
                                   **llm_kwargs)
@@ -474,6 +476,7 @@ class PersonaGenerator:
                     llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
                     # llm_kwargs from __init__ override config
 
+                    check_and_pull_ollama_model(self.llm_model)
                     llm = ChatOllama(model=self.llm_model,
                                      format=schema,
                                      **llm_kwargs)

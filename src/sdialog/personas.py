@@ -29,12 +29,12 @@ from langchain_ollama.chat_models import ChatOllama
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
-from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
-from .orchestrators import BaseOrchestrator
-from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import camel_or_snake_to_words
 from .config import config
 from jinja2 import Template
+from .orchestrators import BaseOrchestrator
+from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
+from .util import camel_or_snake_to_words, check_and_pull_ollama_model
+from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 
 
 logging.basicConfig(
@@ -536,6 +536,7 @@ class PersonaAgent:
                 logging.info(f"Loading ChatOllama model: {model}")
                 # Collect LLM parameters from config, only if not None
                 # llm_kwargs overrides config
+                check_and_pull_ollama_model(model)
                 self.llm = ChatOllama(model=model, **llm_kwargs)
         else:
             # Assume model is already an instance

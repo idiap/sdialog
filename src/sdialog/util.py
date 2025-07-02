@@ -9,6 +9,51 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-License-Identifier: MIT
 import re
 import json
+import subprocess
+import logging
+
+
+def check_and_pull_ollama_model(model_name: str) -> bool:
+    """
+    Check if an Ollama model is available locally, and if not, pull it from the hub.
+
+    :param model_name: The name of the Ollama model to check/pull.
+    :type model_name: str
+    :return: True if the model is available (either was already local or successfully pulled), False otherwise.
+    :rtype: bool
+    """
+    try:
+        # First, check if the model is available locally
+        result = subprocess.run(
+            ["ollama", "list"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # Check if the model name is in the output
+        if model_name in result.stdout:
+            return True
+
+        # If not available locally, try to pull it
+        logging.info(f"Model '{model_name}' not found locally. Attempting to pull from hub...")
+        pull_result = subprocess.run(
+            ["ollama", "pull", model_name],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        if pull_result.returncode == 0:
+            logging.info(f"Successfully pulled model '{model_name}'.")
+            return True
+        else:
+            logging.error(f"Failed to pull model '{model_name}': {pull_result.stderr}")
+            return False
+
+    except Exception as e:
+        logging.error(f"Unexpected error while pulling model '{model_name}' from ollama hub: {e}")
+        return False
 
 
 def make_serializable(data: dict) -> dict:
