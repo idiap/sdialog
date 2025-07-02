@@ -1,10 +1,39 @@
-# COPY
-# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>
-# SPDX-License-Identifier: MIT
+"""
+interpretability.py
 
+This submodule provides classes and hooks for inspecting and interpreting the internal representations
+of PyTorch-based language models during forward passes. It enables the registration of hooks on specific
+model layers to capture token-level and utterance-level information, facilitating analysis of model behavior
+and interpretability. The module is designed to work with conversational agents and integrates with
+tokenizers and memory structures, supporting the extraction and inspection of tokens, representations,
+and system instructions across utterances.
+
+Classes:
+    - BaseHook: Base class for managing PyTorch forward hooks.
+    - UtteranceTokenHook: Captures token IDs at the embedding layer for each utterance.
+    - RepresentationHook: Captures intermediate representations from specified model layers.
+    - Inspector: Manages hooks, extracts representations, and provides utilities for analysis.
+    - InspectionUtterance: Represents a single utterance, exposing its tokens for inspection.
+    - InspectionUnit: Represents a single token within an utterance, allowing access to its representations.
+
+Typical usage involves attaching hooks to a model, accumulating utterance and token data during inference,
+and providing interfaces for downstream interpretability and analysis tasks.
+
+"""
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
+# SPDX-License-Identifier: MIT
 import torch
+import logging
+
 from langchain_core.messages import SystemMessage
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 class BaseHook:
@@ -158,28 +187,28 @@ class Inspector:
         Includes any found instructions across utterances.
         """
         if self.agent is None:
-            print("⚠️ No agent is currently assigned.")
+            logging.warning("No agent is currently assigned.")
             return None
 
         num_utterances = len(self.agent.utterance_list)
         if num_utterances == 0:
-            print(f"🗣️ {self.agent.name} has not spoken yet.")
+            logging.info(f"{self.agent.name} has not spoken yet.")
         else:
-            print(f"🗣️ {self.agent.name} has spoken for {num_utterances} utterance(s).")
+            logging.info(f"{self.agent.name} has spoken for {num_utterances} utterance(s).")
 
         if self.to_watch:
-            print("\n🔍 Watching the following layers:\n")
+            logging.info("\nWatching the following layers:\n")
             for layer, key in self.to_watch.items():
-                print(f"  • {layer}  →  '{key}'")
-            print()
+                logging.info(f"  • {layer}  →  '{key}'")
+            logging.info("")
 
         instruction_recap = self.find_instructs(verbose=False)
         num_instructs = len(instruction_recap)
 
-        print(f"📋 Found {num_instructs} instruction(s) in the system messages.")
+        logging.info(f"Found {num_instructs} instruction(s) in the system messages.")
 
         for match in instruction_recap:
-            print(f"\n➡️ Instruction found at utterance index {match['index']}:\n{match['content']}\n")
+            logging.info(f"\nInstruction found at utterance index {match['index']}:\n{match['content']}\n")
 
     def find_instructs(self, verbose=False):
         """
@@ -200,7 +229,7 @@ class Inspector:
                 if isinstance(msg, SystemMessage):
                     match = {"index": utt.utterance_index, "content": msg.content}
                     if verbose:
-                        print(f"\n[SystemMessage in utterance index {match['index']}]:\n{match['content']}\n")
+                        logging.info(f"\n[SystemMessage in utterance index {match['index']}]:\n{match['content']}\n")
                     matches.append(match)
                     break  # Only one SystemMessage per utterance is sufficient
 
