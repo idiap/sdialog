@@ -33,8 +33,8 @@ from .config import config
 from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
-from .util import camel_or_snake_to_words, check_and_pull_ollama_model
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
+from .util import camel_or_snake_to_words, check_and_pull_ollama_model, get_timestamp
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,8 @@ class PersonaMetadata(BaseModel):
 
     :ivar version: Version of the persona format (matches sdialog version).
     :vartype version: Optional[str]
+    :ivar timestamp: Timestamp of when the persona was generated.
+    :vartype timestamp: Optional[str]
     :ivar model: The model used to generate the persona.
     :vartype model: Optional[str]
     :ivar seed: The random seed used for persona generation.
@@ -60,6 +62,7 @@ class PersonaMetadata(BaseModel):
     :vartype className: str
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
+    timestamp: Optional[str] = Field(default_factory=get_timestamp)
     model: Optional[str] = None
     seed: Optional[int] = None
     id: Optional[int] = None

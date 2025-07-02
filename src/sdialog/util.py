@@ -15,6 +15,17 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
+def get_timestamp() -> str:
+    """
+    Returns the current UTC timestamp as an ISO 8601 string (e.g., "2025-01-01T12:00:00Z").
+
+    :return: Current UTC timestamp in ISO 8601 format with 'Z' suffix.
+    :rtype: str
+    """
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
+
 def check_and_pull_ollama_model(model_name: str) -> bool:
     """
     Check if an Ollama model is available locally, and if not, pull it from the hub.
@@ -74,6 +85,7 @@ def make_serializable(data: dict) -> dict:
     for key, value in data.items():
         if hasattr(value, "json") and callable(value.json):
             data[key] = value.json()
+        # elif isinstance(value, LangChainLLM):
         else:
             try:
                 json.dumps(value)

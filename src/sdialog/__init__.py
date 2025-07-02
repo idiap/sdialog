@@ -26,7 +26,7 @@ from print_color import print as cprint
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Any
 
-from .util import make_serializable
+from .util import make_serializable, get_timestamp
 
 __version__ = "0.0.2"
 
@@ -94,6 +94,8 @@ class Dialog(BaseModel):
 
     :ivar version: Version of the dialogue format (sdialog version).
     :vartype version: Optional[str]
+    :ivar timestamp: Timestamp of dialogue creation (e.g., "2025-01-01T12:00:00Z").
+    :vartype timestamp: Optional[str]
     :ivar model: The model used to generate the dialogue.
     :vartype model: Optional[str]
     :ivar seed: The random seed used for generation.
@@ -115,6 +117,7 @@ class Dialog(BaseModel):
     :vartype notes: Optional[str]
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)  # Version of the format
+    timestamp: Optional[str] = Field(default_factory=get_timestamp)  # Timestamp of dialogue creation
     model: Optional[str] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generate the dialogue
     id: Optional[int] = None  # Unique ID for the dialogue
