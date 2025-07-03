@@ -1,10 +1,12 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 import os
 import sys
 import json
 import random
 import logging
 from typing import Dict, Any
+import io
+import soundfile as sf
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -16,6 +18,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from sdialog.personas import Patient, Doctor, PersonaMetadata, PersonaAgent
 from sdialog.generators import PersonaGenerator
 from sdialog.util import config
+from sdialog.audio import generate_utterance
 
 app = Flask(__name__)
 
@@ -37,8 +40,8 @@ try:
         language="English"
     )
     
-    patient_generator = PersonaGenerator(persona=base_patient)
-    doctor_generator = PersonaGenerator(persona=base_doctor)
+    patient_generator = PersonaGenerator(persona=base_patient, default_llm="qwen2.5:3b")
+    doctor_generator = PersonaGenerator(persona=base_doctor, default_llm="qwen2.5:3b")
     logger.info("Persona generators initialized successfully")
     
 except Exception as e:
@@ -116,8 +119,8 @@ def generate_dialog():
         doctor_persona = Doctor(**doctor_filtered_data)
         
         # Create PersonaAgents, ensuring they have a name.
-        patient_agent = PersonaAgent(persona=patient_persona, name=patient_persona.name or "Patient")
-        doctor_agent = PersonaAgent(persona=doctor_persona, name=doctor_persona.name or "Doctor")
+        patient_agent = PersonaAgent(persona=patient_persona, name=patient_persona.name or "Patient", model="qwen2.5:3b")
+        doctor_agent = PersonaAgent(persona=doctor_persona, name=doctor_persona.name or "Doctor", model="qwen2.5:3b")
 
         # Generate dialogue, doctor starts.
         logger.info(f"Starting dialogue generation between {doctor_agent.name} and {patient_agent.name}...")
@@ -129,6 +132,37 @@ def generate_dialog():
     except Exception as e:
         # Using exc_info=True to log the full traceback
         logger.error(f"Error during dialogue generation: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generate/audio', methods=['POST'])
+def generate_audio():
+    """Generate audio for a single utterance."""
+    try:
+        data = request.json
+        logger.info("Received request to generate audio")
+
+        text = data.get('text')
+        persona = data.get('persona', {})
+
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+
+        logger.info(f"Generating audio for text: '{text[:30]}...'")
+        
+        # Generate audio using sdialog
+        audio_data = generate_utterance(text, persona)
+        
+        # Convert numpy array to WAV in memory
+        byte_io = io.BytesIO()
+        # Kokoro's default sampling rate is 24kHz.
+        sf.write(byte_io, audio_data, 24000, format='WAV', subtype='PCM_16')
+        byte_io.seek(0)
+        
+        logger.info("Audio generated successfully")
+        return send_file(byte_io, mimetype='audio/wav')
+
+    except Exception as e:
+        logger.error(f"Error during audio generation: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/save', methods=['POST'])
