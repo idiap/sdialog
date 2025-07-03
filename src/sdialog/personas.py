@@ -34,7 +34,8 @@ from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import camel_or_snake_to_words, ollama_check_and_pull_model, get_timestamp
+from .util import camel_or_snake_to_words, get_timestamp
+from .util import ollama_check_and_pull_model, ollama_get_model_default_temperature
 
 
 logger = logging.getLogger(__name__)
@@ -455,7 +456,7 @@ class Agent:
                  orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,
                  inspectors: Union['Inspector', List['Inspector']] = None,
                  scenario: Union[dict, str] = None,
-                 llm_kwargs: dict = None):
+                 llm_kwargs: dict = {}):
 
         """
         Initializes a PersonaAgent for role-play dialogue.
@@ -499,7 +500,7 @@ class Agent:
             )
 
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-        llm_kwargs = llm_kwargs or llm_config_params
+        llm_kwargs = {**llm_config_params, **llm_kwargs}
         self.hf_model = False
         if isinstance(model, str):
             # If model name has a slash, assume it's a Hugging Face model
@@ -533,7 +534,8 @@ class Agent:
             else:
                 logger.info(f"Loading ChatOllama model: {model}")
                 # Collect LLM parameters from config, only if not None
-                # llm_kwargs overrides config
+                if "temperature" not in llm_kwargs or llm_kwargs["temperature"] is None:
+                    llm_kwargs["temperature"] = ollama_get_model_default_temperature(model)
                 ollama_check_and_pull_model(model)
                 self.llm = ChatOllama(model=model, **llm_kwargs)
         else:

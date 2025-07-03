@@ -49,7 +49,7 @@ class DialogGenerator:
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
                  scenario: dict = None,
                  personas: dict[str, dict[str, Any]] = None,
-                 llm_kwargs: dict = None):
+                 llm_kwargs: dict = {}):
         """
         Initializes a DialogGenerator.
 
@@ -71,7 +71,7 @@ class DialogGenerator:
 
         # Collect LLM parameters from config, only if not None
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-        llm_kwargs = llm_kwargs or llm_config_params
+        llm_kwargs = {**llm_config_params, **llm_kwargs}
 
         if not output_format or type(output_format) is dict:
             output_format_schema = output_format
@@ -82,6 +82,8 @@ class DialogGenerator:
 
         if type(model) is str:
             ollama_check_and_pull_model(model)  # Ensure the model is available locally
+            if "temperature" not in llm_kwargs or llm_kwargs["temperature"] is None:
+                llm_kwargs["temperature"] = ollama_get_model_default_temperature(model)
             self.llm = ChatOllama(model=model,
                                   format=output_format_schema,
                                   **llm_kwargs)
@@ -179,7 +181,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  response_details: str = "responses SHOULD NOT be too long and wordy, should be "
                                          "approximately one utterance long",
                  scenario: dict = None,
-                 llm_kwargs: dict = None):
+                 llm_kwargs: dict = {}):
         """
         Initializes a PersonaDialogGenerator.
 
@@ -281,7 +283,7 @@ class PersonaGenerator:
                  persona: BasePersona,
                  default_attributes: str = "all",  # None
                  llm_model: str = None,
-                 llm_kwargs: dict = None):
+                 llm_kwargs: dict = {}):
         if isinstance(persona, BasePersona):
             self._persona = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
@@ -294,7 +296,7 @@ class PersonaGenerator:
 
         self.default_attributes = default_attributes
         self.llm_model = llm_model if llm_model is not None else config["llm"]["model"]
-        self.llm_kwargs = llm_kwargs or {}
+        self.llm_kwargs = llm_kwargs
 
         # Load persona generation prompt template from file if not provided
         with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
@@ -466,7 +468,9 @@ class PersonaGenerator:
                                             if k in random_persona_dict}
                     # Collect LLM parameters from config, only if not None
                     llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-                    llm_kwargs = self.llm_kwargs or llm_config_params
+                    llm_kwargs = {**llm_config_params, **self.llm_kwargs}
+                    if "temperature" not in llm_kwargs or llm_kwargs["temperature"] is None:
+                        llm_kwargs["temperature"] = ollama_get_model_default_temperature(self.llm_model)
                     # temperature from function argument overrides config
                     if temperature is not None:
                         llm_kwargs["temperature"] = temperature
@@ -516,8 +520,6 @@ class PersonaGenerator:
             random_persona = self._persona.model_validate(random_persona_dict)
 
         # Adding metadata to the generated persona
-        if isinstance(llm, ChatOllama) and llm.temperature is None:
-            llm.temperature = ollama_get_model_default_temperature(self.llm_model)
         # TODO: shall we also add generator parameters? (e.g. self._persona_rnd_attributes, self.default_*)
         random_persona._metadata = PersonaMetadata(
             model=str(llm) if llm else None,
