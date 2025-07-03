@@ -12,7 +12,6 @@ import json
 import logging
 import subprocess
 
-from langchain_ollama.chat_models import ChatOllama
 
 logger = logging.getLogger(__name__)
 
