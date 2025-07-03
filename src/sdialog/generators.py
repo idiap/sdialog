@@ -383,14 +383,15 @@ class PersonaGenerator:
                 elif isinstance(value, str) and value:
                     if value == "*":
                         random_persona_dict[key] = None  # to be filled by the LLM
-                    elif value.startswith("{{") and value.endswith("}}"):  # templates
+                    elif value.startswith("{") and value.endswith("}"):  # templates
                         # TODO: Shall we also have pre-devined lists for name and other attributes
                         #       and then have temples like {{name}} to use them?
-                        m_range = re.match(r"{{(\d+)-(\d+)}}", value)  # match {{min-max}}
-                        m_txt = re.match(r"{{txt:(.+)}}", value)  # path to txt file (one line per value)
-                        m_csv = re.match(r"{{csv:([^:]+):(.+)}}", value)  # path to csv file (column to sample from)
-                        m_tsv = re.match(r"{{tsv:([^:]+):(.+)}}", value)  # path to tsv file (column to sample from)
-                        m_llm = re.match(r"{{llm(:.+)?}}", value)  # LLM template with optional instruction
+                        value = value.strip("{}")  # remove outer curly braces
+                        m_range = re.match(r"(\d+)-(\d+)", value)  # match {{min-max}}
+                        m_txt = re.match(r"txt:(.+)", value)  # path to txt file (one line per value)
+                        m_csv = re.match(r"csv:([^:]+):(.+)", value)  # path to csv file (column to sample from)
+                        m_tsv = re.match(r"tsv:([^:]+):(.+)", value)  # path to tsv file (column to sample from)
+                        m_llm = re.match(r"llm(:.+)?", value)  # LLM template with optional instruction
                         if m_range:
                             min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
                             random_persona_dict[key] = random.randint(min_len, max_len)
