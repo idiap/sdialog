@@ -12,6 +12,8 @@ import json
 import logging
 import subprocess
 
+from langchain_ollama.chat_models import ChatOllama
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +28,40 @@ def get_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
-def check_and_pull_ollama_model(model_name: str) -> bool:
+def ollama_get_model_default_temperature(model_name: str) -> float:
+    """
+    Get the default temperature parameter for a given Ollama model.
+
+    This function runs the command:
+        ollama show --parameters <model_name>
+    and parses the output for the 'temperature' parameter.
+
+    :param model_name: The name of the Ollama model (e.g., 'gemma3:27b').
+    :type model_name: str
+    :return: The default temperature value for the model, or None if not found.
+    :rtype: float
+    """
+    try:
+        result = subprocess.run(
+            ["ollama", "show", "--parameters", model_name],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        # Look for a line like: "temperature: 0.7"
+        for line in result.stdout.splitlines():
+            if "temperature" in line:
+                m = re.search(r'[0-9]*\.?[0-9]+', line)
+                if m:
+                    return float(m.group(0))
+        logger.warning(f"Temperature parameter not found for model '{model_name}', returning default 0.8.")
+        return 0.8
+    except Exception as e:
+        logger.error(f"Error getting temperature for model '{model_name}': {e}, returning default 0.8.")
+        return 0.8
+
+
+def ollama_check_and_pull_model(model_name: str) -> bool:
     """
     Check if an Ollama model is available locally, and if not, pull it from the hub.
 
@@ -85,7 +120,10 @@ def make_serializable(data: dict) -> dict:
     for key, value in data.items():
         if hasattr(value, "json") and callable(value.json):
             data[key] = value.json()
-        # elif isinstance(value, LangChainLLM):
+        elif isinstance(value, ChatOllama):
+            if value.temperature is None:
+                value.temperature = ollama_get_model_default_temperature(value.model_name)
+            data[key] = str(value)
         else:
             try:
                 json.dumps(value)

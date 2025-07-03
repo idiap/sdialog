@@ -34,7 +34,7 @@ from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import camel_or_snake_to_words, check_and_pull_ollama_model, get_timestamp
+from .util import camel_or_snake_to_words, ollama_check_and_pull_model, get_timestamp
 
 
 logger = logging.getLogger(__name__)
@@ -534,7 +534,7 @@ class Agent:
                 logger.info(f"Loading ChatOllama model: {model}")
                 # Collect LLM parameters from config, only if not None
                 # llm_kwargs overrides config
-                check_and_pull_ollama_model(model)
+                ollama_check_and_pull_model(model)
                 self.llm = ChatOllama(model=model, **llm_kwargs)
         else:
             # Assume model is already an instance

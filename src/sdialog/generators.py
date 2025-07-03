@@ -21,7 +21,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
 from .config import config
-from .util import check_and_pull_ollama_model
+from .util import ollama_check_and_pull_model, ollama_get_model_default_temperature
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 
 
@@ -81,7 +81,7 @@ class DialogGenerator:
             self.output_format = output_format
 
         if type(model) is str:
-            check_and_pull_ollama_model(model)  # Ensure the model is available locally
+            ollama_check_and_pull_model(model)  # Ensure the model is available locally
             self.llm = ChatOllama(model=model,
                                   format=output_format_schema,
                                   **llm_kwargs)
@@ -473,7 +473,7 @@ class PersonaGenerator:
                     llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
                     # llm_kwargs from __init__ override config
 
-                    check_and_pull_ollama_model(self.llm_model)
+                    ollama_check_and_pull_model(self.llm_model)
                     llm = ChatOllama(model=self.llm_model,
                                      format=schema,
                                      **llm_kwargs)
@@ -516,6 +516,8 @@ class PersonaGenerator:
             random_persona = self._persona.model_validate(random_persona_dict)
 
         # Adding metadata to the generated persona
+        if isinstance(llm, ChatOllama) and llm.temperature is None:
+            llm.temperature = ollama_get_model_default_temperature(self.llm_model)
         # TODO: shall we also add generator parameters? (e.g. self._persona_rnd_attributes, self.default_*)
         random_persona._metadata = PersonaMetadata(
             model=str(llm) if llm else None,

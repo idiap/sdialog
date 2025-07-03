@@ -15,6 +15,7 @@ PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data"
 class DummyLLM:
     seed = 0
     num_predict = 1
+    temperature = None
 
     def __init__(self, *a, **kw):
         pass
@@ -34,6 +35,7 @@ class DummyLLM:
 class DummyPersonaLLM:
     seed = 0
     num_predict = 1
+    temperature = None
 
     def __init__(self, *a, **kw):
         pass
