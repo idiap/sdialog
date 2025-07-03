@@ -432,7 +432,7 @@ class PersonaGenerator:
                             elif m_llm:
                                 random_persona_dict[key] = None  # to be filled by the LLM
 
-                                instruction = m_llm.group(1)[1:] if m_llm.group(1) else None  # get instruction if provided
+                                instruction = m_llm.group(1)[1:] if m_llm.group(1) else None
                                 if instruction:
                                     llm_attribute_instructions[key] = instruction
 
@@ -440,7 +440,9 @@ class PersonaGenerator:
                             #     random_persona_dict[key] = get_name(seed=seed)  # get name from pre-defined list
                         else:
                             random_persona_dict[key] = value
-                    elif self.default_attributes and (self.default_attributes == "all" or key in self.default_attributes):
+                    elif self.default_attributes and (
+                        self.default_attributes == "all" or key in self.default_attributes
+                    ):
                         random_persona_dict[key] = None  # to be filled by the LLM
 
                 for key, value in random_persona_dict.items():
