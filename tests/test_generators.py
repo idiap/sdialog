@@ -15,6 +15,7 @@ PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data"
 class DummyLLM:
     seed = 0
     num_predict = 1
+    temperature = None
 
     def __init__(self, *a, **kw):
         pass
@@ -34,6 +35,7 @@ class DummyLLM:
 class DummyPersonaLLM:
     seed = 0
     num_predict = 1
+    temperature = None
 
     def __init__(self, *a, **kw):
         pass
@@ -64,7 +66,7 @@ class DummyPersona(BasePersona):
 
 def test_dialog_generator(monkeypatch):
     monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
-    gen = DialogGenerator(MODEL, dialogue_details="test")
+    gen = DialogGenerator(dialogue_details="test", model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
 
@@ -73,7 +75,7 @@ def test_persona_dialog_generator(monkeypatch):
     monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(MODEL, persona_a, persona_b)
+    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
 
@@ -82,7 +84,7 @@ def test_persona_dialog_generator_personas(monkeypatch):
     monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(MODEL, persona_a, persona_b)
+    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
     dialog = gen()
     assert "A" in dialog.personas
     assert "B" in dialog.personas
@@ -90,9 +92,9 @@ def test_persona_dialog_generator_personas(monkeypatch):
 
 def test_persona_dialog_generator_with_agents(monkeypatch):
     monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
-    persona_a = PersonaAgent(DummyLLM(), name="A")
-    persona_b = PersonaAgent(DummyLLM(), name="B")
-    gen = PersonaDialogGenerator(MODEL, persona_a, persona_b)
+    persona_a = PersonaAgent(Persona(), "A", DummyLLM())
+    persona_b = PersonaAgent(Persona(), "B", DummyLLM())
+    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
     assert "A" in dialog.personas

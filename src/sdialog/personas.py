@@ -20,24 +20,25 @@ import transformers
 from abc import ABC
 from time import time
 from tqdm.auto import trange
+from collections import defaultdict
 from pydantic import BaseModel, Field
+from print_color import print as cprint
 from typing import List, Union, Optional
 
 from langchain_ollama.chat_models import ChatOllama
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
-from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
-from .orchestrators import BaseOrchestrator
-from .util import config, camel_or_snake_to_words
+from .config import config
 from jinja2 import Template
+from .orchestrators import BaseOrchestrator
+from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
+from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
+from .util import camel_or_snake_to_words, get_timestamp
+from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = logging.getLogger(__name__)
 
 
 class PersonaMetadata(BaseModel):
@@ -46,6 +47,8 @@ class PersonaMetadata(BaseModel):
 
     :ivar version: Version of the persona format (matches sdialog version).
     :vartype version: Optional[str]
+    :ivar timestamp: Timestamp of when the persona was generated.
+    :vartype timestamp: Optional[str]
     :ivar model: The model used to generate the persona.
     :vartype model: Optional[str]
     :ivar seed: The random seed used for persona generation.
@@ -60,6 +63,7 @@ class PersonaMetadata(BaseModel):
     :vartype className: str
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
+    timestamp: Optional[str] = Field(default_factory=get_timestamp)
     model: Optional[str] = None
     seed: Optional[int] = None
     id: Optional[int] = None
@@ -128,6 +132,24 @@ class BasePersona(BaseModel, ABC):
         :rtype: str
         """
         return self.description()
+
+    def print(self, *a, **kw):
+        """
+        Pretty-prints the persona, including its metadata information.
+        """
+        if hasattr(self, "_metadata") and self._metadata is not None:
+            for key, value in self._metadata.model_dump().items():
+                if value not in [None, ""]:
+                    cprint(value, tag=key, tag_color="purple", color="magenta", format="bold")
+        cprint("--- Persona Begins ---", color="magenta", format="bold")
+        for key, value in self.__dict__.items():
+            if key == "_metadata":
+                continue
+            cprint(value,
+                   tag=camel_or_snake_to_words(key).capitalize(),
+                   tag_color="red",
+                   color="white")
+        cprint("--- Persona Ends ---", color="magenta", format="bold")
 
     def json(self, string: bool = False, indent=2):
         """
@@ -409,7 +431,7 @@ class Doctor(ExtendedPersona):
     work_experience: str = ""
 
 
-class PersonaAgent:
+class Agent:
     """
     Agent that simulates a persona in dialogue using an LLM.
 
@@ -423,25 +445,26 @@ class PersonaAgent:
     STOP_WORD_TEXT = "(bye bye!)"
 
     def __init__(self,
-                 model: Union[str, ChatOllama] = "qwen2.5:14b",
-                 persona: BasePersona = Persona(),
+                 persona: BasePersona,
                  name: str = None,
+                 model: Union[str, ChatOllama] = None,
                  dialogue_details: str = "",
                  response_details: str = "responses SHOULD NOT be too long and wordy, should be "
                                          "approximately one utterance long",
                  system_prompt: str = None,
                  can_finish: bool = True,
                  orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,
+                 inspectors: Union['Inspector', List['Inspector']] = None,
                  scenario: Union[dict, str] = None,
-                 llm_kwargs: dict = None):
+                 llm_kwargs: dict = {}):
 
         """
         Initializes a PersonaAgent for role-play dialogue.
 
-        :param model: The LLM or model name to use.
-        :type model: Union[str, ChatOllama]
         :param persona: The persona to role-play.
         :type persona: BasePersona
+        :param model: The LLM or model name to use.
+        :type model: Union[str, ChatOllama]
         :param name: Name of the agent.
         :type name: str
         :param dialogue_details: Additional details about the dialogue.
@@ -454,11 +477,16 @@ class PersonaAgent:
         :type can_finish: bool
         :param orchestrators: Orchestrators for agent behavior.
         :type orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]]
+        :param inspectors: Inspector(s) to add to the agent.
+        :type inspectors: Union[Inspector, List[Inspector]]
         :param scenario: Scenario metadata.
         :type scenario: Union[dict, str]
         :param llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
+
+        if model is None:
+            model = config["llm"]["model"]
 
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
@@ -470,18 +498,23 @@ class PersonaAgent:
                 can_finish=can_finish,
                 stop_word=self.STOP_WORD
             )
-        llm_kwargs = llm_kwargs or {}
+
+        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+        llm_kwargs = {**llm_config_params, **llm_kwargs}
         self.hf_model = False
         if isinstance(model, str):
             # If model name has a slash, assume it's a Hugging Face model
             # Otherwise, assume it's an Ollama model
             if "/" in model:
-                logging.info(f"Loading Hugging Face model: {model}")
+                logger.info(f"Loading Hugging Face model: {model}")
                 self.hf_model = True
+
+                # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
+                llm_kwargs = {k: v for k, v in llm_kwargs.items() if k != "seed"}
+                llm_kwargs["model"] = model
 
                 # Default HuggingFace parameters
                 hf_defaults = dict(
-                    model=model,
                     torch_dtype=torch.bfloat16,
                     device_map="auto",
                     max_new_tokens=2048,
@@ -492,23 +525,18 @@ class PersonaAgent:
                 hf_params = {**hf_defaults, **llm_kwargs}
 
                 pipe = transformers.pipeline("text-generation", **hf_params)
-                pipe.tokenizer.pad_token_id = pipe.model.config.eos_token_id
+                # TODO: avoid the eos token warning message for certain llm
                 # TODO: if tokenizer doesn't have a chat template, set a default one
 
                 self.llm = ChatHuggingFace(
-                    llm=HuggingFacePipeline(pipeline=pipe,
-                                            model_kwargs={'temperature': hf_params.get("temperature", 0.3)})
+                    llm=HuggingFacePipeline(pipeline=pipe)
                 )
             else:
-                logging.info(f"Loading ChatOllama model: {model}")
-                # Default Ollama params
-                ollama_defaults = dict(
-                    model=model,
-                    temperature=0.8,
-                    seed=13
-                )
-                ollama_params = {**ollama_defaults, **llm_kwargs}
-                self.llm = ChatOllama(**ollama_params)
+                logger.info(f"Loading ChatOllama model: {model}")
+                # Collect LLM parameters from config, only if not None
+                llm_kwargs = set_ollama_model_defaults(model, llm_kwargs)
+                ollama_check_and_pull_model(model)
+                self.llm = ChatOllama(model=model, **llm_kwargs)
         else:
             # Assume model is already an instance
             self.llm = model
@@ -524,6 +552,12 @@ class PersonaAgent:
         self.scenario = scenario
         self.orchestrators = None
         self.add_orchestrators(orchestrators)
+        self.inspectors = None
+        self.add_inspectors(inspectors)
+
+    @property
+    def utterance_list(self):
+        return self.utterance_hook.utterance_list
 
     def __call__(self, utterance: str = "", return_events: bool = False) -> str:
         """
@@ -572,6 +606,7 @@ class PersonaAgent:
                         else self.first_utterances)
             response = AIMessage(content=response)
         else:
+            current_memory = self.memory_dump()
             if self.hf_model and not isinstance(self.memory[-1], HumanMessage):
                 # Ensure last message is HumanMessage to avoid "Last message must be a HumanMessage!"
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
@@ -579,6 +614,9 @@ class PersonaAgent:
                 response = self.llm.invoke(self.memory + [HumanMessage(content="")])
             else:
                 response = self.llm.invoke(self.memory)
+
+        if self.inspectors:
+            self.utterance_hook.new_utterance_event(current_memory)
 
         if self.orchestrators:
             self.memory[:] = [msg for msg in self.memory
@@ -603,16 +641,21 @@ class PersonaAgent:
         else:
             return response if response else ""
 
-    def __or__(self, orchestrator: Union[BaseOrchestrator, List[BaseOrchestrator]]):
+    def __or__(self, other):
         """
-        Adds orchestrators to the agent using the | operator.
+        Adds enitity to the agent using the | operator.
 
         :param orchestrator: Orchestrator(s) to add.
         :type orchestrator: Union[BaseOrchestrator, List[BaseOrchestrator]]
         :return: The agent with orchestrators added.
         :rtype: PersonaAgent
         """
-        self.add_orchestrators(orchestrator)
+        if isinstance(other, Inspector):
+            self.set_utterance_hook()
+            self.add_inspectors(other)
+            other.add_agent(agent=self)
+        else:
+            self.add_orchestrators(other)
         return self
 
     def response_lookahead(self, utterance: str = None):
@@ -649,11 +692,79 @@ class PersonaAgent:
         for orchestrator in orchestrators:
             orchestrator._set_target_agent(self)
 
+    def add_inspectors(self, inspectors):
+        """
+        Adds inspectors to the agent.
+
+        :param inspectors: Inspector(s) to add.
+        :type inspectors: Union[Inspector, List[Inspector]]
+        """
+        if inspectors is None:
+            return
+
+        if self.inspectors is None:
+            self.inspectors = []
+
+        # Handle both single Inspector and list of Inspectors
+        if isinstance(inspectors, Inspector):
+            inspectors = [inspectors]
+        elif isinstance(inspectors, list):
+            inspectors = [ins for ins in inspectors if ins is not None]
+            if not inspectors:
+                return
+        else:
+            raise TypeError("inspectors must be an Inspector or a list of Inspectors")
+
+        self.inspectors.extend(inspectors)
+
+        for inspector in inspectors:
+            inspector.add_agent(self)
+        self.set_utterance_hook()
+
     def clear_orchestrators(self):
         """
         Removes all orchestrators from the agent.
         """
         self.orchestrators = None
+
+    def add_hooks(self, layer_name_to_key):
+        """
+        Registers RepresentationHooks for each layer in the given mapping.
+        Skips already registered layers. Adds new keys to the shared representation_cache.
+        """
+        # Get the model (assume HuggingFace pipeline)
+        model = self.llm.llm.pipeline.model if hasattr(self.llm, 'llm') and hasattr(self.llm.llm, 'pipeline') else None
+        if model is None:
+            raise RuntimeError("Model not found or not a HuggingFace pipeline.")
+
+        # Always re-initialize cache and hooks
+        self.representation_cache = defaultdict(lambda: defaultdict(list))
+        self.rep_hooks = []
+
+        # Register new hooks
+        for layer_name, cache_key in layer_name_to_key.items():
+            hook = RepresentationHook(layer_name, cache_key, self.representation_cache, self.utterance_list)
+            hook.register(model)
+            self.rep_hooks.append(hook)
+
+    def clear_hooks(self):
+        """
+        Resets all representation cached and removes all registered hooks from the agent.
+        """
+        for hook in getattr(self, 'rep_hooks', []):
+            hook.reset()
+            hook.remove()
+        self.rep_hooks = []
+        self.representation_cache = defaultdict(lambda: defaultdict(list))
+        self.set_utterance_hook()
+
+    def set_utterance_hook(self):
+        # Register UtteranceTokenHook and expose utterance_list
+        self.utterance_hook = UtteranceTokenHook(agent=self)
+        model_obj = self.llm.llm.pipeline.model
+        self.utterance_hook.register(model_obj)
+        # Automatically set the tokenizer in the hook
+        self.utterance_hook.hook_state['tokenizer'] = self.llm.llm.pipeline.tokenizer
 
     def instruct(self, instruction: str, persist: bool = False):
         """
@@ -718,6 +829,7 @@ class PersonaAgent:
     def reset(self, seed: int = None):
         """
         Resets the agent's memory and orchestrators, optionally reseeding the LLM.
+        Clears the interpretability state (utterance_list and representation_cache).
 
         :param seed: Random seed for reproducibility.
         :type seed: int
@@ -730,6 +842,8 @@ class PersonaAgent:
             for orchestrator in self.orchestrators:
                 orchestrator.reset()
 
+        self._reset_interpretability_state()
+
         if not self.hf_model:
             # hack to avoid seed bug in prompt cache
             # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
@@ -737,6 +851,22 @@ class PersonaAgent:
             self.llm.num_predict = 1
             self.llm.invoke(self.memory)
             self.llm.num_predict = _
+        else:
+            if seed is None:
+                torch.manual_seed(13)
+            else:
+                torch.manual_seed(seed)
+
+    def _reset_interpretability_state(self):
+        """
+        Clears the interpretability state: utterance_list and representation_cache, if present.
+        Does not reset or remove hooks.
+        """
+        if hasattr(self, 'utterance_hook') and self.utterance_hook is not None:
+            self.utterance_hook.utterance_list.clear()
+        if hasattr(self, 'representation_cache') and self.representation_cache is not None:
+            self.representation_cache.clear()
+            self.representation_cache.update(defaultdict(lambda: defaultdict(list)))
 
     def dialog_with(self,
                     agent: "PersonaAgent",
@@ -844,3 +974,14 @@ class PersonaAgent:
         )
 
     talk_with = dialog_with
+
+    def memory_dump(self):
+        """
+        Returns a copy of the agent's memory (list of messages).
+        :return: A copy of the memory list.
+        :rtype: list
+        """
+        return list(self.memory)
+
+
+PersonaAgent = Agent

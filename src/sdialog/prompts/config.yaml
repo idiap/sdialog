@@ -1,5 +1,0 @@
-prompts:
-  persona_dialog_generator: prompts/generator_persona_dialog.j2
-  persona_generator: prompts/generator_persona.j2
-  dialog_generator: prompts/generator_dialog.j2
-  persona_agent: prompts/agent_persona.j2

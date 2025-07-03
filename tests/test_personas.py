@@ -44,7 +44,7 @@ def test_persona_fields():
 
 def test_persona_agent_init(monkeypatch):
     persona = Persona(name="Alice")
-    agent = PersonaAgent(DummyLLM(), persona=persona, name="Alice")
+    agent = PersonaAgent(persona=persona, name="Alice", model=DummyLLM())
     assert agent.get_name() == "Alice"
     assert "role" in agent.get_prompt().lower()
     agent.set_first_utterances("Hi!")
@@ -66,7 +66,7 @@ def test_persona_and_json():
 
 def test_persona_agent_init_and_prompt():
     persona = Persona(name="Alice", role="barista")
-    agent = PersonaAgent(MODEL, persona=persona, name="Alice")
+    agent = PersonaAgent(persona, "Alice", MODEL)
     assert agent.get_name() == "Alice"
     prompt = agent.get_prompt()
     assert "role" in prompt.lower()
@@ -75,8 +75,8 @@ def test_persona_agent_init_and_prompt():
 def test_persona_agent_dialog_with():
     persona1 = Persona(name="A")
     persona2 = Persona(name="B")
-    agent1 = PersonaAgent(DummyLLM(), persona=persona1, name="A")
-    agent2 = PersonaAgent(DummyLLM(), persona=persona2, name="B")
+    agent1 = PersonaAgent(persona=persona1, name="A", model=DummyLLM())
+    agent2 = PersonaAgent(persona2, "B", DummyLLM())
     dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
     assert isinstance(dialog, Dialog)
     assert len(dialog.turns) > 0

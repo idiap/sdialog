@@ -1,0 +1,13 @@
+prompts:
+  persona_dialog_generator: ../prompts/generator_persona_dialog.j2
+  persona_generator: ../prompts/generator_persona.j2
+  dialog_generator: ../prompts/generator_dialog.j2
+  persona_agent: ../prompts/agent_persona.j2
+llm:
+  model: gemma3:27b
+  temperature: null  # model's default
+  seed: 13
+  max_tokens: null
+  top_p: null
+  frequency_penalty: null
+  presence_penalty: null

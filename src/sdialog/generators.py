@@ -20,15 +20,12 @@ from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
+from .config import config
+from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
-from .util import config
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = logging.getLogger(__name__)
 
 
 class LLMDialogOutput(BaseModel):
@@ -45,38 +42,36 @@ class LLMDialogOutput(BaseModel):
 class DialogGenerator:
     """
     Base class for generating synthetic dialogues using an LLM.
-
-    :ivar model_name: The model or model name used for generation.
-    :vartype model_name: str
-    :ivar output_format: The output format (Pydantic model or dict).
-    :vartype output_format: Union[dict, BaseModel]
-    :ivar scenario: Scenario metadata for the dialogue.
-    :vartype scenario: dict
-    :ivar dialogue_details: Instructions or details for the dialogue.
-    :vartype dialogue_details: str
-    :ivar messages: List of system and human messages for the LLM.
-    :vartype messages: list
     """
     def __init__(self,
-                 model: Union[ChatOllama, str],
                  dialogue_details: str,
+                 model: Union[ChatOllama, str] = None,
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
                  scenario: dict = None,
-                 personas: dict[str, dict[str, Any]] = None):
+                 personas: dict[str, dict[str, Any]] = None,
+                 llm_kwargs: dict = {}):
         """
         Initializes a DialogGenerator.
 
-        :param model: The LLM or model name to use.
-        :type model: Union[ChatOllama, str]
         :param dialogue_details: Instructions or details for the dialogue.
         :type dialogue_details: str
+        :param model: The LLM or model name to use.
+        :type model: Union[ChatOllama, str]
         :param output_format: Output format schema or Pydantic model.
         :type output_format: Union[dict, BaseModel]
         :param scenario: Scenario metadata for the dialogue (if not provided, value set to `dialogue_details`).
         :type scenario: dict
         :param personas: Optional personas for role-playing in the dialogue (if any).
         :type personas: dict[str, dict[str, Any]]
+        :param llm_kwargs: Additional keyword arguments for the LLM (overrides config).
+        :type llm_kwargs: dict
         """
+        if model is None:
+            model = config["llm"]["model"]
+
+        # Collect LLM parameters from config, only if not None
+        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+        llm_kwargs = {**llm_config_params, **llm_kwargs}
 
         if not output_format or type(output_format) is dict:
             output_format_schema = output_format
@@ -86,10 +81,11 @@ class DialogGenerator:
             self.output_format = output_format
 
         if type(model) is str:
+            ollama_check_and_pull_model(model)  # Ensure the model is available locally
+            llm_kwargs = set_ollama_model_defaults(model, llm_kwargs)
             self.llm = ChatOllama(model=model,
                                   format=output_format_schema,
-                                  temperature=0.8,
-                                  seed=13)
+                                  **llm_kwargs)
         else:
             self.llm = model
             if output_format:
@@ -177,28 +173,31 @@ class PersonaDialogGenerator(DialogGenerator):
     _agent_b = None
 
     def __init__(self,
-                 model: Union[ChatOllama, str],
                  persona_a: Union[Persona, PersonaAgent],
                  persona_b: Union[Persona, PersonaAgent],
+                 model: Union[ChatOllama, str] = None,
                  dialogue_details: str = "",
                  response_details: str = "responses SHOULD NOT be too long and wordy, should be "
                                          "approximately one utterance long",
-                 scenario: dict = None):
+                 scenario: dict = None,
+                 llm_kwargs: dict = {}):
         """
         Initializes a PersonaDialogGenerator.
 
-        :param model: The LLM or model name to use.
-        :type model: Union[ChatOllama, str]
         :param persona_a: The first persona.
         :type persona_a: Persona (or PersonaAgent)
         :param persona_b: The second persona.
         :type persona_b: Persona (or PersonaAgent)
+        :param model: The LLM or model name to use.
+        :type model: Union[ChatOllama, str]
         :param dialogue_details: Additional dialogue instructions.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
         :param scenario: Scenario metadata.
         :type scenario: dict
+        :param llm_kwargs: Additional keyword arguments for the LLM (overrides config).
+        :type llm_kwargs: dict
         """
 
         if isinstance(persona_a, PersonaAgent) and isinstance(persona_b, PersonaAgent):
@@ -217,13 +216,14 @@ class PersonaDialogGenerator(DialogGenerator):
             response_details=response_details
         )
 
-        super().__init__(model=model,
-                         dialogue_details=dialogue_details,
+        super().__init__(dialogue_details=dialogue_details,
+                         model=model,
                          scenario=scenario,
                          personas={
                              persona_a.name: persona_a.json(),
                              persona_b.name: persona_b.json()
-                         })
+                         },
+                         llm_kwargs=llm_kwargs)
 
     def generate(self,
                  seed: int = None,
@@ -264,38 +264,25 @@ class PersonaGenerator:
     """
     Generates persona objects with randomized or LLM-populated attributes.
 
-    :param persona: An instance or class of BasePersona to generate personas from.
+    :param persona: An instance of a subclass of `BasePersona` to generate personas from.
     :type persona: BasePersona
     :param default_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
     :type default_attributes: str, list, or dict, optional
-    :param default_llm: The default language model to use for attribute population via LLM.
-    :type default_llm: str, optional
-    :param default_llm_prompt: The prompt template for the LLM to fill empty attributes.
-    :type default_llm_prompt: str, optional
-
-    :ivar _persona: The persona instance being generated.
-    :vartype _persona: BasePersona
-    :ivar _persona_rnd_attributes: Attributes to be randomly set or filled.
-    :vartype _persona_rnd_attributes: dict
-    :ivar default_attributes: Default attributes specification.
-    :vartype default_attributes: str, list, or dict
-    :ivar default_llm: Default LLM model name or instance.
-    :vartype default_llm: str
-    :ivar default_llm_prompt: Prompt template for LLM.
-    :vartype default_llm_prompt: str
+    :param llm_model: The default language model to use for attribute population via LLM.
+    :type llm_model: str, optional
 
     :raises ValueError: If specified attributes do not exist in the persona or if required files for templates are missing.
 
     :example:
-        generator = PersonaGenerator(MyPersonaClass)
+        generator = PersonaGenerator(Doctor)
         persona_instance = generator.generate()
     """  # noqa: E501
 
     def __init__(self,
                  persona: BasePersona,
                  default_attributes: str = "all",  # None
-                 default_llm: str = "qwen2.5:14b",
-                 default_llm_prompt: str = None):
+                 llm_model: str = None,
+                 llm_kwargs: dict = {}):
         if isinstance(persona, BasePersona):
             self._persona = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
@@ -307,13 +294,12 @@ class PersonaGenerator:
         self._persona_rnd_attributes = default_attributes if isinstance(default_attributes, dict) else {}
 
         self.default_attributes = default_attributes
-        self.default_llm = default_llm
+        self.llm_model = llm_model if llm_model is not None else config["llm"]["model"]
+        self.llm_kwargs = llm_kwargs
 
         # Load persona generation prompt template from file if not provided
-        if default_llm_prompt is None:
-            with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
-                default_llm_prompt = f.read()
-        self.default_llm_prompt = default_llm_prompt
+        with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
+            self.llm_prompt = f.read()
 
     def _check_attributes(self, persona_attributes):
         """
@@ -353,7 +339,7 @@ class PersonaGenerator:
         self._persona_rnd_attributes = persona_rnd_attributes
 
     def generate(self,
-                 temperature: float = 0.8,
+                 temperature: float = None,
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
@@ -397,14 +383,15 @@ class PersonaGenerator:
                 elif isinstance(value, str) and value:
                     if value == "*":
                         random_persona_dict[key] = None  # to be filled by the LLM
-                    elif value.startswith("{{") and value.endswith("}}"):  # templates
+                    elif value.startswith("{") and value.endswith("}"):  # templates
                         # TODO: Shall we also have pre-devined lists for name and other attributes
                         #       and then have temples like {{name}} to use them?
-                        m_range = re.match(r"{{(\d+)-(\d+)}}", value)  # match {{min-max}}
-                        m_txt = re.match(r"{{txt:(.+)}}", value)  # path to txt file (one line per value)
-                        m_csv = re.match(r"{{csv:(\w+):(.+)}}", value)  # path to csv file (column to sample from)
-                        m_tsv = re.match(r"{{tsv:(\w+):(.+)}}", value)  # path to tsv file (column to sample from)
-                        m_llm = re.match(r"{{llm(:.+)?}}", value)  # LLM template with optional instruction
+                        value = value.strip("{}")  # remove outer curly braces
+                        m_range = re.match(r"(\d+)-(\d+)", value)  # match {{min-max}}
+                        m_txt = re.match(r"txt:(.+)", value)  # path to txt file (one line per value)
+                        m_csv = re.match(r"csv:([^:]+):(.+)", value)  # path to csv file (column to sample from)
+                        m_tsv = re.match(r"tsv:([^:]+):(.+)", value)  # path to tsv file (column to sample from)
+                        m_llm = re.match(r"llm(:.+)?", value)  # LLM template with optional instruction
                         if m_range:
                             min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
                             random_persona_dict[key] = random.randint(min_len, max_len)
@@ -465,25 +452,34 @@ class PersonaGenerator:
                     llm_attribute_instructions_txt += "\n".join(
                         [f"* {k}: {v}." for k, v in llm_attribute_instructions.items()]
                     )
-                template = Template(self.default_llm_prompt)
+                template = Template(self.llm_prompt)
                 prompt = template.render(
                     persona=json.dumps(random_persona_dict, indent=2),
                     persona_class_name=str(type(self._persona).__name__),
                     attributes_instructions=llm_attribute_instructions_txt
                 )
 
-                if not isinstance(self.default_llm, str):
-                    llm = self.default_llm
+                if not isinstance(self.llm_model, str):
+                    llm = self.llm_model
                 else:
                     schema = self._persona.model_json_schema()
                     schema["properties"] = {k: v
                                             for k, v in schema["properties"].items()
                                             if k in random_persona_dict}
+                    # Collect LLM parameters from config, only if not None
+                    llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+                    llm_kwargs = {**llm_config_params, **self.llm_kwargs}
+                    llm_kwargs = set_ollama_model_defaults(self.llm_model, llm_kwargs)
+                    # temperature from function argument overrides config
+                    if temperature is not None:
+                        llm_kwargs["temperature"] = temperature
+                    llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
+                    # llm_kwargs from __init__ override config
 
-                    llm = ChatOllama(model=self.default_llm,
+                    ollama_check_and_pull_model(self.llm_model)
+                    llm = ChatOllama(model=self.llm_model,
                                      format=schema,
-                                     temperature=temperature,
-                                     seed=seed)
+                                     **llm_kwargs)
 
                 messages = [
                     SystemMessage("You are an expert at generating persona JSON objects "
@@ -496,12 +492,14 @@ class PersonaGenerator:
                                             if random_persona_dict[k] is None})
 
             try:
+                if any(value in [None, "", "null"] for value in random_persona_dict.values()):
+                    raise ValidationError([], [])
                 random_persona = self._persona.model_validate(random_persona_dict)
                 break
             except ValidationError:
                 missing_attributes = {k: v for k, v in self._persona.model_dump().items()
-                                      if k not in random_persona_dict or random_persona_dict[k] is None}
-                logging.warning(
+                                      if k not in random_persona_dict or random_persona_dict[k] in [None, "", "null"]}
+                logger.warning(
                     f"The following {len(missing_attributes)} attributes are missing in the "
                     f"generated persona: {', '.join(missing_attributes.keys())}. "
                     f"Trying to fill the missing attributes again (attempt {attempt + 1} out of {max_attempts})..."
@@ -513,7 +511,7 @@ class PersonaGenerator:
         # If we ran out of attempts and still have missing attributes...
         # we return a persona with missing attributes filled with default null values
         if random_persona is None:
-            logging.warning(
+            logger.warning(
                 f"The generated persona is missing the following {len(missing_attributes)} attributes: "
                 f"{', '.join(missing_attributes.keys())}."
             )

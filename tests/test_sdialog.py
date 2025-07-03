@@ -1,6 +1,6 @@
 import os
 
-from sdialog.util import config
+from sdialog.config import config
 from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version
 
 
@@ -65,3 +65,55 @@ def test_dialog_print(capsys):
     assert "Dialogue Begins" in out
     assert "A" in out
     assert "Hi" in out
+
+
+def test_dialog_length():
+    turns = [Turn(speaker="A", text="Hi there!"), Turn(speaker="B", text="Hello world, how are you?")]
+    dialog = Dialog(turns=turns)
+    # turns: 2
+    assert dialog.length("turns") == 2
+    # words: 2 + 5 = 7
+    assert dialog.length("words") == 7
+    # minutes: 7/150 ≈ 0.0467, rounded to 1 by default (see implementation)
+    assert dialog.length("minutes") == 1
+
+
+def test_set_llm():
+    from sdialog.config import config, set_llm
+    set_llm("test-model")
+    assert config["llm"]["model"] == "test-model"
+
+
+def test_set_llm_hyperparams():
+    from sdialog.config import config, set_llm_hyperparams
+    set_llm_hyperparams(temperature=0.5, seed=42)
+    assert config["llm"]["temperature"] == 0.5
+    assert config["llm"]["seed"] == 42
+
+
+def test_set_persona_dialog_generator_prompt():
+    from sdialog.config import config, set_persona_dialog_generator_prompt
+    rel_path = "../prompts/test_persona_dialog.j2"
+    set_persona_dialog_generator_prompt(rel_path)
+    assert config["prompts"]["persona_dialog_generator"] == rel_path
+
+
+def test_set_persona_generator_prompt():
+    from sdialog.config import config, set_persona_generator_prompt
+    rel_path = "../prompts/test_persona.j2"
+    set_persona_generator_prompt(rel_path)
+    assert config["prompts"]["persona_generator"] == rel_path
+
+
+def test_set_dialog_generator_prompt():
+    from sdialog.config import config, set_dialog_generator_prompt
+    rel_path = "../prompts/test_dialog.j2"
+    set_dialog_generator_prompt(rel_path)
+    assert config["prompts"]["dialog_generator"] == rel_path
+
+
+def test_set_persona_agent_prompt():
+    from sdialog.config import config, set_persona_agent_prompt
+    rel_path = "../prompts/test_agent.j2"
+    set_persona_agent_prompt(rel_path)
+    assert config["prompts"]["persona_agent"] == rel_path

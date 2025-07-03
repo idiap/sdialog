@@ -18,16 +18,27 @@ Main components:
 import os
 import re
 import json
+import logging
+import importlib
 import subprocess
 
-from print_color import print
+from print_color import print as cprint
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Any
 
-from .util import make_serializable
-
+from .util import make_serializable, get_timestamp
 
 __version__ = "0.0.2"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+# import config sumbodule as "config" attribute of the package
+config = importlib.import_module("sdialog.config")
 
 
 def _get_dynamic_version() -> str:
@@ -83,6 +94,8 @@ class Dialog(BaseModel):
 
     :ivar version: Version of the dialogue format (sdialog version).
     :vartype version: Optional[str]
+    :ivar timestamp: Timestamp of dialogue creation (e.g., "2025-01-01T12:00:00Z").
+    :vartype timestamp: Optional[str]
     :ivar model: The model used to generate the dialogue.
     :vartype model: Optional[str]
     :ivar seed: The random seed used for generation.
@@ -104,6 +117,7 @@ class Dialog(BaseModel):
     :vartype notes: Optional[str]
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)  # Version of the format
+    timestamp: Optional[str] = Field(default_factory=get_timestamp)  # Timestamp of dialogue creation
     model: Optional[str] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generate the dialogue
     id: Optional[int] = None  # Unique ID for the dialogue
@@ -123,6 +137,32 @@ class Dialog(BaseModel):
         :rtype: int
         """
         return len(self.turns)
+
+    def length(self, mode: str = "words", words_per_minute: int = 130) -> int:
+        """
+        Returns the length of the dialogue according to the specified mode (number of words by default).
+
+        :param mode: The mode for measuring length. Options:
+            - "turns": Number of turns (default)
+            - "words": Total number of words in all turns
+            - "minutes" / "time": Approximate duration in minutes (`words_per_minute`/minute)
+        :type mode: str
+        :param words_per_minute: Words per minute for "minutes" mode (default is 130, which is a common estimate).
+        :type words_per_minute: int
+        :return: The computed length according to the mode.
+        :rtype: int
+        :raises ValueError: If an unknown mode is specified.
+        """
+        mode = mode.lower()
+        if mode == "turns":
+            return len(self.turns)
+        elif mode == "words":
+            return sum(len(turn.text.split()) for turn in self.turns)
+        elif mode in ["minutes", "time"]:
+            total_words = sum(len(turn.text.split()) for turn in self.turns)
+            return max(1, int(round(total_words / words_per_minute)))
+        else:
+            raise ValueError(f"Unknown mode for get_length: {mode}")
 
     def description(self, turn_template: str = "{speaker}: {text}"):
         """
@@ -186,7 +226,7 @@ class Dialog(BaseModel):
                 writer.write(self.description())
 
     @staticmethod
-    def from_file(path: str, type: str = "auto"):
+    def from_file(path: str, type: str = "auto", txt_turn_template: str = "{speaker}: {text}"):
         """
         Loads a dialogue from a file.
 
@@ -206,9 +246,28 @@ class Dialog(BaseModel):
 
             lines = reader.read().split("\n")
 
-        return Dialog(turns=[Turn(speaker=line[:line.index(":")].strip(),
-                                  text=line[line.index(":") + 1:].strip())
-                             for line in lines if line])
+        turns = []
+        for ix, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Use the txt_turn_template to extract speaker and text
+            # Build a regex from the template
+            regex = re.escape(txt_turn_template)
+            regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
+            regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
+            m = re.match(regex, line)
+            if m:
+                speaker = m.group('speaker').strip()
+                text = m.group('text').strip()
+            else:
+                raise ValueError(f"Line {ix + 1} '{line}' does not match the expected format: {txt_turn_template}."
+                                 "Make sure the template matches the dialogue format.")
+
+            turns.append((speaker, text))
+
+        return Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
 
     @staticmethod
     def from_dict(data: dict):
@@ -252,6 +311,28 @@ class Dialog(BaseModel):
 
         return audio
 
+    def get_length(self, mode: str = "turns") -> float:
+        """
+        Returns the length of the dialogue according to the specified mode.
+
+        :param mode: The mode for measuring length. Options are:
+            - "turns": Number of turns (default)
+            - "words": Total number of words in all turns
+            - "minutes": Approximate duration in minutes (assuming 150 words per minute)
+        :type mode: str
+        :return: The length of the dialogue according to the selected mode.
+        :rtype: float
+        """
+        if mode == "turns":
+            return float(len(self.turns))
+        elif mode == "words":
+            return float(sum(len(turn.text.split()) for turn in self.turns))
+        elif mode == "minutes":
+            total_words = sum(len(turn.text.split()) for turn in self.turns)
+            return float(total_words) / 150.0  # 150 words per minute is a common estimate
+        else:
+            raise ValueError(f"Unknown mode '{mode}'. Supported modes: 'turns', 'words', 'minutes'.")
+
     __str__ = description
 
 
@@ -287,21 +368,21 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
     # speaker_utt_colors = ["black", "grey"]
 
     if dialog.id:
-        print(dialog.id, tag="dialog_id", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.id, tag="dialog_id", tag_color="purple", color="magenta", format="bold")
     if dialog.complete:
-        print(dialog.complete, tag="complete", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.complete, tag="complete", tag_color="purple", color="magenta", format="bold")
     if dialog.model:
-        print(dialog.model, tag="model", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.model, tag="model", tag_color="purple", color="magenta", format="bold")
     if dialog.seed:
-        print(dialog.seed, tag="seed", tag_color="purple", color="magenta", format="bold")
+        cprint(dialog.seed, tag="seed", tag_color="purple", color="magenta", format="bold")
     if scenario and dialog.scenario:
-        print("", tag="scenario", tag_color="purple", color="magenta", format="bold")
+        cprint("", tag="scenario", tag_color="purple", color="magenta", format="bold")
         if type(dialog.scenario) is str:
-            print(dialog.scenario, color="magenta")
+            cprint(dialog.scenario, color="magenta")
         else:
-            print(json.dumps(dialog.scenario, indent=2), color="magenta")
+            cprint(json.dumps(dialog.scenario, indent=2), color="magenta")
 
-    print("--- Dialogue Begins ---", color="magenta", format="bold")
+    cprint("--- Dialogue Begins ---", color="magenta", format="bold")
     speakers = sorted(list(set(turn.speaker for turn in dialog.turns)))
     if orchestration:
         dialog = dialog.model_copy()
@@ -322,8 +403,8 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
             tag_color = speaker_tag_colors[speakers.index(speaker) % len(speaker_tag_colors)]
             color = speaker_utt_colors[speakers.index(speaker) % len(speaker_utt_colors)]
 
-        print(turn.text,
-              tag=speaker,
-              tag_color=tag_color,
-              color=color)
-    print("--- Dialogue Ends ---", color="magenta", format="bold")
+        cprint(turn.text,
+               tag=speaker,
+               tag_color=tag_color,
+               color=color)
+    cprint("--- Dialogue Ends ---", color="magenta", format="bold")
