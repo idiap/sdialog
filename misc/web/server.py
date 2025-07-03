@@ -17,7 +17,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from sdialog.personas import Patient, Doctor, PersonaMetadata, PersonaAgent
 from sdialog.generators import PersonaGenerator
-from sdialog.util import config
 from sdialog.audio import generate_utterance
 
 app = Flask(__name__)
@@ -26,22 +25,8 @@ try:
     # Initialize the persona generators with base personas
     logger.info("Initializing persona generators...")
     
-    # Initialize generators with default configuration
-    base_patient = Patient(
-        name="",
-        age=30,
-        gender="",
-        language="English"
-    )
-    base_doctor = Doctor(
-        name="",
-        age=40,
-        gender="",
-        language="English"
-    )
-    
-    patient_generator = PersonaGenerator(persona=base_patient, default_llm="qwen2.5:3b")
-    doctor_generator = PersonaGenerator(persona=base_doctor, default_llm="qwen2.5:3b")
+    patient_generator = PersonaGenerator(persona=Patient, llm_model="qwen2.5:3b")
+    doctor_generator = PersonaGenerator(persona=Doctor, llm_model="qwen2.5:3b")
     logger.info("Persona generators initialized successfully")
     
 except Exception as e:
@@ -119,8 +104,8 @@ def generate_dialog():
         doctor_persona = Doctor(**doctor_filtered_data)
         
         # Create PersonaAgents, ensuring they have a name.
-        patient_agent = PersonaAgent(persona=patient_persona, name=patient_persona.name or "Patient", model="qwen2.5:3b")
-        doctor_agent = PersonaAgent(persona=doctor_persona, name=doctor_persona.name or "Doctor", model="qwen2.5:3b")
+        patient_agent = PersonaAgent(persona=patient_persona, name=patient_persona.name or "Patient", model="qwen2.5:14b")
+        doctor_agent = PersonaAgent(persona=doctor_persona, name=doctor_persona.name or "Doctor", model="qwen2.5:14b")
 
         # Generate dialogue, doctor starts.
         logger.info(f"Starting dialogue generation between {doctor_agent.name} and {patient_agent.name}...")
