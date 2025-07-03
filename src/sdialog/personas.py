@@ -35,7 +35,7 @@ from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 from .util import camel_or_snake_to_words, get_timestamp
-from .util import ollama_check_and_pull_model, ollama_get_model_default_temperature
+from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 
 
 logger = logging.getLogger(__name__)
@@ -534,8 +534,7 @@ class Agent:
             else:
                 logger.info(f"Loading ChatOllama model: {model}")
                 # Collect LLM parameters from config, only if not None
-                if "temperature" not in llm_kwargs or llm_kwargs["temperature"] is None:
-                    llm_kwargs["temperature"] = ollama_get_model_default_temperature(model)
+                llm_kwargs = set_ollama_model_defaults(model, llm_kwargs)
                 ollama_check_and_pull_model(model)
                 self.llm = ChatOllama(model=model, **llm_kwargs)
         else:

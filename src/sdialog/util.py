@@ -28,19 +28,8 @@ def get_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
-def ollama_get_model_default_temperature(model_name: str) -> float:
-    """
-    Get the default temperature parameter for a given Ollama model.
-
-    This function runs the command:
-        ollama show --parameters <model_name>
-    and parses the output for the 'temperature' parameter.
-
-    :param model_name: The name of the Ollama model (e.g., 'gemma3:27b').
-    :type model_name: str
-    :return: The default temperature value for the model, or None if not found.
-    :rtype: float
-    """
+def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
+    defaults = {}
     try:
         result = subprocess.run(
             ["ollama", "show", "--parameters", model_name],
@@ -50,15 +39,34 @@ def ollama_get_model_default_temperature(model_name: str) -> float:
         )
         # Look for a line like: "temperature: 0.7"
         for line in result.stdout.splitlines():
-            if "temperature" in line:
-                m = re.search(r'[0-9]*\.?[0-9]+', line)
-                if m:
-                    return float(m.group(0))
-        logger.warning(f"Temperature parameter not found for model '{model_name}', returning default 0.8.")
-        return 0.8
+            m = re.match(r'(\w+)\s+([0-9]*\.?[0-9]+)', line)  # For now only with numbers
+            # TODO: check support strings leter, gives Ollama ValidationError (probably the stop tokens?)
+            # m = re.match(r'(\w+)\s+(.+)', line)
+            if m:
+                param, value = m.groups()
+                if value.startswith('"'):
+                    if param not in defaults:
+                        defaults[param] = value.strip('"')
+                    else:
+                        if type(defaults[param]) is not list:
+                            defaults[param] = [defaults[param]]
+                        defaults[param].append(value.strip('"'))
+                else:
+                    try:
+                        defaults[param] = float(value) if "." in value else int(value)
+                    except ValueError:
+                        logger.warning(f"Could not convert value '{value}' for parameter '{param}' "
+                                       "to float or int. Skipping...")
+        if "temperature" not in defaults:
+            defaults["temperature"] = 0.8
     except Exception as e:
-        logger.error(f"Error getting temperature for model '{model_name}': {e}, returning default 0.8.")
-        return 0.8
+        logger.error(f"Error getting default parameters for model '{model_name}': {e}")
+
+    for k, v in list(defaults.items()):
+        if k in llm_params and llm_params[k] is not None:
+            continue
+        llm_params[k] = v
+    return llm_params
 
 
 def ollama_check_and_pull_model(model_name: str) -> bool:
@@ -120,10 +128,6 @@ def make_serializable(data: dict) -> dict:
     for key, value in data.items():
         if hasattr(value, "json") and callable(value.json):
             data[key] = value.json()
-        elif isinstance(value, ChatOllama):
-            if value.temperature is None:
-                value.temperature = ollama_get_model_default_temperature(value.model_name)
-            data[key] = str(value)
         else:
             try:
                 json.dumps(value)

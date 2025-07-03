@@ -21,7 +21,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
 from .config import config
-from .util import ollama_check_and_pull_model, ollama_get_model_default_temperature
+from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
 
 
@@ -82,8 +82,7 @@ class DialogGenerator:
 
         if type(model) is str:
             ollama_check_and_pull_model(model)  # Ensure the model is available locally
-            if "temperature" not in llm_kwargs or llm_kwargs["temperature"] is None:
-                llm_kwargs["temperature"] = ollama_get_model_default_temperature(model)
+            llm_kwargs = set_ollama_model_defaults(model, llm_kwargs)
             self.llm = ChatOllama(model=model,
                                   format=output_format_schema,
                                   **llm_kwargs)
@@ -469,8 +468,7 @@ class PersonaGenerator:
                     # Collect LLM parameters from config, only if not None
                     llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
                     llm_kwargs = {**llm_config_params, **self.llm_kwargs}
-                    if "temperature" not in llm_kwargs or llm_kwargs["temperature"] is None:
-                        llm_kwargs["temperature"] = ollama_get_model_default_temperature(self.llm_model)
+                    llm_kwargs = set_ollama_model_defaults(self.llm_model, llm_kwargs)
                     # temperature from function argument overrides config
                     if temperature is not None:
                         llm_kwargs["temperature"] = temperature
