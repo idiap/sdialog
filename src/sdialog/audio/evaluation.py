@@ -70,4 +70,3 @@ def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> floa
     return {
         "local_consistency": avg_distance,
     }
-

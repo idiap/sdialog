@@ -2,11 +2,14 @@ from flask import Flask, request, jsonify, send_from_directory, send_file
 import os
 import sys
 import json
-import random
 import logging
 from typing import Dict, Any
 import io
 import soundfile as sf
+
+from sdialog.personas import Patient, Doctor, PersonaAgent
+from sdialog.generators import PersonaGenerator
+from sdialog.audio import generate_utterance
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -15,28 +18,21 @@ logger = logging.getLogger(__name__)
 # Add the parent directory to the Python path to import sdialog
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sdialog.personas import Patient, Doctor, PersonaMetadata, PersonaAgent
-from sdialog.generators import PersonaGenerator
-from sdialog.audio import generate_utterance
-
 app = Flask(__name__)
 
-try:
-    # Initialize the persona generators with base personas
-    logger.info("Initializing persona generators...")
-    
-    patient_generator = PersonaGenerator(persona=Patient, llm_model="qwen2.5:3b")
-    doctor_generator = PersonaGenerator(persona=Doctor, llm_model="qwen2.5:3b")
-    logger.info("Persona generators initialized successfully")
-    
-except Exception as e:
-    logger.error(f"Error during initialization: {str(e)}")
-    raise
+# Initialize the persona generators with base personas
+logger.info("Initializing persona generators...")
+
+patient_generator = PersonaGenerator(persona=Patient, llm_model="qwen2.5:3b")
+doctor_generator = PersonaGenerator(persona=Doctor, llm_model="qwen2.5:3b")
+logger.info("Persona generators initialized successfully")
+
 
 # Serve static files
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
+
 
 def generate_patient() -> Dict[str, Any]:
     """Generate a random patient persona using PersonaGenerator."""
@@ -50,6 +46,7 @@ def generate_patient() -> Dict[str, Any]:
         logger.error(f"Error generating patient persona: {str(e)}")
         raise
 
+
 def generate_doctor() -> Dict[str, Any]:
     """Generate a random doctor persona using PersonaGenerator."""
     try:
@@ -61,6 +58,7 @@ def generate_doctor() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error generating doctor persona: {str(e)}")
         raise
+
 
 @app.route('/api/generate/persona/<type>', methods=['GET'])
 def generate_persona(type):
@@ -79,6 +77,7 @@ def generate_persona(type):
     except Exception as e:
         logger.error(f"Error in generate_persona endpoint: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/generate/dialog', methods=['POST'])
 def generate_dialog():
@@ -102,14 +101,22 @@ def generate_dialog():
 
         patient_persona = Patient(**patient_filtered_data)
         doctor_persona = Doctor(**doctor_filtered_data)
-        
+
         # Create PersonaAgents, ensuring they have a name.
-        patient_agent = PersonaAgent(persona=patient_persona, name=patient_persona.name or "Patient", model="qwen2.5:14b")
-        doctor_agent = PersonaAgent(persona=doctor_persona, name=doctor_persona.name or "Doctor", model="qwen2.5:14b")
+        patient_agent = PersonaAgent(
+            persona=patient_persona,
+            name=patient_persona.name or "Patient",
+            model="qwen2.5:14b"
+        )
+        doctor_agent = PersonaAgent(
+            persona=doctor_persona,
+            name=doctor_persona.name or "Doctor",
+            model="qwen2.5:14b"
+        )
 
         # Generate dialogue, doctor starts.
         logger.info(f"Starting dialogue generation between {doctor_agent.name} and {patient_agent.name}...")
-        dialogue = doctor_agent.dialog_with(patient_agent, max_turns=12, keep_bar=False) 
+        dialogue = doctor_agent.dialog_with(patient_agent, max_turns=12, keep_bar=False)
         logger.info("Dialogue generation complete.")
 
         return jsonify(dialogue.json())
@@ -118,6 +125,7 @@ def generate_dialog():
         # Using exc_info=True to log the full traceback
         logger.error(f"Error during dialogue generation: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/generate/audio', methods=['POST'])
 def generate_audio():
@@ -133,22 +141,23 @@ def generate_audio():
             return jsonify({'error': 'Text is required'}), 400
 
         logger.info(f"Generating audio for text: '{text[:30]}...'")
-        
+
         # Generate audio using sdialog
         audio_data = generate_utterance(text, persona)
-        
+
         # Convert numpy array to WAV in memory
         byte_io = io.BytesIO()
         # Kokoro's default sampling rate is 24kHz.
         sf.write(byte_io, audio_data, 24000, format='WAV', subtype='PCM_16')
         byte_io.seek(0)
-        
+
         logger.info("Audio generated successfully")
         return send_file(byte_io, mimetype='audio/wav')
 
     except Exception as e:
         logger.error(f"Error during audio generation: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/save', methods=['POST'])
 def save_configuration():
@@ -162,6 +171,7 @@ def save_configuration():
     except Exception as e:
         logger.error(f"Error saving configuration: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
