@@ -226,7 +226,7 @@ class Dialog(BaseModel):
                 writer.write(self.description())
 
     @staticmethod
-    def from_file(path: str, type: str = "auto"):
+    def from_file(path: str, type: str = "auto", txt_turn_template: str = "{speaker}: {text}"):
         """
         Loads a dialogue from a file.
 
@@ -246,9 +246,28 @@ class Dialog(BaseModel):
 
             lines = reader.read().split("\n")
 
-        return Dialog(turns=[Turn(speaker=line[:line.index(":")].strip(),
-                                  text=line[line.index(":") + 1:].strip())
-                             for line in lines if line])
+        turns = []
+        for ix, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Use the txt_turn_template to extract speaker and text
+            # Build a regex from the template
+            regex = re.escape(txt_turn_template)
+            regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
+            regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
+            m = re.match(regex, line)
+            if m:
+                speaker = m.group('speaker').strip()
+                text = m.group('text').strip()
+            else:
+                raise ValueError(f"Line {ix + 1} '{line}' does not match the expected format: {txt_turn_template}."
+                                 "Make sure the template matches the dialogue format.")
+
+            turns.append((speaker, text))
+
+        return Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
 
     @staticmethod
     def from_dict(data: dict):
