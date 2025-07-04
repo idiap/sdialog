@@ -26,7 +26,7 @@ from print_color import print as cprint
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Any
 
-from .util import make_serializable, get_timestamp
+from .util import make_serializable, get_timestamp, remove_newlines
 
 __version__ = "0.0.2"
 
@@ -388,9 +388,10 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
         dialog = dialog.model_copy()
         dialog.turns = [Turn(speaker=e.agent, text=e.text) if e.action == "utter"
                         else (
-                            Turn(speaker=e.agent, text=f"[pick_suggestion] {e.text}") if e.action == "pick_suggestion"
+                            Turn(speaker=e.agent,
+                                 text=f"[pick_suggestion] {remove_newlines(e.text)}") if e.action == "pick_suggestion"
                             else
-                            Turn(speaker=e.action, text=f"({e.agent}) {e.text}"))
+                            Turn(speaker=e.action, text=f"({e.agent}) {remove_newlines(e.text)}"))
                         for e in dialog.events]
 
     for ix, turn in enumerate(dialog.turns):

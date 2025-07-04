@@ -34,7 +34,7 @@ from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import camel_or_snake_to_words, get_timestamp
+from .util import camel_or_snake_to_words, get_timestamp, remove_newlines
 from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 
 
@@ -140,12 +140,12 @@ class BasePersona(BaseModel, ABC):
         if hasattr(self, "_metadata") and self._metadata is not None:
             for key, value in self._metadata.model_dump().items():
                 if value not in [None, ""]:
-                    cprint(value, tag=key, tag_color="purple", color="magenta", format="bold")
+                    cprint(remove_newlines(value), tag=key, tag_color="purple", color="magenta", format="bold")
         cprint("--- Persona Begins ---", color="magenta", format="bold")
         for key, value in self.__dict__.items():
             if key == "_metadata":
                 continue
-            cprint(value,
+            cprint(remove_newlines(value),
                    tag=camel_or_snake_to_words(key).capitalize(),
                    tag_color="red",
                    color="white")
@@ -359,7 +359,7 @@ class ExtendedPersona(BasePersona):
     """
     name: str = ""
     # Demographics
-    age: Optional[Union[int, str]] = None
+    age: Union[int, str] = ""
     race: str = ""
     gender: str = ""
     language: str = "English"
@@ -426,7 +426,7 @@ class Doctor(ExtendedPersona):
     :vartype work_experience: str
     """
     specialty: str = ""
-    years_of_experience: Optional[Union[int, str]] = None
+    years_of_experience: Union[int, str] = ""
     certifications: str = ""
     work_experience: str = ""
 
