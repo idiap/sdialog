@@ -47,7 +47,7 @@ pip install sdialog
 Define personas, create agents, and generate a dialogue:
 
 ```python
-from sdialog import Persona, PersonaAgent
+from sdialog.personas import Persona, PersonaAgent
 
 # Define personas
 alice = Persona(name="Alice", role="friendly barista", personality="cheerful and helpful")
