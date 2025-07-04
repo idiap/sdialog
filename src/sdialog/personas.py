@@ -449,8 +449,7 @@ class Agent:
                  name: str = None,
                  model: Union[str, ChatOllama] = None,
                  dialogue_details: str = "",
-                 response_details: str = "responses SHOULD NOT be too long and wordy, should be "
-                                         "approximately one utterance long",
+                 response_details: str = "",
                  system_prompt: str = None,
                  can_finish: bool = True,
                  orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,

@@ -177,8 +177,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  persona_b: Union[Persona, PersonaAgent],
                  model: Union[ChatOllama, str] = None,
                  dialogue_details: str = "",
-                 response_details: str = "responses SHOULD NOT be too long and wordy, should be "
-                                         "approximately one utterance long",
+                 response_details: str = "",
                  scenario: dict = None,
                  llm_kwargs: dict = {}):
         """
