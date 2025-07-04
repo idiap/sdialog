@@ -5,7 +5,6 @@ This module provides functions to evaluate the consistency of speaker audio acro
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import torch
-import whisperx
 import numpy as np
 import logging
 from typing import List, Tuple
@@ -21,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 model = Model.from_pretrained("pyannote/embedding")
 inference = Inference(model, window="whole")
-inference.to(torch.device("cuda"))
 
 
 def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> float:
@@ -72,58 +70,3 @@ def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> floa
     return {
         "local_consistency": avg_distance,
     }
-
-
-def timestamps_alignment_comparison(audio: np.ndarray, reference_audio: np.ndarray) -> float:
-    """
-    Evaluates the alignment of timestamps in the audio against an reference audio for the same dialog.
-    """
-    pass
-
-
-def timestamps_alignment(audio: np.ndarray) -> dict:
-    """
-    Compute the alignment of timestamps in the audio of the whole dialog.
-
-    :param audio: Audio signal as numpy array
-    :type audio: np.ndarray
-    :return: Dictionary containing aligned segments with their timestamps
-    :rtype: dict
-    """
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    try:
-        align_model, align_metadata = whisperx.load_align_model(
-            language_code="en",
-            device=device
-        )
-
-        # Create a dummy segment for complete alignment
-        whisper_segment = {
-            "text": "",  # Text will be provided by WhisperX
-            "start": 0,
-            "end": len(audio) / 16000  # Duration in seconds (assuming 16kHz sample rate)
-        }
-
-        # Perform alignment using WhisperX
-        aligned_segments = whisperx.align(
-            [whisper_segment],
-            align_model,
-            align_metadata,
-            audio,
-            device,
-            interpolate_method="nearest",
-            return_char_alignments=False
-        )
-
-        # Clean up memory
-        del align_model
-        del align_metadata
-        if device == "cuda":
-            torch.cuda.empty_cache()
-
-        return aligned_segments
-
-    except Exception as e:
-        logger.error(f"Error during alignment: {e}")
-        return None

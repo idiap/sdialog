@@ -4,6 +4,8 @@ from sdialog import Dialog
 from sdialog.audio.evaluation import speaker_consistency
 from sdialog.audio import dialog_to_audio, to_wav, generate_utterances_audios
 
+os.makedirs("./outputs", exist_ok=True)
+
 dialog = Dialog.from_file("1.json")
 
 dialog.print()
