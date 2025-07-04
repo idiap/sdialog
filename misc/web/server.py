@@ -23,9 +23,13 @@ app = Flask(__name__)
 # Initialize the persona generators with base personas
 logger.info("Initializing persona generators...")
 
-patient_generator = PersonaGenerator(persona=Patient, llm_model="qwen2.5:3b")
-doctor_generator = PersonaGenerator(persona=Doctor, llm_model="qwen2.5:3b")
-logger.info("Persona generators initialized successfully")
+# These are now dynamically configured via the UI
+# PERSONA_MODEL = "qwen2.5:3b"
+# GENERATION_MODEL = "qwen2.5:14b"
+# patient_generator = PersonaGenerator(persona=Patient, llm_model=PERSONA_MODEL)
+# doctor_generator = PersonaGenerator(persona=Doctor, llm_model=PERSONA_MODEL)
+
+logger.info("Persona generators will be initialized per request.")
 
 
 # Serve static files
@@ -34,10 +38,12 @@ def index():
     return send_from_directory('.', 'index.html')
 
 
-def generate_patient() -> Dict[str, Any]:
+def generate_patient(config: Dict[str, Any]) -> Dict[str, Any]:
     """Generate a random patient persona using PersonaGenerator."""
     try:
         logger.info("Generating new patient persona...")
+        model = config.get("persona_model", "qwen2.5:3b")
+        patient_generator = PersonaGenerator(persona=Patient, llm_model=model)
         patient = patient_generator.generate()
         patient.language = "English"  # Force English language for our interface
         logger.info("Patient persona generated successfully")
@@ -47,10 +53,12 @@ def generate_patient() -> Dict[str, Any]:
         raise
 
 
-def generate_doctor() -> Dict[str, Any]:
+def generate_doctor(config: Dict[str, Any]) -> Dict[str, Any]:
     """Generate a random doctor persona using PersonaGenerator."""
     try:
         logger.info("Generating new doctor persona...")
+        model = config.get("persona_model", "qwen2.5:3b")
+        doctor_generator = PersonaGenerator(persona=Doctor, llm_model=model)
         doctor = doctor_generator.generate()
         doctor.language = "English"  # Force English language for our interface
         logger.info("Doctor persona generated successfully")
@@ -60,16 +68,19 @@ def generate_doctor() -> Dict[str, Any]:
         raise
 
 
-@app.route('/api/generate/persona/<type>', methods=['GET'])
+@app.route('/api/generate/persona/<type>', methods=['POST'])
 def generate_persona(type):
     """Generate a random persona of the specified type."""
     try:
         logger.info(f"Received request to generate {type} persona")
+        data = request.json
+        config = data.get('config', {})
+
         if type == 'patient':
-            result = generate_patient()
+            result = generate_patient(config)
             return jsonify(result)
         elif type == 'doctor':
-            result = generate_doctor()
+            result = generate_doctor(config)
             return jsonify(result)
         else:
             logger.warning(f"Invalid persona type requested: {type}")
@@ -88,6 +99,9 @@ def generate_dialog():
 
         patient_data = data.get('patient', {})
         doctor_data = data.get('doctor', {})
+        config = data.get('config', {})
+        
+        dialog_model = config.get("dialog_model", "qwen2.5:14b")
 
         if not patient_data or not doctor_data:
             return jsonify({'error': 'Patient and Doctor data are required'}), 400
@@ -106,12 +120,12 @@ def generate_dialog():
         patient_agent = PersonaAgent(
             persona=patient_persona,
             name=patient_persona.name or "Patient",
-            model="qwen2.5:14b"
+            model=dialog_model
         )
         doctor_agent = PersonaAgent(
             persona=doctor_persona,
             name=doctor_persona.name or "Doctor",
-            model="qwen2.5:14b"
+            model=dialog_model
         )
 
         # Generate dialogue, doctor starts.
