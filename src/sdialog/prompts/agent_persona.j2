@@ -4,6 +4,17 @@ Role-play as the character described below. Remain fully in character throughout
 {{ persona }}
 [[ ## END PERSONA ## ]]
 
+{% if example_dialogs %}
+---
+Here are example dialogues that illustrate the expected style, tone, and format. Please use these as a reference to mimic the style in your responses:
+{% for dialog in example_dialogs %}
+[[ ## EXAMPLE DIALOGUE {{ loop.index }} ## ]]
+{{ dialog }}
+[[ ## END EXAMPLE DIALOGUE {{ loop.index }} ## ]]
+{% endfor %}
+---
+{% endif %}
+
 ---
 {% if dialogue_details %}
 Dialogue context:

@@ -448,6 +448,7 @@ class Agent:
                  persona: BasePersona,
                  name: str = None,
                  model: Union[str, ChatOllama] = None,
+                 example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
                  response_details: str = "",
                  system_prompt: str = None,
@@ -456,16 +457,17 @@ class Agent:
                  inspectors: Union['Inspector', List['Inspector']] = None,
                  scenario: Union[dict, str] = None,
                  llm_kwargs: dict = {}):
-
         """
         Initializes a PersonaAgent for role-play dialogue.
 
         :param persona: The persona to role-play.
         :type persona: BasePersona
-        :param model: The LLM or model name to use.
-        :type model: Union[str, ChatOllama]
         :param name: Name of the agent.
         :type name: str
+        :param model: The LLM or model name to use.
+        :type model: Union[str, ChatOllama]
+        :param example_dialogs: List of example dialogues as a reference for the agent.
+        :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional details about the dialogue.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
@@ -483,7 +485,6 @@ class Agent:
         :param llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
-
         if model is None:
             model = config["llm"]["model"]
 
@@ -492,6 +493,7 @@ class Agent:
                 system_prompt_template = Template(f.read())
             system_prompt = system_prompt_template.render(
                 persona=persona,
+                example_dialogs=example_dialogs,
                 dialogue_details=dialogue_details,
                 response_details=response_details,
                 can_finish=can_finish,

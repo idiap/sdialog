@@ -404,7 +404,7 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
             tag_color = speaker_tag_colors[speakers.index(speaker) % len(speaker_tag_colors)]
             color = speaker_utt_colors[speakers.index(speaker) % len(speaker_utt_colors)]
 
-        cprint(turn.text,
+        cprint(remove_newlines(turn.text),
                tag=speaker,
                tag_color=tag_color,
                color=color)

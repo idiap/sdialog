@@ -2,13 +2,14 @@ import os
 import json
 
 from sdialog.generators import DialogGenerator, PersonaDialogGenerator, LLMDialogOutput, Turn
-from sdialog.personas import Persona, PersonaAgent
 from sdialog.generators import PersonaGenerator
-from sdialog.personas import BasePersona
+from sdialog.personas import BasePersona, Persona, Agent
+from sdialog import Dialog
 
 
 MODEL = "smollm:135m"
 PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
+example_dialog = Dialog(turns=[Turn(speaker="A", text="This is an example!"), Turn(speaker="B", text="Hi!")])
 
 
 # Patch LLM call
@@ -92,8 +93,8 @@ def test_persona_dialog_generator_personas(monkeypatch):
 
 def test_persona_dialog_generator_with_agents(monkeypatch):
     monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
-    persona_a = PersonaAgent(Persona(), "A", DummyLLM())
-    persona_b = PersonaAgent(Persona(), "B", DummyLLM())
+    persona_a = Agent(Persona(), "A", DummyLLM())
+    persona_b = Agent(Persona(), "B", DummyLLM())
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
@@ -188,3 +189,21 @@ def test_persona_generator_defaults(monkeypatch):
     persona = gen.generate()
     persona2 = Persona.from_dict(persona.json(), DummyPersona)
     assert persona.name == persona2.name
+
+
+def test_dialog_generator_example_dialogs(monkeypatch):
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    gen = DialogGenerator(dialogue_details="test", example_dialogs=[example_dialog])
+    assert gen.example_dialogs[0] == example_dialog
+    _ = gen()
+    assert example_dialog.turns[0].text in gen.messages[0].content
+
+
+def test_persona_dialog_generator_example_dialogs(monkeypatch):
+    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    persona_a = Persona(name="A")
+    persona_b = Persona(name="B")
+    gen = PersonaDialogGenerator(persona_a, persona_b, example_dialogs=[example_dialog])
+    assert gen.example_dialogs[0] == example_dialog
+    _ = gen()
+    assert example_dialog.turns[0].text in gen.messages[0].content
