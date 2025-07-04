@@ -109,7 +109,7 @@ class BasePersona(BaseModel, ABC):
             new_persona._metadata.id = new_id if new_id is not None else self._metadata.id
         else:
             new_persona._metadata = PersonaMetadata(className=self.__class__.__name__,
-                                                    id=new_id if new_id is not None else None,
+                                                    id=new_id if new_id is not None else get_universal_id(),
                                                     parentId=self._metadata.id if self._metadata else None)
         return new_persona
 
