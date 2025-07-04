@@ -43,7 +43,9 @@ def generate_patient(config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         logger.info("Generating new patient persona...")
         model = config.get("persona_model", "qwen2.5:3b")
-        patient_generator = PersonaGenerator(persona=Patient, llm_model=model)
+        llm_kwargs = {k: v for k, v in config.items() if k not in ["persona_model", "dialog_model"] and v is not None}
+        
+        patient_generator = PersonaGenerator(persona=Patient, model=model, llm_kwargs=llm_kwargs)
         patient = patient_generator.generate()
         patient.language = "English"  # Force English language for our interface
         logger.info("Patient persona generated successfully")
@@ -58,7 +60,9 @@ def generate_doctor(config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         logger.info("Generating new doctor persona...")
         model = config.get("persona_model", "qwen2.5:3b")
-        doctor_generator = PersonaGenerator(persona=Doctor, llm_model=model)
+        llm_kwargs = {k: v for k, v in config.items() if k not in ["persona_model", "dialog_model"] and v is not None}
+
+        doctor_generator = PersonaGenerator(persona=Doctor, model=model, llm_kwargs=llm_kwargs)
         doctor = doctor_generator.generate()
         doctor.language = "English"  # Force English language for our interface
         logger.info("Doctor persona generated successfully")
@@ -101,7 +105,8 @@ def generate_dialog():
         doctor_data = data.get('doctor', {})
         config = data.get('config', {})
         
-        dialog_model = config.get("dialog_model", "qwen2.5:14b")
+        dialog_model = config.get("dialog_model", "qwen2.s:14b")
+        llm_kwargs = {k: v for k, v in config.items() if k not in ["persona_model", "dialog_model"] and v is not None}
 
         if not patient_data or not doctor_data:
             return jsonify({'error': 'Patient and Doctor data are required'}), 400
@@ -120,12 +125,14 @@ def generate_dialog():
         patient_agent = PersonaAgent(
             persona=patient_persona,
             name=patient_persona.name or "Patient",
-            model=dialog_model
+            model=dialog_model,
+            llm_kwargs=llm_kwargs
         )
         doctor_agent = PersonaAgent(
             persona=doctor_persona,
             name=doctor_persona.name or "Doctor",
-            model=dialog_model
+            model=dialog_model,
+            llm_kwargs=llm_kwargs
         )
 
         # Generate dialogue, doctor starts.
