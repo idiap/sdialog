@@ -9,11 +9,22 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-License-Identifier: MIT
 import re
 import json
+import time
 import logging
 import subprocess
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_universal_id() -> str:
+    """
+    Generates a unique identifier for a dialog or persona using a universal ID generator.
+
+    :return: A unique identifier as a string.
+    :rtype: str
+    """
+    return int(time.time() * 1000)
 
 
 def remove_newlines(s: str) -> str:

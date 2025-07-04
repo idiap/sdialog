@@ -21,8 +21,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
 from .config import config
-from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
+from .util import ollama_check_and_pull_model, set_ollama_model_defaults, get_universal_id
 
 
 logger = logging.getLogger(__name__)
@@ -147,7 +147,7 @@ class DialogGenerator:
             llm_output = self.output_format.model_validate(json.loads(dialogue))
 
             if self.output_format is LLMDialogOutput:
-                return Dialog(id=id if id else None,
+                return Dialog(id=id if id is not None else get_universal_id(),
                               parentId=parent_id,
                               model=self.model_name,
                               seed=self.llm.seed,
@@ -567,7 +567,7 @@ class PersonaGenerator:
                         personas[-1]._metadata = PersonaMetadata(
                             model=str(llm) if llm else None,
                             seed=seed,
-                            id=id,
+                            id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
                             className=type(output_persona).__name__,
                             notes=notes
@@ -582,7 +582,7 @@ class PersonaGenerator:
                         personas[-1]._metadata = PersonaMetadata(
                             model=str(llm) if llm else None,
                             seed=seed,
-                            id=id,
+                            id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
                             className=type(output_persona).__name__,
                             notes=notes
@@ -626,7 +626,7 @@ class PersonaGenerator:
         output_persona._metadata = PersonaMetadata(
             model=str(llm) if llm else None,
             seed=seed,
-            id=id,
+            id=id if id is not None else get_universal_id(),
             parentId=parent_id,
             className=type(output_persona).__name__,
             notes=notes

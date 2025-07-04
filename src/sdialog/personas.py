@@ -34,8 +34,8 @@ from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import camel_or_snake_to_words, get_timestamp, remove_newlines
 from .util import ollama_check_and_pull_model, set_ollama_model_defaults
+from .util import camel_or_snake_to_words, get_timestamp, remove_newlines, get_universal_id
 
 
 logger = logging.getLogger(__name__)
@@ -960,7 +960,7 @@ class Agent:
             }
 
         return Dialog(
-            id=id if id else None,
+            id=id if id is not None else get_universal_id(),
             parentId=parent_id,
             complete=completion,  # incomplete if ran out of iterations (reached max_iteration number)
             model=self.model_name,
