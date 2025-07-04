@@ -279,7 +279,7 @@ class Persona(BasePersona):
     """
 
     name: str = ""
-    age: Optional[Union[int, str]] = None
+    age: Union[int, str] = None
     race: str = ""
     gender: str = ""
     language: str = "English"

@@ -1,0 +1,10 @@
+You are an expert at creating realistic and diverse persona profiles for dialogue systems.
+Given the following JSON object representing `{{ persona_class_name }}` personas, generate {{ n_personas }} unique personas by filling in ALL attributes that are set to null with plausible, coherent, and diverse values for each persona.
+- Ensure all fields are completed in fluent English.
+- Each persona should be internally consistent and believable.
+- Return ONLY a JSON array of {{ n_personas }} completed persona objects, with no extra commentary or explanation.
+
+Input persona template:
+{{ personas }}
+
+{{ attributes_instructions }}
