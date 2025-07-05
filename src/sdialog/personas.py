@@ -945,7 +945,7 @@ class Agent:
             events.extend(utt_events)
             pbar.update(1)
 
-        pbar.container.close()
+        pbar.close()
 
         if self.scenario:
             scenario = self.scenario
