@@ -167,6 +167,12 @@ class BasePersona(BaseModel, ABC):
             data["_metadata"] = self._metadata.model_dump()
         return json.dumps(data, indent=indent) if string else data
 
+    def prompt(self) -> str:
+        """
+        Returns the textual representation of the persona, used as part of the system prompt.
+        """
+        return self.json(string=True)
+
     def to_file(self, path: str, makedir: bool = True):
         """
         Saves the persona to a file in either JSON or plain text format.
@@ -288,30 +294,6 @@ class Persona(BasePersona):
     personality: str = ""
     circumstances: str = ""
     rules: str = ""
-
-    @staticmethod
-    def from_file(path: str, persona_class: Optional["BasePersona"] = None):
-        """
-        Loads a persona from a file.
-
-        :param path: Path to the persona file.
-        :type path: str
-        :param persona_class: Optional specific class to use for the persona.
-        :type persona_class: Optional[BasePersona]
-        """
-        return BasePersona.from_file(path, persona_class)
-
-    @staticmethod
-    def from_json(json_str: str, persona_class: Optional["BasePersona"] = None):
-        """
-        Creates a persona object from a JSON string.
-
-        :param json_str: The JSON string containing persona data.
-        :type json_str: str
-        :param persona_class: Optional specific class to use for the persona.
-        :type persona_class: Optional[BasePersona]
-        """
-        return BasePersona.from_json(json_str, persona_class)
 
 
 class ExtendedPersona(BasePersona):
@@ -492,7 +474,7 @@ class Agent:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
                 system_prompt_template = Template(f.read())
             system_prompt = system_prompt_template.render(
-                persona=persona,
+                persona=persona.prompt(),
                 example_dialogs=example_dialogs,
                 dialogue_details=dialogue_details,
                 response_details=response_details,
@@ -796,7 +778,7 @@ class Agent:
         """
         return self.name if self.name is not None else default
 
-    def get_prompt(self) -> str:
+    def prompt(self) -> str:
         """
         Returns the current system prompt.
 
@@ -972,8 +954,6 @@ class Agent:
             events=events
         )
 
-    talk_with = dialog_with
-
     def memory_dump(self):
         """
         Returns a copy of the agent's memory (list of messages).
@@ -981,6 +961,8 @@ class Agent:
         :rtype: list
         """
         return list(self.memory)
+
+    talk_with = dialog_with
 
 
 PersonaAgent = Agent

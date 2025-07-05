@@ -104,6 +104,30 @@ class DialogGenerator:
         self.scenario = scenario
         self.messages = [SystemMessage(""), HumanMessage("")]
 
+    def _set_prompt(self, dialogue_details: str, example_dialogs: List['Dialog'] = None):
+        """
+        Sets the dialogue details and scenario for generation.
+
+        :param dialogue_details: Instructions or details for the dialogue.
+        :type dialogue_details: str
+        :param scenario: Scenario metadata.
+        :type scenario: dict
+        """
+        # Load system message from prompt file
+        system_message = self.system_prompt_template.render(example_dialogs=example_dialogs)
+
+        self.messages[0].content = system_message
+        self.messages[1].content = dialogue_details
+
+    def prompt(self) -> str:
+        """
+        Returns the current system prompt used for dialogue generation.
+
+        :return: The system prompt string.
+        :rtype: str
+        """
+        return self.messages[0].content
+
     def generate(self,
                  dialogue_details: str = None,
                  example_dialogs: List[Dialog] = None,
@@ -129,7 +153,7 @@ class DialogGenerator:
         :return: The generated dialogue or output object.
         :rtype: Union[Dialog, dict, BaseModel]
         """
-        self.set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
+        self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
         self.llm.seed = seed if seed is not None else random.getrandbits(32)
 
         # hack to avoid seed bug in prompt cache
@@ -157,21 +181,6 @@ class DialogGenerator:
                               turns=llm_output.dialog)
             else:
                 return llm_output
-
-    def set_prompt(self, dialogue_details: str, example_dialogs: List['Dialog'] = None):
-        """
-        Sets the dialogue details and scenario for generation.
-
-        :param dialogue_details: Instructions or details for the dialogue.
-        :type dialogue_details: str
-        :param scenario: Scenario metadata.
-        :type scenario: dict
-        """
-        # Load system message from prompt file
-        system_message = self.system_prompt_template.render(example_dialogs=example_dialogs)
-
-        self.messages[0].content = system_message
-        self.messages[1].content = dialogue_details
 
     __call__ = generate  # alias for generate method
 
@@ -228,8 +237,8 @@ class PersonaDialogGenerator(DialogGenerator):
         with open(config["prompts"]["persona_dialog_generator"], encoding="utf-8") as f:
             dialogue_details_template = Template(f.read())
         dialogue_details = dialogue_details_template.render(
-            persona_a=persona_a,
-            persona_b=persona_b,
+            persona_a=persona_a.prompt(),
+            persona_b=persona_b.prompt(),
             dialogue_details=dialogue_details,
             response_details=response_details
         )
@@ -342,6 +351,15 @@ class PersonaGenerator:
                                  f"persona class '{type(self._persona).__name__}'. "
                                  "Expected attributes are: "
                                  f"{list(self._persona.__dict__.keys())}.")
+
+    def prompt(self) -> str:
+        """
+        Returns the prompt used for generating personas.
+
+        :return: The prompt string.
+        :rtype: str
+        """
+        return self.llm_prompt
 
     def set_random_attributes(self, **persona_rnd_attributes):
         """
