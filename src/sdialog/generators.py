@@ -249,7 +249,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
-                 max_turns: int = 80,
+                 max_turns: int = 200,
                  notes: str = None):
         """
         Generates a dialogue between two personas using the LLM or PersonaAgents.

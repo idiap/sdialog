@@ -19,7 +19,7 @@ import transformers
 
 from abc import ABC
 from time import time
-from tqdm.auto import trange
+from tqdm.auto import tqdm
 from collections import defaultdict
 from pydantic import BaseModel, Field
 from print_color import print as cprint
@@ -871,7 +871,7 @@ class Agent:
 
     def dialog_with(self,
                     agent: "PersonaAgent",
-                    max_turns: int = 80,
+                    max_turns: int = 200,
                     id: int = None,
                     parent_id: int = None,
                     seed: int = None,
@@ -908,8 +908,8 @@ class Agent:
 
         utter = None
         completion = False
-        tqdm_iterator = trange(max_turns // 2, desc="Dialogue", leave=keep_bar)
-        for _ in tqdm_iterator:
+        pbar = tqdm(total=max_turns, desc="Dialogue", leave=keep_bar)
+        while len(dialog) < max_turns:
             utt_events = self(utter, return_events=True)
 
             if utt_events and utt_events[-1].action == "utter":
@@ -926,6 +926,7 @@ class Agent:
                 text=utt_events[-1].text
             ))
             events.extend(utt_events)
+            pbar.update(1)
 
             utt_events = agent(utter, return_events=True)
             if utt_events and utt_events[-1].action == "utter":
@@ -942,12 +943,9 @@ class Agent:
                 text=utt_events[-1].text
             ))
             events.extend(utt_events)
+            pbar.update(1)
 
-        if not keep_bar:
-            try:
-                tqdm_iterator.container.close()
-            except AttributeError:
-                pass
+        pbar.container.close()
 
         if self.scenario:
             scenario = self.scenario
