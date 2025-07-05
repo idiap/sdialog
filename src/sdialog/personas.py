@@ -28,6 +28,7 @@ from typing import List, Union, Optional
 from langchain_ollama.chat_models import ChatOllama
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages.base import messages_to_dict
 
 from .config import config
 from jinja2 import Template
@@ -954,13 +955,13 @@ class Agent:
             events=events
         )
 
-    def memory_dump(self):
+    def memory_dump(self, as_dict: bool = False) -> list:
         """
         Returns a copy of the agent's memory (list of messages).
         :return: A copy of the memory list.
         :rtype: list
         """
-        return list(self.memory)
+        return messages_to_dict(self.memory) if as_dict else self.memory.copy()
 
     talk_with = dialog_with
 
