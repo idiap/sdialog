@@ -100,7 +100,7 @@ class DialogGenerator:
         self._personas = personas
         self.example_dialogs = example_dialogs
         self.dialogue_details = dialogue_details
-        self.model_name = model
+        self.model_name = str(self.llm)
         self.scenario = scenario
         self.messages = [SystemMessage(""), HumanMessage("")]
 
