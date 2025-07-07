@@ -55,9 +55,10 @@ class DirectionSteerer(Steerer):
     def __add__(self, other: "Inspector"):
         if type(other) is Inspector:
             if self.strength is None:
-                other.add_steering_function(partial(simple_steering_function, op="+"))
+                other.add_steering_function(partial(simple_steering_function, direction=self.direction, op="+"))
             else:
-                other.add_steering_function(partial(simple_steering_function, op="+", strength=self.strength))
+                other.add_steering_function(partial(simple_steering_function,
+                                                    direction=self.direction, op="+", strength=self.strength))
                 self.strength = None
             self.inspector = other
         return other
@@ -65,9 +66,10 @@ class DirectionSteerer(Steerer):
     def __sub__(self, other):
         if type(other) is Inspector:
             if self.strength is None:
-                other.add_steering_function(partial(simple_steering_function, op="-"))
+                other.add_steering_function(partial(simple_steering_function, direction=self.direction, op="-"))
             else:
-                other.add_steering_function(partial(simple_steering_function, op="-", strength=self.strength))
+                other.add_steering_function(partial(simple_steering_function,
+                                                    direction=self.direction, op="-", strength=self.strength))
                 self.strength = None
             self.inspector = other
         return other
