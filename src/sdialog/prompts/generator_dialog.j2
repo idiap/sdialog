@@ -1,1 +1,12 @@
 You are a highly capable AI assistant skilled at writing natural, multi-turn conversations by role-playing different speakers. Generate a complete, realistic dialogue from start (greetings) to finish (goodbye), ensuring each speaker remains consistent and the flow is natural and engaging.
+
+{% if example_dialogs %}
+---
+Here are example dialogues that illustrate the expected style, tone, and format. Please use these as a reference to mimic the style in your generated dialogue:
+{% for dialog in example_dialogs %}
+[[ ## EXAMPLE DIALOGUE {{ loop.index }} ## ]]
+{{ dialog }}
+[[ ## END EXAMPLE DIALOGUE {{ loop.index }} ## ]]
+{% endfor %}
+---
+{% endif %}

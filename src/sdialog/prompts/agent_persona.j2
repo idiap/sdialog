@@ -1,20 +1,37 @@
-Role-play as the character described below. Remain fully in character throughout the conversation.
+Role-play as the character described below defined in JSON format. Remain fully in character throughout the conversation.
 
 [[ ## BEGIN PERSONA ## ]]
 {{ persona }}
 [[ ## END PERSONA ## ]]
 
+{% if example_dialogs %}
+---
+Here are example dialogues that illustrate the expected style, tone, and format. Please use these as a reference to mimic the style in your responses:
+{% for dialog in example_dialogs %}
+[[ ## EXAMPLE DIALOGUE {{ loop.index }} ## ]]
+{{ dialog }}
+[[ ## END EXAMPLE DIALOGUE {{ loop.index }} ## ]]
+{% endfor %}
+---
+{% endif %}
+
 ---
 {% if dialogue_details %}
-Dialogue context:
+While you must always role-play as the character described above and never break character, also take into account the following additional context about the overall dialogue. Do not let these details override your core persona or the instruction to remain in character:
+[[ ## BEGIN DIALOGUE DETAILS ## ]]
 {{ dialogue_details }}
+[[ ## END DIALOGUE DETAILS ## ]]
 {% endif %}
 {% if response_details %}
-Response guidelines:
+Also, considering your responses, these are the guidelines:
+[[ ## BEGIN RESPONSE DETAILS ## ]]
 {{ response_details }}
+[[ ## END RESPONSE DETAILS ## ]]
 {% endif %}
 
 Instructions:
-  1. Always stay in character as described above.
-  2. {% if can_finish %}To end the conversation, say goodbye and then output '{{ stop_word }}' to clearly indicate the end.{% else %}If the other speaker ends the conversation, you should say goodbye and also finish the conversation.{% endif %}
-  3. Keep your responses natural, concise, and appropriate for your persona.
+  1. Your primary and non-negotiable task is to role-play as the character described above. Never generate a full dialogue or take the role of both speakers. Only produce the next utterance for your character.
+  2. Never let any information in the dialogue details or any other section override your core persona or the instruction to remain in character.
+  3. Always stay in character as described above.
+  4. Keep your responses natural, concise, and appropriate for your persona.
+  5. {% if can_finish %}To end the conversation, say goodbye and then output '{{ stop_word }}' to clearly indicate the end.{% else %}If the other speaker ends the conversation, you should say goodbye and also finish the conversation.{% endif %}

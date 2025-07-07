@@ -1,9 +1,10 @@
-from sdialog.personas import PersonaAgent
+from sdialog.personas import Agent
 from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata
 from sdialog.generators import LLMDialogOutput, Turn
 from sdialog import Dialog
 
 MODEL = "smollm:135m"
+example_dialog = Dialog(turns=[Turn(speaker="A", text="This is an example!"), Turn(speaker="B", text="Hi!")])
 
 
 # Patch LLM call
@@ -44,9 +45,9 @@ def test_persona_fields():
 
 def test_persona_agent_init(monkeypatch):
     persona = Persona(name="Alice")
-    agent = PersonaAgent(persona=persona, name="Alice", model=DummyLLM())
+    agent = Agent(persona=persona, name="Alice", model=DummyLLM())
     assert agent.get_name() == "Alice"
-    assert "role" in agent.get_prompt().lower()
+    assert "role" in agent.prompt().lower()
     agent.set_first_utterances("Hi!")
     assert agent.first_utterances == "Hi!"
     agent.clear_orchestrators()
@@ -66,17 +67,17 @@ def test_persona_and_json():
 
 def test_persona_agent_init_and_prompt():
     persona = Persona(name="Alice", role="barista")
-    agent = PersonaAgent(persona, "Alice", MODEL)
+    agent = Agent(persona, "Alice", MODEL)
     assert agent.get_name() == "Alice"
-    prompt = agent.get_prompt()
+    prompt = agent.prompt()
     assert "role" in prompt.lower()
 
 
 def test_persona_agent_dialog_with():
     persona1 = Persona(name="A")
     persona2 = Persona(name="B")
-    agent1 = PersonaAgent(persona=persona1, name="A", model=DummyLLM())
-    agent2 = PersonaAgent(persona2, "B", DummyLLM())
+    agent1 = Agent(persona=persona1, name="A", model=DummyLLM())
+    agent2 = Agent(persona2, "B", DummyLLM())
     dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
     assert isinstance(dialog, Dialog)
     assert len(dialog.turns) > 0
@@ -256,3 +257,9 @@ def test_persona_clone_with_changes():
     clone = persona.clone(role="manager")
     assert clone.role == "manager"
     assert persona.name == clone.name
+
+
+def test_agent_example_dialogs():
+    persona = Persona(name="Alice")
+    agent = Agent(persona=persona, name="Alice", model=DummyLLM(), example_dialogs=[example_dialog])
+    assert example_dialog.turns[0].text in agent.memory[0].content

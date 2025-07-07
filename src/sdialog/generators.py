@@ -21,8 +21,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import Dialog, Turn
 from .config import config
-from .util import ollama_check_and_pull_model, set_ollama_model_defaults
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
+from .util import ollama_check_and_pull_model, set_ollama_model_defaults, get_universal_id
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ class DialogGenerator:
     """
     def __init__(self,
                  dialogue_details: str,
+                 example_dialogs: List['Dialog'] = None,
                  model: Union[ChatOllama, str] = None,
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
                  scenario: dict = None,
@@ -55,6 +56,8 @@ class DialogGenerator:
 
         :param dialogue_details: Instructions or details for the dialogue.
         :type dialogue_details: str
+        :param example_dialogs: Optional list of example dialogues to guide the generation.
+        :type example_dialogs: List[Dialog]
         :param model: The LLM or model name to use.
         :type model: Union[ChatOllama, str]
         :param output_format: Output format schema or Pydantic model.
@@ -91,14 +94,54 @@ class DialogGenerator:
             if output_format:
                 self.llm.format = output_format
 
-        self._personas = personas
-        self.model_name = model
-        self.set(dialogue_details, scenario)
+        with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
+            self.system_prompt_template = Template(f.read())
 
-    def generate(self, seed: int = None, id: int = None, parent_id: int = None, notes: str = None):
+        self._personas = personas
+        self.example_dialogs = example_dialogs
+        self.dialogue_details = dialogue_details
+        self.model_name = str(self.llm)
+        self.scenario = scenario
+        self.messages = [SystemMessage(""), HumanMessage("")]
+
+    def _set_prompt(self, dialogue_details: str, example_dialogs: List['Dialog'] = None):
+        """
+        Sets the dialogue details and scenario for generation.
+
+        :param dialogue_details: Instructions or details for the dialogue.
+        :type dialogue_details: str
+        :param scenario: Scenario metadata.
+        :type scenario: dict
+        """
+        # Load system message from prompt file
+        system_message = self.system_prompt_template.render(example_dialogs=example_dialogs)
+
+        self.messages[0].content = system_message
+        self.messages[1].content = dialogue_details
+
+    def prompt(self) -> str:
+        """
+        Returns the current system prompt used for dialogue generation.
+
+        :return: The system prompt string.
+        :rtype: str
+        """
+        return self.messages[0].content
+
+    def generate(self,
+                 dialogue_details: str = None,
+                 example_dialogs: List[Dialog] = None,
+                 seed: int = None,
+                 id: int = None,
+                 parent_id: int = None,
+                 notes: str = None):
         """
         Generates a synthetic dialogue using the LLM.
 
+        :param dialogue_details: Instructions or details for the dialogue (to override the default).
+        :type dialogue_details: str
+        :param example_dialogs: Optional list of example dialogues to guide the generation (to override the default).
+        :type example_dialogs: List[Dialog]
         :param seed: Random seed for reproducibility.
         :type seed: int
         :param id: Dialogue ID.
@@ -110,6 +153,7 @@ class DialogGenerator:
         :return: The generated dialogue or output object.
         :rtype: Union[Dialog, dict, BaseModel]
         """
+        self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
         self.llm.seed = seed if seed is not None else random.getrandbits(32)
 
         # hack to avoid seed bug in prompt cache
@@ -127,7 +171,7 @@ class DialogGenerator:
             llm_output = self.output_format.model_validate(json.loads(dialogue))
 
             if self.output_format is LLMDialogOutput:
-                return Dialog(id=id if id else None,
+                return Dialog(id=id if id is not None else get_universal_id(),
                               parentId=parent_id,
                               model=self.model_name,
                               seed=self.llm.seed,
@@ -137,25 +181,6 @@ class DialogGenerator:
                               turns=llm_output.dialog)
             else:
                 return llm_output
-
-    def set(self, dialogue_details: str, scenario: dict = None):
-        """
-        Sets the dialogue details and scenario for generation.
-
-        :param dialogue_details: Instructions or details for the dialogue.
-        :type dialogue_details: str
-        :param scenario: Scenario metadata.
-        :type scenario: dict
-        """
-        # Load system message from prompt file
-        with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
-            system_message = Template(f.read()).render()
-        self.scenario = scenario
-        self.dialogue_details = dialogue_details
-        self.messages = [
-            SystemMessage(system_message),
-            HumanMessage(content=dialogue_details)
-        ]
 
     __call__ = generate  # alias for generate method
 
@@ -175,10 +200,10 @@ class PersonaDialogGenerator(DialogGenerator):
     def __init__(self,
                  persona_a: Union[Persona, PersonaAgent],
                  persona_b: Union[Persona, PersonaAgent],
-                 model: Union[ChatOllama, str] = None,
+                 example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
-                 response_details: str = "responses SHOULD NOT be too long and wordy, should be "
-                                         "approximately one utterance long",
+                 response_details: str = "",
+                 model: Union[ChatOllama, str] = None,
                  scenario: dict = None,
                  llm_kwargs: dict = {}):
         """
@@ -188,12 +213,14 @@ class PersonaDialogGenerator(DialogGenerator):
         :type persona_a: Persona (or PersonaAgent)
         :param persona_b: The second persona.
         :type persona_b: Persona (or PersonaAgent)
-        :param model: The LLM or model name to use.
-        :type model: Union[ChatOllama, str]
+        :example_dialogs: Optional list of example dialogues to guide the generation.
+        :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional dialogue instructions.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
+        :param model: The LLM or model name to use.
+        :type model: Union[ChatOllama, str]
         :param scenario: Scenario metadata.
         :type scenario: dict
         :param llm_kwargs: Additional keyword arguments for the LLM (overrides config).
@@ -210,13 +237,14 @@ class PersonaDialogGenerator(DialogGenerator):
         with open(config["prompts"]["persona_dialog_generator"], encoding="utf-8") as f:
             dialogue_details_template = Template(f.read())
         dialogue_details = dialogue_details_template.render(
-            persona_a=persona_a,
-            persona_b=persona_b,
+            persona_a=persona_a.prompt(),
+            persona_b=persona_b.prompt(),
             dialogue_details=dialogue_details,
             response_details=response_details
         )
 
         super().__init__(dialogue_details=dialogue_details,
+                         example_dialogs=example_dialogs,
                          model=model,
                          scenario=scenario,
                          personas={
@@ -226,14 +254,17 @@ class PersonaDialogGenerator(DialogGenerator):
                          llm_kwargs=llm_kwargs)
 
     def generate(self,
+                 example_dialogs: List[Dialog] = None,
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
-                 max_turns: int = 80,
+                 max_turns: int = 200,
                  notes: str = None):
         """
         Generates a dialogue between two personas using the LLM or PersonaAgents.
 
+        :param example_dialogs: Optional list of example dialogues to guide the generation.
+        :type example_dialogs: List[Dialog]
         :param seed: Random seed for reproducibility.
         :type seed: int, optional
         :param id: Dialogue ID.
@@ -255,7 +286,11 @@ class PersonaDialogGenerator(DialogGenerator):
                                              notes=notes,
                                              parent_id=parent_id)
         else:
-            return super().generate(seed=seed, id=id, notes=notes, parent_id=parent_id)
+            return super().generate(example_dialogs=example_dialogs,
+                                    seed=seed,
+                                    id=id,
+                                    notes=notes,
+                                    parent_id=parent_id)
 
     __call__ = generate  # alias for generate method
 
@@ -266,8 +301,8 @@ class PersonaGenerator:
 
     :param persona: An instance of a subclass of `BasePersona` to generate personas from.
     :type persona: BasePersona
-    :param default_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
-    :type default_attributes: str, list, or dict, optional
+    :param generated_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
+    :type generated_attributes: str, list, or dict, optional
     :param model: The default language model to use for attribute population via LLM.
     :type model: str, optional
 
@@ -280,7 +315,7 @@ class PersonaGenerator:
 
     def __init__(self,
                  persona: BasePersona,
-                 default_attributes: str = "all",  # None
+                 generated_attributes: str = "all",  # None
                  model: str = None,
                  llm_kwargs: dict = {}):
         if isinstance(persona, BasePersona):
@@ -288,12 +323,12 @@ class PersonaGenerator:
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
             self._persona = persona()
 
-        if isinstance(default_attributes, (list, dict)):
-            self._check_attributes(default_attributes)
+        if isinstance(generated_attributes, (list, dict)):
+            self._check_attributes(generated_attributes)
 
-        self._persona_rnd_attributes = default_attributes if isinstance(default_attributes, dict) else {}
+        self._persona_rnd_attributes = generated_attributes if isinstance(generated_attributes, dict) else {}
 
-        self.default_attributes = default_attributes
+        self.generated_attributes = generated_attributes
         self.llm_model = model if model is not None else config["llm"]["model"]
         self.llm_kwargs = llm_kwargs
 
@@ -317,7 +352,16 @@ class PersonaGenerator:
                                  "Expected attributes are: "
                                  f"{list(self._persona.__dict__.keys())}.")
 
-    def set_random_attributes(self, **persona_rnd_attributes):
+    def prompt(self) -> str:
+        """
+        Returns the prompt used for generating personas.
+
+        :return: The prompt string.
+        :rtype: str
+        """
+        return self.llm_prompt
+
+    def set_attribute_generators(self, **attributes):
         """
         Set attributes to be randomly generated for the persona.
 
@@ -334,11 +378,11 @@ class PersonaGenerator:
             - "{{llm}}: A random value will be generated by the LLM based on the persona context.
             - "{{llm:INSTRUCTION}}: A random value will be generated by the LLM based on the persona context by following the provided INSTRUCTION.
 
-        :param persona_rnd_attributes: Keyword arguments of attribute names and values to set.
+        :param attributes: Keyword arguments of attribute names and values to set.
         :raises ValueError: If any attribute is not found in the persona.
         """  # noqa: E501
-        self._check_attributes(persona_rnd_attributes)
-        self._persona_rnd_attributes = persona_rnd_attributes
+        self._check_attributes(attributes)
+        self._persona_rnd_attributes = attributes
 
     def generate(self,
                  n: int = 1,
@@ -383,11 +427,11 @@ class PersonaGenerator:
                 llm_attribute_instructions = {}
 
                 for key, value in target_persona_dict.items():
-                    if callable(value):
+                    if callable(value) and key in self._persona_rnd_attributes:
                         random_persona_dict[key] = value  # a callable
-                    elif isinstance(value, list):
+                    elif isinstance(value, list) and key in self._persona_rnd_attributes:
                         random_persona_dict[key] = random.choice(value)
-                    elif isinstance(value, str) and value:
+                    elif isinstance(value, str) and value and key in self._persona_rnd_attributes:
                         if value == "*":
                             random_persona_dict[key] = None  # to be filled by the LLM
                         elif value.startswith("{") and value.endswith("}"):  # templates
@@ -440,8 +484,8 @@ class PersonaGenerator:
                             #     random_persona_dict[key] = get_name(seed=seed)  # get name from pre-defined list
                         else:
                             random_persona_dict[key] = value
-                    elif self.default_attributes and (
-                        self.default_attributes == "all" or key in self.default_attributes
+                    elif self.generated_attributes and (
+                        self.generated_attributes == "all" or key in self.generated_attributes
                     ):
                         random_persona_dict[key] = None  # to be filled by the LLM
 
@@ -541,7 +585,7 @@ class PersonaGenerator:
                         personas[-1]._metadata = PersonaMetadata(
                             model=str(llm) if llm else None,
                             seed=seed,
-                            id=id,
+                            id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
                             className=type(output_persona).__name__,
                             notes=notes
@@ -556,7 +600,7 @@ class PersonaGenerator:
                         personas[-1]._metadata = PersonaMetadata(
                             model=str(llm) if llm else None,
                             seed=seed,
-                            id=id,
+                            id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
                             className=type(output_persona).__name__,
                             notes=notes
@@ -600,7 +644,7 @@ class PersonaGenerator:
         output_persona._metadata = PersonaMetadata(
             model=str(llm) if llm else None,
             seed=seed,
-            id=id,
+            id=id if id is not None else get_universal_id(),
             parentId=parent_id,
             className=type(output_persona).__name__,
             notes=notes

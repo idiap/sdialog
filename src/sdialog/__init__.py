@@ -35,6 +35,8 @@ logging.basicConfig(
     format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # import config sumbodule as "config" attribute of the package
@@ -404,7 +406,7 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
             tag_color = speaker_tag_colors[speakers.index(speaker) % len(speaker_tag_colors)]
             color = speaker_utt_colors[speakers.index(speaker) % len(speaker_utt_colors)]
 
-        cprint(turn.text,
+        cprint(remove_newlines(turn.text),
                tag=speaker,
                tag_color=tag_color,
                color=color)

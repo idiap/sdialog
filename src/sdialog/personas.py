@@ -19,7 +19,7 @@ import transformers
 
 from abc import ABC
 from time import time
-from tqdm.auto import trange
+from tqdm.auto import tqdm
 from collections import defaultdict
 from pydantic import BaseModel, Field
 from print_color import print as cprint
@@ -28,14 +28,15 @@ from typing import List, Union, Optional
 from langchain_ollama.chat_models import ChatOllama
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages.base import messages_to_dict
 
 from .config import config
 from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import camel_or_snake_to_words, get_timestamp, remove_newlines
 from .util import ollama_check_and_pull_model, set_ollama_model_defaults
+from .util import camel_or_snake_to_words, get_timestamp, remove_newlines, get_universal_id
 
 
 logger = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class BasePersona(BaseModel, ABC):
             new_persona._metadata.id = new_id if new_id is not None else self._metadata.id
         else:
             new_persona._metadata = PersonaMetadata(className=self.__class__.__name__,
-                                                    id=new_id if new_id is not None else None,
+                                                    id=new_id if new_id is not None else get_universal_id(),
                                                     parentId=self._metadata.id if self._metadata else None)
         return new_persona
 
@@ -166,6 +167,12 @@ class BasePersona(BaseModel, ABC):
         if self._metadata:
             data["_metadata"] = self._metadata.model_dump()
         return json.dumps(data, indent=indent) if string else data
+
+    def prompt(self) -> str:
+        """
+        Returns the textual representation of the persona, used as part of the system prompt.
+        """
+        return self.json(string=True)
 
     def to_file(self, path: str, makedir: bool = True):
         """
@@ -288,30 +295,6 @@ class Persona(BasePersona):
     personality: str = ""
     circumstances: str = ""
     rules: str = ""
-
-    @staticmethod
-    def from_file(path: str, persona_class: Optional["BasePersona"] = None):
-        """
-        Loads a persona from a file.
-
-        :param path: Path to the persona file.
-        :type path: str
-        :param persona_class: Optional specific class to use for the persona.
-        :type persona_class: Optional[BasePersona]
-        """
-        return BasePersona.from_file(path, persona_class)
-
-    @staticmethod
-    def from_json(json_str: str, persona_class: Optional["BasePersona"] = None):
-        """
-        Creates a persona object from a JSON string.
-
-        :param json_str: The JSON string containing persona data.
-        :type json_str: str
-        :param persona_class: Optional specific class to use for the persona.
-        :type persona_class: Optional[BasePersona]
-        """
-        return BasePersona.from_json(json_str, persona_class)
 
 
 class ExtendedPersona(BasePersona):
@@ -448,25 +431,26 @@ class Agent:
                  persona: BasePersona,
                  name: str = None,
                  model: Union[str, ChatOllama] = None,
+                 example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
-                 response_details: str = "responses SHOULD NOT be too long and wordy, should be "
-                                         "approximately one utterance long",
+                 response_details: str = "",
                  system_prompt: str = None,
                  can_finish: bool = True,
                  orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,
                  inspectors: Union['Inspector', List['Inspector']] = None,
                  scenario: Union[dict, str] = None,
                  llm_kwargs: dict = {}):
-
         """
         Initializes a PersonaAgent for role-play dialogue.
 
         :param persona: The persona to role-play.
         :type persona: BasePersona
-        :param model: The LLM or model name to use.
-        :type model: Union[str, ChatOllama]
         :param name: Name of the agent.
         :type name: str
+        :param model: The LLM or model name to use.
+        :type model: Union[str, ChatOllama]
+        :param example_dialogs: List of example dialogues as a reference for the agent.
+        :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional details about the dialogue.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
@@ -484,7 +468,6 @@ class Agent:
         :param llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
-
         if model is None:
             model = config["llm"]["model"]
 
@@ -492,7 +475,8 @@ class Agent:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
                 system_prompt_template = Template(f.read())
             system_prompt = system_prompt_template.render(
-                persona=persona,
+                persona=persona.prompt(),
+                example_dialogs=example_dialogs,
                 dialogue_details=dialogue_details,
                 response_details=response_details,
                 can_finish=can_finish,
@@ -554,6 +538,10 @@ class Agent:
         self.add_orchestrators(orchestrators)
         self.inspectors = None
         self.add_inspectors(inspectors)
+
+        logger.info(f"Initialized agent '{self.name}' with model '{self.model_name}' "
+                    f"with prompt in '{config['prompts']['persona_agent']}'. Prompt:\n")
+        logger.info(self.prompt())
 
     @property
     def utterance_list(self):
@@ -727,10 +715,14 @@ class Agent:
         """
         self.orchestrators = None
 
-    def add_hooks(self, layer_name_to_key):
+    def add_hooks(self, layer_name_to_key, steering_function=None):
         """
         Registers RepresentationHooks for each layer in the given mapping.
         Skips already registered layers. Adds new keys to the shared representation_cache.
+
+        Args:
+            layer_name_to_key: Dict mapping layer names to cache keys.
+            steering_function: Optional function to apply to the output tensor before caching.
         """
         # Get the model (assume HuggingFace pipeline)
         model = self.llm.llm.pipeline.model if hasattr(self.llm, 'llm') and hasattr(self.llm.llm, 'pipeline') else None
@@ -743,7 +735,13 @@ class Agent:
 
         # Register new hooks
         for layer_name, cache_key in layer_name_to_key.items():
-            hook = RepresentationHook(layer_name, cache_key, self.representation_cache, self.utterance_list)
+            hook = RepresentationHook(
+                layer_key=layer_name,
+                cache_key=cache_key,
+                representation_cache=self.representation_cache,
+                utterance_list=self.utterance_list,
+                steering_function=steering_function  # pass the function here
+            )
             hook.register(model)
             self.rep_hooks.append(hook)
 
@@ -795,7 +793,7 @@ class Agent:
         """
         return self.name if self.name is not None else default
 
-    def get_prompt(self) -> str:
+    def prompt(self) -> str:
         """
         Returns the current system prompt.
 
@@ -870,7 +868,7 @@ class Agent:
 
     def dialog_with(self,
                     agent: "PersonaAgent",
-                    max_turns: int = 80,
+                    max_turns: int = 200,
                     id: int = None,
                     parent_id: int = None,
                     seed: int = None,
@@ -907,8 +905,8 @@ class Agent:
 
         utter = None
         completion = False
-        tqdm_iterator = trange(max_turns // 2, desc="Dialogue", leave=keep_bar)
-        for _ in tqdm_iterator:
+        pbar = tqdm(total=max_turns, desc="Dialogue", leave=keep_bar)
+        while len(dialog) < max_turns:
             utt_events = self(utter, return_events=True)
 
             if utt_events and utt_events[-1].action == "utter":
@@ -925,6 +923,7 @@ class Agent:
                 text=utt_events[-1].text
             ))
             events.extend(utt_events)
+            pbar.update(1)
 
             utt_events = agent(utter, return_events=True)
             if utt_events and utt_events[-1].action == "utter":
@@ -941,12 +940,9 @@ class Agent:
                 text=utt_events[-1].text
             ))
             events.extend(utt_events)
+            pbar.update(1)
 
-        if not keep_bar:
-            try:
-                tqdm_iterator.container.close()
-            except AttributeError:
-                pass
+        pbar.close()
 
         if self.scenario:
             scenario = self.scenario
@@ -959,7 +955,7 @@ class Agent:
             }
 
         return Dialog(
-            id=id if id else None,
+            id=id if id is not None else get_universal_id(),
             parentId=parent_id,
             complete=completion,  # incomplete if ran out of iterations (reached max_iteration number)
             model=self.model_name,
@@ -973,15 +969,15 @@ class Agent:
             events=events
         )
 
-    talk_with = dialog_with
-
-    def memory_dump(self):
+    def memory_dump(self, as_dict: bool = False) -> list:
         """
         Returns a copy of the agent's memory (list of messages).
         :return: A copy of the memory list.
         :rtype: list
         """
-        return list(self.memory)
+        return messages_to_dict(self.memory) if as_dict else self.memory.copy()
+
+    talk_with = dialog_with
 
 
 PersonaAgent = Agent
