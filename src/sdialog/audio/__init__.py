@@ -30,7 +30,7 @@ def generate_utterances_audios(dialog: Dialog) -> List[Tuple[np.ndarray, str]]:
 
     :param dialog: The Dialog object containing the conversation.
     :type dialog: Dialog
-    :return: A list of numpy arrays, each representing the audio of an utterance.
+    :return: A list of tuples consisting of a numpy arrays and a string, representing the audio of an utterance and the speaker identity.
     :rtype: list
     """
 

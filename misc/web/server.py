@@ -22,13 +22,6 @@ app = Flask(__name__)
 
 # Initialize the persona generators with base personas
 logger.info("Initializing persona generators...")
-
-# These are now dynamically configured via the UI
-# PERSONA_MODEL = "qwen2.5:3b"
-# GENERATION_MODEL = "qwen2.5:14b"
-# patient_generator = PersonaGenerator(persona=Patient, llm_model=PERSONA_MODEL)
-# doctor_generator = PersonaGenerator(persona=Doctor, llm_model=PERSONA_MODEL)
-
 logger.info("Persona generators will be initialized per request.")
 
 
