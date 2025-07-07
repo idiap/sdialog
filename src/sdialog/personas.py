@@ -517,7 +517,7 @@ class Agent:
                 hf_defaults = dict(
                     torch_dtype=torch.bfloat16,
                     device_map="auto",
-                    max_new_tokens=100,
+                    max_new_tokens=2048,
                     do_sample=True,
                     repetition_penalty=1.03,
                     return_full_text=False,
