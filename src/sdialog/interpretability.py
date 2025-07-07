@@ -35,7 +35,7 @@ from functools import partial
 logger = logging.getLogger(__name__)
 
 
-def simple_steering_function(activation, direction, strength=1, op="+"):
+def default_steering_function(activation, direction, strength=1, op="+"):
     if activation.device != direction.device:
         direction = direction.to(activation.device)
     proj = einops.einsum(activation, direction.view(-1, 1), '... d_act, d_act single -> ... single') * direction
@@ -43,44 +43,54 @@ def simple_steering_function(activation, direction, strength=1, op="+"):
 
 
 class Steerer(ABC):
-    pass
+    inspector = None
+    strength = None
+
+    def _add_steering_function(self, inspector, function, **kwargs):
+        if type(inspector) is Inspector:
+            if self.strength is not None:
+                func_obj = function
+                while isinstance(func_obj, partial):
+                    func_obj = func_obj.func
+                func_code = getattr(func_obj, "__code__", None)
+                if func_code and "strength" in func_code.co_varnames:
+                    if "strength" not in kwargs:
+                        kwargs["strength"] = self.strength
+                    self.strength = None  # Reset strength after use
+            inspector.add_steering_function(partial(function, **kwargs))
+            self.inspector = inspector
+        return inspector
+
+    def __mul__(self, value):
+        if isinstance(value, (float, int)):
+            if self.inspector is not None and isinstance(self.inspector.steering_function, list) and \
+               len(self.inspector.steering_function) > 0:
+                last_func = self.inspector.steering_function[-1]
+                func_obj = last_func
+                while isinstance(func_obj, partial):
+                    func_obj = func_obj.func
+                func_code = getattr(func_obj, "__code__", None)
+                if func_code and "strength" in func_code.co_varnames:
+                    self.inspector.steering_function[-1] = partial(last_func, strength=value)
+                else:
+                    self.strength = value
+            else:
+                self.strength = value
+        return self
 
 
 class DirectionSteerer(Steerer):
-    def __init__(self, direction, inspector=None, strength=None):
+    def __init__(self, direction, inspector=None):
         self.direction = direction
         self.inspector = inspector
-        self.strength = None
 
-    def __add__(self, other: "Inspector"):
-        if type(other) is Inspector:
-            if self.strength is None:
-                other.add_steering_function(partial(simple_steering_function, direction=self.direction, op="+"))
-            else:
-                other.add_steering_function(partial(simple_steering_function,
-                                                    direction=self.direction, op="+", strength=self.strength))
-                self.strength = None
-            self.inspector = other
-        return other
+    def __add__(self, inspector: "Inspector"):
+        return self._add_steering_function(inspector, default_steering_function,
+                                           direction=self.direction, op="+")
 
-    def __sub__(self, other):
-        if type(other) is Inspector:
-            if self.strength is None:
-                other.add_steering_function(partial(simple_steering_function, direction=self.direction, op="-"))
-            else:
-                other.add_steering_function(partial(simple_steering_function,
-                                                    direction=self.direction, op="-", strength=self.strength))
-                self.strength = None
-            self.inspector = other
-        return other
-
-    def __mul__(self, other):
-        if type(other) in [float, int]:
-            if self.inspector is not None:
-                self.inspector.steering_function[-1] = partial(self.inspector.steering_function[-1], strength=other)
-            else:
-                self.strength = other
-        return self
+    def __sub__(self, inspector):
+        return self._add_steering_function(inspector, default_steering_function,
+                                           direction=self.direction, op="-")
 
 
 class BaseHook:
@@ -233,6 +243,7 @@ class Inspector:
         self.to_watch = to_watch if to_watch is not None else {}
         self.agent = agent
         self.steering_function = steering_function
+        self._steering_strength = None
 
         if self.agent is not None and self.to_watch:
             self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
@@ -247,13 +258,46 @@ class Inspector:
         return self.agent.utterance_list[index]['output_tokens'][0]
 
     def __add__(self, other):
-        if type(other) is Steerer:
-            other.__add__(self)
+        if isinstance(other, Inspector):
+            return other + self
+        # If 'other' is a direction vector...
+        elif isinstance(other, torch.Tensor) or ("numpy" in str(type(other)) and hasattr(other, 'shape')):
+            self.__add_default_steering_function__(other, "+")
         return self
 
     def __sub__(self, other):
-        if type(other) is Steerer:
-            other.__sub__(self)
+        if isinstance(other, Inspector):
+            return other - self
+        # If 'other' is a direction vector...
+        elif isinstance(other, torch.Tensor) or ("numpy" in str(type(other)) and hasattr(other, 'shape')):
+            self.__add_default_steering_function__(other, "-")
+        return self
+
+    def __mul__(self, value):
+        if isinstance(value, (float, int)):
+            if self.steering_function is not None and isinstance(self.steering_function, list) and \
+               len(self.steering_function) > 0:
+                last_func = self.steering_function[-1]
+                func_obj = last_func
+                while isinstance(func_obj, partial):
+                    func_obj = func_obj.func
+                func_code = getattr(func_obj, "__code__", None)
+                if func_code and "strength" in func_code.co_varnames:
+                    self.steering_function[-1] = partial(last_func, strength=value)
+                else:
+                    self._steering_strength = value
+            else:
+                self._steering_strength = value
+        return self
+
+    def __add_default_steering_function__(self, direction, op):
+        kwargs = {
+            'direction': direction,
+            'op': op
+        }
+        if self._steering_strength is not None:
+            kwargs["strength"] = self._steering_strength
+        self.add_steering_function(partial(default_steering_function, **kwargs))
         return self
 
     def add_agent(self, agent):
@@ -265,12 +309,14 @@ class Inspector:
         """
         Adds a steering function to the inspector's list of functions.
         """
-        if type(steering_function) is not list:
+        if not isinstance(self.steering_function, list):
             if callable(self.steering_function):
                 self.steering_function = [self.steering_function]
             else:
                 self.steering_function = []
         self.steering_function.append(steering_function)
+        if self._steering_strength is not None:
+            self._steering_strength = None  # Reset after adding the steering function
 
     def add_hooks(self, to_watch):
         """
