@@ -89,8 +89,7 @@ class Event(BaseModel):
     text: str  # the content of the event
     timestamp: int  # timestemp
 
-    def __post_init__(self):
-        # This runs after __init__
+    def model_post_init(self, context: Any, /) -> None:        # This runs after __init__
         logger.log(level=logging.DEBUG, msg=f"Event: {self}")
 
 
