@@ -82,7 +82,9 @@ class UtteranceTokenHook(BaseHook):
 
     def _hook(self, module, input, output):
         input_ids = input[0].detach().cpu()
+        self.register_representations(input_ids)
 
+    def register_representations(self, input_ids):
         if input_ids.shape[-1] == 1:
             # Accumulate token IDs as a tensor (generated tokens only)
             if self.current_utterance_ids is None:
@@ -119,34 +121,66 @@ class RepresentationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     """
 
-    def __init__(self, layer_key, cache_key, representation_cache, utterance_list):
-        # cache_key is the key under which to store the outputs in the cache
+    def __init__(self, layer_key, cache_key, representation_cache, utterance_list, steering_function=None):
+        """
+        Args:
+            layer_key: The key identifying the layer to hook into.
+            cache_key: Key under which to store the outputs in the cache.
+            representation_cache: A nested dictionary or structure to store representations.
+            utterance_list: List used to track current utterance index.
+            steering_function: Optional function to apply to output_tensor before caching.
+        """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.representation_cache = representation_cache
-        self.utterance_list = utterance_list  # int index of current utterance
+        self.utterance_list = utterance_list
+        self.steering_function = steering_function  # Store the optional function
 
         # Initialize the nested cache
         _ = self.representation_cache[len(self.utterance_list)][self.cache_key]  # This will initialize to []
 
     def _hook(self, module, input, output):
+        """Hook to extract and store model representation from the output."""
         utterance_index = len(self.utterance_list)
-        rep = output.detach().cpu()
-        if rep.shape[1] == 1:
-            self.representation_cache[utterance_index][self.cache_key].append(rep)
+
+        # Extract the main tensor from output if it's a tuple or list
+        output_tensor = output[0] if isinstance(output, (tuple, list)) else output
+
+        # Ensure output_tensor is a torch.Tensor before proceeding
+        if not isinstance(output_tensor, torch.Tensor):
+            raise TypeError(f"Expected output to be a Tensor, got {type(output_tensor)}")
+
+        # Store representation only if the second dimension is 1
+        if output_tensor.ndim >= 2 and output_tensor.shape[1] == 1:
+            self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+            # Now apply the steering function, if it exists
+            if self.steering_function is not None:
+                output_tensor = self.steering_function(output_tensor)
+
+        if isinstance(output, (tuple, list)):
+            output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
+        else:
+            output = output_tensor
+
+        return output
 
 
 class Inspector:
-    def __init__(self, to_watch=None, agent=None):
+    def __init__(self, to_watch=None, agent=None, steering_function=None):
         """
         Inspector for managing hooks and extracting representations from a model.
+
         Args:
             to_watch: Dict mapping model layer names to cache keys.
+            agent: The agent containing the model and hooks.
+            steering_function: Optional function to apply on output tensors in hooks.
         """
-        self.to_watch = to_watch
+        self.to_watch = to_watch if to_watch is not None else {}
         self.agent = agent
-        if self.agent is not None and self.to_watch is not None:
-            self.agent.add_hooks(self.to_watch)
+        self.steering_function = steering_function
+
+        if self.agent is not None and self.to_watch:
+            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
 
     def __len__(self):
         return len(self.agent.utterance_list)
@@ -159,8 +193,8 @@ class Inspector:
 
     def add_agent(self, agent):
         self.agent = agent
-        if self.to_watch is not None:
-            self.agent.add_hooks(self.to_watch)
+        if self.to_watch:
+            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
 
     def add_hooks(self, to_watch):
         """
@@ -174,7 +208,7 @@ class Inspector:
         # Append to existing to_watch instead of replacing
         self.to_watch.update(to_watch)
 
-        self.agent.add_hooks(to_watch)
+        self.agent.add_hooks(to_watch, steering_function=self.steering_function)
 
     def recap(self):
         """
@@ -188,12 +222,12 @@ class Inspector:
 
         num_utterances = len(self.agent.utterance_list)
         if num_utterances == 0:
-            logger.info(f"{self.agent.name} has not spoken yet.")
+            logger.info(f"  {self.agent.name} has not spoken yet.")
         else:
-            logger.info(f"{self.agent.name} has spoken for {num_utterances} utterance(s).")
+            logger.info(f"  {self.agent.name} has spoken for {num_utterances} utterance(s).")
 
         if self.to_watch:
-            logger.info("\nWatching the following layers:\n")
+            logger.info("   Watching the following layers:\n")
             for layer, key in self.to_watch.items():
                 logger.info(f"  • {layer}  →  '{key}'")
             logger.info("")
@@ -201,7 +235,7 @@ class Inspector:
         instruction_recap = self.find_instructs(verbose=False)
         num_instructs = len(instruction_recap)
 
-        logger.info(f"Found {num_instructs} instruction(s) in the system messages.")
+        logger.info(f"  Found {num_instructs} instruction(s) in the system messages.")
 
         for match in instruction_recap:
             logger.info(f"\nInstruction found at utterance index {match['index']}:\n{match['content']}\n")
