@@ -711,10 +711,14 @@ class Agent:
         """
         self.orchestrators = None
 
-    def add_hooks(self, layer_name_to_key):
+    def add_hooks(self, layer_name_to_key, steering_function=None):
         """
         Registers RepresentationHooks for each layer in the given mapping.
         Skips already registered layers. Adds new keys to the shared representation_cache.
+
+        Args:
+            layer_name_to_key: Dict mapping layer names to cache keys.
+            steering_function: Optional function to apply to the output tensor before caching.
         """
         # Get the model (assume HuggingFace pipeline)
         model = self.llm.llm.pipeline.model if hasattr(self.llm, 'llm') and hasattr(self.llm.llm, 'pipeline') else None
@@ -727,7 +731,13 @@ class Agent:
 
         # Register new hooks
         for layer_name, cache_key in layer_name_to_key.items():
-            hook = RepresentationHook(layer_name, cache_key, self.representation_cache, self.utterance_list)
+            hook = RepresentationHook(
+                layer_key=layer_name,
+                cache_key=cache_key,
+                representation_cache=self.representation_cache,
+                utterance_list=self.utterance_list,
+                steering_function=steering_function  # pass the function here
+            )
             hook.register(model)
             self.rep_hooks.append(hook)
 
