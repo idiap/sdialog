@@ -301,8 +301,8 @@ class PersonaGenerator:
 
     :param persona: An instance of a subclass of `BasePersona` to generate personas from.
     :type persona: BasePersona
-    :param default_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
-    :type default_attributes: str, list, or dict, optional
+    :param generated_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
+    :type generated_attributes: str, list, or dict, optional
     :param model: The default language model to use for attribute population via LLM.
     :type model: str, optional
 
@@ -315,7 +315,7 @@ class PersonaGenerator:
 
     def __init__(self,
                  persona: BasePersona,
-                 default_attributes: str = "all",  # None
+                 generated_attributes: str = "all",  # None
                  model: str = None,
                  llm_kwargs: dict = {}):
         if isinstance(persona, BasePersona):
@@ -323,12 +323,12 @@ class PersonaGenerator:
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
             self._persona = persona()
 
-        if isinstance(default_attributes, (list, dict)):
-            self._check_attributes(default_attributes)
+        if isinstance(generated_attributes, (list, dict)):
+            self._check_attributes(generated_attributes)
 
-        self._persona_rnd_attributes = default_attributes if isinstance(default_attributes, dict) else {}
+        self._persona_rnd_attributes = generated_attributes if isinstance(generated_attributes, dict) else {}
 
-        self.default_attributes = default_attributes
+        self.generated_attributes = generated_attributes
         self.llm_model = model if model is not None else config["llm"]["model"]
         self.llm_kwargs = llm_kwargs
 
@@ -361,7 +361,7 @@ class PersonaGenerator:
         """
         return self.llm_prompt
 
-    def set_random_attributes(self, **persona_rnd_attributes):
+    def set_attribute_generators(self, **persona_rnd_attributes):
         """
         Set attributes to be randomly generated for the persona.
 
@@ -484,8 +484,8 @@ class PersonaGenerator:
                             #     random_persona_dict[key] = get_name(seed=seed)  # get name from pre-defined list
                         else:
                             random_persona_dict[key] = value
-                    elif self.default_attributes and (
-                        self.default_attributes == "all" or key in self.default_attributes
+                    elif self.generated_attributes and (
+                        self.generated_attributes == "all" or key in self.generated_attributes
                     ):
                         random_persona_dict[key] = None  # to be filled by the LLM
 
