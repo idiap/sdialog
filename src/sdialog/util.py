@@ -16,6 +16,20 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
+def remove_newlines(s: str) -> str:
+    """
+    Removes all newline (\n and \r) characters from a string, replacing them with a single space.
+
+    :param s: The input string.
+    :type s: str
+    :return: The string with all newlines replaced by spaces.
+    :rtype: str
+    """
+    if type(s) is not str:
+        return s
+    return re.sub(r'\s+', ' ', s)
+
+
 def get_timestamp() -> str:
     """
     Returns the current UTC timestamp as an ISO 8601 string (e.g., "2025-01-01T12:00:00Z").
