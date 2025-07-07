@@ -25,11 +25,45 @@ and providing interfaces for downstream interpretability and analysis tasks.
 # SPDX-License-Identifier: MIT
 import torch
 import logging
+import einops
 
+from abc import ABC
 from langchain_core.messages import SystemMessage
+from functools import partial
 
 
 logger = logging.getLogger(__name__)
+
+
+def simple_steering_function(activation, direction, strength=1, op="+"):
+    if activation.device != direction.device:
+        direction = direction.to(activation.device)
+    proj = einops.einsum(activation, direction.view(-1, 1), '... d_act, d_act single -> ... single') * direction
+    return activation + proj * strength if op == "+" else activation - proj * strength
+
+
+class Steerer(ABC):
+    pass
+
+
+class SimpleDirectionSteerer(Steerer):
+    def __init__(self, direction):
+        self.direction = direction
+
+    def __plus__(self, other):
+        if type(other) is Inspector:
+            other.add_steering_function(partial(simple_steering_function, op="+"))
+        return other
+
+    def __minus__(self, other):
+        if type(other) is Inspector:
+            other.add_steering_function(partial(simple_steering_function, op="-"))
+        return other
+
+    def __mul__(self, other):
+        if type(other) in [float, int]:
+            other.steering_function[-1] = partial(other.steering_function[-1], strength=other)
+        return self
 
 
 class BaseHook:
@@ -155,7 +189,11 @@ class RepresentationHook(BaseHook):
             self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
             # Now apply the steering function, if it exists
             if self.steering_function is not None:
-                output_tensor = self.steering_function(output_tensor)
+                if type(self.steering_function) is list:
+                    for func in self.steering_function:
+                        output_tensor = func(output_tensor)
+                elif callable(self.steering_function):
+                    output_tensor = self.steering_function(output_tensor)
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
@@ -195,6 +233,17 @@ class Inspector:
         self.agent = agent
         if self.to_watch:
             self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
+
+    def add_steering_function(self, steering_function):
+        """
+        Adds a steering function to the inspector's list of functions.
+        """
+        if type(steering_function) is not list:
+            if callable(self.steering_function):
+                self.steering_function = [self.steering_function]
+            else:
+                self.steering_function = []
+        self.steering_function.append(steering_function)
 
     def add_hooks(self, to_watch):
         """
