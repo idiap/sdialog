@@ -46,23 +46,38 @@ class Steerer(ABC):
     pass
 
 
-class SimpleDirectionSteerer(Steerer):
-    def __init__(self, direction):
+class DirectionSteerer(Steerer):
+    def __init__(self, direction, inspector=None, strength=None):
         self.direction = direction
+        self.inspector = inspector
+        self.strength = None
 
-    def __plus__(self, other):
+    def __add__(self, other: "Inspector"):
         if type(other) is Inspector:
-            other.add_steering_function(partial(simple_steering_function, op="+"))
+            if self.strength is None:
+                other.add_steering_function(partial(simple_steering_function, op="+"))
+            else:
+                other.add_steering_function(partial(simple_steering_function, op="+", strength=self.strength))
+                self.strength = None
+            self.inspector = other
         return other
 
-    def __minus__(self, other):
+    def __sub__(self, other):
         if type(other) is Inspector:
-            other.add_steering_function(partial(simple_steering_function, op="-"))
+            if self.strength is None:
+                other.add_steering_function(partial(simple_steering_function, op="-"))
+            else:
+                other.add_steering_function(partial(simple_steering_function, op="-", strength=self.strength))
+                self.strength = None
+            self.inspector = other
         return other
 
     def __mul__(self, other):
         if type(other) in [float, int]:
-            other.steering_function[-1] = partial(other.steering_function[-1], strength=other)
+            if self.inspector is not None:
+                self.inspector.steering_function[-1] = partial(self.inspector.steering_function[-1], strength=other)
+            else:
+                self.strength = other
         return self
 
 
@@ -228,6 +243,16 @@ class Inspector:
 
     def __getitem__(self, index):
         return self.agent.utterance_list[index]['output_tokens'][0]
+
+    def __add__(self, other):
+        if type(other) is Steerer:
+            other.__add__(self)
+        return self
+
+    def __sub__(self, other):
+        if type(other) is Steerer:
+            other.__sub__(self)
+        return self
 
     def add_agent(self, agent):
         self.agent = agent

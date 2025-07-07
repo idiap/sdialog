@@ -20,7 +20,6 @@ class BaseMetric(ABC):
     """
     Base class for metrics.
     """
-
     def __init__(self):
         pass
 
@@ -102,4 +101,3 @@ class SentenceTransformerSimilarity(SimilarityScore):
 #         # TODO: in combined mode score can be greater than 1, perhaps is better to use:
 #         # return -scores[self.mode]
 #         return 1 - scores[self.mode]
-
