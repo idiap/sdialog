@@ -47,6 +47,15 @@
         "code",
         "ideas"
       ]
+    },
+    {
+      "login": "thschaaf",
+      "name": "Thomas Schaaf",
+      "avatar_url": "https://avatars.githubusercontent.com/u/42753790?v=4",
+      "profile": "https://github.com/thschaaf",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
