@@ -37,6 +37,16 @@
         "doc",
         "tutorial"
       ]
+    },
+    {
+      "login": "rikrd",
+      "name": "Ricard Marxer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/15324?v=4",
+      "profile": "http://www.ricardmarxer.com",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
