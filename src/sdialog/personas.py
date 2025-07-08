@@ -371,7 +371,9 @@ class Patient(ExtendedPersona):
     """
     Patient persona with medical and health-related attributes.
 
-    :ivar symptoms: Reason for visit or chief complaint.
+    :ivar reason_for_visit: Reason for visit or chief complaint.
+    :vartype reason_for_visit: str
+    :ivar symptoms: List of symptoms or health issues.:ivar symptoms: Reason for visit or chief complaint.
     :vartype symptoms: str
     :ivar vital_signs: Vital signs of the patient.
     :vartype vital_signs: str
@@ -386,6 +388,7 @@ class Patient(ExtendedPersona):
     :ivar family_history: Family medical history.
     :vartype family_history: str
     """
+    reason_for_visit: str = ""
     symptoms: str = ""
     vital_signs: str = ""
     health_literacy: str = ""
@@ -540,6 +543,10 @@ class Agent:
         self.add_orchestrators(orchestrators)
         self.inspectors = None
         self.add_inspectors(inspectors)
+
+        logger.info(f"Initialized agent '{self.name}' with model '{self.model_name}' "
+                    f"with prompt in '{config['prompts']['persona_agent']}'. Prompt:\n")
+        logger.info(self.prompt())
 
     @property
     def utterance_list(self):
