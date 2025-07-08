@@ -24,7 +24,8 @@ def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
     """
     Gets a persona from a dialog.
     """
-    return dialog.personas[turn.speaker]._metadata["voice"]
+    persona = dialog.personas[turn.speaker]
+    return persona["_metadata"]["voice"]
 
 
 def generate_utterances_audios(dialog: Dialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS) -> List[Tuple[np.ndarray, str]]:
@@ -55,7 +56,7 @@ def match_voice_to_persona(dialog: Dialog, voice_database: BaseVoiceDatabase) ->
     """
     for speaker, persona in dialog.personas.items():
         persona["_metadata"]["voice"] = voice_database.get_voice(
-            (persona["gender"], persona["age"])
+            genre=persona["gender"], age=persona["age"]
         )
     return dialog
 

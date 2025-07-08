@@ -24,7 +24,7 @@ os.makedirs("./outputs", exist_ok=True)
 
 sdialog.config.set_llm("qwen2.5:14b")
 
-FORCE_DIALOG_GENERATION = True
+FORCE_DIALOG_GENERATION = False
 
 if FORCE_DIALOG_GENERATION:
 
@@ -32,26 +32,25 @@ if FORCE_DIALOG_GENERATION:
         Doctor(
             name="Dr. Smith",
             gender="male",
-            age=45,
-            specialty="Cardiology"
+            age=52,
+            specialty="Family Medicine"
         ),
         name="DOCTOR"
     )
     patient = Agent(
         Patient(
             name="John Doe",
-            gender="female",
-            age=26,
-            reason_for_visit="Hypertension"
+            gender="male",
+            age=62
         ),
         name="PATIENT"
     )
 
     dialog = doctor.talk_with(patient)
-    dialog.to_file("1.json")
+    dialog.to_file("dialog_demo.json")
 
 else:
-    dialog = Dialog.from_file("1.json")
+    dialog = Dialog.from_file("dialog_demo.json")
 
 dialog.print()
 
