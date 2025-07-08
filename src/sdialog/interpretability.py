@@ -24,12 +24,13 @@ and providing interfaces for downstream interpretability and analysis tasks.
 # SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import torch
-import logging
 import einops
+import logging
+import numpy as np
 
 from abc import ABC
-from langchain_core.messages import SystemMessage
 from functools import partial
+from langchain_core.messages import SystemMessage
 
 
 logger = logging.getLogger(__name__)
@@ -261,7 +262,9 @@ class Inspector:
         if isinstance(other, Inspector):
             return other + self
         # If 'other' is a direction vector...
-        elif isinstance(other, torch.Tensor) or ("numpy" in str(type(other)) and hasattr(other, 'shape')):
+        elif isinstance(other, torch.Tensor) or isinstance(other, np.ndarray):
+            if isinstance(other, np.ndarray):
+                other = torch.from_numpy(other)
             self.__add_default_steering_function__(other, "+")
         return self
 
@@ -269,7 +272,9 @@ class Inspector:
         if isinstance(other, Inspector):
             return other - self
         # If 'other' is a direction vector...
-        elif isinstance(other, torch.Tensor) or ("numpy" in str(type(other)) and hasattr(other, 'shape')):
+        elif isinstance(other, torch.Tensor) or isinstance(other, np.ndarray):
+            if isinstance(other, np.ndarray):
+                other = torch.from_numpy(other)
             self.__add_default_steering_function__(other, "-")
         return self
 
