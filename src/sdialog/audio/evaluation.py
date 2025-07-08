@@ -8,7 +8,7 @@ import torch
 import logging
 import numpy as np
 from tqdm import tqdm
-from jiwer import wer
+from jiwer import wer, cer
 from typing import List, Tuple
 from collections import defaultdict
 from scipy.spatial.distance import cdist
@@ -68,27 +68,50 @@ def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
         data[s]["transcripts"]["original"].append(t)
     
     # Compute the WER for each speaker
-    wer_results = {}
+    results = {"wer": {}, "cer": {}, "transcripts": [whisper_normalizer(_) for _ in transcripts]}
     for speaker in data:
-        wer_results[speaker] = {
+        data_speaker = data[speaker]
+        results["wer"][speaker] = {
             "normalized": wer(
-                data[speaker]["references"]["normalized"],
-                data[speaker]["transcripts"]["normalized"]
+                data_speaker["references"]["normalized"],
+                data_speaker["transcripts"]["normalized"]
             )*100,
             "original": wer(
-                data[speaker]["references"]["original"],
-                data[speaker]["transcripts"]["original"]
+                data_speaker["references"]["original"],
+                data_speaker["transcripts"]["original"]
+            )*100
+        }
+        results["cer"][speaker] = {
+            "normalized": cer(
+                data_speaker["references"]["normalized"],
+                data_speaker["transcripts"]["normalized"]
+            )*100,
+            "original": cer(
+                data_speaker["references"]["original"],
+                data_speaker["transcripts"]["original"]
             )*100
         }
     
-    return {"wer": wer_results, "transcripts": transcripts}
+    return results
 
-# TODO: Implement the MOS computation
-def compute_mos(audios: List[np.ndarray]) -> List[float]:
+
+# TODO: Implement the Speaker Similarity metrics
+def compute_speaker_similarity(audios: List[np.ndarray]) -> List[float]:
     """
-    Compute the mean opinion score (MOS) of the audios.
-    :param audios: The audios to compute the MOS.
-    :return: The MOS.
+    Compute the speaker similarity metrics of the audios.
+    :param audios: The audios to compute the speaker similarity metrics.
+    :return: The speaker similarity metrics.
+    :rtype: List[float]
+    """
+    return [0.0 for _ in audios]
+
+
+# TODO: Implement the UTMOSv2 computation
+def compute_utmos(audios: List[np.ndarray]) -> List[float]:
+    """
+    Compute the mean opinion score (UTMOSv2) of the audios.
+    :param audios: The audios to compute the UTMOSv2.
+    :return: The UTMOSv2 scores.
     :rtype: List[float]
     """
     return [0.0 for _ in audios]

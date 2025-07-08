@@ -11,7 +11,14 @@ from typing import List, Tuple
 import soundfile as sf
 from kokoro import KPipeline
 
-from sdialog import Dialog
+from sdialog import Dialog, Turn
+from sdialog.personas import BasePersona
+
+
+voice_database = {
+    ("male", 45): {"identifier": "af_heart", "path": "af_heart.wav"},
+    ("female", 23): {"identifier": "af_heart", "path": "af_heart.wav"}
+}
 
 
 pipeline = KPipeline(lang_code='a')
@@ -24,6 +31,13 @@ def _master_audio(dialogue_audios: List[Tuple[np.ndarray, str]]) -> np.ndarray:
     return np.concatenate([da[0] for da in dialogue_audios])
 
 
+def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
+    """
+    Gets a persona from a dialog.
+    """
+    return dialog.personas[turn.speaker]._metadata["voice"]
+
+
 def generate_utterances_audios(dialog: Dialog) -> List[Tuple[np.ndarray, str]]:
     """
     Generates audio for each utterance in a Dialog object.
@@ -34,17 +48,29 @@ def generate_utterances_audios(dialog: Dialog) -> List[Tuple[np.ndarray, str]]:
     :rtype: list
     """
 
+    dialog = match_voice_to_persona(dialog)
+
     dialogue_audios = []
 
     for turn in dialog.turns:
-
-        utterance_audio = generate_utterance(turn.text, dialog.personas[turn.speaker])
+        turn_voice = _get_persona_voice(dialog, turn)["identifier"]
+        utterance_audio = generate_utterance(turn.text, turn_voice)
         dialogue_audios.append((utterance_audio, turn.speaker))
 
     return dialogue_audios
 
 
-def generate_utterance(text: str, persona: dict, voice: str = "af_heart") -> np.ndarray:
+def match_voice_to_persona(dialog: Dialog) -> Dialog:
+    """
+    Matches a voice to a persona.
+    """
+    for speaker, persona in dialog.personas.items():
+        print(persona)
+        persona["_metadata"]["voice"] = voice_database[(persona["gender"], persona["age"])]
+    return dialog
+
+
+def generate_utterance(text: str, persona: dict, voice: str) -> np.ndarray:
     """
     Generates an audio recording of a text utterance based on the speaker persona.
 

@@ -15,6 +15,8 @@ full_audio = dialog_to_audio(dialog)
 
 to_wav(full_audio, "./outputs/first_dialog_audio.wav")
 
+exit(0)
+
 dialog.to_audio("./outputs/first_direct_dialog_audio.wav")
 
 audio_res = dialog.to_audio()
