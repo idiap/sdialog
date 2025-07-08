@@ -18,6 +18,7 @@ from typing import Union, List, Any
 from pydantic import BaseModel, ValidationError
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages.base import messages_to_dict
 
 from . import Dialog, Turn
 from .config import config
@@ -164,6 +165,8 @@ class DialogGenerator:
         self.llm.num_predict = _
 
         dialogue = self.llm.invoke(self.messages).content
+
+        logger.log(logging.INFO, f"Prompt used: {messages_to_dict(self.messages)}")
 
         if not self.output_format:
             return dialogue
