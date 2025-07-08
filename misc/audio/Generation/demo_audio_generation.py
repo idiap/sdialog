@@ -1,17 +1,61 @@
+"""
+This script demonstrates the audio generation capabilities of the sdialog library.
+"""
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-License-Identifier: MIT
 import os
 import json
 
+import sdialog
 from sdialog import Dialog
+from sdialog.audio.tts_engine import KokoroTTS
+from sdialog.personas import Doctor, Patient, Agent
+from sdialog.audio.voice_database import DummyVoiceDatabase
 from sdialog.audio.evaluation import speaker_consistency, eval_wer
 from sdialog.audio import dialog_to_audio, to_wav, generate_utterances_audios
 
+
+dummy_voice_database = DummyVoiceDatabase()
+kokoro_tts_pipeline = KokoroTTS()
+
+
 os.makedirs("./outputs", exist_ok=True)
 
-dialog = Dialog.from_file("1.json")
+sdialog.config.set_llm("qwen2.5:14b")
+
+FORCE_DIALOG_GENERATION = True
+
+if FORCE_DIALOG_GENERATION:
+
+    doctor = Agent(
+        Doctor(
+            name="Dr. Smith",
+            gender="male",
+            age=45,
+            specialty="Cardiology"
+        ),
+        name="DOCTOR"
+    )
+    patient = Agent(
+        Patient(
+            name="John Doe",
+            gender="female",
+            age=26,
+            reason_for_visit="Hypertension"
+        ),
+        name="PATIENT"
+    )
+
+    dialog = doctor.talk_with(patient)
+    dialog.to_file("1.json")
+
+else:
+    dialog = Dialog.from_file("1.json")
 
 dialog.print()
 
-full_audio = dialog_to_audio(dialog)
+full_audio = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
 
 to_wav(full_audio, "./outputs/first_dialog_audio.wav")
 

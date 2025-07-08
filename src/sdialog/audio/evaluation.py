@@ -1,8 +1,8 @@
 """
-This module provides functions to evaluate the consistency of speaker audio across utterances
+This module provides functions to evaluate the audio generation capabilities of the sdialog library.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import torch
 import logging
@@ -17,7 +17,7 @@ import whisper
 from sdialog import Dialog
 from pyannote.audio import Model
 from pyannote.audio import Inference
-from .OfficialWhisperNormalizationEnglish import EnglishTextNormalizer
+from .whisper_normalizer import EnglishTextNormalizer
 
 logger = logging.getLogger(__name__)
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -25,7 +25,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 pyannote_model = Model.from_pretrained("pyannote/embedding")
 inference = Inference(pyannote_model, window="whole")
 
-whisper_normalizer = EnglishTextNormalizer()
+normalizer = EnglishTextNormalizer()
 whisper_model = whisper.load_model("large-v3", device=device)
 
 
@@ -61,14 +61,14 @@ def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
         if s not in data:
             data[s] = {"references": {"normalized": [], "original": []}, "transcripts": {"normalized": [], "original": []}}
         
-        data[s]["references"]["normalized"].append(whisper_normalizer(r))
-        data[s]["transcripts"]["normalized"].append(whisper_normalizer(t))
+        data[s]["references"]["normalized"].append(normalizer(r))
+        data[s]["transcripts"]["normalized"].append(normalizer(t))
         
         data[s]["references"]["original"].append(r)
         data[s]["transcripts"]["original"].append(t)
     
     # Compute the WER for each speaker
-    results = {"wer": {}, "cer": {}, "transcripts": [whisper_normalizer(_) for _ in transcripts]}
+    results = {"wer": {}, "cer": {}, "transcripts": [normalizer(_) for _ in transcripts]}
     for speaker in data:
         data_speaker = data[speaker]
         results["wer"][speaker] = {
