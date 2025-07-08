@@ -1,6 +1,6 @@
 """
 This module provides classes for the enrichment of audio events.
-Generate audio events from text utterances in a dialog using the SSML format.
+Generate audio events from text utterances in a dialog using the markup language format.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
