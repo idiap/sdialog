@@ -1,3 +1,7 @@
+"""
+This module provides a basic normalizer for the text of a dialog.
+Original code from : https://github.com/openai/whisper/blob/main/whisper/normalizers/basic.py
+"""
 import re
 import unicodedata
 

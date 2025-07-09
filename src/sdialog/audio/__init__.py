@@ -4,12 +4,12 @@ This module provides functionality to generate audio from text utterances in a d
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
-import re
 import numpy as np
 import soundfile as sf
 from typing import List, Tuple
 from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
+from sdialog.util import remove_audio_tags
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.voice_database import BaseVoiceDatabase
 
@@ -29,13 +29,6 @@ def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
     return persona["_metadata"]["voice"]
 
 
-def normalize_text_tts(text: str) -> str:
-    """
-    Normalizes text for TTS, remove all the tags that use those formatting: <>, {}, (), []
-    """
-    return re.sub(r'<[^>]*>', '', text)
-
-
 def generate_utterances_audios(dialog: Dialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS) -> List[Tuple[np.ndarray, str]]:
     """
     Generates audio for each utterance in a Dialog object.
@@ -53,7 +46,7 @@ def generate_utterances_audios(dialog: Dialog, voice_database: BaseVoiceDatabase
     for turn in dialog.turns:
         turn_voice = _get_persona_voice(dialog, turn)["identifier"]
         utterance_audio = generate_utterance(
-            normalize_text_tts(turn.text),
+            remove_audio_tags(turn.text),
             turn_voice,
             tts_pipeline=tts_pipeline
         )

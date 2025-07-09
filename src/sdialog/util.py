@@ -176,3 +176,10 @@ def camel_or_snake_to_words(varname: str) -> str:
     s = re.sub(r'(?<=[a-z0-9])([A-Z])', r' \1', s)
     # Normalize multiple spaces
     return ' '.join(s.split())
+
+
+def remove_audio_tags(text: str) -> str:
+    """
+    Remove all the tags that use those formatting: <>, {}, (), []
+    """
+    return re.sub(r'<[^>]*>', '', text)
