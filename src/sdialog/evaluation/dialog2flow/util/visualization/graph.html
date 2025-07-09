@@ -1,0 +1,587 @@
+<html>
+<head>
+	<title>Dialog Flow Visualizer</title>
+
+	<script type="text/javascript">
+		mxBasePath = 'mxgraph/src';
+	</script>
+
+	<style type="text/css">
+		.flow {
+			stroke-dasharray: 8;
+			animation: dash 0.5s ease;
+			animation-iteration-count: infinite;
+		}
+		@keyframes dash {
+			to { stroke-dashoffset: -16; }
+		}
+		body {
+			font-family: Arial
+		}
+	</style>
+
+	<!-- Loads and initializes the library -->
+	<script type="text/javascript" src="mxgraph/mxClient.js"></script>
+
+	<!-- App code -->
+	<script type="text/javascript">
+		var change_queue = [];
+		var navigate_queue = [];
+		var navigation_mode = false;
+		var navigate_current_node = null;
+		var graph_root = null;
+		var graph_edges = null;
+		var graph_nodes = null;
+		var graph_happy_path = null;
+		var graph = null;
+		var layout = null;
+		var layout_default = null;
+		var layout_navigation = null;
+		var undoManager = new mxUndoManager();
+		var tooltips = {};
+		var highlighter = null;
+
+		Set.prototype.union = function(b){
+			a = this;
+			b.forEach(function(e){a.add(e);})
+		}
+
+		function _set_visibility(node, value, origin, recursive, hide_edges=false){
+			let changed = false;
+			if (node.visible != value && node != origin){
+				if (value){
+					if (origin){
+						node.geometry.x = origin.geometry.x;
+						node.geometry.y = origin.geometry.y;
+					}
+					changed = true;
+				}
+				node.visible = value;
+				node.edges.forEach(function(edge){
+					if (recursive){
+						if (edge.source === node) _set_visibility(edge.target, value, origin, recursive);
+					}else{
+						if (hide_edges){
+							if (edge.source === origin && edge.target == node)
+								edge.visible = true;
+							else
+								edge.visible = false;
+						}else{
+							edge.visible = true;
+						}
+					}
+				});
+			}
+			return changed;
+		}
+		function set_visibility(node, value, recursive){
+			let hidden = []
+			node.edges.forEach(function(edge){
+				if (edge.source === node){
+					changed = _set_visibility(edge.target, value, node, recursive);
+					if (changed)
+						hidden.push(edge.target);
+				}
+			});
+			if (hidden.length > 0)
+				change_queue.push(hidden);
+			refresh();
+		}
+		function edge_exists(source, target){
+			let exists = false;
+			source.edges.forEach(function (edge){
+				if (edge.source == source && edge.target == target)
+					exists = true;
+			})
+			return exists;
+		}
+		function show_happy_path(){
+			change_queue = [];
+			navigation_end();
+			_set_visibility(graph_root, false, null, true);
+
+			// remove edges in graph_edges_error before setting it to []
+			graph_edges_error = new Set();
+			let prev_node = null
+			graph_happy_path.forEach(function(node_id){
+				let node = graph.model.getCell(node_id);
+				if (node){
+					if (node_id == "start" || prev_node){
+						_set_visibility(node, true, prev_node, false);
+						if (node_id != "start" && !edge_exists(prev_node, node)){
+							graph_edges_error.add([prev_node, node]);
+						}
+					}
+					prev_node = node;
+				}
+			});
+
+			graph_edges_error = new Set(Array.from(graph_edges_error).map(function (edge){
+				return graph.insertEdge(graph.getDefaultParent(), null, '', edge[0], edge[1], 'edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;curved=1;endArrow=blockThin;endFill=1;strokeWidth=' + (edge[1].id[0] != "u"? 4: 2) + ';strokeColor=' + (edge[1].id[0] != "u"? 'red': '#3333AA') + ';');
+			}));
+
+			// Showing only the edges of the path
+			prev_node = null
+			let belong_to_path = new Set();
+			graph_happy_path.forEach(function(node_id){
+				let node = graph.model.getCell(node_id);
+				if (node){
+					if (prev_node){
+						prev_node.edges.forEach(function (edge){
+							if (edge.source == prev_node && edge.target == node){
+								edge.visible = true;
+								belong_to_path.add(edge);
+								if (window.location.hash.length > 1)
+									edge.value += " <b>(" + belong_to_path.size + ")</b>";
+							}else if (!belong_to_path.has(edge)){
+								edge.visible = false;
+							}
+						})
+					}
+					prev_node = node;
+				}
+			});
+			refresh();
+		}
+		function update_happy_path(){
+			if (window.location.hash){
+				graph_happy_path = [...window.location.hash.match(/[su]\d+/g)];
+				graph_happy_path.unshift("start");
+				graph_happy_path.push("end");
+			}
+			show_happy_path();
+			update_current_state();
+		}
+		function update_current_state(){
+			if (window.location.hash){
+				hash_state = window.location.hash.split("&state=")
+				if (hash_state.length > 1){
+					highlighter.highlight(graph.view.getState(graph.model.getCell(hash_state[1])));
+				}
+			}
+		}
+		function get_all_parents(node, ignore){
+			let parents = new Set();
+			for (let i=0; i < node.edges.length; i++){
+				let edge = node.edges[i]
+				if (edge.target === node && (!ignore || !ignore.has(edge.target))){
+					parents.add(edge.source);
+					parents.union(get_all_parents(edge.source), parents);
+				}
+			}
+			return parents;
+		}
+		function get_all_visible_parents(node, ignore, recursive){
+			let parents = new Set();
+			for (let i=0; i < node.edges.length; i++){
+				let edge = node.edges[i]
+				if (edge.target === node && (!ignore || !ignore.has(edge.target))){
+					if (edge.source.visible)
+						parents.add(edge.source);
+					if (recursive)
+						parents.union(get_all_visible_parents(edge.source, parents));
+				}
+			}
+			return parents;
+		}
+		function toggle_visibility(node){
+			parents = get_all_visible_parents(node, null, false);
+			node.edges.forEach(function(edge){
+				if (edge.source === node && !parents.has(edge.target)){
+					edge.target.visible = !edge.target.visible;
+				}
+			});
+			refresh();
+		}
+		function animateEdges(){
+			graph.getChildEdges(graph.getDefaultParent()).forEach(function(edge){
+						let state = graph.view.getState(edge);
+						if (state && !graph_edges_error.has(edge))
+							state.shape.node.getElementsByTagName('path')[1].setAttribute('class', 'flow');
+					});
+		}
+		function refresh(){
+			graph.refresh();
+
+			// layout.execute(graph.getDefaultParent());
+			graph.getModel().beginUpdate();
+			try{
+				layout.execute(graph.getDefaultParent());
+			}finally{
+				var morph = new mxMorphing(graph);
+				morph.addListener(mxEvent.DONE, function(){
+					graph.getModel().endUpdate();
+					animateEdges();
+					graph.getChildVertices(graph.getDefaultParent()).forEach(function(node){
+						has_more_children = false;
+						for (let i=0; i < node.edges.length; i++){
+							let edge = node.edges[i];
+							if (edge.source === node && !edge.target.visible){
+								has_more_children = true;
+								break;
+							}
+						}
+						if (has_more_children){
+							let expand = true;
+							if (graph.getCellOverlays(node)){
+								graph.getCellOverlays(node).forEach(function(overlay){
+									if (overlay.tooltip == "expand"){
+										expand = false;
+									}
+								})
+							}
+							if (expand){
+								var overlay = new mxCellOverlay(new mxImage('imgs/overlays/plus-green2.png', 16, 16), 'expand');
+								// Sets the overlay for the cell in the graph
+								graph.addCellOverlay(node, overlay);
+							}
+						}else if (graph.getCellOverlays(node)){
+							graph.getCellOverlays(node).forEach(function(overlay){
+								if (overlay.tooltip == "expand"){
+									graph.removeCellOverlay(node, overlay);
+								}
+							})
+						}
+					});
+				});
+				morph.startAnimation();
+			}
+		}
+		function reset_view(){
+			outln.source.view.translate.x = graph.container.offsetWidth * .2;
+			outln.source.view.translate.y = graph.container.offsetHeight * .1;
+			outln.source.view.revalidate();
+		}
+		function zoom_in(factor=1.2){
+			graph.zoomFactor = factor;
+			graph.zoomIn();
+			animateEdges();
+		}
+		function zoom_out(factor=1.2){
+			graph.zoomFactor = factor;
+			graph.zoomOut();
+			animateEdges();
+		}
+		function navigation_start(){
+			navigation_mode = true;
+			layout = layout_navigation;
+			graph_edges.forEach(function(edge){
+				edge.visible = true;
+			});
+		}
+		function navigation_end(){
+			navigate_queue = [];
+			navigate_current_node = null;
+			navigation_mode = false;
+			layout = layout_default;
+		}
+		function navigate_to_node(cell, ignore){
+			if (navigate_current_node === cell)
+				return
+
+			if (!ignore && navigate_current_node)
+				navigate_queue.push(navigate_current_node);
+			navigate_current_node = cell;
+
+			graph_nodes.forEach((vertex) => vertex.visible = false);
+			graph_edges.forEach(function(edge){
+				edge.visible = true;
+				if (edge.source === cell){
+					edge.target.visible = true;
+				}else if (edge.target === cell){
+					edge.visible = false;
+				}
+			});
+			cell.visible = true;
+			refresh();
+		}
+		function undo(){
+			if (navigation_mode){
+				if (navigate_queue.length > 0){
+					if (navigate_queue.length == 1)
+						node = navigate_queue[0];
+					else
+						node = navigate_queue.pop();
+					navigate_to_node(node, true);
+				}
+			}else{
+				undoManager.undo_and_hide();
+			}
+		}
+		// Program starts here. Creates a sample graph in the
+		// DOM node with the specified ID. This function is invoked
+		// from the onLoad event handler of the document (see below).
+		function main(container)
+		{
+			// Checks if the browser is supported
+			if (!mxClient.isBrowserSupported())
+			{
+				// Displays an error message if the browser is not supported.
+				mxUtils.error('Browser is not supported!', 200, false);
+			}
+			else
+			{
+				// Workaround for Internet Explorer ignoring certain styles
+				var container = document.createElement('div');
+				container.style.position = 'absolute';
+				container.style.overflow = 'hidden';
+				container.style.left = '0px';
+				container.style.top = '0px';
+				container.style.right = '0px';
+				container.style.bottom = '0px';
+
+				var outline = document.getElementById('outlineContainer');
+
+				mxEvent.disableContextMenu(container);
+
+				if (mxClient.IS_QUIRKS)
+				{
+					document.body.style.overflow = 'hidden';
+					new mxDivResizer(container);
+					new mxDivResizer(outline);
+				}
+
+				// Sets a gradient background
+			    if (mxClient.IS_GC || mxClient.IS_SF)
+			    {
+			    	container.style.background = 'white';
+			    	// container.style.background = '-webkit-gradient(linear, 0% 0%, 0% 100%, from(#FFFFFF), to(#ADD8E6))';
+			    }
+			    else if (mxClient.IS_NS)
+			    {
+			    	container.style.background = 'white';  
+			    	// container.style.background = '-moz-linear-gradient(top, #FFFFFF, #ADD8E6)';  
+			    }
+			    else if (mxClient.IS_IE)
+			    {
+			    	container.style.filter = 'progid:DXImageTransform.Microsoft.Gradient('+
+			                'StartColorStr=\'#FFFFFF\', EndColorStr=\'#ADD8E6\', GradientType=0)';
+			    }
+
+				document.body.appendChild(container);
+				// Disables the built-in context menu
+				mxEvent.disableContextMenu(container);
+
+				// Creates the graph inside the given container
+				graph = new mxGraph(container);
+				layout_navigation = new mxCircleLayout(graph);
+				layout_default = new mxHierarchicalLayout(graph, mxConstants.DIRECTION_NORTH);
+				layout_default.interRankCellSpacing = 50;
+				layout = layout_default;
+
+				var undo_listener = function(sender, evt){
+					undoManager.undoableEditHappened(evt.getProperty('edit'));
+				};
+				undoManager.undo_and_hide = function(){
+					if (change_queue.length > 0){
+						undoManager.undo();
+						let hidden = change_queue.pop();
+						for (let i=0; i < hidden.length; i++){
+							hidden[i].visible = false;
+						}
+						// let changes = undoManager.history[undoManager.indexOfNextAdd].changes;
+						// for (let i=0; i < changes.length; i++){
+						// 	let change = changes[i];
+						// 	if (change.hasOwnProperty("geometry") && (change.geometry.x != change.previous.x || change.geometry.y != change.previous.y)){
+						// 		change.cell.visible = false;
+						// 		console.log(change.cell);
+						// 	}
+						// }
+						refresh();
+						// graph.refresh();
+					}
+				}
+				graph.getModel().addListener(mxEvent.UNDO, undo_listener);
+				graph.getView().addListener(mxEvent.UNDO, undo_listener);
+				addEventListener("wheel", (event) => {
+					let direction = (event.deltaY < 0)? 1 : -1;
+					let speed = Math.min(Math.abs(event.deltaY) / 200, 1);
+					factor = 1 + 1 * speed;
+					if (direction > 0)
+						zoom_in(factor);
+					else
+						zoom_out(factor);
+				});
+
+				// Gets the default parent for inserting new cells. This
+				// is normally the first child of the root (ie. layer 0).
+				var parent = graph.getDefaultParent();
+				var style = graph.getStylesheet().getDefaultEdgeStyle();
+				var style_vertex = graph.getStylesheet().getDefaultVertexStyle();
+				var outline = document.getElementById('outlineContainer');
+
+				// // Enables rubberband selection
+				// new mxRubberband(graph);
+				// Highlights the vertices when the mouse enters
+				new mxCellTracker(graph, '#00FF00');
+				graph.getCompositeParent = graph.getDefaultParent;
+				highlighter = new mxCellHighlight(graph, 'yellow', 10);
+
+				style[mxConstants.STYLE_CURVED] = '1';
+				// style[mxConstants.STYLE_ROUNDED] = '1';
+				style[mxConstants.STYLE_EDGE] = mxEdgeStyle.OrthConnector;
+				// style[mxConstants.STYLE_STROKECOLOR] = "red";
+				style[mxConstants.STYLE_STROKEWIDTH] = 2;
+				style[mxConstants.STYLE_FONTFAMILY] = "Arial";
+
+				style_vertex[mxConstants.STYLE_ROUNDED] = false;
+				style_vertex[mxConstants.STYLE_FIXED_WIDTH] = true;
+				style_vertex[mxConstants.STYLE_SHADOW] = false;
+				style_vertex[mxConstants.STYLE_FONTCOLOR] = "white";
+				// style_vertex[mxConstants.STYLE_STROKECOLOR] = "#FFA500";
+				style_vertex[mxConstants.STYLE_STROKECOLOR] = "none";
+				style_vertex[mxConstants.STYLE_FONTFAMILY] = "Arial";
+				style_vertex[mxConstants.STYLE_FONTSIZE] = 12;
+
+				graph.setAutoSizeCells(true);
+				graph.setCellsEditable(false);
+				// graph.setCellsMovable(false);
+				graph.setHtmlLabels(true);
+				graph.setPanning(true);
+				graph.centerZoom = true;
+				// graph.pageVisible = true;
+				graph.centerPage = true;
+				graph.panningHandler.useLeftButtonForPanning = true;
+				// Displays a popupmenu when the user clicks
+				// on a cell (using the left mouse button) but
+				// do not select the cell when the popup menu
+				// is displayed
+				graph.panningHandler.popupMenuHandler = false;
+				// Creates the outline (navigator, overview) for moving
+				// around the graph in the top, right corner of the window.
+				outln = new mxOutline(graph, outline);
+				reset_view();
+
+				// Disables tooltips on touch devices
+				graph.setTooltips(!mxClient.IS_TOUCH);
+
+				var content = document.createElement('div');
+				content.style.padding = '4px';
+
+				var tb = new mxToolbar(content);
+
+				tb.addItem('Reset View', 'imgs/overlays/house.png',function(evt)
+				{
+					show_happy_path();
+				});
+
+				tb.addItem('Zoom In', 'imgs/zoom_in.png',function(evt)
+				{
+					zoom_in();
+				});
+
+				tb.addItem('Zoom Out', 'imgs/zoom_out.png',function(evt)
+				{
+					zoom_out();
+				});
+				
+				tb.addItem('Actual Size', 'imgs/view_1_1.png',function(evt)
+				{
+					graph.zoomActual();
+					reset_view();
+				});
+				tb.addItem('Undo', 'imgs/undo.png', undo);
+				// tb.addItem('Print', 'images/print32.png',function(evt)
+				// {
+				// 	var preview = new mxPrintPreview(graph, 1);
+				// 	preview.open();
+				// });
+
+				wnd = new mxWindow('Tools', content, 0, 0, 128, 50, false);
+				wnd.setMaximizable(false);
+				wnd.setScrollable(false);
+				wnd.setResizable(false);
+				wnd.setVisible(true);
+
+				// Adds cells to the model in a single step
+				graph.getModel().beginUpdate();
+				try
+				{
+					// [GRAPH HERE]
+				}
+				finally
+				{
+					// Updates the display
+					graph.autoSizeCell(parent, true);
+					graph.getModel().endUpdate();
+				}
+				// refresh();
+				graph_root = vstart;
+				graph_edges = graph.getChildEdges();
+				graph_nodes = graph.getChildVertices();
+
+				// Overlays
+				graph.getChildVertices(graph.getDefaultParent()).forEach(function(node){
+					// if (tooltips[node.id]){
+					// 	var overlay = new mxCellOverlay(new mxImage('imgs/overlays/flash.png', 16, 16), 'event', mxConstants.ALIGN_RIGHT, mxConstants.ALIGN_TOP);
+					// 	graph.addCellOverlay(node, overlay);
+					// }
+					if (node.id[0] == "u"){
+						var overlay = new mxCellOverlay(new mxImage('imgs/overlays/user3.png', 16, 16), 'Customer', mxConstants.ALIGN_LEFT, mxConstants.ALIGN_BOTTOM);
+						graph.addCellOverlay(node, overlay);
+					} else if (node.id[0] == "s" && node.id != "start"){
+						var overlay = new mxCellOverlay(new mxImage('imgs/overlays/workplace.png', 16, 16), 'Agent', mxConstants.ALIGN_LEFT, mxConstants.ALIGN_BOTTOM);
+						graph.addCellOverlay(node, overlay);
+					}
+				});
+
+				window.onhashchange = update_current_state;
+				update_happy_path();
+
+				// Installs a handler for click events in the graph
+				// that toggles the overlay for the respective cell
+				graph.addListener(mxEvent.CLICK, function(sender, evt){
+					let cell = evt.getProperty('cell');
+					if (cell != null && cell.vertex)
+					{
+						if (!navigation_mode){
+							set_visibility(cell, true, false);
+						}else{  // navigate to clicked node
+							navigate_to_node(cell);
+						}
+					}else{
+						animateEdges();
+					}
+				});
+				graph.addListener(mxEvent.DOUBLE_CLICK, function(sender, evt){
+					let cell = evt.getProperty('cell');
+					if (navigation_mode)
+						navigation_end();
+					else if (cell != null && cell.vertex){
+						navigation_start();
+						navigate_to_node(cell);
+					}
+				});
+				graph.addListener(mxEvent.CELLS_RESIZED, function(sender, evt){
+					var cells = evt.getProperty('cells');
+					if (cells != null && cells.length == 1 && cells[0].vertex){
+						refresh();
+					}
+				});
+
+				graph.getTooltip = function(state)
+				{
+					var cell = state.cell;
+					var model = this.getModel();
+					
+					if (!model.isEdge(cell))
+					{
+						return tooltips[cell.id];
+						// return tooltips[cell.id]? '<img src="imgs/overlays/flash.png" alt="" width="16px"> ' + tooltips[cell.id]: "";
+					}
+				};
+			}
+		};
+	</script>
+</head>
+
+<!-- Page passes the container for the graph to the program -->
+<body id="graphContainer" onload="main(document.getElementById('graphContainer'))">
+
+	<!-- Creates a container for the outline -->
+	<div id="outlineContainer"
+		style="z-index:1;position:absolute;overflow:hidden;top:0px;right:0px;width:160px;height:120px;background:transparent;border-style:solid;border-color:lightgray;">
+	</div>
+
+</body>
+</html>
