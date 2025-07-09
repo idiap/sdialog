@@ -446,8 +446,8 @@ class PersonaGenerator:
                                 rnd_value = rnd_value.strip("{}")  # remove outer curly braces
                                 m_range = re.match(r"(\d+)-(\d+)", rnd_value)  # match {{min-max}}
                                 m_txt = re.match(r"txt:(.+)", rnd_value)  # path to txt file (one line per rnd_value)
-                                m_csv = re.match(r"csv:([^:]+):(.+)", rnd_value)  # path to csv file (column to sample from)
-                                m_tsv = re.match(r"tsv:([^:]+):(.+)", rnd_value)  # path to tsv file (column to sample from)
+                                m_csv = re.match(r"csv:([^:]+):(.+)", rnd_value)  # path to csv file (+column name)
+                                m_tsv = re.match(r"tsv:([^:]+):(.+)", rnd_value)  # path to tsv file (+column name)
                                 m_llm = re.match(r"llm(:.+)?", rnd_value)  # LLM template with optional instruction
                                 if m_range:
                                     min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
