@@ -487,7 +487,7 @@ class Agent:
                 can_finish=can_finish,
                 stop_word=self.STOP_WORD
             )
-        
+
         self.system_prompt = system_prompt
 
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
