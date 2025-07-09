@@ -28,7 +28,7 @@ from scipy.cluster.hierarchy import dendrogram, to_tree
 
 from .util import SentenceTransformerOpenAI, slugify, get_turn_text, init_gpt, get_cluster_label
 from .build_graph import trajectory2graph
-from .. import Dialog
+from .. import Dialog, config
 
 
 DEFAULT_OPENAI_MODEL = "text-embedding-3-large"
@@ -140,11 +140,14 @@ def dialog2trajectories(
     embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     thresholds: Union[Union[float, int], List[Union[float, int]]] = .6,  # [system threshold, user threshold]
     labels_enabled: bool = False,
-    labels_model: str = "qwen2.5:14b",
+    labels_model: str = None,
     labels_top_k: int = 5,
     dendrogram: bool = True,
     target_domains: List[str] = None
 ) -> str:
+
+    if labels_model is None:
+        labels_model = config["llm"]["model"]
 
     if type(thresholds) is not list:
         thresholds = [thresholds]
@@ -392,7 +395,7 @@ def dialog2graph(
     node_embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     node_thresholds: Union[Union[float, int], List[Union[float, int]]] = .55,  # [system threshold, user threshold]
     node_llm_labels_enabled: bool = True,
-    node_llm_labels_model: str = "qwen2.5:14b",
+    node_llm_labels_model: str = None,
     node_llm_labels_top_k: int = 5,
     node_show_ids: bool = True,
     edges_weight_type: str = "prob-out",
