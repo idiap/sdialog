@@ -34,8 +34,8 @@ def set_llm(llm_name):
     :param llm_name: The name of the LLM model to set.
     :type llm_name: str
     """
-    if ollama_check_and_pull_model(llm_name):
-        config["llm"]["model"] = llm_name
+    ollama_check_and_pull_model(llm_name)
+    config["llm"]["model"] = llm_name
 
 
 def set_llm_hyperparams(**hyperparams):
