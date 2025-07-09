@@ -388,7 +388,7 @@ The actual DOT for the current tasks are:
         )
 
     @staticmethod
-    def get_agents_for_scenario(scenario, model_name):
+    def get_agents_for_scenario(scenario, model_name: None):
         """
         Constructs PersonaAgent objects for the user and system for a scenario.
 
@@ -411,7 +411,7 @@ The actual DOT for the current tasks are:
         return system, user
 
     @staticmethod
-    def get_agents_from_dialogue(id, model_name: str, set_first_utterance: bool = False):
+    def get_agents_from_dialogue(id, model_name: str = None, set_first_utterance: bool = False):
         """
         Constructs PersonaAgent objects for a dialogue, optionally setting the first utterance.
 
@@ -437,7 +437,7 @@ The actual DOT for the current tasks are:
         return system, user
 
     @staticmethod
-    def get_agents_from_dialogue_with_orchestration(id, model_name: str, set_first_utterance: bool = False):
+    def get_agents_from_dialogue_with_orchestration(id, model_name: str = None, set_first_utterance: bool = False):
         """
         Constructs PersonaAgent objects with orchestration for a dialogue.
 
