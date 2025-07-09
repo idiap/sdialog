@@ -38,11 +38,9 @@ Documentation = "https://sdialog.readthedocs.io"
 version = {attr = "sdialog.__version__"}
 dependencies = {file = ["requirements.txt"]}
 
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.setuptools.package-data]
-mypkg = ["*.yaml"]
+sdialog = ["**/*.yaml"]
 
 [tool.pytest.ini_options]
 pythonpath = "src/"
