@@ -152,7 +152,7 @@ class BasePersona(BaseModel, ABC):
                    color="white")
         cprint("--- Persona Ends ---", color="magenta", format="bold")
 
-    def json(self, string: bool = False, indent=2):
+    def json(self, string: bool = False, indent=2, output_metadata: bool = True):
         """
         Serializes the persona to JSON.
 
@@ -160,11 +160,13 @@ class BasePersona(BaseModel, ABC):
         :type string: bool
         :param indent: Indentation level for pretty-printing.
         :type indent: int
+        :param output_metadata: Include the metadata in the serialization.
+        :type output_metadata: bool
         :return: The serialized persona.
         :rtype: Union[str, dict]
         """
         data = {key: value for key, value in self.__dict__.items() if value not in [None, ""]}
-        if self._metadata:
+        if self._metadata and output_metadata:
             data["_metadata"] = self._metadata.model_dump()
         return json.dumps(data, indent=indent) if string else data
 
@@ -172,7 +174,7 @@ class BasePersona(BaseModel, ABC):
         """
         Returns the textual representation of the persona, used as part of the system prompt.
         """
-        return self.json(string=True)
+        return self.json(string=True, output_metadata=False)
 
     def to_file(self, path: str, makedir: bool = True):
         """
