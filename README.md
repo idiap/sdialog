@@ -134,7 +134,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 This work was supported by the EU Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/) (grant number 101070558).
 
-This work was also initially created in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) and then continued to be improved during the Workshop as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part) work.
+The initial development of this project began in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)). Further improvements and enhancements were made during the Workshop as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
 
 
 ## 📝 License
