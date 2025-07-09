@@ -422,7 +422,6 @@ class PersonaGenerator:
         output_persona = None
         random_personas_dict = [{} for _ in range(n)]
         target_persona_dict = self._persona.__dict__
-        target_persona_dict.update(self._persona_rnd_attributes)
 
         for attempt in range(max_attempts):
             for random_persona_dict in random_personas_dict:
@@ -430,63 +429,67 @@ class PersonaGenerator:
                 llm_attribute_instructions = {}
 
                 for key, value in target_persona_dict.items():
-                    if callable(value) and key in self._persona_rnd_attributes:
-                        random_persona_dict[key] = value  # a callable
-                    elif isinstance(value, list) and key in self._persona_rnd_attributes:
-                        random_persona_dict[key] = random.choice(value)
-                    elif isinstance(value, str) and value and key in self._persona_rnd_attributes:
-                        if value == "*":
-                            random_persona_dict[key] = None  # to be filled by the LLM
-                        elif value.startswith("{") and value.endswith("}"):  # templates
-                            # TODO: Shall we also have pre-devined lists for name and other attributes
-                            #       and then have temples like {{name}} to use them?
-                            value = value.strip("{}")  # remove outer curly braces
-                            m_range = re.match(r"(\d+)-(\d+)", value)  # match {{min-max}}
-                            m_txt = re.match(r"txt:(.+)", value)  # path to txt file (one line per value)
-                            m_csv = re.match(r"csv:([^:]+):(.+)", value)  # path to csv file (column to sample from)
-                            m_tsv = re.match(r"tsv:([^:]+):(.+)", value)  # path to tsv file (column to sample from)
-                            m_llm = re.match(r"llm(:.+)?", value)  # LLM template with optional instruction
-                            if m_range:
-                                min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
-                                random_persona_dict[key] = random.randint(min_len, max_len)
-                            elif m_txt:
-                                txt_path = m_txt.group(1)
-                                try:
-                                    with open(txt_path) as f:
-                                        lines = [ln for ln in f.readlines() if ln.strip()]
-                                    random_persona_dict[key] = random.choice(lines).strip()
-                                except FileNotFoundError:
-                                    raise ValueError(f"File '{txt_path}' not found for '{value}' attribute.")
-                            elif m_csv or m_tsv:
-                                m_csv = m_csv or m_tsv
-                                csv_column, csv_path = m_csv.group(1), m_csv.group(2)
-                                csv_column = int(csv_column) if csv_column.isdigit() else csv_column
-                                try:
-                                    with open(csv_path, newline='') as csvfile:
-                                        if isinstance(csv_column, int):
-                                            reader = csv.reader(csvfile, delimiter='\t' if m_tsv else ',')
-                                            values = [row[csv_column] for row in reader if row[csv_column]]
-                                        else:
-                                            reader = csv.DictReader(csvfile, delimiter='\t' if m_tsv else ',')
-                                            if csv_column not in reader.fieldnames:
-                                                raise ValueError(
-                                                    f"Column '{csv_column}' not found in CSV file '{csv_path}'."
-                                                )
-                                            values = [row[csv_column] for row in reader if row[csv_column]]
-                                    random_persona_dict[key] = random.choice(values)
-                                except FileNotFoundError:
-                                    raise ValueError(f"File '{csv_path}' not found for '{value}' attribute.")
-                            elif m_llm:
+                    if value or value == 0:
+                        random_persona_dict[key] = value  # keep the default value
+                    elif key in self._persona_rnd_attributes:
+                        rnd_value = self._persona_rnd_attributes[key]
+                        if callable(rnd_value) and key in self._persona_rnd_attributes:
+                            random_persona_dict[key] = rnd_value  # a callable
+                        elif isinstance(rnd_value, list) and key in self._persona_rnd_attributes:
+                            random_persona_dict[key] = random.choice(rnd_value)
+                        elif isinstance(rnd_value, str) and rnd_value and key in self._persona_rnd_attributes:
+                            if rnd_value == "*":
                                 random_persona_dict[key] = None  # to be filled by the LLM
+                            elif rnd_value.startswith("{") and rnd_value.endswith("}"):  # templates
+                                # TODO: Shall we also have pre-devined lists for name and other attributes
+                                #       and then have temples like {{name}} to use them?
+                                rnd_value = rnd_value.strip("{}")  # remove outer curly braces
+                                m_range = re.match(r"(\d+)-(\d+)", rnd_value)  # match {{min-max}}
+                                m_txt = re.match(r"txt:(.+)", rnd_value)  # path to txt file (one line per rnd_value)
+                                m_csv = re.match(r"csv:([^:]+):(.+)", rnd_value)  # path to csv file (column to sample from)
+                                m_tsv = re.match(r"tsv:([^:]+):(.+)", rnd_value)  # path to tsv file (column to sample from)
+                                m_llm = re.match(r"llm(:.+)?", rnd_value)  # LLM template with optional instruction
+                                if m_range:
+                                    min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
+                                    random_persona_dict[key] = random.randint(min_len, max_len)
+                                elif m_txt:
+                                    txt_path = m_txt.group(1)
+                                    try:
+                                        with open(txt_path) as f:
+                                            lines = [ln for ln in f.readlines() if ln.strip()]
+                                        random_persona_dict[key] = random.choice(lines).strip()
+                                    except FileNotFoundError:
+                                        raise ValueError(f"File '{txt_path}' not found for '{rnd_value}' attribute.")
+                                elif m_csv or m_tsv:
+                                    m_csv = m_csv or m_tsv
+                                    csv_column, csv_path = m_csv.group(1), m_csv.group(2)
+                                    csv_column = int(csv_column) if csv_column.isdigit() else csv_column
+                                    try:
+                                        with open(csv_path, newline='', encoding="utf-8") as csvfile:
+                                            if isinstance(csv_column, int):
+                                                reader = csv.reader(csvfile, delimiter='\t' if m_tsv else ',')
+                                                values = [row[csv_column] for row in reader if row[csv_column]]
+                                            else:
+                                                reader = csv.DictReader(csvfile, delimiter='\t' if m_tsv else ',')
+                                                if csv_column not in reader.fieldnames:
+                                                    raise ValueError(
+                                                        f"Column '{csv_column}' not found in CSV file '{csv_path}'."
+                                                    )
+                                                values = [row[csv_column] for row in reader if row[csv_column]]
+                                        random_persona_dict[key] = random.choice(values)
+                                    except FileNotFoundError:
+                                        raise ValueError(f"File '{csv_path}' not found for '{rnd_value}' attribute.")
+                                elif m_llm:
+                                    random_persona_dict[key] = None  # to be filled by the LLM
 
-                                instruction = m_llm.group(1)[1:] if m_llm.group(1) else None
-                                if instruction:
-                                    llm_attribute_instructions[key] = instruction
+                                    instruction = m_llm.group(1)[1:] if m_llm.group(1) else None
+                                    if instruction:
+                                        llm_attribute_instructions[key] = instruction
 
-                            # elif value == "{{name}}":
-                            #     random_persona_dict[key] = get_name(seed=seed)  # get name from pre-defined list
-                        else:
-                            random_persona_dict[key] = value
+                                # elif rnd_value == "{{name}}":
+                                #     random_persona_dict[key] = get_name(seed=seed)  # get name from pre-defined list
+                            else:
+                                random_persona_dict[key] = rnd_value
                     elif self.generated_attributes and (
                         self.generated_attributes == "all" or key in self.generated_attributes
                     ):

@@ -542,9 +542,9 @@ class Agent:
         self.inspectors = None
         self.add_inspectors(inspectors)
 
-        logger.info(f"Initialized agent '{self.name}' with model '{self.model_name}' "
-                    f"with prompt in '{config['prompts']['persona_agent']}'. Prompt:\n")
-        logger.info(self.prompt())
+        logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
+                     f"with prompt in '{config['prompts']['persona_agent']}'.")
+        logger.debug("Prompt: " + self.prompt())
 
     @property
     def utterance_list(self):
