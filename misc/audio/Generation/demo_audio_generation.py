@@ -13,6 +13,7 @@ from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.personas import Doctor, Patient, Agent
 from sdialog.audio.voice_database import DummyVoiceDatabase
 from sdialog.audio.evaluation import speaker_consistency, eval_wer
+from sdialog.audio.audio_events_enricher import AudioEventsEnricher
 from sdialog.audio import dialog_to_audio, to_wav, generate_utterances_audios
 
 
@@ -53,6 +54,20 @@ else:
     dialog = Dialog.from_file("dialog_demo.json")
 
 dialog.print()
+
+dialog = AudioEventsEnricher.enrich(dialog)
+
+dialog.print()
+
+tags = AudioEventsEnricher.structure_markup_language(dialog)
+print(tags)
+
+dialog = AudioEventsEnricher.remove_markup_language(dialog)
+
+dialog.print()
+
+exit(0)
+
 
 full_audio = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
 

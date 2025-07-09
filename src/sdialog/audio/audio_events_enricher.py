@@ -5,6 +5,7 @@ Generate audio events from text utterances in a dialog using the markup language
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
+import re
 from typing import List
 from sdialog import Dialog
 from sdialog.generators import DialogGenerator
@@ -62,14 +63,52 @@ Return only the modified dialogue with audio clues included.
         - "overlap": The overlap of the event with another event like stopping speaking when typing on a keyboard. By default it's defined at True.
         - "duration": The duration of the event (optional).
         """
-        raise NotImplementedError("Can't use this method yet.")
-        return []
+        text = str(dialog)
+        events = []
+
+        # Regex for span tags: <label>text</label>
+        span_pattern = re.compile(r'<(\w+)>(.*?)</\1>')
+        
+        # Regex for point tags: <label duration="Xms" overlapping="True|False" />
+        point_pattern = re.compile(r'<(\w+)\s*(?:duration="(\d+m?s)")?\s*(?:overlapping="(True|False)")?\s*/>')
+
+        # Find all point tags
+        for match in point_pattern.finditer(text):
+            label, duration, overlap = match.groups()
+            events.append({
+                "begin_token": text[:match.start()].split(),
+                "end_token": None,
+                "label": label,
+                "overlap": overlap == 'True' if overlap is not None else True,
+                "duration": duration
+            })
+
+        # Find all span tags
+        for match in span_pattern.finditer(text):
+            label, content = match.groups()
+            events.append({
+                "begin_token": text[:match.start()].split(),
+                "end_token": (text[:match.start()] + content).split(),
+                "label": label,
+                "overlap": True, # Overlapping is default True for span tags based on new prompt
+                "duration": None
+            })
+
+        return events
     
     def remove_markup_language(dialog: Dialog) -> Dialog:
         """
         Remove the markup language tags from the dialog.
         """
-        raise NotImplementedError("Can't use this method yet.")
+        for turn in dialog.turns:
+            text = turn.text
+            span_pattern = re.compile(r'<(\w+)(?:[^>]*)>(.*?)</\1>')
+            text = span_pattern.sub(r'\2', text)
+
+            point_pattern = re.compile(r'<(\w+)\s*.*?/\s*>')
+            text = point_pattern.sub('', text)
+            turn.text = text
+        
         return dialog
     
     def compute_alignment(dialog: Dialog) -> Timeline:
