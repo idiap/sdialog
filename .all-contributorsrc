@@ -56,6 +56,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "enderzhangpro",
+      "name": "David Liu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/41446535?v=4",
+      "profile": "https://github.com/enderzhangpro",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
