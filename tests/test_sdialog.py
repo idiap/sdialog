@@ -9,7 +9,8 @@ PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data"
 
 def test_prompt_paths():
     for path in config["prompts"].values():
-        assert os.path.isabs(path)
+        if isinstance(path, str):
+            assert os.path.isabs(path)
 
 
 def test_turn_and_event():

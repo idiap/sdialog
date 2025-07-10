@@ -93,7 +93,7 @@ class DialogGenerator:
         else:
             self.llm = model
             if output_format:
-                self.llm.format = output_format
+                self.llm.format = output_format_schema
 
         with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
             self.system_prompt_template = Template(f.read())
