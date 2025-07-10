@@ -2,19 +2,16 @@
 This module provides functionality to generate audio from text utterances in a dialog.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import numpy as np
-from typing import List, Tuple
-
-# Audio processing
 import soundfile as sf
-from kokoro import KPipeline
-
-from sdialog import Dialog
-
-
-pipeline = KPipeline(lang_code='a')
+from typing import List, Tuple
+from sdialog import Dialog, Turn
+from sdialog.personas import BasePersona
+from sdialog.util import remove_audio_tags
+from sdialog.audio.tts_engine import BaseTTS
+from sdialog.audio.voice_database import BaseVoiceDatabase
 
 
 def _master_audio(dialogue_audios: List[Tuple[np.ndarray, str]]) -> np.ndarray:
@@ -24,45 +21,67 @@ def _master_audio(dialogue_audios: List[Tuple[np.ndarray, str]]) -> np.ndarray:
     return np.concatenate([da[0] for da in dialogue_audios])
 
 
-def generate_utterances_audios(dialog: Dialog) -> List[Tuple[np.ndarray, str]]:
+def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
+    """
+    Gets a persona from a dialog.
+    """
+    persona = dialog.personas[turn.speaker]
+    return persona["_metadata"]["voice"]
+
+
+def generate_utterances_audios(
+        dialog: Dialog,
+        voice_database: BaseVoiceDatabase,
+        tts_pipeline: BaseTTS) -> List[Tuple[np.ndarray, str]]:
     """
     Generates audio for each utterance in a Dialog object.
 
     :param dialog: The Dialog object containing the conversation.
     :type dialog: Dialog
-    :return: A list of numpy arrays, each representing the audio of an utterance.
+    :return: A list of tuples consisting of a numpy arrays and a string,
+    representing the audio of an utterance and the speaker identity.
     :rtype: list
     """
+
+    dialog = match_voice_to_persona(dialog, voice_database=voice_database)
 
     dialogue_audios = []
 
     for turn in dialog.turns:
-
-        utterance_audio = generate_utterance(turn.text, dialog.personas[turn.speaker])
+        turn_voice = _get_persona_voice(dialog, turn)["identifier"]
+        utterance_audio = generate_utterance(
+            remove_audio_tags(turn.text),
+            turn_voice,
+            tts_pipeline=tts_pipeline
+        )
         dialogue_audios.append((utterance_audio, turn.speaker))
 
     return dialogue_audios
 
 
-def generate_utterance(text: str, persona: dict, voice: str = "af_heart") -> np.ndarray:
+def match_voice_to_persona(dialog: Dialog, voice_database: BaseVoiceDatabase) -> Dialog:
+    """
+    Matches a voice to a persona.
+    """
+    for speaker, persona in dialog.personas.items():
+        persona["_metadata"]["voice"] = voice_database.get_voice(
+            genre=persona["gender"], age=persona["age"]
+        )
+    return dialog
+
+
+def generate_utterance(text: str, voice: str, tts_pipeline: BaseTTS) -> np.ndarray:
     """
     Generates an audio recording of a text utterance based on the speaker persona.
 
     :param text: The text to be converted to audio.
     :type text: str
-    :param persona: The speaker persona containing voice characteristics.
-    :type persona: dict
     :param voice: The voice identifier to use for the audio generation.
     :type voice: str
     :return: A numpy array representing the audio of the utterance.
     :rtype: np.ndarray
     """
-
-    generator = pipeline(text, voice=voice)
-
-    gs, ps, audio = next(iter(generator))
-
-    return audio
+    return tts_pipeline.generate(text, voice=voice)
 
 
 def to_wav(audio, output_file, sampling_rate=24_000) -> None:
@@ -72,7 +91,7 @@ def to_wav(audio, output_file, sampling_rate=24_000) -> None:
     sf.write(output_file, audio, sampling_rate)
 
 
-def dialog_to_audio(dialog: Dialog) -> np.ndarray:
+def dialog_to_audio(dialog: Dialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS) -> np.ndarray:
     """
     Converts a Dialog object into a single audio track by generating audio for each utterance.
 
@@ -82,7 +101,7 @@ def dialog_to_audio(dialog: Dialog) -> np.ndarray:
     :rtype: np.ndarray
     """
 
-    dialogue_audios = generate_utterances_audios(dialog)
+    dialogue_audios = generate_utterances_audios(dialog, voice_database=voice_database, tts_pipeline=tts_pipeline)
 
     combined_audio = _master_audio(dialogue_audios)
 
