@@ -63,36 +63,53 @@ Return only the modified dialogue with audio clues included.
         - "overlap": The overlap of the event with another event like stopping speaking when typing on a keyboard. By default it's defined at True.
         - "duration": The duration of the event (optional).
         """
-        text = str(dialog)
         events = []
+        # Find any tag, span or point
+        tag_pattern = re.compile(r'(<(\w+)\s*.*?>(.*?)</\2>)|(<(\w+)[^>]*?/>)|(<(\w+)>)')
 
-        # Regex for span tags: <label>text</label>
-        span_pattern = re.compile(r'<(\w+)>(.*?)</\1>')
-        
-        # Regex for point tags: <label duration="Xms" overlapping="True|False" />
-        point_pattern = re.compile(r'<(\w+)\s*(?:duration="(\d+m?s)")?\s*(?:overlapping="(True|False)")?\s*/>')
+        full_text_with_tags = ""
+        for turn in dialog.turns:
+            full_text_with_tags += f"[{turn.speaker}] {turn.text}\n"
 
-        # Find all point tags
-        for match in point_pattern.finditer(text):
-            label, duration, overlap = match.groups()
-            events.append({
-                "begin_token": text[:match.start()].split(),
-                "end_token": None,
-                "label": label,
-                "overlap": overlap == 'True' if overlap is not None else True,
-                "duration": duration
-            })
+        for match in tag_pattern.finditer(full_text_with_tags):
+            text_before = full_text_with_tags[:match.start()]
+            clean_text_before = re.sub(r'<[^>]+>', '', text_before)
+            begin_word_index = len(clean_text_before.split())
 
-        # Find all span tags
-        for match in span_pattern.finditer(text):
-            label, content = match.groups()
-            events.append({
-                "begin_token": text[:match.start()].split(),
-                "end_token": (text[:match.start()] + content).split(),
-                "label": label,
-                "overlap": True, # Overlapping is default True for span tags based on new prompt
-                "duration": None
-            })
+            # The regex has 3 main groups for 3 types of tags
+            if match.group(1): # Span tag: <label>content</label>
+                label, content, *_ = match.groups()
+                clean_content = re.sub(r'<[^>]+>', '', content)
+                end_word_index = begin_word_index + len(clean_content.split())
+                events.append({
+                    "begin_token": begin_word_index,
+                    "end_token": end_word_index,
+                    "label": label,
+                    "overlap": True,
+                    "duration": None
+                })
+            elif match.group(4): # Point tag: <label ... />
+                label = match.group(5)
+                # crude attribute parsing
+                overlap = "overlapping=\"False\"" not in match.group(4)
+                duration_match = re.search(r'duration="([^"]+)"', match.group(4))
+                duration = duration_match.group(1) if duration_match else None
+                events.append({
+                    "begin_token": begin_word_index,
+                    "end_token": None,
+                    "label": label,
+                    "overlap": overlap,
+                    "duration": duration
+                })
+            elif match.group(6): # Simple tag: <label>
+                label = match.group(7)
+                events.append({
+                    "begin_token": begin_word_index,
+                    "end_token": None,
+                    "label": label,
+                    "overlap": True,
+                    "duration": None
+                })
 
         return events
     
@@ -101,14 +118,9 @@ Return only the modified dialogue with audio clues included.
         Remove the markup language tags from the dialog.
         """
         for turn in dialog.turns:
-            text = turn.text
-            span_pattern = re.compile(r'<(\w+)(?:[^>]*)>(.*?)</\1>')
-            text = span_pattern.sub(r'\2', text)
-
-            point_pattern = re.compile(r'<(\w+)\s*.*?/\s*>')
-            text = point_pattern.sub('', text)
-            turn.text = text
-        
+            # This regex finds all XML-like tags (e.g., <tag>, </tag>, <tag/>)
+            # and removes them, keeping the inner text of span tags.
+            turn.text = re.sub(r'<[^>]+>', '', turn.text)
         return dialog
     
     def compute_alignment(dialog: Dialog) -> Timeline:

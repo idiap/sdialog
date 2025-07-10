@@ -9,7 +9,7 @@ import logging
 import numpy as np
 from tqdm import tqdm
 from jiwer import wer, cer
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from collections import defaultdict
 from scipy.spatial.distance import cdist
 
@@ -94,16 +94,53 @@ def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
     
     return results
 
-
-# TODO: Implement the Speaker Similarity metrics
-def compute_speaker_similarity(audios: List[np.ndarray]) -> List[float]:
+# TODO: Test this function
+def compute_speaker_similarity(utterances_audios: List[Tuple[np.ndarray, str]], references_voices: List[Tuple[np.ndarray, str]]) -> Dict[str, float]:
     """
-    Compute the speaker similarity metrics of the audios.
+    Compute the speaker similarity metrics of the audios.   
     :param audios: The audios to compute the speaker similarity metrics.
+    :param references_voices: The references voices to compute the speaker similarity metrics.
     :return: The speaker similarity metrics.
-    :rtype: List[float]
+    :rtype: Dict[str, float]
     """
-    return [0.0 for _ in audios]
+
+    # Initialize a dictionary to hold x-vectors for each speaker utterances
+    xvectors = defaultdict(list)
+
+    # Iterate through the utterances and compute x-vectors for each speaker
+    for audio, speaker in utterances_audios:
+
+        tensor_audio = torch.Tensor(audio.unsqueeze(0)).unsqueeze(0)
+        embedding = inference.infer(tensor_audio)
+
+        xvectors[speaker].append(embedding)
+
+    # Compute the reference voice x-vector for each speaker
+    reference_voice_xvectors = {
+        speaker: inference.infer(
+            torch.Tensor(references_voices[speaker].unsqueeze(0)).unsqueeze(0)
+        )
+        for speaker in references_voices
+    }
+
+    results = {}
+
+    # Compute the speaker similarity between the reference voice x-vector and the utterances audios x-vectors of each speaker
+    for speaker in reference_voice_xvectors:
+
+        # Compute the speaker similarity between the reference voice x-vector and the utterances audios x-vectors of the speaker
+        speaker_similarities = []
+
+        for audio in xvectors[speaker]:
+
+            speaker_similarities.append(
+                cdist(audio, reference_voice_xvectors[speaker], metric="cosine")[0, 0]
+            )
+        
+        # Return the average score of similarity for the speakers utterances
+        results[speaker] = np.mean(speaker_similarities)
+    
+    return results
 
 
 # TODO: Implement the UTMOSv2 computation

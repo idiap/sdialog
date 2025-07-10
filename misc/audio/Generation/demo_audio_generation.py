@@ -59,9 +59,11 @@ dialog = AudioEventsEnricher.enrich(dialog)
 
 dialog.print()
 
+print("Structuring markup language...")
 tags = AudioEventsEnricher.structure_markup_language(dialog)
 print(tags)
 
+print("Removing markup language...")
 dialog = AudioEventsEnricher.remove_markup_language(dialog)
 
 dialog.print()
