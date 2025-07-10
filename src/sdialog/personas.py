@@ -493,7 +493,7 @@ class Agent:
                                      llm_kwargs=llm_kwargs)
         else:
             self.llm = model
-        self.hf_model = isinstance(model, ChatHuggingFace)
+        self.hf_model = isinstance(self.llm, ChatHuggingFace)
 
         self.memory = [SystemMessage(system_prompt)]
 

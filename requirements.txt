@@ -4,6 +4,7 @@ flake8
 graphviz
 Jinja2
 langchain-huggingface
+langchain-openai
 langchain-ollama
 langchain>=0.3.26
 matplotlib

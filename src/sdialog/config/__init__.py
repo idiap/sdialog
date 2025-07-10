@@ -14,7 +14,7 @@ Attributes:
 import os
 import yaml
 
-from ..util import ollama_check_and_pull_model
+from ..util import ollama_check_and_pull_model, is_ollama_model_name
 
 PROMPT_YAML_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
@@ -37,7 +37,8 @@ def set_llm(llm_name):
     :param llm_name: The name of the LLM model to set.
     :type llm_name: str
     """
-    ollama_check_and_pull_model(llm_name)
+    if is_ollama_model_name(llm_name):
+        ollama_check_and_pull_model(llm_name)
     config["llm"]["model"] = llm_name
 
 

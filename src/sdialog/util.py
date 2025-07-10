@@ -17,6 +17,7 @@ import transformers
 
 from typing import Union
 from pydantic import BaseModel
+from langchain_openai import ChatOpenAI
 from langchain_ollama.chat_models import ChatOllama
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 
@@ -100,12 +101,24 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
     return llm_params
 
 
+def is_ollama_model_name(model_name: str) -> bool:
+    return "/" not in model_name and "gpt" not in model_name
+
+
 def get_llm_model(model_name: Union[ChatOllama, str] = None,
                   output_format: Union[dict, BaseModel] = None,
                   llm_kwargs: dict = {}):
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
-    if "/" in model_name:
+    if "gpt" in model_name:
+        # If the model name is a string, assume it's an OpenAI model
+        logger.info(f"Loading OpenAI model: {model_name}")
+        if output_format and not issubclass(output_format, BaseModel):
+            logger.warning("Output format should be a BaseModel for ChatOpenAI models.")
+        llm = ChatOpenAI(model=model_name,
+                         response_format=output_format,
+                         **llm_kwargs)
+    elif "/" in model_name:
         logger.info(f"Loading Hugging Face model: {model_name}")
 
         # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
@@ -129,10 +142,10 @@ def get_llm_model(model_name: Union[ChatOllama, str] = None,
 
         llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
     else:
+        logger.info(f"Loading ChatOllama model: {model_name}")
         if output_format and isinstance(output_format, BaseModel):
             output_format = output_format.model_json_schema()
 
-        logger.info(f"Loading ChatOllama model: {model_name}")
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
         llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
         llm = ChatOllama(model=model_name,
