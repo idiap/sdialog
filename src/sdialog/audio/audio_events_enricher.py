@@ -24,7 +24,7 @@ class AudioEventsEnricher:
         """
 
         # Load and populate the prompt with the dialog
-        with open(config.config["audio"]["enricher"], "r") as f:
+        with open(config.config["prompts"]["audio"]["enricher"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(dialog))
 
         edited_dialog = DialogGenerator(dialogue_details=prompt).generate()
