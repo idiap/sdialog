@@ -6,6 +6,7 @@ This module provides classes for the room generation.
 # SPDX-License-Identifier: MIT
 from sdialog.audio.room import Room
 
+
 class RoomGenerator:
     """
     A room generator is a class that generates a room to be handled by the dialog.

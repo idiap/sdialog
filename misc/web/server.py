@@ -37,7 +37,7 @@ def generate_patient(config: Dict[str, Any]) -> Dict[str, Any]:
         logger.info("Generating new patient persona...")
         model = config.get("persona_model", "qwen2.5:3b")
         llm_kwargs = {k: v for k, v in config.items() if k not in ["persona_model", "dialog_model"] and v is not None}
-        
+
         patient_generator = PersonaGenerator(persona=Patient, model=model, llm_kwargs=llm_kwargs)
         patient = patient_generator.generate()
         patient.language = "English"  # Force English language for our interface
@@ -97,7 +97,7 @@ def generate_dialog():
         patient_data = data.get('patient', {})
         doctor_data = data.get('doctor', {})
         config = data.get('config', {})
-        
+
         dialog_model = config.get("dialog_model", "qwen2.s:14b")
         llm_kwargs = {k: v for k, v in config.items() if k not in ["persona_model", "dialog_model"] and v is not None}
 

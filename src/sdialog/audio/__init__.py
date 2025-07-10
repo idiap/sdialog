@@ -29,13 +29,17 @@ def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
     return persona["_metadata"]["voice"]
 
 
-def generate_utterances_audios(dialog: Dialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS) -> List[Tuple[np.ndarray, str]]:
+def generate_utterances_audios(
+        dialog: Dialog,
+        voice_database: BaseVoiceDatabase,
+        tts_pipeline: BaseTTS) -> List[Tuple[np.ndarray, str]]:
     """
     Generates audio for each utterance in a Dialog object.
 
     :param dialog: The Dialog object containing the conversation.
     :type dialog: Dialog
-    :return: A list of tuples consisting of a numpy arrays and a string, representing the audio of an utterance and the speaker identity.
+    :return: A list of tuples consisting of a numpy arrays and a string,
+    representing the audio of an utterance and the speaker identity.
     :rtype: list
     """
 

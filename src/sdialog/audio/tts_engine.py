@@ -11,10 +11,13 @@ from abc import abstractmethod
 
 
 class BaseTTS:
-    
+    """
+    Base class for TTS engines.
+    """
+
     def __init__(self):
         self.pipeline = None
-    
+
     @abstractmethod
     def generate(self, text: str, voice: str) -> np.ndarray:
         return None

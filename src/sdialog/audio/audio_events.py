@@ -6,6 +6,7 @@ This module provides classes to manage audio events and timelines.
 # SPDX-License-Identifier: MIT
 from typing import List
 
+
 class AudioEvent:
     """
     Base class for audio events.

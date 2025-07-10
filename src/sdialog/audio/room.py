@@ -5,6 +5,7 @@ This module provides classes for the room specification.
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 
+
 class Room:
     """
     A room is a place where the dialog takes place.

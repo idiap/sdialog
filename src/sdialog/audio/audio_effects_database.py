@@ -5,6 +5,7 @@ This module provides an audio effect database.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 
+
 class AudioEffectsDatabase:
     """
     Audio effect database.

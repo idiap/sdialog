@@ -44,7 +44,7 @@ def transcript(audios: List[np.ndarray]) -> List[str]:
 
 
 def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
-    
+
     # Transcript the audios
     transcripts = transcript([a[0] for a in audios])
     # Get the speakers
@@ -52,21 +52,24 @@ def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
 
     # Get the references from the dialog
     references = [t.text for t in dialog.turns]
-    
+
     data = {}
-    
+
     # Group the references and transcripts by speaker
     for r, t, s in tqdm(zip(references, transcripts, speakers)):
-        
+
         if s not in data:
-            data[s] = {"references": {"normalized": [], "original": []}, "transcripts": {"normalized": [], "original": []}}
-        
+            data[s] = {
+                "references": {"normalized": [], "original": []},
+                "transcripts": {"normalized": [], "original": []}
+            }
+
         data[s]["references"]["normalized"].append(normalizer(r))
         data[s]["transcripts"]["normalized"].append(normalizer(t))
-        
+
         data[s]["references"]["original"].append(r)
         data[s]["transcripts"]["original"].append(t)
-    
+
     # Compute the WER for each speaker
     results = {"wer": {}, "cer": {}, "transcripts": [normalizer(_) for _ in transcripts]}
     for speaker in data:
@@ -75,29 +78,32 @@ def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
             "normalized": wer(
                 data_speaker["references"]["normalized"],
                 data_speaker["transcripts"]["normalized"]
-            )*100,
+            ) * 100,
             "original": wer(
                 data_speaker["references"]["original"],
                 data_speaker["transcripts"]["original"]
-            )*100
+            ) * 100
         }
         results["cer"][speaker] = {
             "normalized": cer(
                 data_speaker["references"]["normalized"],
                 data_speaker["transcripts"]["normalized"]
-            )*100,
+            ) * 100,
             "original": cer(
                 data_speaker["references"]["original"],
                 data_speaker["transcripts"]["original"]
-            )*100
+            ) * 100
         }
-    
+
     return results
 
+
 # TODO: Test this function
-def compute_speaker_similarity(utterances_audios: List[Tuple[np.ndarray, str]], references_voices: List[Tuple[np.ndarray, str]]) -> Dict[str, float]:
+def compute_speaker_similarity(
+        utterances_audios: List[Tuple[np.ndarray, str]],
+        references_voices: List[Tuple[np.ndarray, str]]) -> Dict[str, float]:
     """
-    Compute the speaker similarity metrics of the audios.   
+    Compute the speaker similarity metrics of the audios.
     :param audios: The audios to compute the speaker similarity metrics.
     :param references_voices: The references voices to compute the speaker similarity metrics.
     :return: The speaker similarity metrics.
@@ -125,10 +131,12 @@ def compute_speaker_similarity(utterances_audios: List[Tuple[np.ndarray, str]], 
 
     results = {}
 
-    # Compute the speaker similarity between the reference voice x-vector and the utterances audios x-vectors of each speaker
+    # Compute the speaker similarity between the reference voice x-vector and the utterances
+    # audios x-vectors of each speaker
     for speaker in reference_voice_xvectors:
 
-        # Compute the speaker similarity between the reference voice x-vector and the utterances audios x-vectors of the speaker
+        # Compute the speaker similarity between the reference voice x-vector and the utterances
+        # audios x-vectors of the speaker
         speaker_similarities = []
 
         for audio in xvectors[speaker]:
@@ -136,10 +144,10 @@ def compute_speaker_similarity(utterances_audios: List[Tuple[np.ndarray, str]], 
             speaker_similarities.append(
                 cdist(audio, reference_voice_xvectors[speaker], metric="cosine")[0, 0]
             )
-        
+
         # Return the average score of similarity for the speakers utterances
         results[speaker] = np.mean(speaker_similarities)
-    
+
     return results
 
 
@@ -206,10 +214,10 @@ def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> floa
             avg_distance[speaker] = 1.0 - np.mean(_distances)
         else:
             avg_distance[speaker] = 1.0
-        
+
     # Compute the global consistency by doing a average of the matrix of distances for each speaker
     global_consistency = {
-        speaker: 1-np.mean(cdist(np.vstack(embeddings), np.vstack(embeddings), metric="cosine"))
+        speaker: 1 - np.mean(cdist(np.vstack(embeddings), np.vstack(embeddings), metric="cosine"))
         for speaker, embeddings in xvectors.items()
     }
 
@@ -217,7 +225,7 @@ def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> floa
     centroids = {speaker: np.mean(embeddings, axis=0) for speaker, embeddings in xvectors.items()}
     # Compute the average distance between the centroids and utterances embeddings of each speaker
     average_distance_with_centroid = {
-        speaker: 1-np.mean(cdist(np.vstack(embeddings), centroids[speaker], metric="cosine"))
+        speaker: 1 - np.mean(cdist(np.vstack(embeddings), centroids[speaker], metric="cosine"))
         for speaker, embeddings in xvectors.items()
     }
 

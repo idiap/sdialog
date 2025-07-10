@@ -24,7 +24,8 @@ class AudioEventsEnricher:
 
         edited_dialog = DialogGenerator(
             dialogue_details=f"""
-Your task is to rewrite the following dialogue by inserting appropriate audio clue tags. The tags should follow an XML-like syntax. There are two types of tags:
+Your task is to rewrite the following dialogue by inserting appropriate audio clue tags.
+The tags should follow an XML-like syntax. There are two types of tags:
 
 1. **Span tags**: For events that last for a duration of text. The format is `<label>text</label>`.
    - `label` is the name of the audio event (e.g., `keyboard_typing`, `ac_noise`).
@@ -36,7 +37,9 @@ Your task is to rewrite the following dialogue by inserting appropriate audio cl
    - `overlapping` should be `True` if the audio can happen during speech, and `False` otherwise.
    - Example: `Please Mr. Dupont enter the room <door_slam overlapping="False" />, how are you today?`
 
-You can use labels like `steps`, `door_opening`, `door_closing`, `footsteps`, `car_engine`, `ac_noise`, `keyboard_typing`, `phone_ringing`, `doorbell_ringing`, `cough`, `sneeze`, `sigh`, `laughter`. Use snake_case for labels with multiple words.
+You can use labels like `steps`, `door_opening`, `door_closing`, `footsteps`, `car_engine`, `ac_noise`,
+`keyboard_typing`, `phone_ringing`, `doorbell_ringing`, `cough`, `sneeze`, `sigh`, `laughter`.
+Use snake_case for labels with multiple words.
 
 The dialogue content, speakers, and order must remain exactly the same. You should only add the audio tags.
 
@@ -46,9 +49,9 @@ Here is the original dialogue:
 Return only the modified dialogue with audio clues included.
 """
         ).generate()
-    
+
         return edited_dialog
-    
+
     def structure_markup_language(dialog: Dialog) -> List[dict]:
         """
         Extract the markup language structure of the dialog and align the events
@@ -60,7 +63,8 @@ Return only the modified dialogue with audio clues included.
         - "begin_token": The beginning token of the event.
         - "end_token": The ending token of the event (optional and default None).
         - "label": The label of the event.
-        - "overlap": The overlap of the event with another event like stopping speaking when typing on a keyboard. By default it's defined at True.
+        - "overlap": The overlap of the event with another event like stopping speaking when typing
+        on a keyboard. By default it's defined at True.
         - "duration": The duration of the event (optional).
         """
         events = []
@@ -77,7 +81,8 @@ Return only the modified dialogue with audio clues included.
             begin_word_index = len(clean_text_before.split())
 
             # The regex has 3 main groups for 3 types of tags
-            if match.group(1): # Span tag: <label>content</label>
+            # Span tag: <label>content</label>
+            if match.group(1):
                 label, content, *_ = match.groups()
                 clean_content = re.sub(r'<[^>]+>', '', content)
                 end_word_index = begin_word_index + len(clean_content.split())
@@ -88,7 +93,8 @@ Return only the modified dialogue with audio clues included.
                     "overlap": True,
                     "duration": None
                 })
-            elif match.group(4): # Point tag: <label ... />
+            # Point tag: <label ... />
+            elif match.group(4):
                 label = match.group(5)
                 # crude attribute parsing
                 overlap = "overlapping=\"False\"" not in match.group(4)
@@ -101,7 +107,8 @@ Return only the modified dialogue with audio clues included.
                     "overlap": overlap,
                     "duration": duration
                 })
-            elif match.group(6): # Simple tag: <label>
+            # Simple tag: <label>
+            elif match.group(6):
                 label = match.group(7)
                 events.append({
                     "begin_token": begin_word_index,
@@ -112,7 +119,7 @@ Return only the modified dialogue with audio clues included.
                 })
 
         return events
-    
+
     def remove_markup_language(dialog: Dialog) -> Dialog:
         """
         Remove the markup language tags from the dialog.
@@ -122,11 +129,12 @@ Return only the modified dialogue with audio clues included.
             # and removes them, keeping the inner text of span tags.
             turn.text = re.sub(r'<[^>]+>', '', turn.text)
         return dialog
-    
+
     # TODO: Implement this method
     def compute_alignment(dialog: Dialog) -> Timeline:
         """
-        Compute the alignment of the audio events in the dialog based on the position of the anchors tokens (begin_token and end_token).
+        Compute the alignment of the audio events in the dialog based on the position
+        of the anchors tokens (begin_token and end_token).
         """
         timeline = Timeline()
         timeline.add_event(AudioEvent(
@@ -138,4 +146,3 @@ Return only the modified dialogue with audio clues included.
         ))
         raise NotImplementedError("Can't use this method yet.")
         return timeline
-

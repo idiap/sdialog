@@ -5,11 +5,13 @@ This module provides a voice database.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import random
-from typing import List
 
 
 class BaseVoiceDatabase:
-    
+    """
+    Base class for voice databases.
+    """
+
     def __init__(self):
         """
         Initialize the voice database.
@@ -17,13 +19,11 @@ class BaseVoiceDatabase:
         self._data = {}
         self.populate()
 
-
     def populate(self) -> dict:
         """
         Populate the voice database.
         """
         self._data = {}
-
 
     def add_voice(self, genre: str, age: int, identifier: str, path: str):
         """
@@ -32,7 +32,6 @@ class BaseVoiceDatabase:
         if (genre, age) not in self._data:
             self._data[(genre, age)] = []
         self._data[(genre, age)].append({"identifier": identifier, "path": path})
-
 
     def get_voice(self, genre: str, age: int) -> dict:
         """
@@ -43,19 +42,26 @@ class BaseVoiceDatabase:
 
 
 class DummyVoiceDatabase(BaseVoiceDatabase):
-
+    """
+    Dummy voice database.
+    """
 
     def __init__(self):
         BaseVoiceDatabase.__init__(self)
-
 
     def populate(self) -> dict:
         """
         Populate the voice database.
         """
-        self._womans = ["af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica", "af_kore", "af_nicole", "af_nova", "af_river", "af_sarah", "af_sky"]
-        self._mans = ["am_adam", "am_echo", "am_eric", "am_fenrir", "am_liam", "am_michael", "am_onyx", "am_puck"]
-        
+        self._womans = [
+            "af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica",
+            "af_kore", "af_nicole", "af_nova", "af_river", "af_sarah", "af_sky"
+        ]
+        self._mans = [
+            "am_adam", "am_echo", "am_eric", "am_fenrir", "am_liam", "am_michael",
+            "am_onyx", "am_puck"
+        ]
+
         self._data = {
             ("male", 52): [
                 {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._mans
