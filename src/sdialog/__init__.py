@@ -232,72 +232,82 @@ class Dialog(BaseModel):
                 writer.write(self.description())
 
     @staticmethod
-    def from_file(path: str, type: str = "auto", txt_turn_template: str = "{speaker}: {text}", csv_speaker_col: Union[int, str] = "speaker", csv_text_col: Union[int, str] = "text"):
+    def from_file(path: str,
+                  type: str = "auto",
+                  txt_turn_template: str = "{speaker}: {text}",
+                  csv_speaker_col: Union[int, str] = "speaker",
+                  csv_text_col: Union[int, str] = "text"):
         """
         Loads a dialogue from a file.
 
         :param path: Path to the dialogue file.
         :type path: str
-        :param type: "json", "txt", "csv", or "auto" (determined by file extension).
+        :param type: "json", "txt", "csv", "tsv", or "auto" (determined by file extension).
         :type type: str
+        :param txt_turn_template: Template for parsing text dialogue turns.
+        :type txt_turn_template: str
+        :param csv_speaker_col: Column identifier for speaker in CSV/TSV files (can be index or header name).
+        :type csv_speaker_col: Union[int, str]
+        :param csv_text_col: Column identifier for text in CSV/TSV files (can be index or header name).
+        :type csv_text_col: Union[int, str]
         :return: The loaded dialogue object.
         :rtype: Dialog
+        :raises ValueError: If the file format is not recognized or if required columns are missing
         """
+        type = type.lower()
         if type == "auto":
             type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "txt"
 
+        turns = []
         with open(path) as reader:
             if type == "json":
                 return Dialog.from_dict(json.load(reader))
-            elif type == "csv" or "tsv":
+            elif type in ["csv", "tsv"]:
                 is_tsv = type == "tsv"
-                # Check if first row is header or data based on column identifiers
                 if isinstance(csv_speaker_col, str) and isinstance(csv_text_col, str):
-                    # Treat first row as header and re-read with DictReader
                     reader = csv.DictReader(reader, delimiter='\t' if is_tsv else ',')
-                else:
+                elif isinstance(csv_speaker_col, int) and isinstance(csv_text_col, int):
                     reader = csv.reader(reader, delimiter='\t' if is_tsv else ',')
-                    # Columns are specified by index
-                    speaker = int(csv_speaker_col)
-                    text = int(csv_text_col)
-                    if len(row) < max(speaker, text):
-                        raise ValueError(f"Column index should be no more than: {len(row) - 1}")
-                
-                turns = []
-                
-                for row in reader:
-                    speaker = row.get(csv_speaker_col)
-                    text = row.get(csv_text_col)
-                    if speaker is None or text is None:
-                        raise ValueError(f"Missing speaker or text in row: {row}")
-                    turns.append(Turn(speaker=speaker.strip(), text=text.strip()))
+                else:
+                    raise ValueError("`csv_speaker_col` and `csv_text_col` must be either both strings (column names) "
+                                     "or both integers (column indices).")
 
-                return Dialog(turns=turns)
+                for ix, row in enumerate(reader):
+                    speaker = row[csv_speaker_col]
+                    text = row[csv_text_col]
+                    if speaker is None:
+                        raise ValueError(f"Missing speaker in row {ix}: {row}")
+                    if not text:
+                        logger.warning(f"Empty text in row {ix}: {row}. Skipping this turn.")
+                        continue
+                    turns.append((speaker.strip(), text.strip()))
+            elif type == "txt":
+                lines = reader.read().split("\n")
 
-            lines = reader.read().split("\n")
+                for ix, line in enumerate(lines):
+                    line = line.strip()
+                    if not line:
+                        continue
 
-        turns = []
-        for ix, line in enumerate(lines):
-            line = line.strip()
-            if not line:
-                continue
+                    # Use the txt_turn_template to extract speaker and text
+                    # Build a regex from the template
+                    regex = re.escape(txt_turn_template)
+                    regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
+                    regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
+                    m = re.match(regex, line)
+                    if m:
+                        speaker = m.group('speaker').strip()
+                        text = m.group('text').strip()
+                    else:
+                        raise ValueError(f"Line {ix + 1} '{line}' does not match the expected "
+                                         f"format: {txt_turn_template}. Make sure the template "
+                                         "matches the dialogue format.")
 
-            # Use the txt_turn_template to extract speaker and text
-            # Build a regex from the template
-            regex = re.escape(txt_turn_template)
-            regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
-            regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
-            m = re.match(regex, line)
-            if m:
-                speaker = m.group('speaker').strip()
-                text = m.group('text').strip()
+                    turns.append((speaker, text))
             else:
-                raise ValueError(f"Line {ix + 1} '{line}' does not match the expected format: {txt_turn_template}."
-                                 "Make sure the template matches the dialogue format.")
+                raise ValueError(f"Unknown file type '{type}'. Supported types: 'json', 'txt', 'csv', 'tsv'.")
 
-            turns.append((speaker, text))
-
-        return Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+            return Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
 
     @staticmethod
     def from_dict(data: dict):

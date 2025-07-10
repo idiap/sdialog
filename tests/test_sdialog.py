@@ -4,6 +4,9 @@ from sdialog.config import config
 from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version
 
 
+PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
+
+
 def test_prompt_paths():
     for path in config["prompts"].values():
         assert os.path.isabs(path)
@@ -120,13 +123,17 @@ def test_set_persona_agent_prompt():
 
 
 def test_get_dialog_from_csv_file():
-    dialog = Dialog.from_file("data/dialog_with_headers.csv")
+    csv_path = os.path.join(PATH_TEST_DATA, "dialog_with_headers.csv")
+    dialog = Dialog.from_file(csv_path,
+                              csv_speaker_col="speaker",
+                              csv_text_col="text")
     assert len(dialog) == 3
     assert dialog.turns[0].speaker == "Alice"
     assert dialog.turns[0].text == "Hello! How are you?"
     assert dialog.turns[1].speaker == "Bob"
+    csv_path = os.path.join(PATH_TEST_DATA, "dialog_no_headers.csv")
     dialog = Dialog.from_file(
-        "data/dialog_no_headers.csv",
+        csv_path,
         csv_speaker_col=0,
         csv_text_col=1
     )
