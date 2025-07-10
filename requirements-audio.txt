@@ -1,0 +1,4 @@
+pyannote-audio
+git+https://github.com/m-bain/whisperX.git
+tgt
+jiwer

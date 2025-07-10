@@ -15,7 +15,3 @@ Jinja2
 einops
 PyYAML
 pre-commit
-pyannote-audio
-git+https://github.com/m-bain/whisperX.git
-tgt
-jiwer
