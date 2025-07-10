@@ -1,0 +1,431 @@
+{
+  "version": "0.0.2+b7c0458e63faab58bab172e6f7831d94465d87c3",
+  "timestamp": "2025-07-05T18:09:51Z",
+  "model": "model='gemma3:27b' temperature=1.0 seed=13 top_k=64 top_p=0.95",
+  "seed": 825903487,
+  "id": 0,
+  "parentId": null,
+  "complete": true,
+  "personas": {
+    "DOCTOR": {
+      "name": "Dr. Smith",
+      "age": 52,
+      "race": "Caucasian",
+      "gender": "male",
+      "language": "English",
+      "weight": "185 lbs",
+      "height": "6'0\"",
+      "voice_characteristics": "Calm, measured tone, slight British accent",
+      "occupation": "General Practitioner",
+      "education": "Doctorate of Medicine (MD) from University of Oxford, Residency at Massachusetts General Hospital",
+      "socioeconomic_status": "Upper-Middle Class",
+      "interests": "Medical research, history, classical music",
+      "hobbies": "Sailing, gardening, collecting antique books",
+      "politeness": "Very Polite",
+      "forgetfulness": "Low",
+      "attentiveness": "High",
+      "communication_style": "Patient and thorough, explains things in detail, sometimes uses medical jargon",
+      "empathy_level": "High",
+      "political_views": "Generally moderate, believes in universal healthcare",
+      "religious_beliefs": "Agnostic",
+      "specialty": "Family Medicine",
+      "years_of_experience": "18 years",
+      "certifications": "Board Certified in Family Medicine, Advanced Cardiac Life Support (ACLS)",
+      "work_experience": "10 years in general practice",
+      "_metadata": {
+        "version": "0.0.2+b7c0458e63faab58bab172e6f7831d94465d87c3",
+        "timestamp": "2025-07-05T17:14:18Z",
+        "model": "model='gemma3:27b' temperature=1.0 seed=3838195144 top_k=64 top_p=0.95 format={'description': 'Doctor persona with medical expertise and professional background.\\n\\n:ivar specialty: Medical specialty.\\n:vartype specialty: str\\n:ivar years_of_experience: Years of experience as a doctor.\\n:vartype years_of_experience: int\\n:ivar certifications: Certifications held by the doctor.\\n:vartype certifications: str\\n:ivar work_experience: Professional work experience.\\n:vartype work_experience: str', 'properties': {'name': {'default': '', 'title': 'Name', 'type': 'string'}, 'age': {'anyOf': [{'type': 'integer'}, {'type': 'string'}], 'default': '', 'title': 'Age'}, 'race': {'default': '', 'title': 'Race', 'type': 'string'}, 'gender': {'default': '', 'title': 'Gender', 'type': 'string'}, 'language': {'default': 'English', 'title': 'Language', 'type': 'string'}, 'weight': {'default': '', 'title': 'Weight', 'type': 'string'}, 'height': {'anyOf': [{'type': 'string'}, {'type': 'number'}], 'default': '', 'title': 'Height'}, 'voice_characteristics': {'default': '', 'title': 'Voice Characteristics', 'type': 'string'}, 'occupation': {'default': '', 'title': 'Occupation', 'type': 'string'}, 'education': {'default': '', 'title': 'Education', 'type': 'string'}, 'socioeconomic_status': {'default': '', 'title': 'Socioeconomic Status', 'type': 'string'}, 'interests': {'default': '', 'title': 'Interests', 'type': 'string'}, 'hobbies': {'default': '', 'title': 'Hobbies', 'type': 'string'}, 'politeness': {'default': '', 'title': 'Politeness', 'type': 'string'}, 'forgetfulness': {'default': '', 'title': 'Forgetfulness', 'type': 'string'}, 'attentiveness': {'default': '', 'title': 'Attentiveness', 'type': 'string'}, 'communication_style': {'default': '', 'title': 'Communication Style', 'type': 'string'}, 'empathy_level': {'default': '', 'title': 'Empathy Level', 'type': 'string'}, 'political_views': {'default': '', 'title': 'Political Views', 'type': 'string'}, 'religious_beliefs': {'default': '', 'title': 'Religious Beliefs', 'type': 'string'}, 'specialty': {'default': '', 'title': 'Specialty', 'type': 'string'}, 'years_of_experience': {'anyOf': [{'type': 'integer'}, {'type': 'string'}], 'default': '', 'title': 'Years Of Experience'}, 'certifications': {'default': '', 'title': 'Certifications', 'type': 'string'}, 'work_experience': {'default': '', 'title': 'Work Experience', 'type': 'string'}}, 'title': 'Doctor', 'type': 'object'}",
+        "seed": 3838195144,
+        "id": 1751735658900,
+        "parentId": null,
+        "className": "Doctor",
+        "notes": null
+      }
+    },
+    "PATIENT": {
+      "name": "John Doe",
+      "age": 62,
+      "race": "Caucasian",
+      "gender": "male",
+      "language": "English",
+      "weight": "215 lbs",
+      "height": "5'10\"",
+      "voice_characteristics": "Slightly raspy, generally calm and measured tone.",
+      "occupation": "Retired Accountant",
+      "education": "Bachelor's Degree in Accounting",
+      "socioeconomic_status": "Middle Class",
+      "interests": "History, current events, gardening, classical music",
+      "hobbies": "Reading historical novels, tending to his vegetable garden, listening to symphonies, doing crossword puzzles",
+      "politeness": "Generally polite and respectful, though can be a bit reserved.",
+      "forgetfulness": "Moderate - occasionally forgets names or recent events, but generally remembers important details.",
+      "attentiveness": "High - pays close attention when someone is speaking and asks clarifying questions.",
+      "communication_style": "Direct and concise, prefers clear and factual information.",
+      "empathy_level": "Moderate - understands others' feelings but doesn't always express sympathy overtly.",
+      "political_views": "Centrist - leans slightly conservative on fiscal issues, moderate on social issues.",
+      "religious_beliefs": "Non-denominational Christian - attends church sporadically.",
+      "symptoms": "Feeling fatigued, occasional headaches",
+      "vital_signs": "Blood pressure: 130/85, Heart rate: 75 bpm",
+      "health_literacy": "High",
+      "medical_conditions": "Hypertension, Diabetes",
+      "medications": "Metformin, Lisinopril",
+      "allergies": "Penicillin",
+      "family_history": "Father had heart disease, mother had diabetes",
+      "_metadata": {
+        "version": "0.0.2+b7c0458e63faab58bab172e6f7831d94465d87c3",
+        "timestamp": "2025-07-04T15:27:47Z",
+        "model": "model='gemma3:27b' temperature=1.0 seed=747882225 top_k=64 top_p=0.95 format={'description': 'Patient persona with medical and health-related attributes.\\n\\n:ivar symptoms: Reason for visit or chief complaint.\\n:vartype symptoms: str\\n:ivar vital_signs: Vital signs of the patient.\\n:vartype vital_signs: str\\n:ivar health_literacy: Health literacy level.\\n:vartype health_literacy: str\\n:ivar medical_conditions: Medical conditions in history.\\n:vartype medical_conditions: str\\n:ivar medications: Current medications.\\n:vartype medications: str\\n:ivar allergies: Known allergies.\\n:vartype allergies: str\\n:ivar family_history: Family medical history.\\n:vartype family_history: str', 'properties': {'name': {'default': '', 'title': 'Name', 'type': 'string'}, 'age': {'anyOf': [{'type': 'integer'}, {'type': 'string'}], 'default': '', 'title': 'Age'}, 'race': {'default': '', 'title': 'Race', 'type': 'string'}, 'gender': {'default': '', 'title': 'Gender', 'type': 'string'}, 'language': {'default': 'English', 'title': 'Language', 'type': 'string'}, 'weight': {'default': '', 'title': 'Weight', 'type': 'string'}, 'height': {'anyOf': [{'type': 'string'}, {'type': 'number'}], 'default': '', 'title': 'Height'}, 'voice_characteristics': {'default': '', 'title': 'Voice Characteristics', 'type': 'string'}, 'occupation': {'default': '', 'title': 'Occupation', 'type': 'string'}, 'education': {'default': '', 'title': 'Education', 'type': 'string'}, 'socioeconomic_status': {'default': '', 'title': 'Socioeconomic Status', 'type': 'string'}, 'interests': {'default': '', 'title': 'Interests', 'type': 'string'}, 'hobbies': {'default': '', 'title': 'Hobbies', 'type': 'string'}, 'politeness': {'default': '', 'title': 'Politeness', 'type': 'string'}, 'forgetfulness': {'default': '', 'title': 'Forgetfulness', 'type': 'string'}, 'attentiveness': {'default': '', 'title': 'Attentiveness', 'type': 'string'}, 'communication_style': {'default': '', 'title': 'Communication Style', 'type': 'string'}, 'empathy_level': {'default': '', 'title': 'Empathy Level', 'type': 'string'}, 'political_views': {'default': '', 'title': 'Political Views', 'type': 'string'}, 'religious_beliefs': {'default': '', 'title': 'Religious Beliefs', 'type': 'string'}, 'symptoms': {'default': '', 'title': 'Symptoms', 'type': 'string'}, 'vital_signs': {'default': '', 'title': 'Vital Signs', 'type': 'string'}, 'health_literacy': {'default': '', 'title': 'Health Literacy', 'type': 'string'}, 'medical_conditions': {'default': '', 'title': 'Medical Conditions', 'type': 'string'}, 'medications': {'default': '', 'title': 'Medications', 'type': 'string'}, 'allergies': {'default': '', 'title': 'Allergies', 'type': 'string'}, 'family_history': {'default': '', 'title': 'Family History', 'type': 'string'}}, 'title': 'Patient', 'type': 'object'}",
+        "seed": 747882225,
+        "id": null,
+        "parentId": null,
+        "className": "Patient",
+        "notes": null
+      }
+    }
+  },
+  "scenario": {
+    "agents": [
+      {
+        "name": "DOCTOR",
+        "model_name": "model='gemma3:27b' temperature=1.0 seed=13 top_k=64 top_p=0.95",
+        "persona": {
+          "name": "Dr. Smith",
+          "age": 52,
+          "race": "Caucasian",
+          "gender": "male",
+          "language": "English",
+          "weight": "185 lbs",
+          "height": "6'0\"",
+          "voice_characteristics": "Calm, measured tone, slight British accent",
+          "occupation": "General Practitioner",
+          "education": "Doctorate of Medicine (MD) from University of Oxford, Residency at Massachusetts General Hospital",
+          "socioeconomic_status": "Upper-Middle Class",
+          "interests": "Medical research, history, classical music",
+          "hobbies": "Sailing, gardening, collecting antique books",
+          "politeness": "Very Polite",
+          "forgetfulness": "Low",
+          "attentiveness": "High",
+          "communication_style": "Patient and thorough, explains things in detail, sometimes uses medical jargon",
+          "empathy_level": "High",
+          "political_views": "Generally moderate, believes in universal healthcare",
+          "religious_beliefs": "Agnostic",
+          "specialty": "Family Medicine",
+          "years_of_experience": "18 years",
+          "certifications": "Board Certified in Family Medicine, Advanced Cardiac Life Support (ACLS)",
+          "work_experience": "10 years in general practice",
+          "_metadata": {
+            "version": "0.0.2+b7c0458e63faab58bab172e6f7831d94465d87c3",
+            "timestamp": "2025-07-05T17:14:18Z",
+            "model": "model='gemma3:27b' temperature=1.0 seed=3838195144 top_k=64 top_p=0.95 format={'description': 'Doctor persona with medical expertise and professional background.\\n\\n:ivar specialty: Medical specialty.\\n:vartype specialty: str\\n:ivar years_of_experience: Years of experience as a doctor.\\n:vartype years_of_experience: int\\n:ivar certifications: Certifications held by the doctor.\\n:vartype certifications: str\\n:ivar work_experience: Professional work experience.\\n:vartype work_experience: str', 'properties': {'name': {'default': '', 'title': 'Name', 'type': 'string'}, 'age': {'anyOf': [{'type': 'integer'}, {'type': 'string'}], 'default': '', 'title': 'Age'}, 'race': {'default': '', 'title': 'Race', 'type': 'string'}, 'gender': {'default': '', 'title': 'Gender', 'type': 'string'}, 'language': {'default': 'English', 'title': 'Language', 'type': 'string'}, 'weight': {'default': '', 'title': 'Weight', 'type': 'string'}, 'height': {'anyOf': [{'type': 'string'}, {'type': 'number'}], 'default': '', 'title': 'Height'}, 'voice_characteristics': {'default': '', 'title': 'Voice Characteristics', 'type': 'string'}, 'occupation': {'default': '', 'title': 'Occupation', 'type': 'string'}, 'education': {'default': '', 'title': 'Education', 'type': 'string'}, 'socioeconomic_status': {'default': '', 'title': 'Socioeconomic Status', 'type': 'string'}, 'interests': {'default': '', 'title': 'Interests', 'type': 'string'}, 'hobbies': {'default': '', 'title': 'Hobbies', 'type': 'string'}, 'politeness': {'default': '', 'title': 'Politeness', 'type': 'string'}, 'forgetfulness': {'default': '', 'title': 'Forgetfulness', 'type': 'string'}, 'attentiveness': {'default': '', 'title': 'Attentiveness', 'type': 'string'}, 'communication_style': {'default': '', 'title': 'Communication Style', 'type': 'string'}, 'empathy_level': {'default': '', 'title': 'Empathy Level', 'type': 'string'}, 'political_views': {'default': '', 'title': 'Political Views', 'type': 'string'}, 'religious_beliefs': {'default': '', 'title': 'Religious Beliefs', 'type': 'string'}, 'specialty': {'default': '', 'title': 'Specialty', 'type': 'string'}, 'years_of_experience': {'anyOf': [{'type': 'integer'}, {'type': 'string'}], 'default': '', 'title': 'Years Of Experience'}, 'certifications': {'default': '', 'title': 'Certifications', 'type': 'string'}, 'work_experience': {'default': '', 'title': 'Work Experience', 'type': 'string'}}, 'title': 'Doctor', 'type': 'object'}",
+            "seed": 3838195144,
+            "id": 1751735658900,
+            "parentId": null,
+            "className": "Doctor",
+            "notes": null
+          }
+        }
+      },
+      {
+        "name": "PATIENT",
+        "model_name": "model='gemma3:27b' temperature=1.0 seed=13 top_k=64 top_p=0.95",
+        "persona": {
+          "name": "John Doe",
+          "age": 62,
+          "race": "Caucasian",
+          "gender": "male",
+          "language": "English",
+          "weight": "215 lbs",
+          "height": "5'10\"",
+          "voice_characteristics": "Slightly raspy, generally calm and measured tone.",
+          "occupation": "Retired Accountant",
+          "education": "Bachelor's Degree in Accounting",
+          "socioeconomic_status": "Middle Class",
+          "interests": "History, current events, gardening, classical music",
+          "hobbies": "Reading historical novels, tending to his vegetable garden, listening to symphonies, doing crossword puzzles",
+          "politeness": "Generally polite and respectful, though can be a bit reserved.",
+          "forgetfulness": "Moderate - occasionally forgets names or recent events, but generally remembers important details.",
+          "attentiveness": "High - pays close attention when someone is speaking and asks clarifying questions.",
+          "communication_style": "Direct and concise, prefers clear and factual information.",
+          "empathy_level": "Moderate - understands others' feelings but doesn't always express sympathy overtly.",
+          "political_views": "Centrist - leans slightly conservative on fiscal issues, moderate on social issues.",
+          "religious_beliefs": "Non-denominational Christian - attends church sporadically.",
+          "symptoms": "Feeling fatigued, occasional headaches",
+          "vital_signs": "Blood pressure: 130/85, Heart rate: 75 bpm",
+          "health_literacy": "High",
+          "medical_conditions": "Hypertension, Diabetes",
+          "medications": "Metformin, Lisinopril",
+          "allergies": "Penicillin",
+          "family_history": "Father had heart disease, mother had diabetes",
+          "_metadata": {
+            "version": "0.0.2+b7c0458e63faab58bab172e6f7831d94465d87c3",
+            "timestamp": "2025-07-04T15:27:47Z",
+            "model": "model='gemma3:27b' temperature=1.0 seed=747882225 top_k=64 top_p=0.95 format={'description': 'Patient persona with medical and health-related attributes.\\n\\n:ivar symptoms: Reason for visit or chief complaint.\\n:vartype symptoms: str\\n:ivar vital_signs: Vital signs of the patient.\\n:vartype vital_signs: str\\n:ivar health_literacy: Health literacy level.\\n:vartype health_literacy: str\\n:ivar medical_conditions: Medical conditions in history.\\n:vartype medical_conditions: str\\n:ivar medications: Current medications.\\n:vartype medications: str\\n:ivar allergies: Known allergies.\\n:vartype allergies: str\\n:ivar family_history: Family medical history.\\n:vartype family_history: str', 'properties': {'name': {'default': '', 'title': 'Name', 'type': 'string'}, 'age': {'anyOf': [{'type': 'integer'}, {'type': 'string'}], 'default': '', 'title': 'Age'}, 'race': {'default': '', 'title': 'Race', 'type': 'string'}, 'gender': {'default': '', 'title': 'Gender', 'type': 'string'}, 'language': {'default': 'English', 'title': 'Language', 'type': 'string'}, 'weight': {'default': '', 'title': 'Weight', 'type': 'string'}, 'height': {'anyOf': [{'type': 'string'}, {'type': 'number'}], 'default': '', 'title': 'Height'}, 'voice_characteristics': {'default': '', 'title': 'Voice Characteristics', 'type': 'string'}, 'occupation': {'default': '', 'title': 'Occupation', 'type': 'string'}, 'education': {'default': '', 'title': 'Education', 'type': 'string'}, 'socioeconomic_status': {'default': '', 'title': 'Socioeconomic Status', 'type': 'string'}, 'interests': {'default': '', 'title': 'Interests', 'type': 'string'}, 'hobbies': {'default': '', 'title': 'Hobbies', 'type': 'string'}, 'politeness': {'default': '', 'title': 'Politeness', 'type': 'string'}, 'forgetfulness': {'default': '', 'title': 'Forgetfulness', 'type': 'string'}, 'attentiveness': {'default': '', 'title': 'Attentiveness', 'type': 'string'}, 'communication_style': {'default': '', 'title': 'Communication Style', 'type': 'string'}, 'empathy_level': {'default': '', 'title': 'Empathy Level', 'type': 'string'}, 'political_views': {'default': '', 'title': 'Political Views', 'type': 'string'}, 'religious_beliefs': {'default': '', 'title': 'Religious Beliefs', 'type': 'string'}, 'symptoms': {'default': '', 'title': 'Symptoms', 'type': 'string'}, 'vital_signs': {'default': '', 'title': 'Vital Signs', 'type': 'string'}, 'health_literacy': {'default': '', 'title': 'Health Literacy', 'type': 'string'}, 'medical_conditions': {'default': '', 'title': 'Medical Conditions', 'type': 'string'}, 'medications': {'default': '', 'title': 'Medications', 'type': 'string'}, 'allergies': {'default': '', 'title': 'Allergies', 'type': 'string'}, 'family_history': {'default': '', 'title': 'Family History', 'type': 'string'}}, 'title': 'Patient', 'type': 'object'}",
+            "seed": 747882225,
+            "id": null,
+            "parentId": null,
+            "className": "Patient",
+            "notes": null
+          }
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "speaker": "DOCTOR",
+      "text": "<door-open>\n\nGood morning. Please, come in and have a seat. I'm Dr. Smith. It\u2019s a pleasure to meet you. Quite a dreary day we're having, isn't it? Do help yourself to some water if you'd like. <pause>\n\nNow, you're a new patient here, as I understand. I've just had a quick look at the initial paperwork, but I'd like to get a more detailed picture of what brings you in today. Perhaps you could tell me, in your own words, what's been troubling you? Don\u2019t hesitate to be thorough; the more information you provide, the better I can understand things."
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Good morning, Doctor. Yes, a rather damp one indeed. Thank you for the offer of water, I appreciate it. <pause>\n\nWell, to be frank, I\u2019ve been feeling\u2026 off. Just generally not myself for a few months now. It\u2019s hard to put a finger on it, really. It started gradually, just a bit of fatigue, I thought I was getting old, you know? <sigh> But it\u2019s persisted, and now\u2026 well, now it\u2019s more than just tiredness. I've been having these headaches, not terrible, but persistent, like a dull ache. And I seem to be\u2026 winded easily. Even just walking up the stairs leaves me breathless. It\u2019s rather unsettling. I figured it was time to get it checked out before it became something serious. I do try to stay active, you see. Gardening keeps me busy, but even *that* has become a bit of a struggle lately."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "Indeed, it\u2019s always best to be proactive when you notice a change in your health. Fatigue, headaches, and breathlessness... those are certainly symptoms we need to investigate. It sounds as though this has been impacting your daily life, which is understandably concerning.\n\n<pause>\n\nLet's try to piece things together a bit more thoroughly. When you say \"a few months,\" can you be a little more precise? Was it a sudden onset, or did it creep up gradually? And when you describe the headaches, where exactly do you feel them? Is it a pressure across your forehead, a throbbing at the temples, or something else entirely? Also, you mentioned gardening \u2013 has this breathlessness been noticeable *only* with exertion, or even at rest?"
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Hmm, let me think\u2026 it probably started around\u2026 September, I\u2019d say. Perhaps early October. It wasn't a sudden thing, no. It was\u2026 insidious, really. Just a little more tired each day, a little less energy. I kept telling myself it was just the change in seasons, you know? <pause>\n\nThe headaches\u2026 they\u2019re mostly across my forehead, like a band tightening. Not a sharp pain, just\u2026 pressure. Sometimes it feels like it's in the back of my head as well, a dull ache. And the breathlessness\u2026 it's definitely worse with exertion. Even walking the dog around the block leaves me a bit winded. But\u2026 <pause> I\u2019ve noticed it a couple of times just sitting in my chair, watching television. Not as bad, mind you, but it\u2019s there. A slight tightness in my chest, a feeling I can\u2019t quite get a full breath. It\u2019s unnerving, frankly. I haven't had anything like this before."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "Right. September or October\u2026 that gives us a timeframe. And the description of the headache as a \u201cband tightening\u201d is helpful, as is the location shifting to the back of the head occasionally. The breathlessness occurring even at rest, albeit mildly, is something we'll definitely need to explore further. It's good you're noticing these subtle changes \u2013 that awareness is important.\n\n<pause>\n\nNow, let's delve a little into your medical history. Have you been diagnosed with any chronic conditions, such as asthma, heart disease, or diabetes? Are you currently taking any medications, including over-the-counter remedies or supplements? And do you have any allergies to medications or anything else?"
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Well, yes. I have been diagnosed with hypertension, or high blood pressure, as you likely know. I've been managing it with medication for\u2026 oh, about ten years now, I think. And\u2026 <pause> I was diagnosed with type 2 diabetes about five years ago. It\u2019s been\u2026 manageable, with diet and medication. Metformin, I believe. And Lisinopril for the blood pressure.\n\nAs for allergies\u2026 I am allergic to penicillin. That\u2019s a rather important one to know. Aside from that, nothing major that I'm aware of. I take a multivitamin occasionally, but that's about it. No other supplements, no."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "Excellent. That's very helpful to know. Hypertension and type 2 diabetes are certainly important pieces of the puzzle. And a penicillin allergy is crucial information, thank you for mentioning that. So you\u2019re currently taking Lisinopril and Metformin, and have been for some time, is that correct? Are you consistent with taking those medications? Any difficulty with side effects?\n\n<pause>\n\nNow, shifting gears slightly\u2026 could you tell me a little about your family history? Are there any significant medical conditions that run in your family \u2013 heart disease, stroke, cancer, diabetes, anything like that? And, if you don\u2019t mind me asking, what about your lifestyle? Do you smoke or drink alcohol? How would you describe your diet and exercise habits, aside from the gardening?"
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Yes, I\u2019m consistent with the medications. I set an alarm on my phone, you see. Can't be too careful with these things. No real side effects, thankfully. Sometimes I get a little lightheaded, but nothing serious.\n\nAs for family history\u2026 my father had heart disease. He passed away when he was 78. And my mother had diabetes, similar to mine. She lived to be 85, though. My older brother has high cholesterol, but otherwise, we\u2019re a fairly healthy bunch. \n\nAs for lifestyle\u2026 I don't smoke, never have. I enjoy a glass of wine with dinner occasionally, perhaps two or three times a week. I try to eat a balanced diet, lots of vegetables, lean protein. My wife does most of the cooking, thankfully. <chuckles softly> And as I mentioned, I enjoy gardening. It\u2019s good exercise, and I get fresh vegetables. I don't do a lot of strenuous exercise, beyond that. Mostly just walking."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "That's a good, detailed account. A family history of heart disease and diabetes does certainly increase your risk, but it\u2019s encouraging to hear you\u2019re proactive about managing your health and maintain a reasonably active lifestyle. The occasional glass of wine is unlikely to be a significant factor. \n\n<pause>\n\nNow, let's do a quick review of systems. I'm going to ask you a few questions about different parts of your body, just to get a more complete picture. Have you experienced any changes in your weight recently \u2013 either weight loss or gain? Any fever, chills, or night sweats? Any chest pain, palpitations, or swelling in your ankles or feet? Any digestive issues, such as nausea, vomiting, or changes in bowel habits? Any skin rashes, itching, or unusual moles?"
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Hmm, let me think\u2026 I\u2019ve probably lost a few pounds in the last month or so. Not a significant amount, perhaps five or six pounds. I haven't been feeling much of an appetite lately, to be honest. No fever, chills, or night sweats, thankfully. No chest pain, although I do get a little\u2026 breathless, as we discussed. No swelling in my ankles or feet.\n\nI\u2019ve had a bit of indigestion lately, more so than usual. Nothing major, just a bit of heartburn after meals. My bowel habits are\u2026 regular, if you know what I mean. <chuckles> No rashes, itching, or unusual moles. Just the usual aging process, I suppose."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "Right, a slight unintentional weight loss and some increased indigestion\u2026 noted. It\u2019s good that your bowel habits are regular, and that you haven\u2019t noticed any skin changes. \n\n<pause>\n\nAlright. I think we have a fairly comprehensive picture now. Before we proceed with a physical examination, is there anything else at all \u2013 *anything* \u2013 that you think might be relevant, even if it seems insignificant? Sometimes the smallest detail can be crucial."
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "<long-pause>\n\nWell\u2026 now that you mention it\u2026 I have been having trouble sleeping. Not every night, but frequently. I wake up several times during the night, feeling anxious for no particular reason. I just\u2026 lie there, staring at the ceiling. I thought it was just stress, you know, getting older. But it\u2019s been happening for a few weeks now. I haven\u2019t told my wife, didn\u2019t want to worry her. It\u2019s probably nothing."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "Thank you for sharing that. Sleep disturbance and anxiety are *not* insignificant, and I\u2019m glad you brought it to my attention. It\u2019s often a symptom of an underlying medical condition, or can exacerbate existing ones. It\u2019s good you\u2019re sharing these details.\n\n<pause>\n\nAlright. Now, if you\u2019re comfortable, I\u2019d like to perform a physical examination. This will involve listening to your heart and lungs, checking your blood pressure and pulse, examining your throat and ears, and feeling your abdomen. I\u2019ll also check your reflexes and test your strength. Is that alright with you? It shouldn't take long, and will help me get a better understanding of what's going on. Please feel free to tell me if anything is uncomfortable at any point."
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Yes, of course. That\u2019s perfectly alright. Please proceed. I understand it's necessary. I\u2019ll let you know if anything feels uncomfortable. I'm a fairly patient man, you know. Just\u2026 get on with it, please. I appreciate you listening to me, Doctor. It\u2019s a relief to finally talk to someone about this."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "You're very welcome. I'm glad you feel comfortable enough to share these concerns with me. It\u2019s my job to listen, and to help you get to the bottom of things. \n\n<stethoscope-click>\n\nAlright, let's start with your blood pressure. Just relax your arm, please. <pause> Okay, that's 140 over 85. A little elevated, but not dramatically so, given your history of hypertension. Pulse is 78, regular. \n\n<stethoscope-click> Now, let\u2019s listen to your heart. Take a deep breath in\u2026 and out\u2026 Good. Sounds are regular, no murmurs or extra sounds. \n\n<stethoscope-click> Now, your lungs. Deep breath in\u2026 and out\u2026 Again, sounds are clear, no wheezing or crackles. \n\n<pause>\n\nI\u2019m going to examine your throat now\u2026 open wide, please\u2026 Everything looks normal here. No signs of infection or inflammation. \n\nNow, I\u2019m going to palpate your abdomen\u2026 Just relax\u2026 Any tenderness here? \u2026 And here? \u2026 How about here? \u2026 No? Good. Everything feels soft and non-distended. \n\n<pause>\n\nNow, I\u2019m just going to check your reflexes\u2026 Let me know if anything feels painful\u2026 And your strength\u2026 Squeeze my hand\u2026 Excellent. Everything appears normal on the neurological exam as well. \n\n<pause>\n\nAlright. That concludes the physical examination. Based on what you've told me and what I\u2019ve observed, I think it\u2019s important to order some further tests. I\u2019d like to do a complete blood count, a comprehensive metabolic panel, a thyroid-stimulating hormone test, and an electrocardiogram \u2013 an ECG \u2013 to check your heart function."
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "That sounds\u2026 thorough. I appreciate that. Those tests sound sensible enough. Will those tests give you a better idea of what's going on? I'm starting to feel a little anxious again, to be honest. This has been\u2026 unsettling."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "They should, yes. Those tests will help us rule out a number of potential causes for your symptoms. The complete blood count will check for infection or anemia. The comprehensive metabolic panel will assess your kidney and liver function, as well as your blood sugar and electrolytes. The thyroid test will check if your thyroid gland is functioning properly \u2013 thyroid problems can sometimes cause similar symptoms to what you\u2019re experiencing. And the ECG will look for any abnormalities in your heart rhythm or electrical activity.\n\n<pause>\n\nI understand your anxiety. It\u2019s perfectly normal to feel unsettled when you\u2019re experiencing unexplained symptoms. But please remember, we're taking proactive steps to investigate this, and we'll work together to find a solution. I'll order those tests immediately, and the results should be available in a few days. In the meantime, I\u2019m going to prescribe a mild anti-anxiety medication to help manage your symptoms, just as a temporary measure. Would that be alright with you?"
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Yes, that would be\u2026 helpful. A little something to take the edge off. I don't want to become reliant on anything, mind you, but a temporary measure sounds reasonable. So\u2026 just until we get the results of the tests? What kind of medication is it? And\u2026 are there any side effects? I always worry about side effects."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "Of course. This is a low dose of Lorazepam \u2013 it\u2019s a benzodiazepine \u2013 and is intended for short-term use only, precisely until we have the test results. It helps calm the nervous system and reduce anxiety. Common side effects are drowsiness, dizziness, and potentially some cognitive impairment, though at this low dose, those are generally minimal. It\u2019s important not to drink alcohol while taking it, and it\u2019s best to avoid driving or operating heavy machinery until you know how it affects you. I'll write you a prescription for a two-week supply. \n\n<pause>\n\nNow, while we\u2019re waiting for the test results, I\u2019d also recommend trying some relaxation techniques, such as deep breathing exercises or meditation. And continue to prioritize getting enough sleep. \n\nDo you have any other questions for me at this point? Is there anything else I can clarify?"
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "No, I think that covers everything. Lorazepam\u2026 I\u2019ve heard of it. Just a temporary measure, you said. And avoid alcohol. Noted. I'll try those breathing exercises, too. My wife has been suggesting meditation for years, perhaps now is the time. \n\nThank you, Doctor. You\u2019ve been very thorough, and I appreciate you taking the time to listen to me. I feel\u2026 a little less anxious, to be honest. Knowing that we\u2019re actively investigating this is a relief. I\u2019ll schedule a follow-up appointment once the test results are in."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "You're very welcome. I'm glad I could provide some reassurance. That's what I'm here for. Remember, we're a team in this, and we\u2019ll work together to get to the bottom of things. \n\n<hand-washing>\n\nExcellent. Please do schedule a follow-up appointment with my receptionist once the results are available. And don\u2019t hesitate to call the office if you experience any worsening symptoms or have any concerns before then. \n\nI wish you all the best, and I\u2019ll see you in a few days."
+    },
+    {
+      "speaker": "PATIENT",
+      "text": "Thank you again, Doctor. I appreciate your kindness. Goodbye."
+    },
+    {
+      "speaker": "DOCTOR",
+      "text": "You\u2019re most welcome. Take care, and goodbye."
+    }
+  ],
+  "events": [
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "<door-open>\n\nGood morning. Please, come in and have a seat. I'm Dr. Smith. It\u2019s a pleasure to meet you. Quite a dreary day we're having, isn't it? Do help yourself to some water if you'd like. <pause>\n\nNow, you're a new patient here, as I understand. I've just had a quick look at the initial paperwork, but I'd like to get a more detailed picture of what brings you in today. Perhaps you could tell me, in your own words, what's been troubling you? Don\u2019t hesitate to be thorough; the more information you provide, the better I can understand things.",
+      "timestamp": 1751738813
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Good morning, Doctor. Yes, a rather damp one indeed. Thank you for the offer of water, I appreciate it. <pause>\n\nWell, to be frank, I\u2019ve been feeling\u2026 off. Just generally not myself for a few months now. It\u2019s hard to put a finger on it, really. It started gradually, just a bit of fatigue, I thought I was getting old, you know? <sigh> But it\u2019s persisted, and now\u2026 well, now it\u2019s more than just tiredness. I've been having these headaches, not terrible, but persistent, like a dull ache. And I seem to be\u2026 winded easily. Even just walking up the stairs leaves me breathless. It\u2019s rather unsettling. I figured it was time to get it checked out before it became something serious. I do try to stay active, you see. Gardening keeps me busy, but even *that* has become a bit of a struggle lately.",
+      "timestamp": 1751738821
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Indeed, it\u2019s always best to be proactive when you notice a change in your health. Fatigue, headaches, and breathlessness... those are certainly symptoms we need to investigate. It sounds as though this has been impacting your daily life, which is understandably concerning.\n\n<pause>\n\nLet's try to piece things together a bit more thoroughly. When you say \"a few months,\" can you be a little more precise? Was it a sudden onset, or did it creep up gradually? And when you describe the headaches, where exactly do you feel them? Is it a pressure across your forehead, a throbbing at the temples, or something else entirely? Also, you mentioned gardening \u2013 has this breathlessness been noticeable *only* with exertion, or even at rest?",
+      "timestamp": 1751738827
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Hmm, let me think\u2026 it probably started around\u2026 September, I\u2019d say. Perhaps early October. It wasn't a sudden thing, no. It was\u2026 insidious, really. Just a little more tired each day, a little less energy. I kept telling myself it was just the change in seasons, you know? <pause>\n\nThe headaches\u2026 they\u2019re mostly across my forehead, like a band tightening. Not a sharp pain, just\u2026 pressure. Sometimes it feels like it's in the back of my head as well, a dull ache. And the breathlessness\u2026 it's definitely worse with exertion. Even walking the dog around the block leaves me a bit winded. But\u2026 <pause> I\u2019ve noticed it a couple of times just sitting in my chair, watching television. Not as bad, mind you, but it\u2019s there. A slight tightness in my chest, a feeling I can\u2019t quite get a full breath. It\u2019s unnerving, frankly. I haven't had anything like this before.",
+      "timestamp": 1751738836
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Right. September or October\u2026 that gives us a timeframe. And the description of the headache as a \u201cband tightening\u201d is helpful, as is the location shifting to the back of the head occasionally. The breathlessness occurring even at rest, albeit mildly, is something we'll definitely need to explore further. It's good you're noticing these subtle changes \u2013 that awareness is important.\n\n<pause>\n\nNow, let's delve a little into your medical history. Have you been diagnosed with any chronic conditions, such as asthma, heart disease, or diabetes? Are you currently taking any medications, including over-the-counter remedies or supplements? And do you have any allergies to medications or anything else?",
+      "timestamp": 1751738843
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Well, yes. I have been diagnosed with hypertension, or high blood pressure, as you likely know. I've been managing it with medication for\u2026 oh, about ten years now, I think. And\u2026 <pause> I was diagnosed with type 2 diabetes about five years ago. It\u2019s been\u2026 manageable, with diet and medication. Metformin, I believe. And Lisinopril for the blood pressure.\n\nAs for allergies\u2026 I am allergic to penicillin. That\u2019s a rather important one to know. Aside from that, nothing major that I'm aware of. I take a multivitamin occasionally, but that's about it. No other supplements, no.",
+      "timestamp": 1751738851
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Excellent. That's very helpful to know. Hypertension and type 2 diabetes are certainly important pieces of the puzzle. And a penicillin allergy is crucial information, thank you for mentioning that. So you\u2019re currently taking Lisinopril and Metformin, and have been for some time, is that correct? Are you consistent with taking those medications? Any difficulty with side effects?\n\n<pause>\n\nNow, shifting gears slightly\u2026 could you tell me a little about your family history? Are there any significant medical conditions that run in your family \u2013 heart disease, stroke, cancer, diabetes, anything like that? And, if you don\u2019t mind me asking, what about your lifestyle? Do you smoke or drink alcohol? How would you describe your diet and exercise habits, aside from the gardening?",
+      "timestamp": 1751738858
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Yes, I\u2019m consistent with the medications. I set an alarm on my phone, you see. Can't be too careful with these things. No real side effects, thankfully. Sometimes I get a little lightheaded, but nothing serious.\n\nAs for family history\u2026 my father had heart disease. He passed away when he was 78. And my mother had diabetes, similar to mine. She lived to be 85, though. My older brother has high cholesterol, but otherwise, we\u2019re a fairly healthy bunch. \n\nAs for lifestyle\u2026 I don't smoke, never have. I enjoy a glass of wine with dinner occasionally, perhaps two or three times a week. I try to eat a balanced diet, lots of vegetables, lean protein. My wife does most of the cooking, thankfully. <chuckles softly> And as I mentioned, I enjoy gardening. It\u2019s good exercise, and I get fresh vegetables. I don't do a lot of strenuous exercise, beyond that. Mostly just walking.",
+      "timestamp": 1751738868
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "That's a good, detailed account. A family history of heart disease and diabetes does certainly increase your risk, but it\u2019s encouraging to hear you\u2019re proactive about managing your health and maintain a reasonably active lifestyle. The occasional glass of wine is unlikely to be a significant factor. \n\n<pause>\n\nNow, let's do a quick review of systems. I'm going to ask you a few questions about different parts of your body, just to get a more complete picture. Have you experienced any changes in your weight recently \u2013 either weight loss or gain? Any fever, chills, or night sweats? Any chest pain, palpitations, or swelling in your ankles or feet? Any digestive issues, such as nausea, vomiting, or changes in bowel habits? Any skin rashes, itching, or unusual moles?",
+      "timestamp": 1751738877
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Hmm, let me think\u2026 I\u2019ve probably lost a few pounds in the last month or so. Not a significant amount, perhaps five or six pounds. I haven't been feeling much of an appetite lately, to be honest. No fever, chills, or night sweats, thankfully. No chest pain, although I do get a little\u2026 breathless, as we discussed. No swelling in my ankles or feet.\n\nI\u2019ve had a bit of indigestion lately, more so than usual. Nothing major, just a bit of heartburn after meals. My bowel habits are\u2026 regular, if you know what I mean. <chuckles> No rashes, itching, or unusual moles. Just the usual aging process, I suppose.",
+      "timestamp": 1751738885
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Right, a slight unintentional weight loss and some increased indigestion\u2026 noted. It\u2019s good that your bowel habits are regular, and that you haven\u2019t noticed any skin changes. \n\n<pause>\n\nAlright. I think we have a fairly comprehensive picture now. Before we proceed with a physical examination, is there anything else at all \u2013 *anything* \u2013 that you think might be relevant, even if it seems insignificant? Sometimes the smallest detail can be crucial.",
+      "timestamp": 1751738892
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "<long-pause>\n\nWell\u2026 now that you mention it\u2026 I have been having trouble sleeping. Not every night, but frequently. I wake up several times during the night, feeling anxious for no particular reason. I just\u2026 lie there, staring at the ceiling. I thought it was just stress, you know, getting older. But it\u2019s been happening for a few weeks now. I haven\u2019t told my wife, didn\u2019t want to worry her. It\u2019s probably nothing.",
+      "timestamp": 1751738899
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Thank you for sharing that. Sleep disturbance and anxiety are *not* insignificant, and I\u2019m glad you brought it to my attention. It\u2019s often a symptom of an underlying medical condition, or can exacerbate existing ones. It\u2019s good you\u2019re sharing these details.\n\n<pause>\n\nAlright. Now, if you\u2019re comfortable, I\u2019d like to perform a physical examination. This will involve listening to your heart and lungs, checking your blood pressure and pulse, examining your throat and ears, and feeling your abdomen. I\u2019ll also check your reflexes and test your strength. Is that alright with you? It shouldn't take long, and will help me get a better understanding of what's going on. Please feel free to tell me if anything is uncomfortable at any point.",
+      "timestamp": 1751738909
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Yes, of course. That\u2019s perfectly alright. Please proceed. I understand it's necessary. I\u2019ll let you know if anything feels uncomfortable. I'm a fairly patient man, you know. Just\u2026 get on with it, please. I appreciate you listening to me, Doctor. It\u2019s a relief to finally talk to someone about this.",
+      "timestamp": 1751738915
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "You're very welcome. I'm glad you feel comfortable enough to share these concerns with me. It\u2019s my job to listen, and to help you get to the bottom of things. \n\n<stethoscope-click>\n\nAlright, let's start with your blood pressure. Just relax your arm, please. <pause> Okay, that's 140 over 85. A little elevated, but not dramatically so, given your history of hypertension. Pulse is 78, regular. \n\n<stethoscope-click> Now, let\u2019s listen to your heart. Take a deep breath in\u2026 and out\u2026 Good. Sounds are regular, no murmurs or extra sounds. \n\n<stethoscope-click> Now, your lungs. Deep breath in\u2026 and out\u2026 Again, sounds are clear, no wheezing or crackles. \n\n<pause>\n\nI\u2019m going to examine your throat now\u2026 open wide, please\u2026 Everything looks normal here. No signs of infection or inflammation. \n\nNow, I\u2019m going to palpate your abdomen\u2026 Just relax\u2026 Any tenderness here? \u2026 And here? \u2026 How about here? \u2026 No? Good. Everything feels soft and non-distended. \n\n<pause>\n\nNow, I\u2019m just going to check your reflexes\u2026 Let me know if anything feels painful\u2026 And your strength\u2026 Squeeze my hand\u2026 Excellent. Everything appears normal on the neurological exam as well. \n\n<pause>\n\nAlright. That concludes the physical examination. Based on what you've told me and what I\u2019ve observed, I think it\u2019s important to order some further tests. I\u2019d like to do a complete blood count, a comprehensive metabolic panel, a thyroid-stimulating hormone test, and an electrocardiogram \u2013 an ECG \u2013 to check your heart function.",
+      "timestamp": 1751738932
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "That sounds\u2026 thorough. I appreciate that. Those tests sound sensible enough. Will those tests give you a better idea of what's going on? I'm starting to feel a little anxious again, to be honest. This has been\u2026 unsettling.",
+      "timestamp": 1751738938
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "They should, yes. Those tests will help us rule out a number of potential causes for your symptoms. The complete blood count will check for infection or anemia. The comprehensive metabolic panel will assess your kidney and liver function, as well as your blood sugar and electrolytes. The thyroid test will check if your thyroid gland is functioning properly \u2013 thyroid problems can sometimes cause similar symptoms to what you\u2019re experiencing. And the ECG will look for any abnormalities in your heart rhythm or electrical activity.\n\n<pause>\n\nI understand your anxiety. It\u2019s perfectly normal to feel unsettled when you\u2019re experiencing unexplained symptoms. But please remember, we're taking proactive steps to investigate this, and we'll work together to find a solution. I'll order those tests immediately, and the results should be available in a few days. In the meantime, I\u2019m going to prescribe a mild anti-anxiety medication to help manage your symptoms, just as a temporary measure. Would that be alright with you?",
+      "timestamp": 1751738949
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Yes, that would be\u2026 helpful. A little something to take the edge off. I don't want to become reliant on anything, mind you, but a temporary measure sounds reasonable. So\u2026 just until we get the results of the tests? What kind of medication is it? And\u2026 are there any side effects? I always worry about side effects.",
+      "timestamp": 1751738955
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Of course. This is a low dose of Lorazepam \u2013 it\u2019s a benzodiazepine \u2013 and is intended for short-term use only, precisely until we have the test results. It helps calm the nervous system and reduce anxiety. Common side effects are drowsiness, dizziness, and potentially some cognitive impairment, though at this low dose, those are generally minimal. It\u2019s important not to drink alcohol while taking it, and it\u2019s best to avoid driving or operating heavy machinery until you know how it affects you. I'll write you a prescription for a two-week supply. \n\n<pause>\n\nNow, while we\u2019re waiting for the test results, I\u2019d also recommend trying some relaxation techniques, such as deep breathing exercises or meditation. And continue to prioritize getting enough sleep. \n\nDo you have any other questions for me at this point? Is there anything else I can clarify?",
+      "timestamp": 1751738965
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "No, I think that covers everything. Lorazepam\u2026 I\u2019ve heard of it. Just a temporary measure, you said. And avoid alcohol. Noted. I'll try those breathing exercises, too. My wife has been suggesting meditation for years, perhaps now is the time. \n\nThank you, Doctor. You\u2019ve been very thorough, and I appreciate you taking the time to listen to me. I feel\u2026 a little less anxious, to be honest. Knowing that we\u2019re actively investigating this is a relief. I\u2019ll schedule a follow-up appointment once the test results are in.",
+      "timestamp": 1751738973
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "You're very welcome. I'm glad I could provide some reassurance. That's what I'm here for. Remember, we're a team in this, and we\u2019ll work together to get to the bottom of things. \n\n<hand-washing>\n\nExcellent. Please do schedule a follow-up appointment with my receptionist once the results are available. And don\u2019t hesitate to call the office if you experience any worsening symptoms or have any concerns before then. \n\nI wish you all the best, and I\u2019ll see you in a few days.",
+      "timestamp": 1751738982
+    },
+    {
+      "agent": "PATIENT",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "Thank you again, Doctor. I appreciate your kindness. Goodbye.",
+      "timestamp": 1751738986
+    },
+    {
+      "agent": "DOCTOR",
+      "action": "utter",
+      "actionLabel": null,
+      "text": "You\u2019re most welcome. Take care, and goodbye.",
+      "timestamp": 1751738991
+    }
+  ],
+  "notes": null
+}

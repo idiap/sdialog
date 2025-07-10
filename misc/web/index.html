@@ -325,6 +325,9 @@
                 <button class="btn btn-primary btn-lg" onclick="saveAll()">
                     <i class="fas fa-save"></i> Save Configuration
                 </button>
+                <button class="btn btn-secondary btn-lg" data-bs-toggle="modal" data-bs-target="#llmConfigModal">
+                    <i class="fas fa-cogs"></i> Configure LLM
+                </button>
                 <button class="btn btn-info btn-lg" onclick="visualizeRoom()">
                     <i class="fas fa-eye"></i> Visualize Room
                 </button>
@@ -385,16 +388,145 @@
         </div>
     </div>
 
+    <!-- LLM Configuration Modal -->
+    <div class="modal fade" id="llmConfigModal" tabindex="-1" aria-labelledby="llmConfigModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="llmConfigModalLabel">LLM Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="llmConfigForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="personaModel">Persona Model</label>
+                                    <select class="form-control" id="personaModel" name="persona_model">
+                                        <option value="qwen2.5:3b">qwen2.5:3b</option>
+                                        <option value="qwen2.5:14b">qwen2.5:14b</option>
+                                        <option value="gemma3:27b">gemma3:27b</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="dialogModel">Dialog Generation Model</label>
+                                    <select class="form-control" id="dialogModel" name="dialog_model">
+                                        <option value="qwen2.5:14b">qwen2.5:14b</option>
+                                        <option value="qwen2.5:3b">qwen2.5:3b</option>
+                                        <option value="gemma3:27b">gemma3:27b</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="temperature">Temperature</label>
+                                    <input type="number" class="form-control" id="temperature" name="temperature" step="0.1" placeholder="e.g., 0.7">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="seed">Seed</label>
+                                    <input type="number" class="form-control" id="seed" name="seed" placeholder="e.g., 13">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="max_tokens">Max Tokens</label>
+                                    <input type="number" class="form-control" id="max_tokens" name="max_tokens" placeholder="e.g., 1024">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="top_p">Top P</label>
+                                    <input type="number" class="form-control" id="top_p" name="top_p" step="0.1" placeholder="e.g., 0.9">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="frequency_penalty">Frequency Penalty</label>
+                                    <input type="number" class="form-control" id="frequency_penalty" name="frequency_penalty" step="0.1" placeholder="e.g., 0.0">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="presence_penalty">Presence Penalty</label>
+                                    <input type="number" class="form-control" id="presence_penalty" name="presence_penalty" step="0.1" placeholder="e.g., 0.0">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveLlmConfig()">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         let currentDialogue = null;
+        let llmConfig = {
+            persona_model: 'qwen2.5:3b',
+            dialog_model: 'qwen2.5:14b',
+            temperature: null,
+            seed: 13,
+            max_tokens: null,
+            top_p: null,
+            frequency_penalty: null,
+            presence_penalty: null
+        };
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeRoomForm();
             document.getElementById('generateDialogueBtn').addEventListener('click', generateDialogue);
             document.getElementById('generateAudiosBtn').addEventListener('click', generateAllAudios);
+            loadLlmConfig();
         });
+
+        function loadLlmConfig() {
+            document.getElementById('personaModel').value = llmConfig.persona_model;
+            document.getElementById('dialogModel').value = llmConfig.dialog_model;
+            document.getElementById('temperature').value = llmConfig.temperature;
+            document.getElementById('seed').value = llmConfig.seed;
+            document.getElementById('max_tokens').value = llmConfig.max_tokens;
+            document.getElementById('top_p').value = llmConfig.top_p;
+            document.getElementById('frequency_penalty').value = llmConfig.frequency_penalty;
+            document.getElementById('presence_penalty').value = llmConfig.presence_penalty;
+        }
+
+        function saveLlmConfig() {
+            const form = document.getElementById('llmConfigForm');
+            llmConfig.persona_model = form.elements['persona_model'].value;
+            llmConfig.dialog_model = form.elements['dialog_model'].value;
+            
+            // Helper to get null if empty, otherwise number
+            const getNumberOrNull = (name) => {
+                const value = form.elements[name].value;
+                return value === '' ? null : Number(value);
+            };
+
+            llmConfig.temperature = getNumberOrNull('temperature');
+            llmConfig.seed = getNumberOrNull('seed');
+            llmConfig.max_tokens = getNumberOrNull('max_tokens');
+            llmConfig.top_p = getNumberOrNull('top_p');
+            llmConfig.frequency_penalty = getNumberOrNull('frequency_penalty');
+            llmConfig.presence_penalty = getNumberOrNull('presence_penalty');
+            
+            const modalInstance = bootstrap.Modal.getInstance(document.getElementById('llmConfigModal'));
+            modalInstance.hide();
+            alert('LLM configuration updated!');
+        }
 
         function initializeRoomForm() {
             const widthInput = document.getElementById('roomWidth');
@@ -755,7 +887,11 @@
         // Generate persona using the backend API
         async function generatePersona(type) {
             try {
-                const response = await fetch(`/api/generate/persona/${type}`);
+                const response = await fetch(`/api/generate/persona/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config: llmConfig })
+                });
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -862,7 +998,8 @@
 
             const payload = {
                 patient: getFormData('patientForm'),
-                doctor: getFormData('doctorForm')
+                doctor: getFormData('doctorForm'),
+                config: llmConfig
             };
 
             try {
