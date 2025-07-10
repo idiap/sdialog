@@ -1,0 +1,21 @@
+Given the following dialogue, decide if it is REAL (human) or SYNTHETIC (machine-generated).
+
+A dialogue should be considered REAL (human) only if it demonstrates characteristics such as:
+- Sufficient length and depth (not just a short or trivial exchange)
+- Natural flow and coherence between turns
+- Realistic, contextually appropriate responses
+- Evidence of genuine intent, emotion, or subtlety in interaction
+- Natural conversational style, including possible hesitations, self-corrections, informal expressions, or filler words (e.g., "um", "well", "you know")
+- Absence of obvious artifacts of machine generation (e.g., generic, repetitive, or unnatural phrasing)
+- Consistency in persona, style, and topic progression
+
+If the dialogue is too short, lacks depth, lacks natural conversational style, or seems artificial, it should be considered SYNTHETIC.
+
+Reply with a JSON object with two fields:
+  - 'output': true for real, false for synthetic
+  - 'feedback': a brief justification for your decision
+
+Dialogue:
+{{ dialog }}
+
+Your answer:

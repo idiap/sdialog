@@ -113,11 +113,12 @@ dialog.print()
 <table>
   <tbody>
     <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://scholar.google.com/citations?user=XOD8lrAAAAAJ"><img src="https://avatars.githubusercontent.com/u/12646542?v=4?s=100" width="100px;" alt="Sergio Burdisso"/><br /><sub><b>Sergio Burdisso</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Code">💻</a> <a href="#ideas-sergioburdisso" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Documentation">📖</a> <a href="#tutorial-sergioburdisso" title="Tutorials">✅</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://linkedin.com/in/yanis-labrak-8a7412145/"><img src="https://avatars.githubusercontent.com/u/19389475?v=4?s=100" width="100px;" alt="Labrak Yanis"/><br /><sub><b>Labrak Yanis</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=qanastek" title="Code">💻</a> <a href="#ideas-qanastek" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/SevKod"><img src="https://avatars.githubusercontent.com/u/123748182?v=4?s=100" width="100px;" alt="Séverin"/><br /><sub><b>Séverin</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=SevKod" title="Code">💻</a> <a href="#ideas-SevKod" title="Ideas, Planning, & Feedback">🤔</a> <a href="#tutorial-SevKod" title="Tutorials">✅</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://scholar.google.com/citations?user=XOD8lrAAAAAJ"><img src="https://avatars.githubusercontent.com/u/12646542?v=4?s=100" width="100px;" alt="Sergio Burdisso"/><br /><sub><b>Sergio Burdisso</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Code">💻</a> <a href="#ideas-sergioburdisso" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Documentation">📖</a> <a href="#tutorial-sergioburdisso" title="Tutorials">✅</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://www.ricardmarxer.com"><img src="https://avatars.githubusercontent.com/u/15324?v=4?s=100" width="100px;" alt="Ricard Marxer"/><br /><sub><b>Ricard Marxer</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=rikrd" title="Code">💻</a> <a href="#ideas-rikrd" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/thschaaf"><img src="https://avatars.githubusercontent.com/u/42753790?v=4?s=100" width="100px;" alt="Thomas Schaaf"/><br /><sub><b>Thomas Schaaf</b></sub></a><br /><a href="#ideas-thschaaf" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/enderzhangpro"><img src="https://avatars.githubusercontent.com/u/41446535?v=4?s=100" width="100px;" alt="David Liu"/><br /><sub><b>David Liu</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=enderzhangpro" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
@@ -134,7 +135,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 This work was supported by the EU Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/) (grant number 101070558).
 
-This work was also initially created in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) as part of the work done by the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
+The initial development of this project began in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)). Further improvements and enhancements were made during the Workshop as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
 
 
 ## 📝 License

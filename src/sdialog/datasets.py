@@ -2,7 +2,7 @@
 datasets: Dataset Utilities for Synthetic Dialogue Generation
 
 This module provides utilities for loading, parsing, and describing dialogue datasets, including the STAR dataset.
-It supports extracting scenarios, flowcharts, personas, and constructing PersonaAgent objects for simulation.
+It supports extracting scenarios, flowcharts, personas, and constructing Agent objects for simulation.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -15,7 +15,7 @@ import json
 from tqdm.auto import tqdm
 
 from . import Dialog, Turn, Event
-from .personas import Persona, PersonaAgent
+from .personas import Persona, Agent
 from .orchestrators import InstructionListOrchestrator, SimpleResponseOrchestrator
 
 
@@ -24,7 +24,7 @@ class STAR:
     Utility class for interacting with the STAR dialogue dataset.
 
     Provides methods for loading dialogues, extracting scenarios, flowcharts, responses, and constructing
-    PersonaAgent objects for simulation and evaluation.
+    Agent objects for simulation and evaluation.
     """
     _path = None
     _speakers = ["User", "Wizard"]
@@ -388,32 +388,30 @@ The actual DOT for the current tasks are:
         )
 
     @staticmethod
-    def get_agents_for_scenario(scenario, model_name):
+    def get_agents_for_scenario(scenario, model_name: str = None):
         """
-        Constructs PersonaAgent objects for the user and system for a scenario.
+        Constructs Agent objects for the user and system for a scenario.
 
         :param scenario: Scenario metadata.
         :type scenario: dict
         :param model_name: Model name or LLM to use.
         :type model_name: str
         :return: (system, user) agents.
-        :rtype: Tuple[PersonaAgent, PersonaAgent]
+        :rtype: Tuple[Agent, Agent]
         """
-        user = PersonaAgent(model_name,
-                            STAR.get_user_persona_for_scenario(scenario),
-                            name="User",
-                            can_finish=True)
+        user = Agent(STAR.get_user_persona_for_scenario(scenario),
+                     name="User",
+                     can_finish=True)
 
-        system = PersonaAgent(model_name,
-                              STAR.get_system_persona_for_scenario(scenario),
-                              name="System")
+        system = Agent(STAR.get_system_persona_for_scenario(scenario),
+                       name="System")
 
         return system, user
 
     @staticmethod
-    def get_agents_from_dialogue(id, model_name: str, set_first_utterance: bool = False):
+    def get_agents_from_dialogue(id, model_name: str = None, set_first_utterance: bool = False):
         """
-        Constructs PersonaAgent objects for a dialogue, optionally setting the first utterance.
+        Constructs Agent objects for a dialogue, optionally setting the first utterance.
 
         :param id: Dialogue ID.
         :type id: int
@@ -422,7 +420,7 @@ The actual DOT for the current tasks are:
         :param set_first_utterance: If True, sets the first utterance.
         :type set_first_utterance: bool
         :return: (system, user) agents.
-        :rtype: Tuple[PersonaAgent, PersonaAgent]
+        :rtype: Tuple[Agent, Agent]
         """
         scenario = STAR.get_dialog_scenario(id)
         system, user = STAR.get_agents_for_scenario(scenario, model_name)
@@ -437,9 +435,9 @@ The actual DOT for the current tasks are:
         return system, user
 
     @staticmethod
-    def get_agents_from_dialogue_with_orchestration(id, model_name: str, set_first_utterance: bool = False):
+    def get_agents_from_dialogue_with_orchestration(id, model_name: str = None, set_first_utterance: bool = False):
         """
-        Constructs PersonaAgent objects with orchestration for a dialogue.
+        Constructs Agent objects with orchestration for a dialogue.
 
         :param id: Dialogue ID.
         :type id: int
@@ -448,7 +446,7 @@ The actual DOT for the current tasks are:
         :param set_first_utterance: If True, sets the first utterance.
         :type set_first_utterance: bool
         :return: (system, user) agents with orchestrators.
-        :rtype: Tuple[PersonaAgent, PersonaAgent]
+        :rtype: Tuple[Agent, Agent]
         """
         system, user = STAR.get_agents_from_dialogue(id, model_name, set_first_utterance)
 
