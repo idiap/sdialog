@@ -123,6 +123,7 @@ Return only the modified dialogue with audio clues included.
             turn.text = re.sub(r'<[^>]+>', '', turn.text)
         return dialog
     
+    # TODO: Implement this method
     def compute_alignment(dialog: Dialog) -> Timeline:
         """
         Compute the alignment of the audio events in the dialog based on the position of the anchors tokens (begin_token and end_token).
