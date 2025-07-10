@@ -12,7 +12,7 @@ from sdialog import Dialog
 from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.personas import Doctor, Patient, Agent
 from sdialog.audio.voice_database import DummyVoiceDatabase
-from sdialog.audio.evaluation import speaker_consistency, eval_wer
+from sdialog.audio.evaluation import speaker_consistency, eval_wer, compute_mos
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
 from sdialog.audio import dialog_to_audio, to_wav, generate_utterances_audios
 
@@ -55,43 +55,68 @@ else:
 
 dialog.print()
 
-dialog = AudioEventsEnricher.enrich(dialog)
+def test_audio_enricher(dialog):
 
-dialog.print()
+    dialog = AudioEventsEnricher.enrich(dialog)
 
-print("Structuring markup language...")
-tags = AudioEventsEnricher.structure_markup_language(dialog)
-print(tags)
+    dialog.print()
 
-print("Removing markup language...")
-dialog = AudioEventsEnricher.remove_markup_language(dialog)
+    print("Structuring markup language...")
+    tags = AudioEventsEnricher.structure_markup_language(dialog)
+    print(tags)
 
-dialog.print()
+    print("Removing markup language...")
+    dialog = AudioEventsEnricher.remove_markup_language(dialog)
 
-exit(0)
+    dialog.print()
 
+    exit(0)
 
-full_audio = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
+def test_save_audio_from_utils(dialog):
 
-to_wav(full_audio, "./outputs/first_dialog_audio.wav")
+    full_audio = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
 
-exit(0)
+    to_wav(full_audio, "./outputs/first_dialog_audio.wav")
 
-dialog.to_audio("./outputs/first_direct_dialog_audio.wav")
+    exit(0)
 
-audio_res = dialog.to_audio()
+def test_save_audio_from_dialog(dialog):
 
-utterances = generate_utterances_audios(dialog)
+    dialog.to_audio("./outputs/first_direct_dialog_audio.wav")
 
-# os.makedirs("./outputs/utterances", exist_ok=True)
+    audio_res = dialog.to_audio()
 
-# for idx, (utterance, speaker) in enumerate(utterances):
-#     to_wav(utterance, f"./outputs/utterances/{idx}_{speaker}_utterance.wav")
+def test_save_utterances_audios(utts):
 
-similarity_score = speaker_consistency(utterances)
-print("Speaker consistency scores:")
-print(similarity_score)
+    os.makedirs("./outputs/utterances", exist_ok=True)
 
-print("WER scores:")
-wer_utt = eval_wer(utterances, dialog)
-print(json.dumps(wer_utt, indent=4))
+    for idx, (utterance, speaker) in enumerate(utts):
+        to_wav(utterance, f"./outputs/utterances/{idx}_{speaker}_utterance.wav")
+
+def test_eval_speaker_consistency(utterances):
+    similarity_score = speaker_consistency(utterances)
+    print("Speaker consistency scores:")
+    print(similarity_score)
+
+def test_eval_wer(utterances):
+    print("WER scores:")
+    wer_utt = eval_wer(utterances, dialog)
+    print(json.dumps(wer_utt, indent=4))
+
+def test_eval_cloning_adherence(utterances):
+    return None
+
+def test_eval_mos(utterances):
+    res = compute_mos(utterances)
+    return None
+
+test_audio_enricher(dialog)
+# test_save_audio_from_utils(dialog)
+# test_save_audio_from_dialog(dialog)
+
+utterances = generate_utterances_audios(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
+# test_save_utterances_audios(utterances)
+# test_eval_speaker_consistency(utterances)
+# test_eval_wer(utterances)
+# test_eval_cloning_adherence(utterances)
+# test_eval_mos(utterances)
