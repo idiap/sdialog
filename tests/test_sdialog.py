@@ -88,9 +88,9 @@ def test_set_llm():
     assert config["llm"]["model"] == "test-model"
 
 
-def test_set_llm_hyperparams():
-    from sdialog.config import config, set_llm_hyperparams
-    set_llm_hyperparams(temperature=0.5, seed=42)
+def test_set_llm_params():
+    from sdialog.config import config, set_llm_params
+    set_llm_params(temperature=0.5, seed=42)
     assert config["llm"]["temperature"] == 0.5
     assert config["llm"]["seed"] == 42
 

@@ -41,7 +41,7 @@ def set_llm(llm_name):
     config["llm"]["model"] = llm_name
 
 
-def set_llm_hyperparams(**hyperparams):
+def set_llm_params(**hyperparams):
     """
     Update the LLM hyperparameters in the config.
 
