@@ -169,7 +169,12 @@ def compute_mos(audios: List[np.ndarray], show_figure: bool = False) -> Dict:
         if isinstance(current_audio, tuple):
             current_audio = current_audio[0]
         
-        _scores = nisqa(torch.tensor(current_audio, dtype=torch.float32)).tolist()
+        if torch.is_tensor(current_audio):
+            input_tensor = current_audio.clone().detach().to(torch.float32)
+        else:
+            input_tensor = torch.tensor(current_audio, dtype=torch.float32)
+        
+        _scores = nisqa(input_tensor).tolist()
         scores.append({
             "umos": _scores[0],
             "accoustics": {
