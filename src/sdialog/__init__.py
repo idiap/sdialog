@@ -18,6 +18,7 @@ Main components:
 import os
 import re
 import json
+import csv
 import logging
 import importlib
 import subprocess
@@ -231,23 +232,47 @@ class Dialog(BaseModel):
                 writer.write(self.description())
 
     @staticmethod
-    def from_file(path: str, type: str = "auto", txt_turn_template: str = "{speaker}: {text}"):
+    def from_file(path: str, type: str = "auto", txt_turn_template: str = "{speaker}: {text}", csv_speaker_col: Union[int, str] = "speaker", csv_text_col: Union[int, str] = "text"):
         """
         Loads a dialogue from a file.
 
         :param path: Path to the dialogue file.
         :type path: str
-        :param type: "json", "txt", or "auto" (determined by file extension).
+        :param type: "json", "txt", "csv", or "auto" (determined by file extension).
         :type type: str
         :return: The loaded dialogue object.
         :rtype: Dialog
         """
         if type == "auto":
-            type = "json" if path.endswith(".json") else "txt"
+            type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "txt"
 
         with open(path) as reader:
             if type == "json":
                 return Dialog.from_dict(json.load(reader))
+            elif type == "csv" or "tsv":
+                is_tsv = type == "tsv"
+                # Check if first row is header or data based on column identifiers
+                if isinstance(csv_speaker_col, str) and isinstance(csv_text_col, str):
+                    # Treat first row as header and re-read with DictReader
+                    reader = csv.DictReader(reader, delimiter='\t' if is_tsv else ',')
+                else:
+                    reader = csv.reader(reader, delimiter='\t' if is_tsv else ',')
+                    # Columns are specified by index
+                    speaker = int(csv_speaker_col)
+                    text = int(csv_text_col)
+                    if len(row) < max(speaker, text):
+                        raise ValueError(f"Column index should be no more than: {len(row) - 1}")
+                
+                turns = []
+                
+                for row in reader:
+                    speaker = row.get(csv_speaker_col)
+                    text = row.get(csv_text_col)
+                    if speaker is None or text is None:
+                        raise ValueError(f"Missing speaker or text in row: {row}")
+                    turns.append(Turn(speaker=speaker.strip(), text=text.strip()))
+
+                return Dialog(turns=turns)
 
             lines = reader.read().split("\n")
 
