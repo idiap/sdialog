@@ -107,14 +107,15 @@ def test_eval_cloning_adherence(utterances):
     return None
 
 def test_eval_mos(utterances):
-    res = compute_mos(utterances)
-    return None
+    res = compute_mos(utterances, show_figure=True)
+    return res
 
-test_audio_enricher(dialog)
+# test_audio_enricher(dialog)
 # test_save_audio_from_utils(dialog)
 # test_save_audio_from_dialog(dialog)
 
 utterances = generate_utterances_audios(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
+test_eval_mos(utterances)
 # test_save_utterances_audios(utterances)
 # test_eval_speaker_consistency(utterances)
 # test_eval_wer(utterances)

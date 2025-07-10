@@ -154,38 +154,40 @@ def compute_speaker_similarity(
 
 
 # TODO: Implement the NISQA MOS computation
-def compute_mos(audios: List[np.ndarray]) -> List[float]:
+def compute_mos(audios: List[np.ndarray], show_figure: bool = False) -> Dict:
     """
-    Compute the mean opinion score (UTMOSv2) of the audios.
-    :param audios: The audios to compute the UTMOSv2.
+    Compute the mean opinion score (MOS) of the audios.
+    :param audios: The audios to compute the MOS.
     :return: The MOS score, accoustics features (noisiness, discontinuity,
     coloration and loudness) and the figure.
     :rtype: Dict
     """
     nisqa = NonIntrusiveSpeechQualityAssessment(16000)
     scores = []
-    for audio in audios:
-        _scores = nisqa(audio).to_list()
+    for audio in tqdm(audios):
+        current_audio = audio
+        if isinstance(current_audio, tuple):
+            current_audio = current_audio[0]
+        
+        _scores = nisqa(torch.tensor(current_audio, dtype=torch.float32)).tolist()
         scores.append({
             "umos": _scores[0],
             "accoustics": {
-                "loudness": _scores[1],
-                "pitch": _scores[2],
-                "energy": _scores[3],
+                "noisiness": _scores[1],
+                "discontinuity": _scores[2],
+                "coloration": _scores[3],
                 "loudness": _scores[4],
             }
         })
     
-    print(scores)
-
-    # Compute the mean of each accoustics features for the MOS scores in the ranges (0.0 to 0.25, 0.25 to 0.5, 0.5 to 0.75, 0.75 to 1.0)
+    # Compute the mean of each accoustics features for the MOS scores in the ranges
     mos_ranges = {
         _range: {
+            "noisiness": [],
+            "discontinuity": [],
+            "coloration": [],
             "loudness": [],
-            "pitch": [],
-            "energy": [],
-            "loudness": [],
-        } for _range in [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.0)]
+        } for _range in [(0.0, 1.0), (1.0, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, 5.01)]
     }
 
     # Group the scores by the MOS ranges
@@ -195,24 +197,41 @@ def compute_mos(audios: List[np.ndarray]) -> List[float]:
                 for key, value in score["accoustics"].items():
                     mos_ranges[_range][key].append(value)
     
-    # Compute the mean of each accoustics features for the MOS scores in the ranges (0.0 to 0.25, 0.25 to 0.5, 0.5 to 0.75, 0.75 to 1.0)
+    # Compute the mean of each accoustics features for the MOS scores in the ranges
     for _range in mos_ranges:
         for key, value in mos_ranges[_range].items():
-            mos_ranges[_range][key] = np.mean(value)
+            if value:
+                mos_ranges[_range][key] = np.mean(value)
+            else:
+                mos_ranges[_range][key] = 0
 
     # Draw the spider chart figure of the accoustics features, where each color is based on the MOS scores ranges 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='polar')
-    ax.set_theta_direction(-1)
-    ax.set_theta_zero_location('N')
+    
+    labels = list(list(mos_ranges.values())[0].keys())
+    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+    angles += angles[:1]
+
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels)
+
     ax.set_rlabel_position(0)
-    ax.set_rticks([0.25, 0.5, 0.75, 1.0])
-    ax.set_rlim(0, 1.0)
-    ax.set_title("Accoustics Features")
+    ax.set_ylim(0, 5)
+
+    ax.set_title("Acoustics Features per MOS range", size=15, y=1.1)
+
     for _range in mos_ranges:
-        ax.plot(np.linspace(0, 2 * np.pi, len(mos_ranges[_range])), mos_ranges[_range])
-        ax.fill(np.linspace(0, 2 * np.pi, len(mos_ranges[_range])), mos_ranges[_range], alpha=0.25)
-    plt.show()
+        # Check if there is any data to plot for this range
+        if any(mos_ranges[_range].values()):
+            values = list(mos_ranges[_range].values())
+            values += values[:1]
+            ax.plot(angles, values, label=f'MOS {_range}')
+            ax.fill(angles, values, alpha=0.25)
+
+    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
+    if show_figure:
+        plt.show()
 
     return {
         "scores": mos_ranges,
