@@ -117,3 +117,19 @@ def test_set_persona_agent_prompt():
     rel_path = "../prompts/test_agent.j2"
     set_persona_agent_prompt(rel_path)
     assert config["prompts"]["persona_agent"] == rel_path
+
+
+def test_get_dialog_from_csv_file():
+    dialog = Dialog.from_file("data/dialog_with_headers.csv")
+    assert len(dialog) == 3
+    assert dialog.turns[0].speaker == "Alice"
+    assert dialog.turns[0].text == "Hello! How are you?"
+    assert dialog.turns[1].speaker == "Bob"
+    dialog = Dialog.from_file(
+        "data/dialog_no_headers.csv",
+        csv_speaker_col=0,
+        csv_text_col=1
+    )
+    assert len(dialog) == 3
+    assert dialog.turns[2].speaker == "Alice"
+    assert dialog.turns[2].text == "Doing great, thanks for asking."
