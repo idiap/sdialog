@@ -89,11 +89,13 @@ def test_set_llm():
 
 
 def test_set_llm_params():
-    from sdialog.config import config, set_llm_params
+    from sdialog.config import config, set_llm_params, set_llm
     set_llm_params(temperature=0.5, seed=42)
     assert config["llm"]["temperature"] == 0.5
     assert config["llm"]["seed"] == 42
-
+    set_llm("test-model", temperature=0.3, seed=33)
+    assert config["llm"]["temperature"] == 0.3
+    assert config["llm"]["seed"] == 33
 
 def test_set_persona_dialog_generator_prompt():
     from sdialog.config import config, set_persona_dialog_generator_prompt
