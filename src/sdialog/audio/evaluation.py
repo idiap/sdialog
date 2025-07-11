@@ -153,7 +153,6 @@ def compute_speaker_similarity(
     return results
 
 
-# TODO: Implement the NISQA MOS computation
 def compute_mos(audios: List[np.ndarray], show_figure: bool = False) -> Dict:
     """
     Compute the mean opinion score (MOS) of the audios.
@@ -217,7 +216,6 @@ def compute_mos(audios: List[np.ndarray], show_figure: bool = False) -> Dict:
     labels = list(list(mos_ranges.values())[0].keys())
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
     angles += angles[:1]
-
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels)
 

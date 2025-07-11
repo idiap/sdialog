@@ -115,6 +115,8 @@ class AudioEventsEnricher:
         Compute the alignment of the audio events in the dialog based on the position
         of the anchors tokens (begin_token and end_token).
         """
+        # TODO: Add the audio in the dialog turns
+        # TODO: Compute MMS_FA alignment
         timeline = Timeline()
         timeline.add_event(AudioEvent(
             label="keyboard_typing",
