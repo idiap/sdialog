@@ -7,10 +7,7 @@ This module provides a base class for TTS engines and all the derivated models s
 
 import torch
 import numpy as np
-from TTS.api import TTS
-from kokoro import KPipeline
 from abc import abstractmethod
-from chatterbox.tts import ChatterboxTTS as ChatterboxTTSModel
 
 
 class BaseTTS:
@@ -32,6 +29,11 @@ class KokoroTTS(BaseTTS):
     """
 
     def __init__(self):
+        """
+        Initializes the Kokoro model.
+        """
+        from kokoro import KPipeline
+
         self.pipeline = KPipeline(lang_code='a')
 
     def generate(self, text: str, voice: str) -> np.ndarray:
@@ -55,6 +57,7 @@ class ChatterboxTTS(BaseTTS):
         """
         Initializes the Chatterbox model.
         """
+        from chatterbox.tts import ChatterboxTTS as ChatterboxTTSModel
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipeline = ChatterboxTTSModel.from_pretrained(device=device)
@@ -78,8 +81,9 @@ class XttsTTS(BaseTTS):
         """
         Initializes the XTTS model.
         """
+        from TTS.api import TTS as XTTSModel
 
-        self.pipeline = TTS(
+        self.pipeline = XTTSModel(
             model_name="tts_models/multilingual/multi-dataset/xtts_v2",
             progress_bar=True,
             gpu=torch.cuda.is_available(),
