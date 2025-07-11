@@ -256,7 +256,12 @@ class Dialog(BaseModel):
         """
         type = type.lower()
         if type == "auto":
-            type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            if ext in ["json", "txt", "csv", "tsv"]:
+                type = ext
+            else:
+                type = "txt"
 
         turns = []
         with open(path) as reader:
