@@ -14,40 +14,47 @@ Attributes:
 import os
 import yaml
 
-from ..util import ollama_check_and_pull_model
+from ..util import ollama_check_and_pull_model, is_ollama_model_name
 
 PROMPT_YAML_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
 with open(PROMPT_YAML_PATH, encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
-# Ensure all default paths are absolute
-for k, v in config["prompts"].items():
-    if not os.path.isabs(v):
-        config["prompts"][k] = os.path.join(os.path.dirname(__file__), v)
+
+def _make_cfg_absolute_path(cfg):
+    for k, v in cfg.items():
+        if isinstance(v, dict):
+            _make_cfg_absolute_path(v)
+        elif isinstance(v, str) and not os.path.isabs(v):
+            cfg[k] = os.path.join(os.path.dirname(__file__), v)
 
 
-def set_llm(llm_name):
+def set_llm(llm_name, **llm_kwargs):
     """
     Update the LLM model setting in the config.
 
     :param llm_name: The name of the LLM model to set.
     :type llm_name: str
     """
-    ollama_check_and_pull_model(llm_name)
+    if is_ollama_model_name(llm_name):
+        ollama_check_and_pull_model(llm_name)
     config["llm"]["model"] = llm_name
 
+    if llm_kwargs:
+        set_llm_params(**llm_kwargs)
 
-def set_llm_hyperparams(**hyperparams):
+
+def set_llm_params(**params):
     """
     Update the LLM hyperparameters in the config.
 
-    :param hyperparams: Dictionary of hyperparameter names and values.
-    :type hyperparams: dict
+    :param params: Dictionary of hyperparameter names and values.
+    :type params: dict
     """
     if "llm" not in config:
         config["llm"] = {}
-    config["llm"].update(hyperparams)
+    config["llm"].update(params)
 
 
 # Prompt setters for each prompt type in config.yaml
@@ -89,3 +96,7 @@ def set_persona_agent_prompt(path):
     :type path: str
     """
     config["prompts"]["persona_agent"] = path
+
+
+# Make sure all default prompt paths are absolute
+_make_cfg_absolute_path(config["prompts"])

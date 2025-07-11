@@ -210,24 +210,35 @@ class Dialog(BaseModel):
 
     def to_file(self, path: str, type: str = "auto", makedir: bool = True):
         """
-        Saves the dialogue to a file in either JSON or plain text format.
+        Saves the dialogue to a file in JSON, CSV, or plain text format.
 
         :param path: Output file path.
         :type path: str
-        :param type: "json", "txt", or "auto" (determined by file extension).
+        :param type: "json", "csv", "txt", or "auto" (determined by file extension).
         :type type: str
         :param makedir: If True, creates parent directories as needed.
         :type makedir: bool
         """
         if type == "auto":
-            type = "json" if path.endswith(".json") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            type = ext if ext in ["json", "txt", "csv", "tsv"] else "txt"
 
         if makedir and os.path.split(path)[0]:
             os.makedirs(os.path.split(path)[0], exist_ok=True)
 
-        with open(path, "w") as writer:
+        with open(path, "w", newline='') as writer:
             if type == "json":
                 writer.write(self.json(string=True))
+            elif type in ["csv", "tsv"]:
+                # set delimiter based on desired type
+                delimiter = {"csv": ",", "tsv": "\t"}[type]
+                csv_writer = csv.writer(writer, delimiter=delimiter)
+                # write the header
+                csv_writer.writerow(["speaker", "text"])
+                # write the turns
+                for turn in self.turns:
+                    csv_writer.writerow([turn.speaker, turn.text])
             else:
                 writer.write(self.description())
 
@@ -256,7 +267,9 @@ class Dialog(BaseModel):
         """
         type = type.lower()
         if type == "auto":
-            type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            type = ext if ext in ["json", "txt", "csv", "tsv"] else "txt"
 
         turns = []
         with open(path) as reader:

@@ -10,9 +10,14 @@ objects can be safely converted to JSON for storage or transmission.
 import re
 import json
 import time
+import torch
 import logging
 import subprocess
+import transformers
 
+from typing import Union
+from pydantic import BaseModel
+from langchain_ollama.chat_models import ChatOllama
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +58,7 @@ def get_timestamp() -> str:
 
 
 def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
+    """ Set default parameters for an Ollama model if not already specified in llm_params."""
     defaults = {}
     try:
         result = subprocess.run(
@@ -91,6 +97,97 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
             continue
         llm_params[k] = v
     return llm_params
+
+
+def is_ollama_model_name(model_name: str) -> bool:
+    return (
+        model_name.startswith("ollama:")
+        or not is_huggingface_model_name(model_name)
+        and not is_openai_model_name(model_name)
+        and not is_google_genai_model_name(model_name)
+    )
+
+
+def is_openai_model_name(model_name: str) -> bool:
+    return model_name.startswith("openai:")
+
+
+def is_google_genai_model_name(model_name: str) -> bool:
+    return re.match(r"^google(-genai)?:", model_name, re.IGNORECASE)
+
+
+def is_huggingface_model_name(model_name: str) -> bool:
+    return model_name.startswith("huggingface:") or "/" in model_name
+
+
+def get_llm_model(model_name: str,
+                  output_format: Union[dict, BaseModel] = None,
+                  llm_kwargs: dict = {}):
+    # If model name has a slash, assume it's a Hugging Face model
+    # Otherwise, assume it's an Ollama model
+    if is_openai_model_name(model_name):
+        # If the model name is a string, assume it's an OpenAI model
+        from langchain_openai import ChatOpenAI
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading OpenAI model: {model_name}")
+
+        if output_format and not issubclass(output_format, BaseModel):
+            logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
+        llm = ChatOpenAI(model=model_name,
+                         response_format=output_format,
+                         **llm_kwargs)
+    elif is_google_genai_model_name(model_name):
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading Google GenAI model: {model_name}")
+
+        llm = ChatGoogleGenerativeAI(model=model_name, **llm_kwargs)
+
+        if output_format and issubclass(output_format, BaseModel):
+            llm = llm.with_structured_output(output_format)
+        else:
+            logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenerativeAI models.")
+    elif is_ollama_model_name(model_name):
+        if model_name.startswith("ollama:"):
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading ChatOllama model: {model_name}")
+
+        if output_format and issubclass(output_format, BaseModel):
+            output_format = output_format.model_json_schema()
+
+        ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
+        llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
+        llm = ChatOllama(model=model_name,
+                         format=output_format,
+                         **llm_kwargs)
+    else:
+        logger.info(f"Loading Hugging Face model: {model_name}")
+        from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+
+        # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
+        llm_kwargs = {k: v for k, v in llm_kwargs.items() if k != "seed"}
+        llm_kwargs["model"] = model_name
+
+        # Default HuggingFace parameters
+        hf_defaults = dict(
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            max_new_tokens=2048,
+            do_sample=True,
+            repetition_penalty=1.03,
+            return_full_text=False,
+        )
+        hf_params = {**hf_defaults, **llm_kwargs}
+
+        pipe = transformers.pipeline("text-generation", **hf_params)
+        # TODO: avoid the eos token warning message for certain llm
+        # TODO: if tokenizer doesn't have a chat template, set a default one
+
+        llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
+
+    return llm
 
 
 def ollama_check_and_pull_model(model_name: str) -> bool:

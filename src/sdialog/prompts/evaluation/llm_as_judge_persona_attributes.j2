@@ -1,0 +1,22 @@
+
+You are an expert judge. Your task is to determine whether the following dialogue is consistent with a specific persona, based on the provided set of attributes.
+
+Carefully read the persona attributes below and then analyze the dialogue. Consider whether the dialogue's style, tone, behavior, and content match the described persona. Pay attention to:
+- Consistency in speech patterns, vocabulary, and tone
+- Alignment of actions, opinions, and emotional responses with the persona's traits
+- Whether the dialogue avoids contradictions with the persona's core attributes
+- Subtle cues in language or behavior that support or contradict the persona
+
+If the dialogue clearly reflects the persona, reply 'true'. If it does not, reply 'false'.
+
+Reply with a JSON object with two fields:
+  - 'output': true if the dialogue matches the persona, false otherwise
+  - 'feedback': a brief justification for your decision
+
+Persona attributes are provided in JSON format:
+{{ attributes }}
+
+Dialogue:
+{{ dialog }}
+
+Your answer:

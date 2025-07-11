@@ -1,3 +1,4 @@
+import csv
 import os
 
 from sdialog.config import config
@@ -9,7 +10,8 @@ PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data"
 
 def test_prompt_paths():
     for path in config["prompts"].values():
-        assert os.path.isabs(path)
+        if isinstance(path, str):
+            assert os.path.isabs(path)
 
 
 def test_turn_and_event():
@@ -87,11 +89,14 @@ def test_set_llm():
     assert config["llm"]["model"] == "test-model"
 
 
-def test_set_llm_hyperparams():
-    from sdialog.config import config, set_llm_hyperparams
-    set_llm_hyperparams(temperature=0.5, seed=42)
+def test_set_llm_params():
+    from sdialog.config import config, set_llm_params, set_llm
+    set_llm_params(temperature=0.5, seed=42)
     assert config["llm"]["temperature"] == 0.5
     assert config["llm"]["seed"] == 42
+    set_llm("test-model", temperature=0.3, seed=33)
+    assert config["llm"]["temperature"] == 0.3
+    assert config["llm"]["seed"] == 33
 
 
 def test_set_persona_dialog_generator_prompt():
@@ -140,3 +145,20 @@ def test_get_dialog_from_csv_file():
     assert len(dialog) == 3
     assert dialog.turns[2].speaker == "Alice"
     assert dialog.turns[2].text == "Doing great, thanks for asking."
+
+
+def test_save_dialog_as_csv_file(tmp_path):
+    dialog_path = os.path.join(PATH_TEST_DATA, "dialog_with_headers.csv")
+    temp_path = tmp_path / "temporary_dialog_save.csv"
+
+    dialog = Dialog.from_file(str(dialog_path))
+    dialog.to_file(str(temp_path))
+
+    with open(temp_path, "r") as reader:
+        reader = csv.reader(reader)
+        rows = list(reader)
+        assert len(rows) == 4
+        assert rows[0] == ["speaker", "text"]
+        assert rows[1] == ["Alice", "Hello! How are you?"]
+        assert rows[2] == ["Bob", "I'm good, thanks! And you?"]
+        assert rows[3] == ["Alice", "Doing great, thanks for asking."]
