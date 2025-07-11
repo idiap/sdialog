@@ -112,7 +112,7 @@ def is_openai_model_name(model_name: str) -> bool:
 
 
 def is_google_genai_model_name(model_name: str) -> bool:
-    return model_name.lower().startswith("google/")
+    return model_name.lower().startswith("google-genai/")
 
 
 def is_huggingface_model_name(model_name: str) -> bool:
@@ -129,7 +129,7 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading OpenAI model: {model_name}")
         from langchain_openai import ChatOpenAI
 
-        if model_name.lower().startswith("openai/"):
+        if "/" in model_name:
             model_name = model_name.split("/", 1)[-1]
         if output_format and not issubclass(output_format, BaseModel):
             logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
@@ -142,6 +142,9 @@ def get_llm_model(model_name: str,
 
         if output_format and not issubclass(output_format, BaseModel):
             logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenAI models.")
+
+        if "/" in model_name:
+            model_name = model_name.split("/", 1)[-1]
         llm = ChatGoogleGenAI(model=model_name,
                               config={"response_mime_type": "application/json",
                                       "response_schema": output_format},
