@@ -146,13 +146,14 @@ def test_get_dialog_from_csv_file():
     assert dialog.turns[2].speaker == "Alice"
     assert dialog.turns[2].text == "Doing great, thanks for asking."
 
+
 def test_save_dialog_as_csv_file(tmp_path):
     dialog_path = os.path.join(PATH_TEST_DATA, "dialog_with_headers.csv")
     temp_path = tmp_path / "temporary_dialog_save.csv"
-    
+
     dialog = Dialog.from_file(str(dialog_path))
     dialog.to_file(str(temp_path))
-    
+
     with open(temp_path, "r") as reader:
         reader = csv.reader(reader)
         rows = list(reader)
