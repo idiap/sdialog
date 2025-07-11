@@ -140,14 +140,14 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading Google GenAI model: {model_name}")
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        if output_format and not issubclass(output_format, BaseModel):
-            logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenerativeAI models.")
-
         if "/" in model_name:
             model_name = model_name.split("/", 1)[-1]
         llm = ChatGoogleGenerativeAI(model=model_name, **llm_kwargs)
-        if output_format and isinstance(output_format, BaseModel):
+
+        if output_format and issubclass(output_format, BaseModel):
             llm = llm.with_structured_output(output_format)
+        else:
+            logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenerativeAI models.")
     elif is_huggingface_model_name(model_name):
         logger.info(f"Loading Hugging Face model: {model_name}")
         from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
