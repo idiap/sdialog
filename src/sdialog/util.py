@@ -17,9 +17,7 @@ import transformers
 
 from typing import Union
 from pydantic import BaseModel
-from langchain_openai import ChatOpenAI
 from langchain_ollama.chat_models import ChatOllama
-from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 
 logger = logging.getLogger(__name__)
 
@@ -102,18 +100,26 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
 
 
 def is_ollama_model_name(model_name: str) -> bool:
-    return not is_huggingface_model_name(model_name) and not is_openai_model_name(model_name)
+    return (
+        not is_huggingface_model_name(model_name)
+        and not is_openai_model_name(model_name)
+        and not is_google_genai_model_name(model_name)
+    )
 
 
 def is_openai_model_name(model_name: str) -> bool:
     return "gpt" in model_name or model_name.lower().startswith("openai/")
 
 
+def is_google_genai_model_name(model_name: str) -> bool:
+    return model_name.lower().startswith("google/")
+
+
 def is_huggingface_model_name(model_name: str) -> bool:
     return "/" in model_name
 
 
-def get_llm_model(model_name: Union[ChatOllama, str] = None,
+def get_llm_model(model_name: str,
                   output_format: Union[dict, BaseModel] = None,
                   llm_kwargs: dict = {}):
     # If model name has a slash, assume it's a Hugging Face model
@@ -121,15 +127,28 @@ def get_llm_model(model_name: Union[ChatOllama, str] = None,
     if is_openai_model_name(model_name):
         # If the model name is a string, assume it's an OpenAI model
         logger.info(f"Loading OpenAI model: {model_name}")
+        from langchain_openai import ChatOpenAI
+
         if model_name.lower().startswith("openai/"):
             model_name = model_name.split("/", 1)[-1]
         if output_format and not issubclass(output_format, BaseModel):
-            logger.warning("Output format should be a BaseModel for ChatOpenAI models.")
+            logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
         llm = ChatOpenAI(model=model_name,
                          response_format=output_format,
                          **llm_kwargs)
+    elif is_google_genai_model_name(model_name):
+        logger.info(f"Loading Google GenAI model: {model_name}")
+        from langchain_google_genai import ChatGoogleGenAI
+
+        if output_format and not issubclass(output_format, BaseModel):
+            logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenAI models.")
+        llm = ChatGoogleGenAI(model=model_name,
+                              config={"response_mime_type": "application/json",
+                                      "response_schema": output_format},
+                              **llm_kwargs)
     elif is_huggingface_model_name(model_name):
         logger.info(f"Loading Hugging Face model: {model_name}")
+        from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 
         # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
         llm_kwargs = {k: v for k, v in llm_kwargs.items() if k != "seed"}
@@ -153,6 +172,7 @@ def get_llm_model(model_name: Union[ChatOllama, str] = None,
         llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
     else:
         logger.info(f"Loading ChatOllama model: {model_name}")
+
         if output_format and isinstance(output_format, BaseModel):
             output_format = output_format.model_json_schema()
 
