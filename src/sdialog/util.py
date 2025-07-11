@@ -102,7 +102,15 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
 
 
 def is_ollama_model_name(model_name: str) -> bool:
-    return "/" not in model_name and "gpt" not in model_name
+    return not is_huggingface_model_name(model_name) and not is_openai_model_name(model_name)
+
+
+def is_openai_model_name(model_name: str) -> bool:
+    return "gpt" in model_name or model_name.lower().startswith("openai/")
+
+
+def is_huggingface_model_name(model_name: str) -> bool:
+    return "/" in model_name
 
 
 def get_llm_model(model_name: Union[ChatOllama, str] = None,
@@ -110,15 +118,17 @@ def get_llm_model(model_name: Union[ChatOllama, str] = None,
                   llm_kwargs: dict = {}):
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
-    if "gpt" in model_name:
+    if is_openai_model_name(model_name):
         # If the model name is a string, assume it's an OpenAI model
         logger.info(f"Loading OpenAI model: {model_name}")
+        if model_name.lower().startswith("openai/"):
+            model_name = model_name.split("/", 1)[-1]
         if output_format and not issubclass(output_format, BaseModel):
             logger.warning("Output format should be a BaseModel for ChatOpenAI models.")
         llm = ChatOpenAI(model=model_name,
                          response_format=output_format,
                          **llm_kwargs)
-    elif "/" in model_name:
+    elif is_huggingface_model_name(model_name):
         logger.info(f"Loading Hugging Face model: {model_name}")
 
         # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)

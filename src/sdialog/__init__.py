@@ -220,7 +220,9 @@ class Dialog(BaseModel):
         :type makedir: bool
         """
         if type == "auto":
-            type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "tsv" if path.endswith(".tsv") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            type = ext if ext in ["json", "txt", "csv", "tsv"] else "txt"
 
         if makedir and os.path.split(path)[0]:
             os.makedirs(os.path.split(path)[0], exist_ok=True)
@@ -265,7 +267,9 @@ class Dialog(BaseModel):
         """
         type = type.lower()
         if type == "auto":
-            type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "tsv" if path.endswith(".tsv") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            type = ext if ext in ["json", "txt", "csv", "tsv"] else "txt"
 
         turns = []
         with open(path) as reader:
