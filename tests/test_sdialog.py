@@ -97,6 +97,7 @@ def test_set_llm_params():
     assert config["llm"]["temperature"] == 0.3
     assert config["llm"]["seed"] == 33
 
+
 def test_set_persona_dialog_generator_prompt():
     from sdialog.config import config, set_persona_dialog_generator_prompt
     rel_path = "../prompts/test_persona_dialog.j2"
