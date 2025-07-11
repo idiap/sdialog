@@ -1,3 +1,4 @@
+import csv
 import os
 
 from sdialog.config import config
@@ -141,3 +142,19 @@ def test_get_dialog_from_csv_file():
     assert len(dialog) == 3
     assert dialog.turns[2].speaker == "Alice"
     assert dialog.turns[2].text == "Doing great, thanks for asking."
+
+def test_save_dialog_as_csv_file(tmp_path):
+    dialog_path = os.path.join(PATH_TEST_DATA, "dialog_with_headers.csv")
+    temp_path = tmp_path / "temporary_dialog_save.csv"
+    
+    dialog = Dialog.from_file(str(dialog_path))
+    dialog.to_file(str(temp_path))
+    
+    with open(temp_path, "r") as reader:
+        reader = csv.reader(reader)
+        rows = list(reader)
+        assert len(rows) == 4
+        assert rows[0] == ["speaker", "text"]
+        assert rows[1] == ["Alice", "Hello! How are you?"]
+        assert rows[2] == ["Bob", "I'm good, thanks! And you?"]
+        assert rows[3] == ["Alice", "Doing great, thanks for asking."]
