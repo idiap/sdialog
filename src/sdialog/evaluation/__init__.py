@@ -70,10 +70,7 @@ class BaseLLMJudge(ABC):
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
         llm_kwargs = {**llm_config_params, **llm_kwargs}
 
-        if not output_format or type(output_format) is dict:
-            self.output_format = None
-        else:
-            self.output_format = output_format
+        self.output_format = output_format
 
         if isinstance(model, str):
             self.llm = get_llm_model(model_name=model,

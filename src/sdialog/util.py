@@ -175,7 +175,7 @@ def get_llm_model(model_name: str,
     else:
         logger.info(f"Loading ChatOllama model: {model_name}")
 
-        if output_format and isinstance(output_format, BaseModel):
+        if output_format and issubclass(output_format, BaseModel):
             output_format = output_format.model_json_schema()
 
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
