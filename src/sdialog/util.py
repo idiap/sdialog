@@ -101,18 +101,19 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
 
 def is_ollama_model_name(model_name: str) -> bool:
     return (
-        not is_huggingface_model_name(model_name)
+        model_name.startswith("ollama:")
+        or not is_huggingface_model_name(model_name)
         and not is_openai_model_name(model_name)
         and not is_google_genai_model_name(model_name)
     )
 
 
 def is_openai_model_name(model_name: str) -> bool:
-    return "gpt" in model_name or model_name.lower().startswith("openai/")
+    return model_name.startswith("openai:")
 
 
 def is_google_genai_model_name(model_name: str) -> bool:
-    return model_name.lower().startswith("google-genai/")
+    return re.match(r"^google(-genai)?:", model_name, re.IGNORECASE)
 
 
 def is_huggingface_model_name(model_name: str) -> bool:
@@ -126,29 +127,42 @@ def get_llm_model(model_name: str,
     # Otherwise, assume it's an Ollama model
     if is_openai_model_name(model_name):
         # If the model name is a string, assume it's an OpenAI model
-        logger.info(f"Loading OpenAI model: {model_name}")
         from langchain_openai import ChatOpenAI
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading OpenAI model: {model_name}")
 
-        if "/" in model_name:
-            model_name = model_name.split("/", 1)[-1]
         if output_format and not issubclass(output_format, BaseModel):
             logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
         llm = ChatOpenAI(model=model_name,
                          response_format=output_format,
                          **llm_kwargs)
     elif is_google_genai_model_name(model_name):
-        logger.info(f"Loading Google GenAI model: {model_name}")
         from langchain_google_genai import ChatGoogleGenerativeAI
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading Google GenAI model: {model_name}")
 
-        if "/" in model_name:
-            model_name = model_name.split("/", 1)[-1]
         llm = ChatGoogleGenerativeAI(model=model_name, **llm_kwargs)
 
         if output_format and issubclass(output_format, BaseModel):
             llm = llm.with_structured_output(output_format)
         else:
             logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenerativeAI models.")
-    elif is_huggingface_model_name(model_name):
+    elif is_ollama_model_name(model_name):
+        if model_name.startswith("ollama:"):
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading ChatOllama model: {model_name}")
+
+        if output_format and issubclass(output_format, BaseModel):
+            output_format = output_format.model_json_schema()
+
+        ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
+        llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
+        llm = ChatOllama(model=model_name,
+                         format=output_format,
+                         **llm_kwargs)
+    else:
         logger.info(f"Loading Hugging Face model: {model_name}")
         from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 
@@ -172,17 +186,7 @@ def get_llm_model(model_name: str,
         # TODO: if tokenizer doesn't have a chat template, set a default one
 
         llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
-    else:
-        logger.info(f"Loading ChatOllama model: {model_name}")
 
-        if output_format and issubclass(output_format, BaseModel):
-            output_format = output_format.model_json_schema()
-
-        ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
-        llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
-        llm = ChatOllama(model=model_name,
-                         format=output_format,
-                         **llm_kwargs)
     return llm
 
 
