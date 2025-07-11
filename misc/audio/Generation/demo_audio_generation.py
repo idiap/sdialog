@@ -9,16 +9,18 @@ import json
 
 import sdialog
 from sdialog import Dialog
-from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.personas import Doctor, Patient, Agent
 from sdialog.audio.voice_database import DummyVoiceDatabase
+from sdialog.audio.tts_engine import KokoroTTS, ChatterboxTTS, XttsTTS
 from sdialog.audio.evaluation import speaker_consistency, eval_wer, compute_mos
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
 from sdialog.audio import dialog_to_audio, to_wav, generate_utterances_audios
 
 
 dummy_voice_database = DummyVoiceDatabase()
-kokoro_tts_pipeline = KokoroTTS()
+tts_pipeline = KokoroTTS()
+# tts_pipeline = ChatterboxTTS()
+# tts_pipeline = XttsTTS()
 
 
 os.makedirs("./outputs", exist_ok=True)
@@ -74,7 +76,7 @@ def test_audio_enricher(dialog):
 
 def test_save_audio_from_utils(dialog):
 
-    full_audio = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
+    full_audio = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=tts_pipeline)
 
     to_wav(full_audio, "./outputs/first_dialog_audio.wav")
 
@@ -114,7 +116,7 @@ def test_eval_mos(utterances):
 # test_save_audio_from_utils(dialog)
 # test_save_audio_from_dialog(dialog)
 
-utterances = generate_utterances_audios(dialog, voice_database=dummy_voice_database, tts_pipeline=kokoro_tts_pipeline)
+utterances = generate_utterances_audios(dialog, voice_database=dummy_voice_database, tts_pipeline=tts_pipeline)
 test_eval_mos(utterances)
 # test_save_utterances_audios(utterances)
 # test_eval_speaker_consistency(utterances)
