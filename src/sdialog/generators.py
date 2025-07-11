@@ -227,6 +227,9 @@ class PersonaDialogGenerator(DialogGenerator):
             self._agent_b = persona_b
             persona_a = persona_a.persona
             persona_b = persona_b.persona
+            if dialogue_details:
+                logger.warning("The provided `dialogue_details` argument will be ignored because both personas are "
+                               "`Agent` instances; dialogue behavior is determined by the agents themselves.")
 
         # Load persona dialog prompt template from file
         with open(config["prompts"]["persona_dialog_generator"], encoding="utf-8") as f:
