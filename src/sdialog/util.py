@@ -117,7 +117,7 @@ def is_google_genai_model_name(model_name: str) -> bool:
 
 
 def is_huggingface_model_name(model_name: str) -> bool:
-    return "/" in model_name
+    return model_name.startswith("huggingface:") or "/" in model_name
 
 
 def get_llm_model(model_name: str,
