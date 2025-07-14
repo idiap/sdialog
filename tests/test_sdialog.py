@@ -173,7 +173,7 @@ def test_dialog_rename_speaker():
     dialog = Dialog(turns=turns, events=events)
 
     # Rename Alice to Carol (case-sensitive)
-    dialog.rename_speaker("Alice", "Carol")
+    dialog.rename_speaker("Alice", "Carol", case_sensitive=True)
     assert all(turn.speaker != "Alice" for turn in dialog.turns)
     assert dialog.turns[0].speaker == "Carol"
     assert dialog.turns[-1].speaker == "Carol"
@@ -184,6 +184,6 @@ def test_dialog_rename_speaker():
     assert dialog.events[1].agent == "Bob"
 
     # Rename Bob to Dave (case-insensitive)
-    dialog.rename_speaker("bob", "Dave", case_sensitive=False)
+    dialog.rename_speaker("bob", "Dave")
     assert dialog.turns[1].speaker == "Dave"
     assert dialog.events[1].agent == "Dave"

@@ -389,7 +389,10 @@ class Dialog(BaseModel):
         else:
             raise ValueError(f"Unknown mode '{mode}'. Supported modes: 'turns', 'words', 'minutes'.")
 
-    def rename_speaker(self, old_name: str, new_name: str, case_sensitive: bool = True, in_events: bool = True) -> None:
+    def rename_speaker(self, old_name: str,
+                       new_name: str,
+                       case_sensitive: bool = False,
+                       in_events: bool = True) -> "Dialog":
         """
         Renames all occurrences of a speaker in the dialogue's turns (and optionally events).
 
@@ -397,7 +400,7 @@ class Dialog(BaseModel):
         :type old_name: str
         :param new_name: The new speaker name.
         :type new_name: str
-        :param case_sensitive: Whether to match speaker names case-sensitively (default: True).
+        :param case_sensitive: Whether to match speaker names case-sensitively (default: False).
         :type case_sensitive: bool
         :param in_events: Whether to also rename in events' agent fields (default: True).
         :type in_events: bool
@@ -418,6 +421,8 @@ class Dialog(BaseModel):
             for event in self.events:
                 if hasattr(event, 'agent') and event.agent is not None and match(event.agent):
                     event.agent = new_name
+
+        return self
 
     __str__ = description
 
