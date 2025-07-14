@@ -148,6 +148,7 @@ class DialogGenerator:
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
         self.llm.seed = seed if seed is not None else random.getrandbits(32)
+        logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
 
         # hack to avoid seed bug in prompt cache
         # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
