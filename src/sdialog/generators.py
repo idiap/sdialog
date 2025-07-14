@@ -350,6 +350,41 @@ class PersonaGenerator:
                                  "Expected attributes are: "
                                  f"{list(self._persona.__dict__.keys())}.")
 
+    def _extract_field_descriptions(self, schema, target_attributes=None):
+        """
+        Extract field descriptions from the persona's JSON schema.
+
+        :param schema: The JSON schema dictionary
+        :param target_attributes: Optional set of attribute names to filter descriptions
+        :return: Dictionary mapping field names to their descriptions
+        """
+        descriptions = {}
+        properties = schema.get("properties", {})
+
+        for field_name, field_schema in properties.items():
+            if target_attributes is None or field_name in target_attributes:
+                description = field_schema.get("description")
+                if description:
+                    descriptions[field_name] = description
+
+        return descriptions
+
+    def _format_field_descriptions(self, descriptions):
+        """
+        Format field descriptions into a readable string for the prompt.
+
+        :param descriptions: Dictionary mapping field names to descriptions
+        :return: Formatted string with field descriptions
+        """
+        if not descriptions:
+            return ""
+
+        formatted_descriptions = []
+        for field_name, description in descriptions.items():
+            formatted_descriptions.append(f"* {field_name}: {description}")
+
+        return "Field descriptions:\n" + "\n".join(formatted_descriptions)
+
     def prompt(self) -> str:
         """
         Returns the prompt used for generating personas.
@@ -506,6 +541,12 @@ class PersonaGenerator:
                     llm_attribute_instructions_txt += "\n".join(
                         [f"* {k}: {v}." for k, v in llm_attribute_instructions.items()]
                     )
+                    # Extract field descriptions from the schema
+                    schema = self._persona.model_json_schema()
+                    null_attributes = {k for k, v in random_persona_dict.items() if v is None}
+                    field_descriptions = self._extract_field_descriptions(schema, null_attributes)
+                    field_descriptions_txt = self._format_field_descriptions(field_descriptions)
+                    llm_attribute_instructions_txt += "\n".join(field_descriptions_txt)
                 if n > 1:
                     template = Template(self.llm_prompt_n)
                     prompt = template.render(
