@@ -366,7 +366,7 @@ class PersonaGenerator:
                 description = field_schema.get("description")
                 if description:
                     descriptions[field_name] = description
-        
+
         return descriptions
 
     def _format_field_descriptions(self, descriptions):
