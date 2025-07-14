@@ -68,6 +68,9 @@ class Turn(BaseModel):
     speaker: Optional[str]
     text: str
 
+    def __str__(self):
+        return f"{self.speaker}: {self.text}"
+
 
 class Event(BaseModel):
     """
@@ -385,6 +388,36 @@ class Dialog(BaseModel):
             return float(total_words) / 150.0  # 150 words per minute is a common estimate
         else:
             raise ValueError(f"Unknown mode '{mode}'. Supported modes: 'turns', 'words', 'minutes'.")
+
+    def rename_speaker(self, old_name: str, new_name: str, case_sensitive: bool = True, in_events: bool = True) -> None:
+        """
+        Renames all occurrences of a speaker in the dialogue's turns (and optionally events).
+
+        :param old_name: The current speaker name to replace.
+        :type old_name: str
+        :param new_name: The new speaker name.
+        :type new_name: str
+        :param case_sensitive: Whether to match speaker names case-sensitively (default: True).
+        :type case_sensitive: bool
+        :param in_events: Whether to also rename in events' agent fields (default: True).
+        :type in_events: bool
+        """
+        def match(name):
+            if case_sensitive:
+                return name == old_name
+            else:
+                return name.lower() == old_name.lower() if name is not None else False
+
+        # Rename in turns
+        for turn in self.turns:
+            if turn.speaker is not None and match(turn.speaker):
+                turn.speaker = new_name
+
+        # Rename in events (if present and requested)
+        if in_events and self.events:
+            for event in self.events:
+                if hasattr(event, 'agent') and event.agent is not None and match(event.agent):
+                    event.agent = new_name
 
     __str__ = description
 

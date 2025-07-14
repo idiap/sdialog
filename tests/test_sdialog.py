@@ -162,3 +162,28 @@ def test_save_dialog_as_csv_file(tmp_path):
         assert rows[1] == ["Alice", "Hello! How are you?"]
         assert rows[2] == ["Bob", "I'm good, thanks! And you?"]
         assert rows[3] == ["Alice", "Doing great, thanks for asking."]
+
+
+def test_dialog_rename_speaker():
+    turns = [Turn(speaker="Alice", text="Hello!"),
+             Turn(speaker="Bob", text="Hi Alice!"),
+             Turn(speaker="Alice", text="How are you?")]
+    events = [Event(agent="Alice", action="utter", text="Hello!", timestamp=1),
+              Event(agent="Bob", action="utter", text="Hi Alice!", timestamp=2)]
+    dialog = Dialog(turns=turns, events=events)
+
+    # Rename Alice to Carol (case-sensitive)
+    dialog.rename_speaker("Alice", "Carol")
+    assert all(turn.speaker != "Alice" for turn in dialog.turns)
+    assert dialog.turns[0].speaker == "Carol"
+    assert dialog.turns[-1].speaker == "Carol"
+    assert dialog.events[0].agent == "Carol"
+
+    # Bob should remain unchanged
+    assert dialog.turns[1].speaker == "Bob"
+    assert dialog.events[1].agent == "Bob"
+
+    # Rename Bob to Dave (case-insensitive)
+    dialog.rename_speaker("bob", "Dave", case_sensitive=False)
+    assert dialog.turns[1].speaker == "Dave"
+    assert dialog.events[1].agent == "Dave"
