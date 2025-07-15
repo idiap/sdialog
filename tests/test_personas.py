@@ -1,5 +1,5 @@
 from sdialog.personas import Agent
-from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata
+from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
 from sdialog.generators import LLMDialogOutput, Turn
 from sdialog import Dialog
 
@@ -153,6 +153,87 @@ def test_doctor_fields_and_description():
     assert isinstance(js, dict)
     assert js["specialty"] == "Cardiology"
     assert js["years_of_experience"] == 25
+
+
+def test_MinimalPatient_fields_and_description():
+    p = MinimalPatient(
+        name="John",
+        age=35,
+        race="Hispanic",
+        gender="male",
+        language="Spanish",
+        forgetfulness="medium",
+        formality="low",
+        hurriedness="high",
+        openness="medium",
+        height=180,
+        weight=75,
+        occupation="Engineer",
+        reason_for_visit="Routine checkup",
+        medical_history="No major illnesses",
+        medical_conditions="None",
+        medications_current="None",
+        allergies="None",
+        family_history="No significant history"
+    )
+    desc = p.description()
+    assert "John" in desc
+    assert "Routine checkup" in desc
+    assert "Hispanic" in desc
+    assert "male" in desc
+    assert "Spanish" in desc
+    assert "Engineer" in desc
+    js = p.json()
+    assert isinstance(js, dict)
+    assert js["name"] == "John"
+    assert js["age"] == 35
+    assert js["race"] == "Hispanic"
+    assert js["gender"] == "male"
+    assert js["language"] == "Spanish"
+    assert js["forgetfulness"] == "medium"
+    assert js["formality"] == "low"
+    assert js["hurriedness"] == "high"
+    assert js["openness"] == "medium"
+    assert js["height"] == 180
+    assert js["weight"] == 75
+    assert js["occupation"] == "Engineer"
+    assert js["reason_for_visit"] == "Routine checkup"
+    assert js["medical_history"] == "No major illnesses"
+    assert js["medical_conditions"] == "None"
+    assert js["medications_current"] == "None"
+    assert js["allergies"] == "None"
+    assert js["family_history"] == "No significant history"
+
+
+def test_MinimalDoctor_fields_and_description():
+    d = MinimalDoctor(
+        name="Dr. Jane",
+        age=45,
+        speciality="Pediatrics",
+        years_of_experience=20,
+        race="Caucasian",
+        gender="female",
+        language="English",
+        forgetfulness="low",
+        formality="high",
+        hurriedness="medium",
+        openness="high"
+    )
+    desc = d.description()
+    print(desc)
+    assert "Dr. Jane" in desc
+    assert "Pediatrics" in desc
+    js = d.json()
+    assert isinstance(js, dict)
+    assert js["speciality"] == "Pediatrics"
+    assert js["years_of_experience"] == 20
+    assert js["race"] == "Caucasian"
+    assert js["gender"] == "female"
+    assert js["language"] == "English"
+    assert js["forgetfulness"] == "low"
+    assert js["formality"] == "high"
+    assert js["hurriedness"] == "medium"
+    assert js["openness"] == "high"
 
 
 def test_persona_to_file_and_from_file(tmp_path):
