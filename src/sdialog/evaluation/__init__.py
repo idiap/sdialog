@@ -8,19 +8,82 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import json
-
-from typing import Union, List
-from abc import ABC, abstractmethod
+import numpy as np
 
 from jinja2 import Template
 from typing import Optional
+from tqdm.auto import tqdm
+from typing import Union, List
 from pydantic import BaseModel
+from math import exp, log, sqrt
+from abc import ABC, abstractmethod
+from scipy.stats import gaussian_kde
+from sentence_transformers import SentenceTransformer
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
 from ..config import config
-from ..util import get_llm_model
+from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
+from ..util import KNNModel, softmax, get_llm_model
+
+
+def cs_divergence(p1, p2, resolution=100, bw_method=1):
+    """
+    Calculates the Cauchy-Schwarz divergence between two probability distributions.
+
+    :param p1: First sample (1D array or list)
+    :type p1: array-like
+    :param p2: Second sample (1D array or list)
+    :type p2: array-like
+    :param resolution: Number of points to evaluate the KDEs on (default: 100)
+    :type resolution: int
+    :param bw_method: Bandwidth for KDE (default: 1, i.e., standard bandwidth)
+    :type bw_method: float or str
+    :return: Cauchy-Schwarz divergence (0 means identical distributions)
+    :rtype: float
+    """
+    p1 = np.asarray(p1)
+    p2 = np.asarray(p2)
+    r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
+    p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+    p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+    p1_vals = p1_kernel(r)
+    p2_vals = p2_kernel(r)
+    numerator = np.sum(p1_vals * p2_vals)
+    denominator = sqrt(np.sum(p1_vals ** 2) * np.sum(p2_vals ** 2))
+    return -log(numerator / denominator)
+
+
+def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
+    """
+    Estimates the Kullback-Leibler (KL) divergence KL(p1 || p2) between two distributions given samples, using KDE.
+
+    KL divergence is not symmetric: KL(p1 || p2) != KL(p2 || p1).
+    The result is >= 0, and 0 means the distributions are identical.
+
+    :param p1: First sample (1D array or list) (the 'true' distribution)
+    :type p1: array-like
+    :param p2: Second sample (1D array or list) (the 'approximate' distribution)
+    :type p2: array-like
+    :param resolution: Number of points to evaluate the KDEs on (default: 100)
+    :type resolution: int
+    :param bw_method: Bandwidth for KDE (default: 0.1)
+    :type bw_method: float or str
+    :return: KL divergence KL(p1 || p2)
+    :rtype: float
+    """
+    r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
+    p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+    p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+    p1_vals = p1_kernel(r)
+    p2_vals = p2_kernel(r)
+    # Avoid division by zero and log(0) by adding a small epsilon
+    eps = 1e-12
+    p1_vals = np.clip(p1_vals, eps, None)
+    p2_vals = np.clip(p2_vals, eps, None)
+
+    return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
 
 
 class LLMJudgeYesNoOutput(BaseModel):
@@ -52,6 +115,41 @@ class BaseMetric(ABC):
 
     @abstractmethod
     def compute(self, input: Union[Dialog, List[Dialog]]) -> Union[dict, float]:
+        raise NotImplementedError("Subclasses should implement this method.")
+
+
+class BaseDatasetMetric(ABC):
+    """
+    Base class for metrics.
+    """
+    @abstractmethod
+    def __call__(self, dialogues: Union[str, List[Dialog]]) -> Union[dict, float]:
+        """
+        Call the score method to compute the metric.
+        This allows the metric to be used as a callable.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+
+class DatasetComparator(ABC):
+    def __init__(self, metrics: List[BaseDatasetMetric]):
+        self.metrics = metrics
+
+    @abstractmethod
+    def compare(
+        self,
+        reference: Union[str, List[Dialog]],
+        candidates: Union[str, List[str], List[Dialog], List[List[Dialog]]],
+        **kwargs
+    ) -> dict:
+        """
+        Compare one reference dataset against one or more candidate datasets.
+
+        :param reference: The reference dataset (either path containing the dialogues or list of Dialogs).
+        :param candidates: The candidate datasets (either path containing the dialogues or list of Dialogs).
+        :param kwargs: Additional keyword arguments for the comparison.
+        :return: A dictionary containing the comparison results.
+        """
         raise NotImplementedError("Subclasses should implement this method.")
 
 
@@ -139,14 +237,6 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                          model=model,
                          llm_kwargs=llm_kwargs)
 
-# class Comparator(ABC):
-#     def __init__(self, metrics: List[BaseMetric]):
-#         self.metrics = metrics
-
-#     @abstractmethod
-#     def compare(self, dialogs: Union[Dialog, List[Dialog]]) -> Union[dict, float]:
-#         raise NotImplementedError("Subclasses should implement this method.")
-
 
 class SimilarityScore(BaseMetric, ABC):
     def compute(self, dialog_a: Dialog, dialog_b: Dialog) -> float:
@@ -181,34 +271,72 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
-# class BGEM3EmbeddingMetric(StringDistance):
-#     """
-#     StringDistance implementation using BGE-M3 embeddings.
-#     """
-#     model = None
-#     model_name = None
+class FlowDistanceMetric(BaseDatasetMetric):
+    def __init__(self, reference_dialogues: Union[str, List[Dialog]], k_neighbors=64, verbose=False, **d2f_kwargs):
+        d2f_kwargs = {"node_llm_labels_enabled": False,
+                      "out_png": False,
+                      "verbose": verbose,
+                      **d2f_kwargs}
+        self.verbose = verbose
+        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
+        self.speakers = self.nodes["_metadata"]["speakers"]
+        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+        self.knn_models = {
+            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
+                             k=k_neighbors),
+            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
+                               k=k_neighbors)
+        }
+        self.ref_scores = np.array([self.score_dialog(dialogue)
+                                    for dialogue in tqdm(reference_dialogues,
+                                                         desc="Computing reference scores",
+                                                         leave=verbose)])
 
-#     def __init__(self, model_name="BAAI/bge-m3", mode: str = "dense", modes_weight: list[int] = [0.33, 0.33, 0.33]):
-#         """
-#         Args:
-#             model_name (str): Model name.
-#             mode (str): Embedding mode ("dense", "sparse", "colbert", "sparse+dense", or "colbert+sparse+dense").
-#             modes_weight (list): Weights for each mode.
-#         """
-#         self.model = BGEM3FlagModel(model_name,  use_fp16=True)
-#         self.mode = mode
-#         self.model_name = model_name
-#         self.modes_weight = modes_weight
+    def get_reference_scores(self) -> np.ndarray:
+        return self.ref_scores
 
-#     def distance(self, sent1, sent2):
-#         """
-#         Compute distance between two sentences using BGE-M3 embeddings.
-#         """
-#         global bge_emb_model
+    def score_dialog(self, dialog, use_softmax=True, only_system=False):
+        sum_log_p = 0
+        sys_turns = 0
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if use_softmax else 1)
+            nearest_id, _ = neighbors[0]
+            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if use_softmax else 1
 
-#         bge_emb_model = self.model
-#         scores = bge_compute_score(sent1, sent2, self.model_name, self.modes_weight)
+            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
+            if (not only_system or speaker == "system") and prob_next_node is not None:
+                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
+                sys_turns += 1
+            prev_node = nearest_id
 
-#         # TODO: in combined mode score can be greater than 1, perhaps is better to use:
-#         # return -scores[self.mode]
-#         return 1 - scores[self.mode]
+        return exp(-sum_log_p / sys_turns)
+
+    def __call__(self,
+                 dialogues: Union[str, List[Dialog]],
+                 metric="all",
+                 kde_bw=None,
+                 return_dialog_scores=False) -> Union[dict, float]:
+        scores = np.array([self.score_dialog(dialogue)
+                           for dialogue in tqdm(dialogues, desc="Computing scores", leave=self.verbose)])
+
+        if metric == "kl":
+            result = kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
+        elif metric == "cs":
+            result = cs_divergence(self.ref_scores, scores, bw_method=kde_bw)
+        else:
+            result = {
+                "cs": cs_divergence(self.ref_scores, scores, bw_method=kde_bw),
+                "kl": kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
+            }
+
+        return (result, scores) if return_dialog_scores else result

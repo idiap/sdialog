@@ -13,15 +13,13 @@ import re
 import json
 import shutil
 import logging
+import numpy as np
 import networkx as nx
 
 from graphviz import Digraph
 from typing import List, Dict, Tuple
 
-try:
-    from util import CaselessDict
-except ModuleNotFoundError:
-    from .util import CaselessDict
+from .util import CaselessDict
 
 
 DEFAULT_SYS_NAME = "system"
@@ -133,19 +131,26 @@ def create_graph(trajectories: Dict,
                  prune_threshold_edges: float = 0.2,
                  png_show_ids: bool = False,
                  png_visualization: bool = True,
-                 interactive_visualization: bool = False) -> Tuple[nx.DiGraph, Dict[str, Dict]]:
+                 interactive_visualization: bool = False,
+                 verbose: bool = True) -> Tuple[nx.DiGraph, Dict[str, Dict]]:
+    log_level = logging.INFO if verbose else logging.DEBUG
 
     G = nx.DiGraph()
     G.add_node(DEFAULT_TOKEN_START, color="green", fr=1)
     G.add_node(DEFAULT_TOKEN_END, color="gray", border_color='black', border_size=2, fr=1)
 
     node_info = {}
+    cluster_centroids = {}
     nodes_are_labels = False
     if clusters_info_folder and os.path.exists(clusters_info_folder):
         for speaker in [DEFAULT_SYS_NAME, DEFAULT_USER_NAME]:
             with open(os.path.join(clusters_info_folder, f"top-utterances.{speaker}.json")) as reader:
                 node_info[speaker] = json.load(reader)
+            cluster_centroids[speaker] = np.load(os.path.join(clusters_info_folder,
+                                                              f"centroid-embeddings.{speaker}.npy"))
         nodes_are_labels = node_info[speaker][0]["name"]
+    with open(os.path.join(clusters_info_folder, "metadata.json")) as reader:
+        metadata = json.load(reader)
 
     for trajectory in trajectories.values():
         for ix in range(len(trajectory) - 1):
@@ -193,8 +198,8 @@ def create_graph(trajectories: Dict,
         repeated_nodes = [nodes for nodes in label2nodes.values() if len(nodes) > 1]
         del label2nodes
         if repeated_nodes:
-            logger.info(f"Found {len(repeated_nodes)} unique labels with repeated nodes to marge")
-            logger.info(f"    > Number of nodes before mergin duplicates: {len(G.nodes)}")
+            logger.log(log_level, f"Found {len(repeated_nodes)} unique labels with repeated nodes to marge")
+            logger.log(log_level, f"    > Number of nodes before mergin duplicates: {len(G.nodes)}")
             for nodes in repeated_nodes:
                 node_original, node_duplicates = nodes[0], nodes[1:]
 
@@ -217,7 +222,7 @@ def create_graph(trajectories: Dict,
                     G.nodes[node_original]["fr"] += G.nodes[n]["fr"]
 
                 G.remove_nodes_from(node_duplicates)
-    logger.info(f"    > Number of nodes after mergin duplicates: {len(G.nodes)}")
+    logger.log(log_level, f"    > Number of nodes after mergin duplicates: {len(G.nodes)}")
 
     # Normalize nodes
     max_fr = max([fr for _, fr in G.nodes(data="fr")])
@@ -229,7 +234,7 @@ def create_graph(trajectories: Dict,
 
     normalize_edges(G, policy=edges_weight)
 
-    logger.info(f"  #Nodes before pruning: {len(G.nodes)}")
+    logger.log(log_level, f"  #Nodes before pruning: {len(G.nodes)}")
     G.remove_edges_from(nx.selfloop_edges(G))
     prune_graph(G, threshold=prune_threshold_nodes)
 
@@ -243,7 +248,7 @@ def create_graph(trajectories: Dict,
     widest_path = nx.shortest_path(G2, DEFAULT_TOKEN_START, DEFAULT_TOKEN_END, weight=WidestWeight.nx_weight())
     with open(os.path.join(output_folder, "widest_path.txt"), "w") as writer:
         happy_path = [node2turn(n) for n in widest_path[1:-1]]
-        logger.info(f"    Widest path: {happy_path}")
+        logger.log(log_level, f"    Widest path: {happy_path}")
         writer.write("\n".join(happy_path))
     widest_path = [get_node_id(get_node_name(n)) for n in widest_path]  # for Javascript's `graph_happy_path`
 
@@ -254,7 +259,7 @@ def create_graph(trajectories: Dict,
     prune_graph(G, prune_threshold_edges,
                 by="edge",
                 remove_unrecheable=True)
-    logger.info(f"  #Nodes after pruning: {len(G.nodes)}")
+    logger.log(log_level, f"  #Nodes after pruning: {len(G.nodes)}")
 
     normalize_edges(G, policy=edges_weight)  # normalizing again to recompute the weights
 
@@ -281,15 +286,11 @@ def create_graph(trajectories: Dict,
     g.node(DEFAULT_TOKEN_START, "START", shape='Mdiamond', fillcolor="#e0e0e0")
     g.node(DEFAULT_TOKEN_END, "END", shape='Mdiamond', fillcolor="#e0e0e0")
 
-    output_path = os.path.join(output_folder, "graph.graphml")
-    logger.info(f"  Saving graph as GraphML format in '{output_path}'")
-    nx.write_graphml(G, output_path)
-
     g.graph_attr["dpi"] = "300"
-    logger.info(f"  Saving graph as DOT format in '{output_file}.dot'")
+    logger.log(log_level, f"  Saving graph as DOT format in '{output_file}.dot'")
     g.render(output_file, view=False, format="dot")
     if png_visualization:
-        logger.info(f"  Saving graph PNG visualization in '{output_file}.png'")
+        logger.log(log_level, f"  Saving graph PNG visualization in '{output_file}.png'")
         g.render(output_file, view=False, format="png")
         try:
             from PIL import Image
@@ -302,7 +303,7 @@ def create_graph(trajectories: Dict,
         output_folder = os.path.join(output_folder, "visualization")
         output_file = os.path.join(output_folder, "graph.html")
 
-        logger.info(f"  Saving graph HTML interactive visualization in '{output_file}'")
+        logger.log(log_level, f"  Saving graph HTML interactive visualization in '{output_file}'")
         path_visualization = os.path.join(os.path.dirname(__file__), "util/visualization/")
         shutil.copytree(path_visualization, output_folder, dirs_exist_ok=True)
         with open(os.path.join(path_visualization, "graph.html")) as reader:
@@ -362,9 +363,34 @@ def create_graph(trajectories: Dict,
         with open(output_file, "w") as writer:
             writer.write(html_first + graph_html + html_end)
 
+    for speaker in node_info:
+        for ix, info in enumerate(node_info[speaker]):
+            info["centroid-embedding"] = cluster_centroids[speaker][ix]
+
+    node2id_mapping = {}
+    for node in G.nodes():
+        if node.startswith("["):
+            continue
+        node_id = node.split("_")[0].lower().replace("system: ", "s").replace("user: ", "u")
+        speaker, ix = node_id[0], int(node_id[1:])
+        node2id_mapping[node] = node_id
+    G = nx.relabel_nodes(G, node2id_mapping, copy=False)
+
+    output_path = os.path.join(output_folder, "graph.graphml")
+    logger.log(log_level, f"  Saving graph as GraphML format in '{output_path}'")
+    nx.write_graphml(G, output_path)
+
     # Returning the graph and nodes info
-    return G, CaselessDict({f"{speaker[0].upper()}{ix}": info
-                            for speaker in node_info for ix, info in enumerate(node_info[speaker])})
+    node_info = CaselessDict({f"{speaker[0].lower()}{ix}": info
+                              for speaker in node_info for ix, info in enumerate(node_info[speaker])})
+    if not metadata["speakers"]:
+        metadata["speakers"] = {DEFAULT_SYS_NAME.lower(): DEFAULT_SYS_NAME,
+                                DEFAULT_USER_NAME.lower(): DEFAULT_USER_NAME}
+    metadata["output_folder"] = output_folder
+    node_info["_metadata"] = metadata
+    if png_visualization:
+        node_info["_metadata"]["png"] = f"{output_file}.png"
+    return G, node_info
 
 
 def trajectory2graph(path_trajectories: str,
@@ -375,9 +401,10 @@ def trajectory2graph(path_trajectories: str,
                      png_show_ids: bool = True,
                      png_visualization: bool = True,
                      interactive_visualization: bool = False,
-                     target_domains: List[str] = None) -> Tuple[nx.DiGraph, Dict[str, Dict]]:
-
-    logger.info(f"  Reading trajectories from ({path_trajectories})...")
+                     target_domains: List[str] = None,
+                     verbose: bool = True) -> Tuple[nx.DiGraph, Dict[str, Dict]]:
+    log_level = logging.INFO if verbose else logging.DEBUG
+    logger.log(log_level, f"  Reading trajectories from ({path_trajectories})...")
     with open(path_trajectories) as reader:
         data = json.load(reader)
 
@@ -414,13 +441,13 @@ def trajectory2graph(path_trajectories: str,
 
     for domain in all_trajectories:
         trajectories = all_trajectories[domain]
-        logger.info(f"    {len(trajectories)} trajectories read"
-                    + (f" for domain '{domain}'." if multi_domain else "."))
+        logger.log(log_level,
+                   f"    {len(trajectories)} trajectories read" + (f" for domain '{domain}'." if multi_domain else "."))
 
     for domain in all_trajectories:
         if multi_domain:
-            logger.info(f"> Graph for domain: '{domain.upper()}'")
-        logger.info("  About to start creating the graph...")
+            logger.log(log_level, f"> Graph for domain: '{domain.upper()}'")
+        logger.log(log_level, "  About to start creating the graph...")
         m = re.match(r".+trajectories-(.*).json", path_trajectories)
         model_name = m.group(1) if m else ""
         output_path = os.path.join(output_folder, model_name) if model_name else output_folder
@@ -442,8 +469,9 @@ def trajectory2graph(path_trajectories: str,
             png_show_ids,
             png_visualization,
             interactive_visualization,
+            verbose
         )
 
-        logger.info("  Finished creating the graph.")
+        logger.log(log_level, "  Finished creating the graph.")
 
     return graph, nodes
