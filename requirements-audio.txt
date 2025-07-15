@@ -1,4 +1,7 @@
-pyannote-audio
-git+https://github.com/m-bain/whisperX.git
-tgt
 jiwer
+kokoro
+more-itertools
+pyannote-audio
+soundfile
+tgt
+whisper
