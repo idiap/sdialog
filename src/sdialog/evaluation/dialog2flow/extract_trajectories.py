@@ -143,8 +143,11 @@ def dialog2trajectories(
     labels_model: str = None,
     labels_top_k: int = 5,
     dendrogram: bool = True,
-    target_domains: List[str] = None
+    target_domains: List[str] = None,
+    verbose: bool = True,
 ) -> str:
+    global speaker2mame, name2speaker
+    log_level = logging.INFO if verbose else logging.DEBUG
 
     if labels_model is None:
         labels_model = config["llm"]["model"]
@@ -154,7 +157,7 @@ def dialog2trajectories(
 
     domain = "default"
     if isinstance(input_dialogues, str) and os.path.isdir(input_dialogues):
-        logger.info("Reading conversations...")
+        logger.log(log_level, "Reading conversations...")
         if not os.path.exists(input_dialogues):
             raise FileNotFoundError(f"The provided input path is not a valid path: '{input_dialogues}'")
         if not output_path:
@@ -163,7 +166,7 @@ def dialog2trajectories(
         path_dialogues = input_dialogues
         input_dialogues = []
         domain = os.path.basename(os.path.normpath(path_dialogues))
-        for filename in tqdm(os.listdir(path_dialogues), desc="Dialogues:"):
+        for filename in tqdm(os.listdir(path_dialogues), desc="Reading dialogues"):
             if os.path.isdir(os.path.join(path_dialogues, filename)):
                 continue
 
@@ -180,8 +183,9 @@ def dialog2trajectories(
     if not output_path:
         output_path = ".dialog2flow/"
     dialogues = {}
+    speaker2mame, name2speaker = {}, {}
     if isinstance(input_dialogues, list) and all(isinstance(d, Dialog) for d in input_dialogues):
-        for dialog in tqdm(input_dialogues, desc="Dialogues:"):
+        for dialog in input_dialogues:
             dialogue = [{"tag": get_turn_tag(turn.speaker),
                          "text": turn.text.strip(),
                          "turn": None} for turn in dialog.turns]
@@ -230,11 +234,11 @@ def dialog2trajectories(
 
     multi_domain = len(unique_domains) > 1
 
-    logger.info(f"Using model '{embedding_model}' model to generate the embeddings.")
+    logger.log(log_level, f"Using model '{embedding_model}' model to generate the embeddings.")
     pb_domain = tqdm(domains, desc="Domains") if multi_domain else domains
     for domain in pb_domain:
         if multi_domain:
-            logger.info(f"Domain: {domain.upper()}")
+            logger.log(log_level, f"Domain: {domain.upper()}")
 
         domains[domain]["speaker"] = np.array(domains[domain]["speaker"])
         domains[domain]["text"] = np.array(domains[domain]["text"])
@@ -252,7 +256,7 @@ def dialog2trajectories(
             sentence_encoder = SentenceTransformer(embedding_model, device=device)
 
         domains[domain]["emb"] = sentence_encoder.encode(domains[domain]["text"],
-                                                         show_progress_bar=True,
+                                                         show_progress_bar=True,  # show_progress_bar=verbose,
                                                          batch_size=128, device=device)
         # GloVe can return some Zero vectors, which invalidate the use of cosine distance, seting
         # one coordinate to 1 as a quick work around to prevent division by zero error:
@@ -260,7 +264,7 @@ def dialog2trajectories(
 
         normalized_turn_names = {DEFAULT_USER_NAME: {}, DEFAULT_SYS_NAME: {}}
         for spix, speaker in enumerate(sorted(normalized_turn_names.keys())):
-            logger.info(f"Clustering {speaker.upper()} utterances...")
+            logger.log(log_level, f"Clustering {speaker.upper()} utterances...")
             speaker_mask = domains[domain]["speaker"] == speaker
             linkage = "average"
             n_clusters = None
@@ -273,8 +277,9 @@ def dialog2trajectories(
 
             threshold = thresholds[min(spix, len(thresholds) - 1)]  # system threshold, user threshold
             if threshold is None or threshold < 0:
-                logger.info("No valid threshold or number of cluster was provided. "
-                            "Trying to set the number of clusters using ground truth annotation (if available)")
+                logger.log(log_level,
+                           "No valid threshold or number of cluster was provided. "
+                           "Trying to set the number of clusters using ground truth annotation (if available)")
                 unique_labels = np.unique(domains[domain]["labels"][speaker_mask]).tolist()
                 if unique_labels == ["unknown"]:
                     raise ValueError("No ground truth annotation found "
@@ -341,9 +346,9 @@ def dialog2trajectories(
             with open(os.path.join(output_path_clusters, f"top-utterances.{speaker.lower()}.json"), "w") as writer:
                 json.dump(cluster_topk_utts, writer)
 
-            logger.info(f"# clusters: {len(np.unique(predictions))}")
-            logger.info(f"# ground truth labels: {n_unique_labels}")
-            logger.info(f"# Total predictions: {len(predictions)}")
+            logger.log(log_level, f"# clusters: {len(np.unique(predictions))}")
+            logger.log(log_level, f"# ground truth labels: {n_unique_labels}")
+            logger.log(log_level, f"# Total predictions: {len(predictions)}")
             domains[domain]["prediction"][speaker_mask] = predictions
             for tid in np.unique(predictions):
                 if cluster_topk_utts[tid]["name"] is None:
@@ -363,7 +368,7 @@ def dialog2trajectories(
                 plot_dendrogram(clustering,
                                 f"{speaker.title()} Utterances ({model_name})",
                                 output_file)
-                logger.info(f"Dendrogram plot for {speaker} utterances saved in `{output_file}`")
+                logger.log(log_level, f"Dendrogram plot for {speaker} utterances saved in `{output_file}`")
 
         if not domains[domain]['prediction'].any():
             logger.warning(f"No cluster predictions for '{domain}'. Skipped.")
@@ -377,6 +382,9 @@ def dialog2trajectories(
                            for did, d in new_dialogs.items() if domain in d["goal"]}
         with open(os.path.join(output_path_clusters, "cluster-id-sequences.json"), "w") as writer:
             json.dump(state_sequences, writer)
+        with open(os.path.join(output_path_clusters, "metadata.json"), "w") as writer:
+            json.dump({"model": embedding_model,
+                       "speakers": name2speaker}, writer)
 
         for ix, turn in enumerate(domains[domain]["log"]):
             name = normalized_turn_names[turn['tag']][domains[domain]['prediction'][ix]]['name']
@@ -402,7 +410,8 @@ def dialog2graph(
     edges_prune_threshold: float = 0.05,
     out_png: bool = True,
     out_interactive: bool = False,
-    target_domains: List[str] = None
+    target_domains: List[str] = None,
+    verbose: bool = True
 ) -> Tuple[DiGraph, Dict[str, Dict]]:
 
     path_trajectories = dialog2trajectories(
@@ -414,7 +423,8 @@ def dialog2graph(
         labels_model=node_llm_labels_model,
         labels_top_k=node_llm_labels_top_k,
         dendrogram=False,
-        target_domains=target_domains
+        target_domains=target_domains,
+        verbose=verbose
     )
 
     return trajectory2graph(
@@ -425,4 +435,5 @@ def dialog2graph(
         png_show_ids=node_show_ids,
         png_visualization=out_png,
         interactive_visualization=out_interactive,
+        verbose=verbose
     )

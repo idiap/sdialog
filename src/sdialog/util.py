@@ -17,9 +17,36 @@ import transformers
 
 from typing import Union
 from pydantic import BaseModel
+from sklearn.neighbors import NearestNeighbors
 from langchain_ollama.chat_models import ChatOllama
 
 logger = logging.getLogger(__name__)
+
+
+class KNNModel:
+    def __init__(self, items, k=3):
+        # items = (item, vector) pair list
+        self.model = NearestNeighbors(algorithm='auto',
+                                      metric="cosine",
+                                      n_jobs=-1)
+        self.k = k
+        self.model.ix2id = {ix: item for ix, (item, _) in enumerate(items)}
+        self.model.fit([vec for _, vec in items])
+
+    def neighbors(self, target_emb, k=None):
+        k = k or self.k
+        dists, indexes = self.model.kneighbors([target_emb],
+                                               min(k, len(self.model.ix2id)),
+                                               return_distance=True)
+        dists, indexes = dists[0], indexes[0]
+        return [(self.model.ix2id[indexes[ix]], dist) for ix, dist in enumerate(dists)]
+
+    __call__ = neighbors
+
+
+def softmax(values, temperature=0.05, as_list=True):
+    probs = torch.nn.functional.softmax(torch.tensor(values, dtype=float) / temperature, dim=0)
+    return probs.tolist() if as_list else probs
 
 
 def get_universal_id() -> str:
@@ -182,8 +209,6 @@ def get_llm_model(model_name: str,
         hf_params = {**hf_defaults, **llm_kwargs}
 
         pipe = transformers.pipeline("text-generation", **hf_params)
-        # TODO: avoid the eos token warning message for certain llm
-        # TODO: if tokenizer doesn't have a chat template, set a default one
 
         llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
 
