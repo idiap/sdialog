@@ -149,7 +149,7 @@ def is_huggingface_model_name(model_name: str) -> bool:
 
 def get_llm_model(model_name: str,
                   output_format: Union[dict, BaseModel] = None,
-                  llm_kwargs: dict = {}):
+                  **llm_kwargs):
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
     if is_openai_model_name(model_name):

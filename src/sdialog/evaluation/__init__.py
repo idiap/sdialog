@@ -160,7 +160,7 @@ class BaseLLMJudge(ABC):
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
                  output_format: Union[dict, BaseModel] = None,
-                 llm_kwargs: dict = {}):
+                 **llm_kwargs):
         if model is None:
             model = config["llm"]["model"]
 
@@ -173,7 +173,7 @@ class BaseLLMJudge(ABC):
         if isinstance(model, str):
             self.llm = get_llm_model(model_name=model,
                                      output_format=self.output_format,
-                                     llm_kwargs=llm_kwargs)
+                                     **llm_kwargs)
         else:
             self.llm = model
             if output_format:
@@ -196,8 +196,8 @@ class BaseLLMJudge(ABC):
 
 class LLMJudgeYesNo(BaseLLMJudge):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
-    def __init__(self, prompt_template: str, model: Union[BaseLanguageModel, str] = None, llm_kwargs: dict = {}):
-        super().__init__(output_format=LLMJudgeYesNoOutput, model=model, llm_kwargs=llm_kwargs)
+    def __init__(self, prompt_template: str, model: Union[BaseLanguageModel, str] = None, **llm_kwargs):
+        super().__init__(output_format=LLMJudgeYesNoOutput, model=model, **llm_kwargs)
 
         self.prompt_template = Template(prompt_template)
 
@@ -218,16 +218,16 @@ class LLMJudgeRealOrSynthetic(LLMJudgeYesNo):
     LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and feedback.
     Returns an instance of LLMJudgeYesNoOutput.
     """  # noqa: E501
-    def __init__(self, model: Union[BaseLanguageModel, str] = None, llm_kwargs: dict = {}):
+    def __init__(self, model: Union[BaseLanguageModel, str] = None, **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_or_not"], encoding="utf-8") as f:
             prompt_template_real_or_not = f.read()
         super().__init__(prompt_template_real_or_not,
                          model=model,
-                         llm_kwargs=llm_kwargs)
+                         **llm_kwargs)
 
 
 class LLMJudgePersonaAttributes(LLMJudgeYesNo):
-    def __init__(self, attributes: dict, model: Union[BaseLanguageModel, str] = None, llm_kwargs: dict = {}):
+    def __init__(self, attributes: dict, model: Union[BaseLanguageModel, str] = None, **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
@@ -235,7 +235,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
 
         super().__init__(prompt_template,
                          model=model,
-                         llm_kwargs=llm_kwargs)
+                         **llm_kwargs)
 
 
 class SimilarityScore(BaseMetric, ABC):
