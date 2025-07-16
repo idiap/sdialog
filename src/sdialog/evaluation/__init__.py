@@ -7,6 +7,7 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import os
 import json
 import numpy as np
 import pandas as pd
@@ -140,54 +141,6 @@ class BaseDatasetMetric(ABC):
         return self(dialogues, **kwargs)
 
 
-class DatasetComparator:
-    def __init__(self, metrics: List[BaseDatasetMetric]):
-        if not metrics:
-            raise ValueError("No metrics provided for comparison.")
-        for metric in metrics:
-            if not isinstance(metric, BaseDatasetMetric):
-                raise TypeError(f"Metric {metric} is not an instance of `BaseDatasetMetric`")
-
-        self._metrics = metrics
-
-    def __call__(
-        self,
-        candidates: Union[str, List[Dialog], List[str], List[List[Dialog]], Dict[str, str], Dict[str, List[Dialog]]],
-        digits: int = 2,
-        output_dict: bool = False,
-        return_dialog_scores: bool = False,
-    ) -> dict:
-        if not candidates:
-            raise ValueError("No candidates provided for comparison.")
-
-        if isinstance(candidates, str) or isinstance(candidates, list) and isinstance(candidates[0], Dialog):
-            candidates = [candidates]  # Ensure candidates is always a list of datasets (set of dialogues)
-
-        results = {}
-        dataset_iterator = candidates.items() if isinstance(candidates, dict) else enumerate(candidates)
-        for name, dataset in dataset_iterator:
-            if isinstance(name, int):
-                name += 1
-            results[name] = {}
-            for metric in self._metrics:
-                metric_name = metric.name
-                score = metric(dataset, dataset_name=name, return_dialog_scores=return_dialog_scores)
-                if isinstance(score, dict):
-                    for sub_metric, sub_score in score.items():
-                        results[name][f"{metric_name}-{sub_metric}"] = sub_score
-                else:
-                    results[name][metric_name] = score
-
-        # TODO: if return_dialog_scores then return them or print them as well
-        if output_dict:
-            return results
-        else:
-            dict_to_table(results, format=f".{digits}f")
-            # dict_to_table(results, sort_by="fdm-cs")
-
-    compare = __call__  # Allow direct call to compare method
-
-
 class BaseLLMJudge(ABC):
     """
     Base class for LLM judges.
@@ -310,10 +263,12 @@ class KDEDivergenceMetric(BaseDatasetMetric, ABC):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  name="kde-divergence",
+                 kde_bw: float = None,
                  verbose=False):
+        self.kde_bw = kde_bw
         self.name = name
         self.verbose = verbose
-        self.alt_scores = None
+        self.datasets_scores = {}
         self.ref_scores = np.array([self.dialog_score(dialogue)
                                     for dialogue in tqdm(reference_dialogues,
                                                          desc=f"Computing reference {self.name} scores",
@@ -322,16 +277,24 @@ class KDEDivergenceMetric(BaseDatasetMetric, ABC):
     def get_reference_scores(self) -> np.ndarray:
         return self.ref_scores
 
-    def plot(self, show: bool = True, save_path: str = None, kde_bw: float = None):
+    def clear_history(self):
+        self.datasets_scores.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None,
+             kde_bw: float = None):
+        kde_bw = kde_bw or self.kde_bw
+
         plt.figure(figsize=(8, 5))
         pd.Series(self.ref_scores, name="reference").plot.kde(bw_method=kde_bw)
-        if self.alt_scores is not None:
-            pd.Series(self.alt_scores, name="candidate").plot.kde(bw_method=kde_bw)
+        for dataset_name, scores in self.datasets_scores.items():
+            pd.Series(scores, name=dataset_name).plot.kde(bw_method=kde_bw)
         plt.legend()
         plt.xlabel(self.name)
         plt.title(f"KDE of {self.name} distributions")
         if save_path:
-            plt.savefig(save_path)
+            plt.savefig(save_path, dpi=300)
         if show:
             plt.show()
 
@@ -344,13 +307,14 @@ class KDEDivergenceMetric(BaseDatasetMetric, ABC):
                  metric: str = "all",
                  kde_bw: float = None,
                  return_dialog_scores: bool = False,
-                 dataset_name: str = None,
-                 show_kde_plot: bool = False,
-                 path_kde_plot: str = None) -> Union[dict, float]:
-        if isinstance(dataset_name, str):
-            dataset_name = f"'{dataset_name}'"
-        desc = (f"Computing {self.name} scores for dataset {dataset_name}" if dataset_name
-                else f"Computing {self.name} scores")
+                 dataset_name: str = "candidate") -> Union[dict, float]:
+
+        kde_bw = kde_bw or self.kde_bw
+        if not dataset_name or dataset_name == "candidate":
+            desc = f"Computing {self.name} scores for candidate dataset"
+        else:
+            desc = f"Computing {self.name} scores for dataset "
+            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
         scores = np.array([self.dialog_score(dialogue)
                            for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
 
@@ -363,10 +327,7 @@ class KDEDivergenceMetric(BaseDatasetMetric, ABC):
                 "cs": cs_divergence(self.ref_scores, scores, bw_method=kde_bw),
                 "kl": kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
             }
-        self.alt_scores = scores  # Store the scores for later use
-
-        if show_kde_plot or path_kde_plot:
-            self.plot(show=show_kde_plot, save_path=path_kde_plot, kde_bw=kde_bw)
+        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
 
         return (result, scores) if return_dialog_scores else result
 
@@ -427,3 +388,62 @@ class FlowDistanceMetric(KDEDivergenceMetric):
             prev_node = nearest_id
 
         return exp(-sum_log_p / sys_turns)
+
+
+class DatasetComparator:
+    def __init__(self, metrics: List[BaseDatasetMetric]):
+        if not metrics:
+            raise ValueError("No metrics provided for comparison.")
+        for metric in metrics:
+            if not isinstance(metric, BaseDatasetMetric):
+                raise TypeError(f"Metric {metric} is not an instance of `BaseDatasetMetric`")
+
+        self._metrics = metrics
+
+    def __call__(
+        self,
+        candidates: Union[str, List[Dialog], List[str], List[List[Dialog]], Dict[str, str], Dict[str, List[Dialog]]],
+        digits: int = 2,
+        output: str = "table",
+    ) -> dict:
+        if not candidates:
+            raise ValueError("No candidates provided for comparison.")
+
+        if isinstance(candidates, str) or isinstance(candidates, list) and isinstance(candidates[0], Dialog):
+            candidates = [candidates]  # Ensure candidates is always a list of datasets (set of dialogues)
+
+        results = {}
+        dataset_iterator = candidates.items() if isinstance(candidates, dict) else enumerate(candidates)
+        for dataset_name, dataset in dataset_iterator:
+            if isinstance(dataset_name, int):
+                dataset_name += 1
+            results[dataset_name] = {}
+            for metric in self._metrics:
+                metric_name = metric.name
+                score = metric(dataset, dataset_name=dataset_name)
+                if isinstance(score, dict):
+                    for sub_metric, sub_score in score.items():
+                        results[dataset_name][f"{metric_name}-{sub_metric}"] = sub_score
+                else:
+                    results[dataset_name][metric_name] = score
+
+        if output == "dict":
+            return results
+        elif output in ["markdown", "table"]:
+            dict_to_table(results, markdown=output == "markdown", format=f".{digits}f")  # sort_by="metric_name"
+        else:
+            raise ValueError(f"Unsupported output format: {output}. Supported formats are "
+                             "'dict', 'markdown', and 'table'.")
+
+    def plot(self, show: bool = True, save_folder_path: str = None):
+        """
+        Plot the results of the metrics.
+        """
+        if not self._metrics:
+            raise ValueError("No metrics to plot.")
+
+        for metric in self._metrics:
+            metric.plot(show=show,
+                        save_path=os.path.join(save_folder_path, f"{metric.name}.png") if save_folder_path else None)
+
+    compare = __call__  # Allow direct call to compare method
