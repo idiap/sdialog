@@ -577,7 +577,7 @@ class Agent:
         llm_kwargs = {**llm_config_params, **llm_kwargs}
         if isinstance(model, str):
             self.llm = get_llm_model(model_name=model,
-                                     llm_kwargs=llm_kwargs)
+                                     **llm_kwargs)
         else:
             self.llm = model
         self.hf_model = isinstance(self.llm, ChatHuggingFace)
