@@ -9,6 +9,8 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-License-Identifier: MIT
 import json
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 from jinja2 import Template
 from typing import Optional
@@ -129,6 +131,13 @@ class BaseDatasetMetric(ABC):
         This allows the metric to be used as a callable.
         """
         raise NotImplementedError("Subclasses should implement this method.")
+
+    def compare(self, dialogues: Union[str, List[Dialog]], **kwargs) -> Union[dict, float]:
+        """
+        Compare the metric with a set of dialogues.
+        This method can be overridden by subclasses to provide custom comparison logic.
+        """
+        return self(dialogues, **kwargs)
 
 
 class DatasetComparator:
@@ -297,33 +306,15 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
-# TODO: Allow token-level perplexity computation too
-class FlowDistanceMetric(BaseDatasetMetric):
+class KDEDivergenceMetric(BaseDatasetMetric, ABC):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
-                 k_neighbors=64,
-                 name=None,
-                 verbose=False,
-                 **d2f_kwargs):
-        d2f_kwargs = {"node_llm_labels_enabled": False,
-                      "out_png": False,
-                      #  "node_embedding_model": embedding_model,
-                      "verbose": verbose,
-                      **d2f_kwargs}
-        self.name = name if name else "fdm"
+                 name="kde-divergence",
+                 verbose=False):
+        self.name = name
         self.verbose = verbose
-        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
-        self.speakers = self.nodes["_metadata"]["speakers"]
-        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
-        self.knn_models = {
-            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
-                             k=k_neighbors),
-            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
-                               k=k_neighbors)
-        }
-        self.ref_scores = np.array([self.score_dialog(dialogue)
+        self.alt_scores = None
+        self.ref_scores = np.array([self.dialog_score(dialogue)
                                     for dialogue in tqdm(reference_dialogues,
                                                          desc=f"Computing reference {self.name} scores",
                                                          leave=verbose)])
@@ -331,41 +322,36 @@ class FlowDistanceMetric(BaseDatasetMetric):
     def get_reference_scores(self) -> np.ndarray:
         return self.ref_scores
 
-    def score_dialog(self, dialog, use_softmax=True, only_system=False):
-        sum_log_p = 0
-        sys_turns = 0
-        prev_node = DEFAULT_TOKEN_START
-        for turn in dialog.turns:
-            speaker = turn.speaker.lower()
-            if speaker in self.speakers:
-                speaker = self.speakers[speaker]
-            else:
-                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
-                                 f"{list(self.speakers.keys())}")
-            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
-            neighbors = self.knn_models[speaker](utt_emb, k=None if use_softmax else 1)
-            nearest_id, _ = neighbors[0]
-            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if use_softmax else 1
+    def plot(self, show: bool = True, save_path: str = None, kde_bw: float = None):
+        plt.figure(figsize=(8, 5))
+        pd.Series(self.ref_scores, name="reference").plot.kde(bw_method=kde_bw)
+        if self.alt_scores is not None:
+            pd.Series(self.alt_scores, name="candidate").plot.kde(bw_method=kde_bw)
+        plt.legend()
+        plt.xlabel(self.name)
+        plt.title(f"KDE of {self.name} distributions")
+        if save_path:
+            plt.savefig(save_path)
+        if show:
+            plt.show()
 
-            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
-            if (not only_system or speaker == "system") and prob_next_node is not None:
-                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
-                sys_turns += 1
-            prev_node = nearest_id
-
-        return exp(-sum_log_p / sys_turns)
+    @abstractmethod
+    def dialog_score(self, dialog):
+        raise NotImplementedError("Subclasses should implement this method.")
 
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
-                 metric="all",
-                 kde_bw=None,
-                 return_dialog_scores=False,
-                 dataset_name=None) -> Union[dict, float]:
+                 metric: str = "all",
+                 kde_bw: float = None,
+                 return_dialog_scores: bool = False,
+                 dataset_name: str = None,
+                 show_kde_plot: bool = False,
+                 path_kde_plot: str = None) -> Union[dict, float]:
         if isinstance(dataset_name, str):
             dataset_name = f"'{dataset_name}'"
         desc = (f"Computing {self.name} scores for dataset {dataset_name}" if dataset_name
                 else f"Computing {self.name} scores")
-        scores = np.array([self.score_dialog(dialogue)
+        scores = np.array([self.dialog_score(dialogue)
                            for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
 
         if metric == "kl":
@@ -377,5 +363,67 @@ class FlowDistanceMetric(BaseDatasetMetric):
                 "cs": cs_divergence(self.ref_scores, scores, bw_method=kde_bw),
                 "kl": kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
             }
+        self.alt_scores = scores  # Store the scores for later use
+
+        if show_kde_plot or path_kde_plot:
+            self.plot(show=show_kde_plot, save_path=path_kde_plot, kde_bw=kde_bw)
 
         return (result, scores) if return_dialog_scores else result
+
+
+class FlowDistanceMetric(KDEDivergenceMetric):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 k_neighbors=64,
+                 use_softmax=True,
+                 only_system=False,
+                 name=None,
+                 verbose=False,
+                 **d2f_kwargs):
+        d2f_kwargs = {"node_llm_labels_enabled": False,
+                      "out_png": False,
+                      #  "node_embedding_model": embedding_model,
+                      "verbose": verbose,
+                      **d2f_kwargs}
+
+        self.use_softmax = use_softmax
+        self.only_system = only_system
+        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
+        self.speakers = self.nodes["_metadata"]["speakers"]
+        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+        self.knn_models = {
+            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
+                             k=k_neighbors),
+            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
+                               k=k_neighbors)
+        }
+
+        super().__init__(reference_dialogues,
+                         name=name if name else "fdm" + ("+sm" if use_softmax else ""),
+                         verbose=verbose)
+
+    def dialog_score(self, dialog):
+        sum_log_p = 0
+        sys_turns = 0
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
+            nearest_id, _ = neighbors[0]
+            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
+
+            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
+            if (not self.only_system or speaker == "system") and prob_next_node is not None:
+                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
+                sys_turns += 1
+            prev_node = nearest_id
+
+        return exp(-sum_log_p / sys_turns)
