@@ -121,23 +121,43 @@ class BaseMetric(ABC):
         raise NotImplementedError("Subclasses should implement this method.")
 
 
-class BaseDatasetMetric(ABC):
-    """
-    Base class for metrics.
-    """
-    @abstractmethod
-    def __call__(self, dialogues: Union[str, List[Dialog]]) -> Union[dict, float]:
+class BaseDialogScore(ABC):
+    def __init__(self, name: Optional[str] = None):
         """
-        Call the score method to compute the metric.
-        This allows the metric to be used as a callable.
+        Initialize the dialog score with a name.
+        :param name: Name of the dialog score.
+        """
+        self.name = name
+
+    def __call__(self, dialog: Dialog):
+        """
+        Computes the score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the score of the dialog.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
-    def compare(self, dialogues: Union[str, List[Dialog]], **kwargs) -> Union[dict, float]:
+
+class BaseDatasetEvaluator(ABC):
+    """
+    Base class for dataset evaluators.
+    """
+    def __init__(self, dialog_score: BaseDialogScore = None):
         """
-        Compare the metric with a set of dialogues.
-        This method can be overridden by subclasses to provide custom comparison logic.
+        Initialize the evaluator with the target dialog score.
         """
+        self.dialog_score = dialog_score
+
+    @abstractmethod
+    def __call__(self, dialogues: Union[str, List[Dialog]]) -> Union[dict, float]:
+        """
+        Compute the dialog scores on each dialogue and return the evaluation.
+        :return: A dictionary with the evaluation results or a single score.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    def eval(self, dialogues: Union[str, List[Dialog]], **kwargs) -> Union[dict, float]:
         return self(dialogues, **kwargs)
 
 
@@ -259,15 +279,25 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
-class KDEDivergenceMetric(BaseDatasetMetric, ABC):
+class KDEDivergenceDatasetEvaluator(BaseDatasetEvaluator):
     def __init__(self,
-                 reference_dialogues: Union[str, List[Dialog]],
-                 name="kde-divergence",
+                 dialog_score: BaseDialogScore,
+                 reference_dialogues: Union[str, List[Dialog]] = None,
+                 name: str = None,
+                 metric: str = "all",
                  kde_bw: float = None,
                  verbose=False):
+        if reference_dialogues is None:
+            if hasattr(dialog_score, "reference_dialogues"):
+                reference_dialogues = dialog_score.reference_dialogues
+            else:
+                raise ValueError("Reference dialogues must be provided or "
+                                 "the dialog_score must have a reference_dialogues attribute.")
+        self.metric = metric
         self.kde_bw = kde_bw
-        self.name = name
+        self.name = name or f"kde-div-{dialog_score.name}" + (f"+{metric}" if metric != "all" else "")
         self.verbose = verbose
+        self.dialog_score = dialog_score
         self.datasets_scores = {}
         self.ref_scores = np.array([self.dialog_score(dialogue)
                                     for dialogue in tqdm(reference_dialogues,
@@ -298,17 +328,13 @@ class KDEDivergenceMetric(BaseDatasetMetric, ABC):
         if show:
             plt.show()
 
-    @abstractmethod
-    def dialog_score(self, dialog):
-        raise NotImplementedError("Subclasses should implement this method.")
-
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
-                 metric: str = "all",
+                 metric: str = None,
                  kde_bw: float = None,
                  return_dialog_scores: bool = False,
                  dataset_name: str = "candidate") -> Union[dict, float]:
-
+        metric = metric or self.metric
         kde_bw = kde_bw or self.kde_bw
         if not dataset_name or dataset_name == "candidate":
             desc = f"Computing {self.name} scores for candidate dataset"
@@ -332,7 +358,7 @@ class KDEDivergenceMetric(BaseDatasetMetric, ABC):
         return (result, scores) if return_dialog_scores else result
 
 
-class FlowDistanceMetric(KDEDivergenceMetric):
+class DialogFlowScore(BaseDialogScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  k_neighbors=64,
@@ -341,6 +367,8 @@ class FlowDistanceMetric(KDEDivergenceMetric):
                  name=None,
                  verbose=False,
                  **d2f_kwargs):
+        super().__init__(name=name if name else "dfs" + ("+sm" if use_softmax else ""))
+
         d2f_kwargs = {"node_llm_labels_enabled": False,
                       "out_png": False,
                       #  "node_embedding_model": embedding_model,
@@ -349,6 +377,7 @@ class FlowDistanceMetric(KDEDivergenceMetric):
 
         self.use_softmax = use_softmax
         self.only_system = only_system
+        self.reference_dialogues = reference_dialogues
         self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
         self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
@@ -361,11 +390,7 @@ class FlowDistanceMetric(KDEDivergenceMetric):
                                k=k_neighbors)
         }
 
-        super().__init__(reference_dialogues,
-                         name=name if name else "fdm" + ("+sm" if use_softmax else ""),
-                         verbose=verbose)
-
-    def dialog_score(self, dialog):
+    def __call__(self, dialog: Dialog):
         sum_log_p = 0
         sys_turns = 0
         prev_node = DEFAULT_TOKEN_START
@@ -391,14 +416,14 @@ class FlowDistanceMetric(KDEDivergenceMetric):
 
 
 class DatasetComparator:
-    def __init__(self, metrics: List[BaseDatasetMetric]):
-        if not metrics:
-            raise ValueError("No metrics provided for comparison.")
-        for metric in metrics:
-            if not isinstance(metric, BaseDatasetMetric):
-                raise TypeError(f"Metric {metric} is not an instance of `BaseDatasetMetric`")
+    def __init__(self, evaluators: List[BaseDatasetEvaluator]):
+        if not evaluators:
+            raise ValueError("No evaluators provided for comparison.")
+        for evaluator in evaluators:
+            if not isinstance(evaluator, BaseDatasetEvaluator):
+                raise TypeError(f"Evaluator {evaluator} is not an instance of `BaseDatasetEvaluator`")
 
-        self._metrics = metrics
+        self._evaluators = evaluators
 
     def __call__(
         self,
@@ -418,32 +443,33 @@ class DatasetComparator:
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
-            for metric in self._metrics:
-                metric_name = metric.name
-                score = metric(dataset, dataset_name=dataset_name)
+            for evaluator in self._evaluators:
+                evaluator_name = evaluator.name
+                score = evaluator(dataset, dataset_name=dataset_name)
                 if isinstance(score, dict):
-                    for sub_metric, sub_score in score.items():
-                        results[dataset_name][f"{metric_name}-{sub_metric}"] = sub_score
+                    for metric, value in score.items():
+                        results[dataset_name][f"{evaluator_name}-{metric}"] = value
                 else:
-                    results[dataset_name][metric_name] = score
+                    results[dataset_name][evaluator_name] = score
 
         if output == "dict":
             return results
         elif output in ["markdown", "table"]:
-            dict_to_table(results, markdown=output == "markdown", format=f".{digits}f")  # sort_by="metric_name"
+            dict_to_table(results, markdown=output == "markdown", format=f".{digits}f")  # sort_by="evaluator_name"
         else:
             raise ValueError(f"Unsupported output format: {output}. Supported formats are "
                              "'dict', 'markdown', and 'table'.")
 
     def plot(self, show: bool = True, save_folder_path: str = None):
         """
-        Plot the results of the metrics.
+        Plot the results of the evaluators.
         """
-        if not self._metrics:
-            raise ValueError("No metrics to plot.")
+        if not self._evaluators:
+            raise ValueError("No evaluators to plot.")
 
-        for metric in self._metrics:
-            metric.plot(show=show,
-                        save_path=os.path.join(save_folder_path, f"{metric.name}.png") if save_folder_path else None)
+        for evaluator in self._evaluators:
+            evaluator.plot(show=show,
+                           save_path=os.path.join(save_folder_path,
+                                                  f"{evaluator.name}.png") if save_folder_path else None)
 
     compare = __call__  # Allow direct call to compare method
