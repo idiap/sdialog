@@ -14,6 +14,7 @@ import torch
 import logging
 import subprocess
 import transformers
+import pandas as pd
 
 from typing import Union
 from pydantic import BaseModel
@@ -305,3 +306,44 @@ def remove_audio_tags(text: str) -> str:
     Remove all the tags that use those formatting: <>, {}, (), []
     """
     return re.sub(r'<[^>]*>', '', text)
+
+
+def dict_to_table(data: dict,
+                  sort_by: str = None,
+                  sort_ascending: bool = True,
+                  markdown: bool = False,
+                  format: str = ".2f",
+                  show: bool = True) -> str:
+    """
+    Print a dictionary of dictionaries as a table (markdown or plain text).
+
+    :param data: The dictionary to convert to a table.
+    :type data: dict
+    :param sort_by: The key to sort (column name) the table by. If None, no sorting is applied.
+    :type sort_by: str, optional
+    :param sort_ascending: If True, sort in ascending order; otherwise, descending.
+    :type sort_ascending: bool
+    :param markdown: If True, format the table as Markdown; otherwise, as plain text.
+    :type markdown: bool
+    :param format: The format string for floating-point numbers (e.g., ".2f").
+    :type format: str
+    :param show: If True, print the table to the console.
+    :type show: bool
+    :return: The formatted table as a string.
+    :rtype: str
+    """
+    if not data:
+        return "(empty table)"
+    df = pd.DataFrame(data).T
+    df.index.name = "dataset"
+    if sort_by:
+        df.sort_values(by=sort_by, ascending=sort_ascending, inplace=True)
+    if markdown:
+        table = df.to_markdown(floatfmt=format)
+    else:
+        table = df.to_markdown(tablefmt='fancy_grid', floatfmt=format)
+
+    if show:
+        print(table)
+
+    return table

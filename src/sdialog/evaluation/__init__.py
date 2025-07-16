@@ -13,10 +13,10 @@ import numpy as np
 from jinja2 import Template
 from typing import Optional
 from tqdm.auto import tqdm
-from typing import Union, List
 from pydantic import BaseModel
 from math import exp, log, sqrt
 from abc import ABC, abstractmethod
+from typing import Union, List, Dict
 from scipy.stats import gaussian_kde
 from sentence_transformers import SentenceTransformer
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -25,7 +25,7 @@ from langchain_core.language_models.base import BaseLanguageModel
 from .. import Dialog
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import KNNModel, softmax, get_llm_model
+from ..util import KNNModel, softmax, get_llm_model, dict_to_table
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -131,26 +131,52 @@ class BaseDatasetMetric(ABC):
         raise NotImplementedError("Subclasses should implement this method.")
 
 
-class DatasetComparator(ABC):
+class DatasetComparator:
     def __init__(self, metrics: List[BaseDatasetMetric]):
-        self.metrics = metrics
+        if not metrics:
+            raise ValueError("No metrics provided for comparison.")
+        for metric in metrics:
+            if not isinstance(metric, BaseDatasetMetric):
+                raise TypeError(f"Metric {metric} is not an instance of `BaseDatasetMetric`")
 
-    @abstractmethod
-    def compare(
+        self._metrics = metrics
+
+    def __call__(
         self,
-        reference: Union[str, List[Dialog]],
-        candidates: Union[str, List[str], List[Dialog], List[List[Dialog]]],
-        **kwargs
+        candidates: Union[str, List[Dialog], List[str], List[List[Dialog]], Dict[str, str], Dict[str, List[Dialog]]],
+        digits: int = 2,
+        output_dict: bool = False,
+        return_dialog_scores: bool = False,
     ) -> dict:
-        """
-        Compare one reference dataset against one or more candidate datasets.
+        if not candidates:
+            raise ValueError("No candidates provided for comparison.")
 
-        :param reference: The reference dataset (either path containing the dialogues or list of Dialogs).
-        :param candidates: The candidate datasets (either path containing the dialogues or list of Dialogs).
-        :param kwargs: Additional keyword arguments for the comparison.
-        :return: A dictionary containing the comparison results.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
+        if isinstance(candidates, str) or isinstance(candidates, list) and isinstance(candidates[0], Dialog):
+            candidates = [candidates]  # Ensure candidates is always a list of datasets (set of dialogues)
+
+        results = {}
+        dataset_iterator = candidates.items() if isinstance(candidates, dict) else enumerate(candidates)
+        for name, dataset in dataset_iterator:
+            if isinstance(name, int):
+                name += 1
+            results[name] = {}
+            for metric in self._metrics:
+                metric_name = metric.name
+                score = metric(dataset, dataset_name=name, return_dialog_scores=return_dialog_scores)
+                if isinstance(score, dict):
+                    for sub_metric, sub_score in score.items():
+                        results[name][f"{metric_name}-{sub_metric}"] = sub_score
+                else:
+                    results[name][metric_name] = score
+
+        # TODO: if return_dialog_scores then return them or print them as well
+        if output_dict:
+            return results
+        else:
+            dict_to_table(results, format=f".{digits}f")
+            # dict_to_table(results, sort_by="fdm-cs")
+
+    compare = __call__  # Allow direct call to compare method
 
 
 class BaseLLMJudge(ABC):
@@ -271,12 +297,20 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
+# TODO: Allow token-level perplexity computation too
 class FlowDistanceMetric(BaseDatasetMetric):
-    def __init__(self, reference_dialogues: Union[str, List[Dialog]], k_neighbors=64, verbose=False, **d2f_kwargs):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 k_neighbors=64,
+                 name=None,
+                 verbose=False,
+                 **d2f_kwargs):
         d2f_kwargs = {"node_llm_labels_enabled": False,
                       "out_png": False,
+                      #  "node_embedding_model": embedding_model,
                       "verbose": verbose,
                       **d2f_kwargs}
+        self.name = name if name else "fdm"
         self.verbose = verbose
         self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
@@ -291,7 +325,7 @@ class FlowDistanceMetric(BaseDatasetMetric):
         }
         self.ref_scores = np.array([self.score_dialog(dialogue)
                                     for dialogue in tqdm(reference_dialogues,
-                                                         desc="Computing reference scores",
+                                                         desc=f"Computing reference {self.name} scores",
                                                          leave=verbose)])
 
     def get_reference_scores(self) -> np.ndarray:
@@ -325,9 +359,14 @@ class FlowDistanceMetric(BaseDatasetMetric):
                  dialogues: Union[str, List[Dialog]],
                  metric="all",
                  kde_bw=None,
-                 return_dialog_scores=False) -> Union[dict, float]:
+                 return_dialog_scores=False,
+                 dataset_name=None) -> Union[dict, float]:
+        if isinstance(dataset_name, str):
+            dataset_name = f"'{dataset_name}'"
+        desc = (f"Computing {self.name} scores for dataset {dataset_name}" if dataset_name
+                else f"Computing {self.name} scores")
         scores = np.array([self.score_dialog(dialogue)
-                           for dialogue in tqdm(dialogues, desc="Computing scores", leave=self.verbose)])
+                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
 
         if metric == "kl":
             result = kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
