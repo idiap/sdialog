@@ -404,6 +404,48 @@ class KDEDivergenceDatasetEvaluator(BaseDatasetEvaluator):
         return (result, scores) if return_dialog_scores else result
 
 
+class StatsEvaluator(BaseDatasetEvaluator):
+    def __init__(self, dialog_score: BaseDialogScore, name: str = None):
+        self.dialog_score = dialog_score
+        self.name = name or f"average-{dialog_score.name}"
+        self.datasets_scores = {}
+
+    def clear_history(self):
+        self.datasets_scores.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None):
+        # Plot box plots for each dataset
+        plt.figure(figsize=(8, 5))
+        if self.datasets_scores:
+            pd.DataFrame(self.datasets_scores).boxplot()
+        # plt.legend()
+        # plt.xlabel(self.name)
+        # plt.title(f"KDE of {self.name} distributions")
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate",
+                 return_dialog_scores: bool = False) -> Union[dict, float]:
+        scores = np.array([self.dialog_score(dialogue) for dialogue in dialogues])
+        result = {
+            "mean": np.mean(scores),
+            "std": np.std(scores),
+            "min": np.min(scores),
+            "max": np.max(scores),
+            "median": np.median(scores)
+        }
+        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
+
+        if return_dialog_scores:
+            return result, scores
+        else:
+            return result
+
+
 class DialogFlowScore(BaseDialogScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -469,7 +511,7 @@ class DatasetComparator:
             if not isinstance(evaluator, BaseDatasetEvaluator):
                 raise TypeError(f"Evaluator {evaluator} is not an instance of `BaseDatasetEvaluator`")
 
-        self._evaluators = evaluators
+        self.evaluators = evaluators
 
     def __call__(
         self,
@@ -489,7 +531,7 @@ class DatasetComparator:
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
-            for evaluator in self._evaluators:
+            for evaluator in self.evaluators:
                 evaluator_name = evaluator.name
                 score = evaluator(dataset, dataset_name=dataset_name)
                 if isinstance(score, dict):
@@ -510,10 +552,10 @@ class DatasetComparator:
         """
         Plot the results of the evaluators.
         """
-        if not self._evaluators:
+        if not self.evaluators:
             raise ValueError("No evaluators to plot.")
 
-        for evaluator in self._evaluators:
+        for evaluator in self.evaluators:
             evaluator.plot(show=show,
                            save_path=os.path.join(save_folder_path,
                                                   f"{evaluator.name}.png") if save_folder_path else None)
