@@ -194,6 +194,8 @@ def get_llm_model(model_name: str,
                          format=output_format,
                          **llm_kwargs)
     else:
+        if model_name.startswith("huggingface:"):
+            model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading Hugging Face model: {model_name}")
         from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 
@@ -350,3 +352,15 @@ def dict_to_table(data: dict,
         print(table)
 
     return table
+
+
+def upper_camel_to_dash(name: str) -> str:
+    """
+    Converts an UpperCamelCase class name to dash-case.
+
+    :param name: The class name in UpperCamelCase.
+    :type name: str
+    :return: The class name in dash-case.
+    :rtype: str
+    """
+    return re.sub(r'(?<!^)(?=[A-Z])', '-', name).lower()
