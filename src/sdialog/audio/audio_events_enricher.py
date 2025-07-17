@@ -49,11 +49,11 @@ class AudioEventsEnricher:
         self.utterances_audios = utterances_audios
 
         print("Generating audio events from dialog...")
-        AudioEventsEnricher._enrich()
+        self._enrich()
         self.dialog.print()
 
         print("Computing alignment...")
-        timeline = AudioEventsEnricher._compute_alignment(self.utterances_audios)
+        timeline = self._compute_alignment(self.utterances_audios)
         print(timeline)
 
         return timeline
@@ -67,9 +67,19 @@ class AudioEventsEnricher:
         with open(config.config["prompts"]["audio"]["enricher"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(self.dialog))
 
-        edited_dialog = DialogGenerator(dialogue_details=prompt).generate()
+        self.dialog = DialogGenerator(dialogue_details=prompt).generate()
 
-        return edited_dialog
+    def _generate_snr(self):
+        """
+        Use an LLM to compute the SNR of the speakers in the dialog.
+        """
+
+        with open(config.config["prompts"]["audio"]["snr"], "r") as f:
+            prompt = Template(f.read()).render(dialog=str(self.dialog))
+
+        self.snr = DialogGenerator(dialogue_details=prompt).generate()
+
+        return self.snr
 
     def _structure_markup_language(self) -> List[dict]:
         """

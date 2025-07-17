@@ -6,6 +6,7 @@ prompts:
   persona_agent: ../prompts/agent_persona.j2
   audio:
     enricher: ../prompts/audio/audio_enricher.j2
+    snr: ../prompts/audio/audio_snr.j2
   evaluation:
     llm_as_judge: ../prompts/evaluation/llm_as_judge.j2
     llm_as_judge_real_or_not: ../prompts/evaluation/llm_as_judge_real_or_not.j2
