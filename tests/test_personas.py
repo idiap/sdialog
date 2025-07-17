@@ -174,7 +174,9 @@ def test_MinimalPatient_fields_and_description():
         medical_conditions="None",
         medications_current="None",
         allergies="None",
-        family_history="No significant history"
+        family_history="No significant history",
+        marital_status="single",
+        insurance="private"
     )
     desc = p.description()
     assert "John" in desc
