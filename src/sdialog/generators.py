@@ -82,7 +82,7 @@ class DialogGenerator:
         if isinstance(model, str):
             self.llm = get_llm_model(model_name=model,
                                      output_format=self.output_format,
-                                     llm_kwargs=llm_kwargs)
+                                     **llm_kwargs)
         else:
             self.llm = model
             if output_format:
@@ -252,7 +252,7 @@ class PersonaDialogGenerator(DialogGenerator):
                              persona_a.name: persona_a.json(),
                              persona_b.name: persona_b.json()
                          },
-                         llm_kwargs=llm_kwargs)
+                         **llm_kwargs)
 
     def generate(self,
                  example_dialogs: List[Dialog] = None,
@@ -573,7 +573,7 @@ class PersonaGenerator:
 
                     llm = get_llm_model(model_name=self.llm_model,
                                         output_format=schema,
-                                        llm_kwargs=llm_kwargs)
+                                        **llm_kwargs)
 
                 messages = [
                     SystemMessage("You are an expert at generating persona JSON objects "
