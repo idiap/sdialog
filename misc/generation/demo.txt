@@ -1,0 +1,50 @@
+Doctor: Good morning, Mr. Thompson. How are you feeling today?
+Patient: Morning, Dr. Lee. I’ve been okay, just a bit more tired than usual.
+Doctor: I'm sorry to hear that. How long have you been feeling more tired?
+Patient: For about three weeks now, I think.
+Doctor: Has anything changed recently—your work hours, sleep schedule, or stress levels?
+Patient: My work has been more stressful lately, and I haven’t been sleeping well.
+Doctor: How many hours of sleep are you getting each night?
+Patient: Maybe five or six. I used to get at least seven.
+Doctor: Do you have trouble falling asleep, staying asleep, or both?
+Patient: Mostly staying asleep. I wake up a lot at night.
+Doctor: Are you experiencing any pain or discomfort that could be waking you up?
+Patient: No pain, just racing thoughts sometimes.
+Doctor: That could be related to anxiety. Have you been feeling more anxious or down lately?
+Patient: A little anxious, yeah. Just overwhelmed with everything.
+Doctor: Have you had any changes in your appetite, weight, or energy levels?
+Patient: My appetite’s been okay. I did lose about 5 pounds, but I wasn't trying to.
+Doctor: Noted. Have you had any headaches, dizziness, or shortness of breath?
+Patient: I’ve had a few mild headaches, but nothing major.
+Doctor: How is your blood pressure at home? Are you still checking it regularly?
+Patient: Yes, it’s been around 130 over 85 most days.
+Doctor: That’s acceptable. Are you still taking the lisinopril daily?
+Patient: Yes, every morning.
+Doctor: Any side effects from it—cough, dizziness, or swelling?
+Patient: No side effects that I’ve noticed.
+Doctor: Great. How about your cholesterol medication—atorvastatin?
+Patient: I stopped taking that a few months ago. I wasn’t sure if I needed it anymore.
+Doctor: Okay. Let’s check your labs again today to see where your cholesterol stands.
+Patient: Sounds good.
+Doctor: Have you had any chest pain or palpitations?
+Patient: No chest pain, but I did feel my heart racing a few times last week.
+Doctor: Were you doing anything strenuous at the time?
+Patient: No, it happened while I was sitting at my desk.
+Doctor: I’ll order an EKG today just to be safe. Have you been exercising?
+Patient: Not really. I’ve been too tired and busy.
+Doctor: Understandable. Even a short daily walk can help with energy and sleep.
+Patient: I’ll try to make time for that.
+Doctor: Good. How’s your diet?
+Patient: I’ve been eating out a lot—probably too much fast food.
+Doctor: That could be contributing to your fatigue. Try incorporating more whole foods—fruits, vegetables, lean proteins.
+Patient: I’ll do my best.
+Doctor: Any issues with your digestion—heartburn, bloating, or changes in bowel habits?
+Patient: I’ve had some bloating lately, especially after eating.
+Doctor: Do certain foods trigger it?
+Patient: Mostly greasy or fried foods, I think.
+Doctor: Let’s try cutting back on those and see if your symptoms improve.
+Patient: Okay, I’ll watch what I eat more carefully.
+Doctor: I’m going to send you for some blood work today—CBC, thyroid, cholesterol, and glucose.
+Patient: Sure, I’ll stop by the lab on the way out.
+Doctor: Let’s schedule a follow-up in two weeks to review the results and your symptoms.
+Patient: Sounds good. Thanks, Dr. Lee.
