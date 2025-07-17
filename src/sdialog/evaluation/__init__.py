@@ -204,18 +204,23 @@ class BaseLLMJudge(ABC):
 
 class LLMJudgeYesNo(BaseLLMJudge):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
-    def __init__(self, prompt_template: str, model: Union[BaseLanguageModel, str] = None, **llm_kwargs):
+    def __init__(self,
+                 prompt_template: str,
+                 model: Union[BaseLanguageModel, str] = None,
+                 feedback: bool = False,
+                 **llm_kwargs):
         super().__init__(output_format=LLMJudgeYesNoOutput, model=model, **llm_kwargs)
 
         self.prompt_template = Template(prompt_template)
+        self.feedback = feedback
 
-    def judge(self, input: Union[Dialog, List[Dialog]]) -> LLMJudgeYesNoOutput:
-        if isinstance(input, list):
-            dialog = input[0]  # Only support single dialog for now
-        else:
-            dialog = input
-        prompt = self.prompt_template.render(dialog=dialog)
+    def judge(self, dialog: Dialog) -> LLMJudgeYesNoOutput:
+        if isinstance(dialog, list):
+            dialog = dialog[0]  # Only support single dialog for now
+
+        prompt = self.prompt_template.render(dialog=dialog, feedback=self.feedback)
         output = super().__call__(prompt)
+
         return self.output_format.model_validate(json.loads(output))
 
     __call__ = judge  # Allow direct call to judge method
@@ -226,16 +231,21 @@ class LLMJudgeRealOrSynthetic(LLMJudgeYesNo):
     LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and feedback.
     Returns an instance of LLMJudgeYesNoOutput.
     """  # noqa: E501
-    def __init__(self, model: Union[BaseLanguageModel, str] = None, **llm_kwargs):
+    def __init__(self, model: Union[BaseLanguageModel, str] = None, feedback: bool = False, **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_or_not"], encoding="utf-8") as f:
             prompt_template_real_or_not = f.read()
         super().__init__(prompt_template_real_or_not,
                          model=model,
+                         feedback=feedback,
                          **llm_kwargs)
 
 
 class LLMJudgePersonaAttributes(LLMJudgeYesNo):
-    def __init__(self, attributes: dict, model: Union[BaseLanguageModel, str] = None, **llm_kwargs):
+    def __init__(self,
+                 attributes: dict,
+                 model: Union[BaseLanguageModel, str] = None,
+                 feedback: bool = False,
+                 **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
@@ -243,6 +253,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
 
         super().__init__(prompt_template,
                          model=model,
+                         feedback=feedback,
                          **llm_kwargs)
 
 
@@ -295,7 +306,7 @@ class KDEDivergenceDatasetEvaluator(BaseDatasetEvaluator):
                                  "the dialog_score must have a reference_dialogues attribute.")
         self.metric = metric
         self.kde_bw = kde_bw
-        self.name = name or f"kde-div-{dialog_score.name}" + (f"+{metric}" if metric != "all" else "")
+        self.name = name or f"divergence-{dialog_score.name}" + (f"-{metric}" if metric != "all" else "")
         self.verbose = verbose
         self.dialog_score = dialog_score
         self.datasets_scores = {}

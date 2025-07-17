@@ -9,9 +9,14 @@ Carefully read the persona attributes below and then analyze the dialogue. Consi
 
 If the dialogue clearly reflects the persona, reply 'true'. If it does not, reply 'false'.
 
+{% if feedback %}
 Reply with a JSON object with two fields:
   - 'output': true if the dialogue matches the persona, false otherwise
   - 'feedback': a brief justification for your decision
+{% else %}
+Reply only with a JSON object with ONLY one field:
+  - 'output': true if the dialogue matches the persona, false otherwise
+{% endif %}
 
 Persona attributes are provided in JSON format:
 {{ attributes }}
