@@ -153,7 +153,45 @@ def compute_speaker_similarity(
     return results
 
 
-def compute_mos(audios: List[np.ndarray], show_figure: bool = False) -> Dict:
+def compute_evaluation_utterances(utterances_audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> Dict:
+    """
+    Compute the evaluation of the utterances audios.
+    :param utterances_audios: The utterances audios to compute the evaluation.
+    :param dialog: The dialog to compute the evaluation.
+    :return: The evaluation metrics.
+    :rtype: Dict
+    """
+
+    mos_score = compute_mos(utterances_audios, show_figure=True)
+    speaker_consistency_score = speaker_consistency(utterances_audios)
+    wer_score = eval_wer(utterances_audios, dialog)
+    
+    return {
+        "wer": wer_score,
+        "speaker_similarity": 0.0,
+        "deepfake_score": 0.0,
+        "speaker_consistency": speaker_consistency_score,
+        "mos": mos_score,
+    }
+
+
+def compute_evaluation_audio(audio: np.ndarray, dialog: Dialog) -> Dict:
+    """
+    Compute the evaluation of the audio.
+    :param audio: The audio to compute the evaluation.
+    :param dialog: The dialog to compute the evaluation.
+    :return: The evaluation metrics based on the reference audio before room accoustics.
+    :rtype: Dict
+    """
+    
+    return {
+        "wer": 0.0,
+        "stoi": 0.0,
+        "pesq": 0.0,
+    }
+
+
+def compute_mos(audios: List[np.ndarray], show_figure: bool = False, output_file: str = None) -> Dict:
     """
     Compute the mean opinion score (MOS) of the audios.
     :param audios: The audios to compute the MOS.
@@ -233,8 +271,13 @@ def compute_mos(audios: List[np.ndarray], show_figure: bool = False) -> Dict:
             ax.fill(angles, values, alpha=0.25)
 
     ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
+    
     if show_figure:
         plt.show()
+
+    if output_file:
+        plt.savefig(output_file, bbox_inches='tight', dpi=300)
+        plt.close()
 
     return {
         "scores": mos_ranges,

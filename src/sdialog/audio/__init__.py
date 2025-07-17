@@ -101,8 +101,11 @@ def dialog_to_audio(dialog: Dialog, voice_database: BaseVoiceDatabase, tts_pipel
     :rtype: np.ndarray
     """
 
-    dialogue_audios = generate_utterances_audios(dialog, voice_database=voice_database, tts_pipeline=tts_pipeline)
+    utterances_audios = generate_utterances_audios(dialog, voice_database=voice_database, tts_pipeline=tts_pipeline)
 
-    combined_audio = _master_audio(dialogue_audios)
+    combined_audio = _master_audio(utterances_audios)
 
-    return combined_audio
+    return {
+        "audio": combined_audio,
+        "utterances_audios": utterances_audios,
+    }

@@ -44,3 +44,11 @@ class Timeline:
         Add an event to the timeline.
         """
         self.events.append(event)
+
+    def print(self) -> None:
+        """
+        Print the timeline.
+        """
+        print(f"Timeline with {len(self.events)} events:")
+        for event in self.events:
+            print(event)
