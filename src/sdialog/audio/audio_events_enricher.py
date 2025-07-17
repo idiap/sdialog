@@ -166,6 +166,21 @@ class AudioEventsEnricher:
         current_time_offset_s = 0.0
 
         for i, (turn, (audio, speaker)) in enumerate(zip(self.dialog.turns, self.utterances_audios)):
+            # Add utterance to timeline
+            utterance_start_time_s = current_time_offset_s
+            utterance_duration_s = len(audio) / sample_rate if sample_rate > 0 else 0
+            clean_text_for_label = re.sub(r'<[^>]+>', '', turn.text).strip()
+
+            if clean_text_for_label or utterance_duration_s > 0:
+                utterance_event = AudioEvent(
+                    label=clean_text_for_label if clean_text_for_label else "speech",
+                    source_file="<utterance_audio>",  # This is not a real file
+                    start_time=int(utterance_start_time_s * 1000),
+                    duration=int(utterance_duration_s * 1000),
+                    role=speaker
+                )
+                timeline.add_event(utterance_event)
+
             # Add placeholder for speaker tag, as counted in structure_markup_language
             dialog_word_timings.append({'word': f'[{speaker}]', 'start': current_time_offset_s, 'end': current_time_offset_s})
             cumulative_words += 1
@@ -174,6 +189,7 @@ class AudioEventsEnricher:
             
             if not clean_text.strip():
                 turn_word_offsets.append(cumulative_words)
+                current_time_offset_s += utterance_duration_s
                 continue
 
             # Resample audio to 16kHz if necessary, assuming we know original sr
@@ -201,6 +217,8 @@ class AudioEventsEnricher:
             
             if turn_words_with_ts:
                 current_time_offset_s = turn_words_with_ts[-1]['end']
+            else:
+                current_time_offset_s += utterance_duration_s
 
         for event in structured_events:
             begin_token_idx = event['begin_token']

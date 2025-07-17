@@ -23,6 +23,7 @@ tts_pipeline = KokoroTTS()
 # tts_pipeline = ChatterboxTTS()
 # tts_pipeline = XttsTTS()
 
+save_all = False
 
 os.makedirs("./outputs", exist_ok=True)
 
@@ -60,18 +61,23 @@ dialog.print()
 
 audio_res = dialog_to_audio(dialog, voice_database=dummy_voice_database, tts_pipeline=tts_pipeline)
 
-# Saving individual utterances audios
-os.makedirs("./outputs/utterances", exist_ok=True)
-for idx, (utterance, speaker) in enumerate(audio_res["utterances_audios"]):
-    to_wav(utterance, f"./outputs/utterances/{idx}_{speaker}_utterance.wav")
+if save_all:
 
-# Saving audio step 1: no room accoustics and audios events
-to_wav(audio_res["audio"], "./outputs/dialog_audio_step1.wav")
+    # Saving individual utterances audios
+    os.makedirs("./outputs/utterances", exist_ok=True)
+    for idx, (utterance, speaker) in enumerate(audio_res["utterances_audios"]):
+        to_wav(utterance, f"./outputs/utterances/{idx}_{speaker}_utterance.wav")
+
+    # Saving audio step 1: no room accoustics and audios events
+    to_wav(audio_res["audio"], "./outputs/dialog_audio_step1.wav")
 
 # Enriching the dialog with audio events and generate the timeline of audio events and utterances
 enricher = AudioEventsEnricher()
 timeline = enricher.extract_events(dialog, audio_res["utterances_audios"])
 timeline.print()
 
-compute_evaluation_utterances(audio_res["utterances_audios"], dialog)
-compute_evaluation_audio(audio_res["audio"], dialog)
+# Drawing the timeline
+timeline.draw("./outputs/timeline.png")
+
+# compute_evaluation_utterances(audio_res["utterances_audios"], dialog)
+# compute_evaluation_audio(audio_res["audio"], dialog)
