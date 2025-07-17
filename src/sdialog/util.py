@@ -14,12 +14,40 @@ import torch
 import logging
 import subprocess
 import transformers
+import pandas as pd
 
 from typing import Union
 from pydantic import BaseModel
+from sklearn.neighbors import NearestNeighbors
 from langchain_ollama.chat_models import ChatOllama
 
 logger = logging.getLogger(__name__)
+
+
+class KNNModel:
+    def __init__(self, items, k=3):
+        # items = (item, vector) pair list
+        self.model = NearestNeighbors(algorithm='auto',
+                                      metric="cosine",
+                                      n_jobs=-1)
+        self.k = k
+        self.model.ix2id = {ix: item for ix, (item, _) in enumerate(items)}
+        self.model.fit([vec for _, vec in items])
+
+    def neighbors(self, target_emb, k=None):
+        k = k or self.k
+        dists, indexes = self.model.kneighbors([target_emb],
+                                               min(k, len(self.model.ix2id)),
+                                               return_distance=True)
+        dists, indexes = dists[0], indexes[0]
+        return [(self.model.ix2id[indexes[ix]], dist) for ix, dist in enumerate(dists)]
+
+    __call__ = neighbors
+
+
+def softmax(values, temperature=0.05, as_list=True):
+    probs = torch.nn.functional.softmax(torch.tensor(values, dtype=float) / temperature, dim=0)
+    return probs.tolist() if as_list else probs
 
 
 def get_universal_id() -> str:
@@ -59,6 +87,9 @@ def get_timestamp() -> str:
 
 def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
     """ Set default parameters for an Ollama model if not already specified in llm_params."""
+    if not is_ollama_model_name(model_name):
+        return llm_params
+
     defaults = {}
     try:
         result = subprocess.run(
@@ -122,7 +153,7 @@ def is_huggingface_model_name(model_name: str) -> bool:
 
 def get_llm_model(model_name: str,
                   output_format: Union[dict, BaseModel] = None,
-                  llm_kwargs: dict = {}):
+                  **llm_kwargs):
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
     if is_openai_model_name(model_name):
@@ -182,8 +213,6 @@ def get_llm_model(model_name: str,
         hf_params = {**hf_defaults, **llm_kwargs}
 
         pipe = transformers.pipeline("text-generation", **hf_params)
-        # TODO: avoid the eos token warning message for certain llm
-        # TODO: if tokenizer doesn't have a chat template, set a default one
 
         llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
 
@@ -280,3 +309,44 @@ def remove_audio_tags(text: str) -> str:
     Remove all the tags that use those formatting: <>, {}, (), []
     """
     return re.sub(r'<[^>]*>', '', text)
+
+
+def dict_to_table(data: dict,
+                  sort_by: str = None,
+                  sort_ascending: bool = True,
+                  markdown: bool = False,
+                  format: str = ".2f",
+                  show: bool = True) -> str:
+    """
+    Print a dictionary of dictionaries as a table (markdown or plain text).
+
+    :param data: The dictionary to convert to a table.
+    :type data: dict
+    :param sort_by: The key to sort (column name) the table by. If None, no sorting is applied.
+    :type sort_by: str, optional
+    :param sort_ascending: If True, sort in ascending order; otherwise, descending.
+    :type sort_ascending: bool
+    :param markdown: If True, format the table as Markdown; otherwise, as plain text.
+    :type markdown: bool
+    :param format: The format string for floating-point numbers (e.g., ".2f").
+    :type format: str
+    :param show: If True, print the table to the console.
+    :type show: bool
+    :return: The formatted table as a string.
+    :rtype: str
+    """
+    if not data:
+        return "(empty table)"
+    df = pd.DataFrame(data).T
+    df.index.name = "dataset"
+    if sort_by:
+        df.sort_values(by=sort_by, ascending=sort_ascending, inplace=True)
+    if markdown:
+        table = df.to_markdown(floatfmt=format)
+    else:
+        table = df.to_markdown(tablefmt='fancy_grid', floatfmt=format)
+
+    if show:
+        print(table)
+
+    return table

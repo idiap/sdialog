@@ -105,7 +105,7 @@ class BasePersona(BaseModel, ABC):
         if self._metadata:
             new_persona._metadata = self._metadata.model_copy()
             new_persona._metadata.parentId = self._metadata.id if self._metadata.id else None
-            new_persona._metadata.id = new_id if new_id is not None else self._metadata.id
+            new_persona._metadata.id = new_id if new_id is not None else get_universal_id()
         else:
             new_persona._metadata = PersonaMetadata(className=self.__class__.__name__,
                                                     id=new_id if new_id is not None else get_universal_id(),
@@ -398,6 +398,55 @@ class Patient(ExtendedPersona):
     family_history: str = ""
 
 
+class MinimalPatient(BasePersona):
+    """
+    Minimal version of a Patient persona, focusing on essential attributes for dialogue generation.
+
+    :ivar name: Name of the persona.
+    :vartype name: str
+    :ivar age: Age of the persona.
+    :vartype age: int
+    :ivar race: Race of the persona.
+    :vartype race: str
+    :ivar gender: Gender of the persona.
+    :vartype gender: str
+    :ivar language: Preferred language.
+    :vartype language: str
+    :ivar reason_for_visit: Reason for visit or chief complaint.
+    :vartype reason_for_visit: str
+    :ivar medical_history: Medical history of the patient.
+    :vartype medical_history: str
+    :ivar medical_conditions: Medical conditions in history.
+    :vartype medical_conditions: str
+    :ivar medications: Current medications.
+    :vartype medications: str
+    :ivar allergies: Known allergies.
+    :vartype allergies: str
+    :ivar family_history: Family medical history.
+    :vartype family_history: str
+    """
+    name: str = ""
+    age: Union[int, str] = None
+    race: str = ""
+    gender: str = ""
+    language: str = "English"
+    forgetfulness: str = ""
+    formality: str = ""
+    hurriedness: str = ""
+    openness: str = ""
+    height: Union[int, str] = None
+    weight: Union[int, str] = None
+    occupation: str = ""
+    marital_status: str = ""
+    insurance: str = ""
+    reason_for_visit: str = ""
+    medical_history: Union[str, List[str]] = ""
+    medical_conditions: Union[str, List[str]] = ""
+    medications_current: Union[str, List[str]] = ""
+    allergies: Union[str, List[str]] = ""
+    family_history: Union[str, List[str]] = ""
+
+
 class Doctor(ExtendedPersona):
     """
     Doctor persona with medical expertise and professional background.
@@ -415,6 +464,46 @@ class Doctor(ExtendedPersona):
     years_of_experience: Union[int, str] = ""
     certifications: str = ""
     work_experience: str = ""
+
+
+class MinimalDoctor(BasePersona):
+    """
+    This class is a minimal version of a Doctor persona, focusing on essential attributes for dialogue generation.
+
+    :ivar name: Name of the persona.
+    :vartype name: str
+    :ivar age: Age of the persona.
+    :vartype age: int
+    :ivar race: Race of the persona.
+    :vartype race: str
+    :ivar gender: Gender of the persona.
+    :vartype gender: str
+    :ivar language: Preferred language.
+    :vartype language: str
+    :ivar years_of_experience: Years of experience as a doctor.
+    :vartype years_of_experience: Union[int, str]
+    :ivar speciality: Medical specialty.
+    :vartype speciality: str
+    :ivar forgetfulness: Forgetfulness trait.
+    :vartype forgetfulness: str
+    :ivar formality: Formality trait.
+    :vartype formality: str
+    :ivar hurriedness: Hurriedness trait.
+    :vartype hurriedness: str
+    :ivar openness: Openness trait.
+    :vartype openness: str
+    """
+    name: str = ""
+    age: Union[int, str] = None
+    race: str = ""
+    gender: str = ""
+    language: str = "English"
+    years_of_experience: Union[int, str] = ""
+    speciality: str = ""
+    forgetfulness: str = ""
+    formality: str = ""
+    hurriedness: str = ""
+    openness: str = ""
 
 
 class Agent:
@@ -490,7 +579,7 @@ class Agent:
         llm_kwargs = {**llm_config_params, **llm_kwargs}
         if isinstance(model, str):
             self.llm = get_llm_model(model_name=model,
-                                     llm_kwargs=llm_kwargs)
+                                     **llm_kwargs)
         else:
             self.llm = model
         self.hf_model = isinstance(self.llm, ChatHuggingFace)

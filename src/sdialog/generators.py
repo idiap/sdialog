@@ -148,6 +148,7 @@ class DialogGenerator:
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
         self.llm.seed = seed if seed is not None else random.getrandbits(32)
+        logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
 
         # hack to avoid seed bug in prompt cache
         # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
@@ -350,6 +351,25 @@ class PersonaGenerator:
                                  "Expected attributes are: "
                                  f"{list(self._persona.__dict__.keys())}.")
 
+    def _extract_field_descriptions(self, schema, target_attributes=None):
+        """
+        Extract field descriptions from the persona's JSON schema.
+
+        :param schema: The JSON schema dictionary
+        :param target_attributes: Optional set of attribute names to filter descriptions
+        :return: Dictionary mapping field names to their descriptions
+        """
+        descriptions = {}
+        properties = schema.get("properties", {})
+
+        for field_name, field_schema in properties.items():
+            if target_attributes is None or field_name in target_attributes:
+                description = field_schema.get("description")
+                if description:
+                    descriptions[field_name] = description
+
+        return descriptions
+
     def prompt(self) -> str:
         """
         Returns the prompt used for generating personas.
@@ -500,12 +520,20 @@ class PersonaGenerator:
             llm = None
             # If there are None value, we need to fill them using the LLM
             if any(value is None for value in random_persona_dict.values()):
-                if llm_attribute_instructions:
+                schema = self._persona.model_json_schema()
+                null_attributes = {k for k, v in random_persona_dict.items() if v is None}
+                field_descriptions = self._extract_field_descriptions(schema, null_attributes)
+
+                if llm_attribute_instructions or field_descriptions:
+                    for k, v in field_descriptions.items():
+                        if k not in llm_attribute_instructions:
+                            llm_attribute_instructions[k] = v
                     llm_attribute_instructions_txt = ("Consider the following instructions for filling "
                                                       "the following attributes:\n")
                     llm_attribute_instructions_txt += "\n".join(
                         [f"* {k}: {v}." for k, v in llm_attribute_instructions.items()]
                     )
+
                 if n > 1:
                     template = Template(self.llm_prompt_n)
                     prompt = template.render(
