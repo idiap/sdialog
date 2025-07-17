@@ -363,4 +363,8 @@ def upper_camel_to_dash(name: str) -> str:
     :return: The class name in dash-case.
     :rtype: str
     """
-    return re.sub(r'(?<!^)(?=[A-Z])', '-', name).lower()
+    # Improved to not split consecutive uppercase letters,
+    # e.g., "HTTPServer" -> "http-server" instead of "h-t-t-p-server"
+    name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1-\2', name)
+    name = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', name)
+    return name.lower()
