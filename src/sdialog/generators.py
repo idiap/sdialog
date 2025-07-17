@@ -16,6 +16,7 @@ import logging
 from jinja2 import Template
 from typing import Union, List, Any
 from pydantic import BaseModel, ValidationError
+from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages.base import messages_to_dict
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
@@ -150,12 +151,13 @@ class DialogGenerator:
         self.llm.seed = seed if seed is not None else random.getrandbits(32)
         logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
 
-        # hack to avoid seed bug in prompt cache
-        # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
-        _ = self.llm.num_predict
-        self.llm.num_predict = 1
-        self.llm.invoke(self.messages)
-        self.llm.num_predict = _
+        if isinstance(self.llm, ChatOllama):
+            # hack to avoid seed bug in prompt cache in Ollama
+            # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
+            _ = self.llm.num_predict
+            self.llm.num_predict = 1
+            self.llm.invoke(self.messages)
+            self.llm.num_predict = _
 
         dialogue = self.llm.invoke(self.messages).content
 
