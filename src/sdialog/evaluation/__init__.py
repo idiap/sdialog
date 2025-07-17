@@ -234,7 +234,20 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
     Returns an instance of LLMJudgeYesNoOutput.
     """  # noqa: E501
     def __init__(self, model: Union[BaseLanguageModel, str] = None, feedback: bool = False, **llm_kwargs):
-        with open(config["prompts"]["evaluation"]["llm_as_judge_real_or_not"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog"], encoding="utf-8") as f:
+            prompt_template_real_or_not = f.read()
+        super().__init__(prompt_template_real_or_not,
+                         model=model,
+                         feedback=feedback,
+                         **llm_kwargs)
+
+
+class LLMJudgeRefusal(LLMJudgeYesNo):
+    """
+    LLM judge for evaluating if a dialogue contains a refusal response.
+    """
+    def __init__(self, model: Union[BaseLanguageModel, str] = None, feedback: bool = False, **llm_kwargs):
+        with open(config["prompts"]["evaluation"]["llm_as_judge_refusal"], encoding="utf-8") as f:
             prompt_template_real_or_not = f.read()
         super().__init__(prompt_template_real_or_not,
                          model=model,
@@ -243,15 +256,17 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
 
 
 class LLMJudgePersonaAttributes(LLMJudgeYesNo):
+    """LLM judge for evaluating if a speaker follows the persona attributes in a dialogue."""
     def __init__(self,
                  persona: BasePersona,
+                 speaker: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
-        prompt_template = prompt_template.render(persona=persona)
+        prompt_template = prompt_template.render(persona=persona, speaker=speaker)
 
         super().__init__(prompt_template,
                          model=model,
