@@ -437,6 +437,8 @@ class MinimalPatient(BasePersona):
     height: Union[int, str] = None
     weight: Union[int, str] = None
     occupation: str = ""
+    marital_status: str = ""
+    insurance: str = ""
     reason_for_visit: str = ""
     medical_history: Union[str, List[str]] = ""
     medical_conditions: Union[str, List[str]] = ""
