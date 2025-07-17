@@ -26,6 +26,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
+from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
 from ..util import KNNModel, softmax, get_llm_model, dict_to_table
@@ -93,8 +94,8 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     Pydantic model for LLM-generated dialogue output.
     """
-    yes: bool
-    feedback: Optional[str] = None
+    yes: Union[bool, List[bool]]
+    feedback: Optional[Union[str, List[str]]] = None
 
 
 class BaseEvaluator(ABC):
@@ -214,11 +215,11 @@ class LLMJudgeYesNo(BaseLLMJudge):
         self.prompt_template = Template(prompt_template)
         self.feedback = feedback
 
-    def judge(self, dialog: Dialog, feedback: bool = None) -> LLMJudgeYesNoOutput:
-        if isinstance(dialog, list):
-            dialog = dialog[0]  # Only support single dialog for now
+    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> LLMJudgeYesNoOutput:
+        if isinstance(dialogs, Dialog):
+            dialogs = [dialogs]  # Wrap single dialog in a list
 
-        prompt = self.prompt_template.render(dialog=dialog,
+        prompt = self.prompt_template.render(dialogs=dialogs,
                                              feedback=feedback if feedback is not None else self.feedback)
         output = super().__call__(prompt)
 
@@ -243,14 +244,14 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
 
 class LLMJudgePersonaAttributes(LLMJudgeYesNo):
     def __init__(self,
-                 attributes: dict,
+                 persona: BasePersona,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
-        prompt_template = prompt_template.render(attributes=attributes)
+        prompt_template = prompt_template.render(persona=persona)
 
         super().__init__(prompt_template,
                          model=model,
