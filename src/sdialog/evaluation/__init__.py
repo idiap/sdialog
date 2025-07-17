@@ -93,7 +93,7 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     Pydantic model for LLM-generated dialogue output.
     """
-    output: bool
+    yes: bool
     feedback: Optional[str] = None
 
 
@@ -214,11 +214,12 @@ class LLMJudgeYesNo(BaseLLMJudge):
         self.prompt_template = Template(prompt_template)
         self.feedback = feedback
 
-    def judge(self, dialog: Dialog) -> LLMJudgeYesNoOutput:
+    def judge(self, dialog: Dialog, feedback: bool = None) -> LLMJudgeYesNoOutput:
         if isinstance(dialog, list):
             dialog = dialog[0]  # Only support single dialog for now
 
-        prompt = self.prompt_template.render(dialog=dialog, feedback=self.feedback)
+        prompt = self.prompt_template.render(dialog=dialog,
+                                             feedback=feedback if feedback is not None else self.feedback)
         output = super().__call__(prompt)
 
         return self.output_format.model_validate(json.loads(output))
@@ -226,7 +227,7 @@ class LLMJudgeYesNo(BaseLLMJudge):
     __call__ = judge  # Allow direct call to judge method
 
 
-class LLMJudgeRealOrSynthetic(LLMJudgeYesNo):
+class LLMJudgeRealDialog(LLMJudgeYesNo):
     """
     LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and feedback.
     Returns an instance of LLMJudgeYesNoOutput.
