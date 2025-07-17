@@ -87,6 +87,9 @@ def get_timestamp() -> str:
 
 def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
     """ Set default parameters for an Ollama model if not already specified in llm_params."""
+    if not is_ollama_model_name(model_name):
+        return llm_params
+
     defaults = {}
     try:
         result = subprocess.run(
