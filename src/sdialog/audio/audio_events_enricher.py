@@ -69,6 +69,7 @@ class AudioEventsEnricher:
 
         self.dialog = DialogGenerator(dialogue_details=prompt).generate()
 
+    # TODO: Parse outputs correctly and verify the SNR values
     def _generate_snr(self):
         """
         Use an LLM to compute the SNR of the speakers in the dialog.
@@ -77,9 +78,19 @@ class AudioEventsEnricher:
         with open(config.config["prompts"]["audio"]["snr"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(self.dialog))
 
-        self.snr = DialogGenerator(dialogue_details=prompt).generate()
+        self.dialog_with_snr = DialogGenerator(dialogue_details=prompt).generate()
 
-        return self.snr
+        all_snr = []
+
+        # Extract the SNR from the dialog
+        for turn in self.dialog_with_snr.turns:
+            snr = re.search(r'snr="(\d+)"', turn.text)
+            if snr:
+                all_snr.append(int(snr.group(1)))
+            else:
+                all_snr.append(None)
+
+        return all_snr # TODO: Add SNR value to the dialog
 
     def _structure_markup_language(self) -> List[dict]:
         """
