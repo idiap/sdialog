@@ -1,9 +1,25 @@
 # medical_dialogue_evaluator/main_evaluator.py
-# ... (imports)
-# The only change is in the `_evaluate_single_indicator` method.
+"""
+The main asynchronous evaluation orchestrator.
+"""
+import asyncio
+from typing import List
+from jinja2 import Template
+
+from data_models import Dialogue, EvaluationResult, FullEvaluationReport
+from evaluators.base import BaseEvaluator
+from logger import logger
+from prompts import PROMPT_TEMPLATE
+from utils import get_llm_client, EvaluationOutput
 
 class DialogueEvaluator:
-    # ... (__init__ remains the same)
+    """Orchestrates the asynchronous evaluation of a medical dialogue."""
+    def __init__(self, evaluators: List[BaseEvaluator]):
+        if not evaluators:
+            raise ValueError("At least one evaluator must be provided.")
+        self.evaluators = evaluators
+        self.llm_client = get_llm_client()
+        self.prompt_template = Template(PROMPT_TEMPLATE)
 
     async def _evaluate_single_indicator(self, evaluator: BaseEvaluator, dialogue: Dialogue) -> EvaluationResult:
         """Asynchronously evaluates one indicator for a dialogue."""
@@ -21,8 +37,8 @@ class DialogueEvaluator:
             return EvaluationResult(
                 indicator_id=evaluator.indicator_id,
                 indicator_name=evaluator.indicator_name,
-                not_applicable=llm_response.not_applicable, # Pass the flag
-                score=llm_response.score,                    # Pass the optional score
+                not_applicable=llm_response.not_applicable,
+                score=llm_response.score,
                 justification=llm_response.justification
             )
         except Exception as e:
@@ -30,13 +46,13 @@ class DialogueEvaluator:
             return EvaluationResult(
                 indicator_id=evaluator.indicator_id,
                 indicator_name=evaluator.indicator_name,
-                not_applicable=True, # Fail safe to not applicable
+                not_applicable=True,
                 score=None,
                 justification=f"Automatic failure due to exception: {e}"
             )
-    
-    # ... (the rest of the class remains the same)
+
     async def evaluate(self, dialogue: Dialogue) -> FullEvaluationReport:
+        """Runs evaluation for a dialogue across all indicators concurrently."""
         logger.info(f"Starting evaluation for dialogue: {dialogue.id}...")
         
         tasks = [self._evaluate_single_indicator(ev, dialogue) for ev in self.evaluators]
@@ -47,3 +63,5 @@ class DialogueEvaluator:
             dialogue_id=dialogue.id,
             evaluation_results=evaluation_results
         )
+    
+    

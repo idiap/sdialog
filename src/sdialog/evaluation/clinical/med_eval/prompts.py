@@ -1,6 +1,6 @@
 # medical_dialogue_evaluator/prompts.py
 """
-Contains the master Jinja2 prompt template for the LLM-based evaluation. 
+Contains the master Jinja2 prompt template for the LLM-based evaluation.
 """
 
 PROMPT_TEMPLATE = """
@@ -44,3 +44,4 @@ Respond with a single JSON object.
   "justification": "<Your brief explanation for why it is not applicable>"
 }
 """
+

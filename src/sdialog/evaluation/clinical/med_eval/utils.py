@@ -5,9 +5,9 @@ Utility functions for interfacing with the Language Model.
 import os
 from typing import Optional
 from langchain_openai import ChatOpenAI
-from langchain_core.pydantic_v1 import BaseModel, Field
-from .logger import logger
-from .config import config
+from pydantic import BaseModel, Field
+from logger import logger
+from config import config
 
 class EvaluationOutput(BaseModel):
     """The expected JSON structure for the LLM's response."""
@@ -28,3 +28,4 @@ def get_llm_client():
         temperature=config.llm.temperature,
         api_key=api_key,
     ).with_structured_output(EvaluationOutput)
+

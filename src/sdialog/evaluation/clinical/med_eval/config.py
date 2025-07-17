@@ -4,7 +4,7 @@ Handles loading and validation of application configuration from a YAML file.
 """
 import yaml
 from pydantic import BaseModel, Field
-from .logger import logger
+from logger import logger
 
 class LLMConfig(BaseModel):
     """Pydantic model for LLM configuration settings."""
@@ -29,3 +29,4 @@ def load_config(path: str = "config.yaml") -> AppConfig:
         return AppConfig()
 
 config = load_config()
+

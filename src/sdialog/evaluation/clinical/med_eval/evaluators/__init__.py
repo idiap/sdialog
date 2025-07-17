@@ -25,3 +25,4 @@ def discover_evaluators() -> List[BaseEvaluator]:
     return sorted(evaluator_instances, key=lambda x: x.indicator_name)
 
 ALL_EVALUATORS = discover_evaluators()
+

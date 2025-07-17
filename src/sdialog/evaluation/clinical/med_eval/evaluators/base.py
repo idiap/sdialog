@@ -30,3 +30,4 @@ class BaseEvaluator(ABC):
     def scoring_rubric(self) -> dict:
         """A dictionary with 'low_example' and 'high_example' descriptions."""
         pass
+    
