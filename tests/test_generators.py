@@ -66,14 +66,14 @@ class DummyPersona(BasePersona):
 
 
 def test_dialog_generator(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     gen = DialogGenerator(dialogue_details="test", model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
 
 
 def test_persona_dialog_generator(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
@@ -82,7 +82,7 @@ def test_persona_dialog_generator(monkeypatch):
 
 
 def test_persona_dialog_generator_personas(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
@@ -92,7 +92,7 @@ def test_persona_dialog_generator_personas(monkeypatch):
 
 
 def test_persona_dialog_generator_with_agents(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     persona_a = Agent(Persona(), "A", DummyLLM())
     persona_b = Agent(Persona(), "B", DummyLLM())
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
@@ -105,7 +105,7 @@ def test_persona_dialog_generator_with_agents(monkeypatch):
 def test_persona_generator_function(monkeypatch):
     def random_age():
         return 42
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona, generated_attributes={"age": random_age})
     persona = gen.generate()
     assert persona.age == 42
@@ -116,7 +116,7 @@ def test_persona_generator_function_dependency(monkeypatch):
         if attributes["name"].split()[0][-1] == "a":
             return "Party"
         return "Dancying"
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona)
     gen.set_attribute_generators(name=["Loco Polaco", "Loca Polaca"],
                                  hobby=get_hobby)
@@ -126,21 +126,21 @@ def test_persona_generator_function_dependency(monkeypatch):
 
 
 def test_persona_generator_list(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona, generated_attributes={"city": ["Paris", "London"]})
     persona = gen.generate()
     assert persona.city in ["Paris", "London"]
 
 
 def test_persona_generator_fixed_value(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona, generated_attributes={"hobby": "reading"})
     persona = gen.generate()
     assert persona.hobby == "reading"
 
 
 def test_persona_generator_txt_template(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     txt_path = os.path.join(PATH_TEST_DATA, "occupations.txt")
     gen = PersonaGenerator(DummyPersona, generated_attributes={"occupation": "{{txt:%s}}" % txt_path})
     persona = gen.generate()
@@ -150,7 +150,7 @@ def test_persona_generator_txt_template(monkeypatch):
 
 
 def test_persona_generator_csv_template(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.csv")
     gen = PersonaGenerator(DummyPersona)
     gen.set_attribute_generators(
@@ -164,7 +164,7 @@ def test_persona_generator_csv_template(monkeypatch):
 
 
 def test_persona_generator_tsv_template(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.tsv")
     gen = PersonaGenerator(DummyPersona)
     gen.set_attribute_generators(
@@ -184,7 +184,7 @@ def test_persona_generator_range_template():
 
 
 def test_persona_generator_defaults(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyPersonaLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona)
     persona = gen.generate()
     persona2 = Persona.from_dict(persona.json(), DummyPersona)
@@ -192,7 +192,7 @@ def test_persona_generator_defaults(monkeypatch):
 
 
 def test_dialog_generator_example_dialogs(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     gen = DialogGenerator(dialogue_details="test", example_dialogs=[example_dialog])
     assert gen.example_dialogs[0] == example_dialog
     _ = gen()
@@ -200,7 +200,7 @@ def test_dialog_generator_example_dialogs(monkeypatch):
 
 
 def test_persona_dialog_generator_example_dialogs(monkeypatch):
-    monkeypatch.setattr("sdialog.generators.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
     gen = PersonaDialogGenerator(persona_a, persona_b, example_dialogs=[example_dialog])

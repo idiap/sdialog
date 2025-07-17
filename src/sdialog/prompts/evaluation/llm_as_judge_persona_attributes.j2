@@ -1,22 +1,48 @@
+{% set is_plural = dialogs|length > 1 %}
+You are an expert judge. Your task is to determine whether the speaker "{{ speaker }}" in the following {{ "dialogues" if is_plural else "dialogue" }} matches a specific persona, based on the provided set of attributes.
 
-You are an expert judge. Your task is to determine whether the following dialogue is consistent with a specific persona, based on the provided set of attributes.
+Carefully read the persona attributes below and then analyze the {{ "dialogues" if is_plural else "dialogue" }}. Consider whether the style, tone, behavior, and content of "{{ speaker }}" in each {{ "dialogue" if is_plural else "dialogue" }} match the described persona. Pay attention to:
+- Consistency in "{{ speaker }}"'s speech patterns, vocabulary, and tone
+- Alignment of "{{ speaker }}"'s actions, opinions, and emotional responses with the persona's traits
+- Whether "{{ speaker }}" avoids contradictions with the persona's core attributes
+- Subtle cues in "{{ speaker }}"'s language or behavior that support or contradict the persona
 
-Carefully read the persona attributes below and then analyze the dialogue. Consider whether the dialogue's style, tone, behavior, and content match the described persona. Pay attention to:
-- Consistency in speech patterns, vocabulary, and tone
-- Alignment of actions, opinions, and emotional responses with the persona's traits
-- Whether the dialogue avoids contradictions with the persona's core attributes
-- Subtle cues in language or behavior that support or contradict the persona
+If "{{ speaker }}" in the {{ "dialogue clearly reflects" if not is_plural else "each dialogue clearly reflects" }} the persona, reply {{ "'true'" if not is_plural else "'true' for that dialogue" }}. If {{ "not" if not is_plural else "a dialogue does not" }}, reply {{ "'false'" if not is_plural else "'false' for that dialogue" }}.
 
-If the dialogue clearly reflects the persona, reply 'true'. If it does not, reply 'false'.
-
+{% if feedback %}
 Reply with a JSON object with two fields:
-  - 'output': true if the dialogue matches the persona, false otherwise
-  - 'feedback': a brief justification for your decision
+{% else %}
+Reply with a JSON object with ONLY one field:
+{% endif %}
+  - 'output': {{ "a list of booleans, true if the speaker matches the persona, false otherwise, one per dialogue in order" if is_plural else "true if the speaker matches the persona, false otherwise" }}
+{% if feedback %}
+  - 'feedback': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
+{% endif %}
 
 Persona attributes are provided in JSON format:
-{{ attributes }}
+[[ ## BEGIN PERSONA ## ]]
+{{ persona }}
+[[ ## END PERSONA ## ]]
 
-Dialogue:
-{{ dialog }}
+Speaker to evaluate: "{{ speaker }}"
+
+{% if is_plural %}
+Below, each dialogue is delimited by:
+[[ ## BEGIN DIALOGUE N ## ]]
+...dialogue text...
+[[ ## END DIALOGUE N ## ]]
+where N is the dialogue number (starting from 1).
+
+{% endif %}
+{{ "Dialogues:" if is_plural else "Dialogue:" }}
+{% if is_plural %}
+{% for d in dialogs %}
+[[ ## BEGIN DIALOGUE {{ loop.index }} ## ]]
+{{ d }}
+[[ ## END DIALOGUE {{ loop.index }} ## ]]
+{% endfor %}
+{% else %}
+{{ dialogs[0] }}
+{% endif %}
 
 Your answer:

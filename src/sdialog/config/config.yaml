@@ -9,7 +9,8 @@ prompts:
     snr: ../prompts/audio/audio_snr.j2
   evaluation:
     llm_as_judge: ../prompts/evaluation/llm_as_judge.j2
-    llm_as_judge_real_or_not: ../prompts/evaluation/llm_as_judge_real_or_not.j2
+    llm_as_judge_refusal: ../prompts/evaluation/llm_as_judge_refusal.j2
+    llm_as_judge_real_dialog: ../prompts/evaluation/llm_as_judge_real_dialog.j2
     llm_as_judge_persona_attributes: ../prompts/evaluation/llm_as_judge_persona_attributes.j2
 llm:
   model: meta-llama/Llama-3.2-3B-Instruct

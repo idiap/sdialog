@@ -1,3 +1,4 @@
+import csv
 import os
 
 from sdialog.config import config
@@ -88,11 +89,14 @@ def test_set_llm():
     assert config["llm"]["model"] == "test-model"
 
 
-def test_set_llm_hyperparams():
-    from sdialog.config import config, set_llm_hyperparams
-    set_llm_hyperparams(temperature=0.5, seed=42)
+def test_set_llm_params():
+    from sdialog.config import config, set_llm_params, set_llm
+    set_llm_params(temperature=0.5, seed=42)
     assert config["llm"]["temperature"] == 0.5
     assert config["llm"]["seed"] == 42
+    set_llm("test-model", temperature=0.3, seed=33)
+    assert config["llm"]["temperature"] == 0.3
+    assert config["llm"]["seed"] == 33
 
 
 def test_set_persona_dialog_generator_prompt():
@@ -141,3 +145,45 @@ def test_get_dialog_from_csv_file():
     assert len(dialog) == 3
     assert dialog.turns[2].speaker == "Alice"
     assert dialog.turns[2].text == "Doing great, thanks for asking."
+
+
+def test_save_dialog_as_csv_file(tmp_path):
+    dialog_path = os.path.join(PATH_TEST_DATA, "dialog_with_headers.csv")
+    temp_path = tmp_path / "temporary_dialog_save.csv"
+
+    dialog = Dialog.from_file(str(dialog_path))
+    dialog.to_file(str(temp_path))
+
+    with open(temp_path, "r") as reader:
+        reader = csv.reader(reader)
+        rows = list(reader)
+        assert len(rows) == 4
+        assert rows[0] == ["speaker", "text"]
+        assert rows[1] == ["Alice", "Hello! How are you?"]
+        assert rows[2] == ["Bob", "I'm good, thanks! And you?"]
+        assert rows[3] == ["Alice", "Doing great, thanks for asking."]
+
+
+def test_dialog_rename_speaker():
+    turns = [Turn(speaker="Alice", text="Hello!"),
+             Turn(speaker="Bob", text="Hi Alice!"),
+             Turn(speaker="Alice", text="How are you?")]
+    events = [Event(agent="Alice", action="utter", text="Hello!", timestamp=1),
+              Event(agent="Bob", action="utter", text="Hi Alice!", timestamp=2)]
+    dialog = Dialog(turns=turns, events=events)
+
+    # Rename Alice to Carol (case-sensitive)
+    dialog.rename_speaker("Alice", "Carol", case_sensitive=True)
+    assert all(turn.speaker != "Alice" for turn in dialog.turns)
+    assert dialog.turns[0].speaker == "Carol"
+    assert dialog.turns[-1].speaker == "Carol"
+    assert dialog.events[0].agent == "Carol"
+
+    # Bob should remain unchanged
+    assert dialog.turns[1].speaker == "Bob"
+    assert dialog.events[1].agent == "Bob"
+
+    # Rename Bob to Dave (case-insensitive)
+    dialog.rename_speaker("bob", "Dave")
+    assert dialog.turns[1].speaker == "Dave"
+    assert dialog.events[1].agent == "Dave"

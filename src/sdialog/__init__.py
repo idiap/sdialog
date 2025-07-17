@@ -68,6 +68,9 @@ class Turn(BaseModel):
     speaker: Optional[str]
     text: str
 
+    def __str__(self):
+        return f"{self.speaker}: {self.text}"
+
 
 class Event(BaseModel):
     """
@@ -210,24 +213,35 @@ class Dialog(BaseModel):
 
     def to_file(self, path: str, type: str = "auto", makedir: bool = True):
         """
-        Saves the dialogue to a file in either JSON or plain text format.
+        Saves the dialogue to a file in JSON, CSV, or plain text format.
 
         :param path: Output file path.
         :type path: str
-        :param type: "json", "txt", or "auto" (determined by file extension).
+        :param type: "json", "csv", "txt", or "auto" (determined by file extension).
         :type type: str
         :param makedir: If True, creates parent directories as needed.
         :type makedir: bool
         """
         if type == "auto":
-            type = "json" if path.endswith(".json") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            type = ext if ext in ["json", "txt", "csv", "tsv"] else "txt"
 
         if makedir and os.path.split(path)[0]:
             os.makedirs(os.path.split(path)[0], exist_ok=True)
 
-        with open(path, "w") as writer:
+        with open(path, "w", newline='') as writer:
             if type == "json":
                 writer.write(self.json(string=True))
+            elif type in ["csv", "tsv"]:
+                # set delimiter based on desired type
+                delimiter = {"csv": ",", "tsv": "\t"}[type]
+                csv_writer = csv.writer(writer, delimiter=delimiter)
+                # write the header
+                csv_writer.writerow(["speaker", "text"])
+                # write the turns
+                for turn in self.turns:
+                    csv_writer.writerow([turn.speaker, turn.text])
             else:
                 writer.write(self.description())
 
@@ -256,7 +270,9 @@ class Dialog(BaseModel):
         """
         type = type.lower()
         if type == "auto":
-            type = "json" if path.endswith(".json") else "csv" if path.endswith(".csv") else "txt"
+            _, ext = os.path.splitext(path)
+            ext = ext.lower()[1:]
+            type = ext if ext in ["json", "txt", "csv", "tsv"] else "txt"
 
         turns = []
         with open(path) as reader:
@@ -372,6 +388,41 @@ class Dialog(BaseModel):
             return float(total_words) / 150.0  # 150 words per minute is a common estimate
         else:
             raise ValueError(f"Unknown mode '{mode}'. Supported modes: 'turns', 'words', 'minutes'.")
+
+    def rename_speaker(self, old_name: str,
+                       new_name: str,
+                       case_sensitive: bool = False,
+                       in_events: bool = True) -> "Dialog":
+        """
+        Renames all occurrences of a speaker in the dialogue's turns (and optionally events).
+
+        :param old_name: The current speaker name to replace.
+        :type old_name: str
+        :param new_name: The new speaker name.
+        :type new_name: str
+        :param case_sensitive: Whether to match speaker names case-sensitively (default: False).
+        :type case_sensitive: bool
+        :param in_events: Whether to also rename in events' agent fields (default: True).
+        :type in_events: bool
+        """
+        def match(name):
+            if case_sensitive:
+                return name == old_name
+            else:
+                return name.lower() == old_name.lower() if name is not None else False
+
+        # Rename in turns
+        for turn in self.turns:
+            if turn.speaker is not None and match(turn.speaker):
+                turn.speaker = new_name
+
+        # Rename in events (if present and requested)
+        if in_events and self.events:
+            for event in self.events:
+                if hasattr(event, 'agent') and event.agent is not None and match(event.agent):
+                    event.agent = new_name
+
+        return self
 
     __str__ = description
 

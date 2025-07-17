@@ -15,7 +15,6 @@ import torch
 import random
 import logging
 import inspect
-import transformers
 
 from abc import ABC
 from time import time
@@ -25,18 +24,17 @@ from pydantic import BaseModel, Field
 from print_color import print as cprint
 from typing import List, Union, Optional
 
-from langchain_ollama.chat_models import ChatOllama
-from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_huggingface import ChatHuggingFace
 from langchain_core.messages.base import messages_to_dict
+from langchain_core.language_models.base import BaseLanguageModel
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from .config import config
 from jinja2 import Template
 from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
-from .util import ollama_check_and_pull_model, set_ollama_model_defaults
-from .util import camel_or_snake_to_words, get_timestamp, remove_newlines, get_universal_id
+from .util import get_llm_model, camel_or_snake_to_words, get_timestamp, remove_newlines, get_universal_id
 
 
 logger = logging.getLogger(__name__)
@@ -107,7 +105,7 @@ class BasePersona(BaseModel, ABC):
         if self._metadata:
             new_persona._metadata = self._metadata.model_copy()
             new_persona._metadata.parentId = self._metadata.id if self._metadata.id else None
-            new_persona._metadata.id = new_id if new_id is not None else self._metadata.id
+            new_persona._metadata.id = new_id if new_id is not None else get_universal_id()
         else:
             new_persona._metadata = PersonaMetadata(className=self.__class__.__name__,
                                                     id=new_id if new_id is not None else get_universal_id(),
@@ -400,6 +398,55 @@ class Patient(ExtendedPersona):
     family_history: str = ""
 
 
+class MinimalPatient(BasePersona):
+    """
+    Minimal version of a Patient persona, focusing on essential attributes for dialogue generation.
+
+    :ivar name: Name of the persona.
+    :vartype name: str
+    :ivar age: Age of the persona.
+    :vartype age: int
+    :ivar race: Race of the persona.
+    :vartype race: str
+    :ivar gender: Gender of the persona.
+    :vartype gender: str
+    :ivar language: Preferred language.
+    :vartype language: str
+    :ivar reason_for_visit: Reason for visit or chief complaint.
+    :vartype reason_for_visit: str
+    :ivar medical_history: Medical history of the patient.
+    :vartype medical_history: str
+    :ivar medical_conditions: Medical conditions in history.
+    :vartype medical_conditions: str
+    :ivar medications: Current medications.
+    :vartype medications: str
+    :ivar allergies: Known allergies.
+    :vartype allergies: str
+    :ivar family_history: Family medical history.
+    :vartype family_history: str
+    """
+    name: str = ""
+    age: Union[int, str] = None
+    race: str = ""
+    gender: str = ""
+    language: str = "English"
+    forgetfulness: str = ""
+    formality: str = ""
+    hurriedness: str = ""
+    openness: str = ""
+    height: Union[int, str] = None
+    weight: Union[int, str] = None
+    occupation: str = ""
+    marital_status: str = ""
+    insurance: str = ""
+    reason_for_visit: str = ""
+    medical_history: Union[str, List[str]] = ""
+    medical_conditions: Union[str, List[str]] = ""
+    medications_current: Union[str, List[str]] = ""
+    allergies: Union[str, List[str]] = ""
+    family_history: Union[str, List[str]] = ""
+
+
 class Doctor(ExtendedPersona):
     """
     Doctor persona with medical expertise and professional background.
@@ -419,6 +466,46 @@ class Doctor(ExtendedPersona):
     work_experience: str = ""
 
 
+class MinimalDoctor(BasePersona):
+    """
+    This class is a minimal version of a Doctor persona, focusing on essential attributes for dialogue generation.
+
+    :ivar name: Name of the persona.
+    :vartype name: str
+    :ivar age: Age of the persona.
+    :vartype age: int
+    :ivar race: Race of the persona.
+    :vartype race: str
+    :ivar gender: Gender of the persona.
+    :vartype gender: str
+    :ivar language: Preferred language.
+    :vartype language: str
+    :ivar years_of_experience: Years of experience as a doctor.
+    :vartype years_of_experience: Union[int, str]
+    :ivar speciality: Medical specialty.
+    :vartype speciality: str
+    :ivar forgetfulness: Forgetfulness trait.
+    :vartype forgetfulness: str
+    :ivar formality: Formality trait.
+    :vartype formality: str
+    :ivar hurriedness: Hurriedness trait.
+    :vartype hurriedness: str
+    :ivar openness: Openness trait.
+    :vartype openness: str
+    """
+    name: str = ""
+    age: Union[int, str] = None
+    race: str = ""
+    gender: str = ""
+    language: str = "English"
+    years_of_experience: Union[int, str] = ""
+    speciality: str = ""
+    forgetfulness: str = ""
+    formality: str = ""
+    hurriedness: str = ""
+    openness: str = ""
+
+
 class Agent:
     """
     Agent that simulates a persona in dialogue using an LLM.
@@ -435,7 +522,7 @@ class Agent:
     def __init__(self,
                  persona: BasePersona,
                  name: str = None,
-                 model: Union[str, ChatOllama] = None,
+                 model: Union[str, BaseLanguageModel] = None,
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
                  response_details: str = "",
@@ -453,7 +540,7 @@ class Agent:
         :param name: Name of the agent.
         :type name: str
         :param model: The LLM or model name to use.
-        :type model: Union[str, ChatOllama]
+        :type model: Union[str, BaseLanguageModel]
         :param example_dialogs: List of example dialogues as a reference for the agent.
         :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional details about the dialogue.
@@ -490,46 +577,12 @@ class Agent:
 
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
         llm_kwargs = {**llm_config_params, **llm_kwargs}
-        self.hf_model = False
         if isinstance(model, str):
-            # If model name has a slash, assume it's a Hugging Face model
-            # Otherwise, assume it's an Ollama model
-            if "/" in model:
-                logger.info(f"Loading Hugging Face model: {model}")
-                self.hf_model = True
-
-                # Remove 'seed' from llm_kwargs if present (not supported by HuggingFace pipeline)
-                llm_kwargs = {k: v for k, v in llm_kwargs.items() if k != "seed"}
-                llm_kwargs["model"] = model
-
-                # Default HuggingFace parameters
-                hf_defaults = dict(
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto",
-                    max_new_tokens=2048,
-                    do_sample=True,
-                    repetition_penalty=1.03,
-                    return_full_text=False,
-                )
-                hf_params = {**hf_defaults, **llm_kwargs}
-
-                pipe = transformers.pipeline("text-generation", **hf_params)
-                # TODO: avoid the eos token warning message for certain llm
-                # TODO: if tokenizer doesn't have a chat template, set a default one
-
-                self.llm = ChatHuggingFace(
-                    llm=HuggingFacePipeline(pipeline=pipe)
-                )
-            else:
-                logger.info(f"Loading ChatOllama model: {model}")
-                # Collect LLM parameters from config, only if not None
-                llm_kwargs = set_ollama_model_defaults(model, llm_kwargs)
-                ollama_check_and_pull_model(model)
-                self.llm = ChatOllama(model=model, **llm_kwargs)
+            self.llm = get_llm_model(model_name=model,
+                                     **llm_kwargs)
         else:
-            # Assume model is already an instance
             self.llm = model
-            self.hf_model = isinstance(model, ChatHuggingFace)
+        self.hf_model = isinstance(self.llm, ChatHuggingFace)
 
         self.memory = [SystemMessage(system_prompt)]
 

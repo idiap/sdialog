@@ -4,6 +4,8 @@ flake8
 graphviz
 Jinja2
 langchain-huggingface
+langchain-openai
+langchain-google-genai
 langchain-ollama
 langchain>=0.3.26
 matplotlib
@@ -12,6 +14,7 @@ numpy
 ollama
 openai
 pandas
+tabulate
 pre-commit
 print-color
 pydantic

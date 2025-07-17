@@ -16,15 +16,14 @@ import logging
 from jinja2 import Template
 from typing import Union, List, Any
 from pydantic import BaseModel, ValidationError
-from langchain_ollama.chat_models import ChatOllama
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.messages.base import messages_to_dict
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.language_models.base import BaseLanguageModel
 
 from . import Dialog, Turn
 from .config import config
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
-from .util import ollama_check_and_pull_model, set_ollama_model_defaults, get_universal_id
-
+from .util import get_llm_model, set_ollama_model_defaults, get_universal_id
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class DialogGenerator:
     def __init__(self,
                  dialogue_details: str,
                  example_dialogs: List['Dialog'] = None,
-                 model: Union[ChatOllama, str] = None,
+                 model: Union[BaseLanguageModel, str] = None,
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
                  scenario: dict = None,
                  personas: dict[str, dict[str, Any]] = None,
@@ -60,7 +59,7 @@ class DialogGenerator:
         :param example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
         :param model: The LLM or model name to use.
-        :type model: Union[ChatOllama, str]
+        :type model: Union[BaseLanguageModel, str]
         :param output_format: Output format schema or Pydantic model.
         :type output_format: Union[dict, BaseModel]
         :param scenario: Scenario metadata for the dialogue (if not provided, value set to `dialogue_details`).
@@ -77,23 +76,16 @@ class DialogGenerator:
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
         llm_kwargs = {**llm_config_params, **llm_kwargs}
 
-        if not output_format or type(output_format) is dict:
-            output_format_schema = output_format
-            self.output_format = None
-        else:
-            output_format_schema = output_format.model_json_schema()
-            self.output_format = output_format
+        self.output_format = output_format
 
-        if type(model) is str:
-            ollama_check_and_pull_model(model)  # Ensure the model is available locally
-            llm_kwargs = set_ollama_model_defaults(model, llm_kwargs)
-            self.llm = ChatOllama(model=model,
-                                  format=output_format_schema,
-                                  **llm_kwargs)
+        if isinstance(model, str):
+            self.llm = get_llm_model(model_name=model,
+                                     output_format=self.output_format,
+                                     llm_kwargs=llm_kwargs)
         else:
             self.llm = model
             if output_format:
-                self.llm.format = output_format_schema
+                self.llm.format = self.output_format.model_json_schema()
 
         with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
             self.system_prompt_template = Template(f.read())
@@ -156,6 +148,7 @@ class DialogGenerator:
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
         self.llm.seed = seed if seed is not None else random.getrandbits(32)
+        logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
 
         # hack to avoid seed bug in prompt cache
         # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
@@ -206,7 +199,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
                  response_details: str = "",
-                 model: Union[ChatOllama, str] = None,
+                 model: Union[BaseLanguageModel, str] = None,
                  scenario: dict = None,
                  llm_kwargs: dict = {}):
         """
@@ -223,7 +216,7 @@ class PersonaDialogGenerator(DialogGenerator):
         :param response_details: Instructions for response style.
         :type response_details: str
         :param model: The LLM or model name to use.
-        :type model: Union[ChatOllama, str]
+        :type model: Union[BaseLanguageModel, str]
         :param scenario: Scenario metadata.
         :type scenario: dict
         :param llm_kwargs: Additional keyword arguments for the LLM (overrides config).
@@ -235,6 +228,9 @@ class PersonaDialogGenerator(DialogGenerator):
             self._agent_b = persona_b
             persona_a = persona_a.persona
             persona_b = persona_b.persona
+            if dialogue_details:
+                logger.warning("The provided `dialogue_details` argument will be ignored because both personas are "
+                               "`Agent` instances; dialogue behavior is determined by the agents themselves.")
 
         # Load persona dialog prompt template from file
         with open(config["prompts"]["persona_dialog_generator"], encoding="utf-8") as f:
@@ -354,6 +350,25 @@ class PersonaGenerator:
                                  f"persona class '{type(self._persona).__name__}'. "
                                  "Expected attributes are: "
                                  f"{list(self._persona.__dict__.keys())}.")
+
+    def _extract_field_descriptions(self, schema, target_attributes=None):
+        """
+        Extract field descriptions from the persona's JSON schema.
+
+        :param schema: The JSON schema dictionary
+        :param target_attributes: Optional set of attribute names to filter descriptions
+        :return: Dictionary mapping field names to their descriptions
+        """
+        descriptions = {}
+        properties = schema.get("properties", {})
+
+        for field_name, field_schema in properties.items():
+            if target_attributes is None or field_name in target_attributes:
+                description = field_schema.get("description")
+                if description:
+                    descriptions[field_name] = description
+
+        return descriptions
 
     def prompt(self) -> str:
         """
@@ -505,12 +520,20 @@ class PersonaGenerator:
             llm = None
             # If there are None value, we need to fill them using the LLM
             if any(value is None for value in random_persona_dict.values()):
-                if llm_attribute_instructions:
+                schema = self._persona.model_json_schema()
+                null_attributes = {k for k, v in random_persona_dict.items() if v is None}
+                field_descriptions = self._extract_field_descriptions(schema, null_attributes)
+
+                if llm_attribute_instructions or field_descriptions:
+                    for k, v in field_descriptions.items():
+                        if k not in llm_attribute_instructions:
+                            llm_attribute_instructions[k] = v
                     llm_attribute_instructions_txt = ("Consider the following instructions for filling "
                                                       "the following attributes:\n")
                     llm_attribute_instructions_txt += "\n".join(
                         [f"* {k}: {v}." for k, v in llm_attribute_instructions.items()]
                     )
+
                 if n > 1:
                     template = Template(self.llm_prompt_n)
                     prompt = template.render(
@@ -546,10 +569,9 @@ class PersonaGenerator:
                     llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
                     # llm_kwargs from __init__ override config
 
-                    ollama_check_and_pull_model(self.llm_model)
-                    llm = ChatOllama(model=self.llm_model,
-                                     format=schema,
-                                     **llm_kwargs)
+                    llm = get_llm_model(model_name=self.llm_model,
+                                        output_format=schema,
+                                        llm_kwargs=llm_kwargs)
 
                 messages = [
                     SystemMessage("You are an expert at generating persona JSON objects "
