@@ -27,7 +27,7 @@ from print_color import print as cprint
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Any
 
-from .util import make_serializable, get_timestamp, remove_newlines
+from .util import make_serializable, get_timestamp, remove_newlines, get_universal_id
 
 __version__ = "0.0.2"
 
@@ -172,6 +172,19 @@ class Dialog(BaseModel):
             return max(1, int(round(total_words / words_per_minute)))
         else:
             raise ValueError(f"Unknown mode for get_length: {mode}")
+
+    def clone(self, new_id: int = None) -> "Dialog":
+        """
+        Creates a deep copy of the dialogue.
+
+        :return: A new Dialog object that is a copy of this one.
+        :rtype: Dialog
+        """
+        cloned = Dialog.from_dict(self.json())
+        cloned.parentId = cloned.id
+        cloned.id = new_id if new_id is not None else get_universal_id()
+
+        return cloned
 
     def description(self, turn_template: str = "{speaker}: {text}"):
         """

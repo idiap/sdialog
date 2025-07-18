@@ -45,6 +45,14 @@ class KNNModel:
     __call__ = neighbors
 
 
+def check_valid_model_name(func):
+    def wrapper(model_name, *args, **kwargs):
+        if not isinstance(model_name, str):
+            return False
+        return func(model_name, *args, **kwargs)
+    return wrapper
+
+
 def softmax(values, temperature=0.05, as_list=True):
     probs = torch.nn.functional.softmax(torch.tensor(values, dtype=float) / temperature, dim=0)
     return probs.tolist() if as_list else probs
@@ -130,6 +138,7 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
     return llm_params
 
 
+@check_valid_model_name
 def is_ollama_model_name(model_name: str) -> bool:
     return (
         model_name.startswith("ollama:")
@@ -140,18 +149,22 @@ def is_ollama_model_name(model_name: str) -> bool:
     )
 
 
+@check_valid_model_name
 def is_openai_model_name(model_name: str) -> bool:
     return model_name.startswith("openai:")
 
 
+@check_valid_model_name
 def is_aws_model_name(model_name: str) -> bool:
     return model_name.startswith("aws:")
 
 
+@check_valid_model_name
 def is_google_genai_model_name(model_name: str) -> bool:
     return re.match(r"^google(-genai)?:", model_name, re.IGNORECASE)
 
 
+@check_valid_model_name
 def is_huggingface_model_name(model_name: str) -> bool:
     return model_name.startswith("huggingface:") or "/" in model_name
 
@@ -168,13 +181,7 @@ def get_llm_model(model_name: str,
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading OpenAI model: {model_name}")
 
-        llm = ChatOpenAI(model=model_name,
-                         **llm_kwargs)
-
-        if output_format and issubclass(output_format, BaseModel):
-            llm = llm.with_structured_output(output_format)
-        else:
-            logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
+        llm = ChatOpenAI(model=model_name, **llm_kwargs)
     elif is_aws_model_name(model_name):
         from langchain_aws import ChatBedrockConverse
         if ":" in model_name:
@@ -186,11 +193,6 @@ def get_llm_model(model_name: str,
             llm_kwargs.pop("seed")
 
         llm = ChatBedrockConverse(model=model_name, **llm_kwargs)
-
-        if output_format and issubclass(output_format, BaseModel):
-            llm = llm.with_structured_output(output_format)
-        else:
-            logger.warning("Output format should be a pydantic's BaseModel for ChatBedrockConverse models.")
     elif is_google_genai_model_name(model_name):
         from langchain_google_genai import ChatGoogleGenerativeAI
         if ":" in model_name:
@@ -198,24 +200,14 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading Google GenAI model: {model_name}")
 
         llm = ChatGoogleGenerativeAI(model=model_name, **llm_kwargs)
-
-        if output_format and issubclass(output_format, BaseModel):
-            llm = llm.with_structured_output(output_format)
-        else:
-            logger.warning("Output format should be a pydantic's BaseModel for ChatGoogleGenerativeAI models.")
     elif is_ollama_model_name(model_name):
         if model_name.startswith("ollama:"):
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading ChatOllama model: {model_name}")
 
-        if output_format and issubclass(output_format, BaseModel):
-            output_format = output_format.model_json_schema()
-
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
         llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
-        llm = ChatOllama(model=model_name,
-                         format=output_format,
-                         **llm_kwargs)
+        llm = ChatOllama(model=model_name, **llm_kwargs)
     else:
         if model_name.startswith("huggingface:"):
             model_name = model_name.split(":", 1)[-1]
@@ -240,6 +232,14 @@ def get_llm_model(model_name: str,
         pipe = transformers.pipeline("text-generation", **hf_params)
 
         llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
+
+    if output_format:
+        if isinstance(output_format, type) and issubclass(output_format, BaseModel):
+            output_format = output_format.model_json_schema()
+        if hasattr(llm, "with_structured_output"):
+            llm = llm.with_structured_output(output_format)
+        else:
+            logger.error(f"The given model '{model_name}' does not support structured output. ")
 
     return llm
 
