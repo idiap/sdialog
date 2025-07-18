@@ -13,12 +13,11 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from typing import List, Tuple, Dict
 from scipy.spatial.distance import cdist
+from sdialog.audio.audio_dialog import AudioDialog
 from torchmetrics.audio.nisqa import NonIntrusiveSpeechQualityAssessment
 
 import whisper
-from sdialog import Dialog
-from pyannote.audio import Model
-from pyannote.audio import Inference
+from pyannote.audio import Model, Inference
 from .whisper_normalizer import EnglishTextNormalizer
 
 logger = logging.getLogger(__name__)
@@ -45,35 +44,38 @@ def transcript(audios: List[np.ndarray]) -> List[str]:
     return transcripts
 
 
-def eval_wer(audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> List[str]:
+def eval_wer_cer(dialog: AudioDialog) -> Dict:
+    """
+    Evaluate the WER and CER of the dialog.
+    :param dialog: The dialog to evaluate.
+    :return: The WER and CER of the dialog.
+    :rtype: Dict
+    """
 
     # Transcript the audios
-    transcripts = transcript([a[0] for a in audios])
-    # Get the speakers
-    speakers = [a[1] for a in audios]
-
-    # Get the references from the dialog
-    references = [t.text for t in dialog.turns]
+    _transcripts = transcript([turn.audio for turn in dialog.turns])
+    for idx, turn in enumerate(dialog.turns):
+        turn.transcript = _transcripts[idx]
 
     data = {}
 
     # Group the references and transcripts by speaker
-    for r, t, s in tqdm(zip(references, transcripts, speakers)):
+    for turn in tqdm(dialog.turns):
 
-        if s not in data:
-            data[s] = {
+        if turn.speaker not in data:
+            data[turn.speaker] = {
                 "references": {"normalized": [], "original": []},
                 "transcripts": {"normalized": [], "original": []}
             }
 
-        data[s]["references"]["normalized"].append(normalizer(r))
-        data[s]["transcripts"]["normalized"].append(normalizer(t))
+        data[turn.speaker]["references"]["normalized"].append(normalizer(turn.text))
+        data[turn.speaker]["transcripts"]["normalized"].append(normalizer(turn.transcript))
 
-        data[s]["references"]["original"].append(r)
-        data[s]["transcripts"]["original"].append(t)
+        data[turn.speaker]["references"]["original"].append(turn.text)
+        data[turn.speaker]["transcripts"]["original"].append(turn.transcript)
 
     # Compute the WER for each speaker
-    results = {"wer": {}, "cer": {}, "transcripts": [normalizer(_) for _ in transcripts]}
+    results = {"wer": {}, "cer": {}, "transcripts": [normalizer(_) for _ in dialog.turns]}
     for speaker in data:
         data_speaker = data[speaker]
         results["wer"][speaker] = {
@@ -153,7 +155,7 @@ def compute_speaker_similarity(
     return results
 
 
-def compute_evaluation_utterances(utterances_audios: List[Tuple[np.ndarray, str]], dialog: Dialog) -> Dict:
+def compute_evaluation_utterances(dialog: AudioDialog) -> Dict:
     """
     Compute the evaluation of the utterances audios.
     :param utterances_audios: The utterances audios to compute the evaluation.
@@ -162,9 +164,9 @@ def compute_evaluation_utterances(utterances_audios: List[Tuple[np.ndarray, str]
     :rtype: Dict
     """
 
-    mos_score = compute_mos(utterances_audios, show_figure=True)
-    speaker_consistency_score = speaker_consistency(utterances_audios)
-    wer_score = eval_wer(utterances_audios, dialog)
+    mos_score = compute_mos(dialog, show_figure=True)
+    speaker_consistency_score = speaker_consistency(dialog)
+    wer_score = eval_wer_cer(dialog)
     
     return {
         "wer": wer_score,
@@ -175,10 +177,9 @@ def compute_evaluation_utterances(utterances_audios: List[Tuple[np.ndarray, str]
     }
 
 
-def compute_evaluation_audio(audio: np.ndarray, dialog: Dialog) -> Dict:
+def compute_evaluation_audio(dialog: AudioDialog) -> Dict:
     """
     Compute the evaluation of the audio.
-    :param audio: The audio to compute the evaluation.
     :param dialog: The dialog to compute the evaluation.
     :return: The evaluation metrics based on the reference audio before room accoustics.
     :rtype: Dict
@@ -191,7 +192,7 @@ def compute_evaluation_audio(audio: np.ndarray, dialog: Dialog) -> Dict:
     }
 
 
-def compute_mos(audios: List[np.ndarray], show_figure: bool = False, output_file: str = None) -> Dict:
+def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str = None) -> Dict:
     """
     Compute the mean opinion score (MOS) of the audios.
     :param audios: The audios to compute the MOS.
@@ -201,15 +202,12 @@ def compute_mos(audios: List[np.ndarray], show_figure: bool = False, output_file
     """
     nisqa = NonIntrusiveSpeechQualityAssessment(16000)
     scores = []
-    for audio in tqdm(audios):
-        current_audio = audio
-        if isinstance(current_audio, tuple):
-            current_audio = current_audio[0]
+    for turn in tqdm(dialog.turns):
         
-        if torch.is_tensor(current_audio):
-            input_tensor = current_audio.clone().detach().to(torch.float32)
+        if torch.is_tensor(turn.audio):
+            input_tensor = turn.audio.clone().detach().to(torch.float32)
         else:
-            input_tensor = torch.tensor(current_audio, dtype=torch.float32)
+            input_tensor = torch.tensor(turn.audio, dtype=torch.float32)
         
         _scores = nisqa(input_tensor).tolist()
         scores.append({
@@ -296,7 +294,7 @@ def compute_deepfake_score(audios: List[np.ndarray]) -> List[float]:
     return [0.0 for _ in audios]
 
 
-def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> float:
+def speaker_consistency(dialog: AudioDialog) -> float:
     """
     Evaluates the consistency of speaker audio across utterances.
     :param utterances_audios: List of tuples containing audio data and speaker identifiers.
@@ -308,12 +306,12 @@ def speaker_consistency(utterances_audios: List[Tuple[np.ndarray, str]]) -> floa
     xvectors = defaultdict(list)
 
     # Iterate through the utterances and compute x-vectors for each speaker
-    for audio, speaker in utterances_audios:
+    for turn in dialog.turns:
 
-        tensor_audio = torch.Tensor(audio.unsqueeze(0)).unsqueeze(0)
+        tensor_audio = torch.Tensor(turn.audio.unsqueeze(0)).unsqueeze(0)
         embedding = inference.infer(tensor_audio)
 
-        xvectors[speaker].append(embedding)
+        xvectors[turn.speaker].append(embedding)
 
     avg_distance = {}
 

@@ -366,14 +366,20 @@ class Dialog(BaseModel):
         :return: The audio data as a numpy array.
         :rtype: np.ndarray
         """
-        from .audio import dialog_to_audio, to_wav
+        import soundfile as sf
+        from .audio import dialog_to_audio
 
         audio = dialog_to_audio(self)
 
         if path:
             if not path.endswith(".wav"):
                 path += ".wav"
-            to_wav(audio, path)
+
+            sf.write(
+                path,
+                audio,
+                24_000
+            )
 
         return audio
 
