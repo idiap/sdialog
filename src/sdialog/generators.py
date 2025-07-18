@@ -58,7 +58,7 @@ class DialogGenerator:
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
                  scenario: dict = None,
                  personas: dict[str, dict[str, Any]] = None,
-                 llm_kwargs: dict = {}):
+                 **llm_kwargs):
         """
         Initializes a DialogGenerator.
 
@@ -74,7 +74,7 @@ class DialogGenerator:
         :type scenario: dict
         :param personas: Optional personas for role-playing in the dialogue (if any).
         :type personas: dict[str, dict[str, Any]]
-        :param llm_kwargs: Additional keyword arguments for the LLM (overrides config).
+        :param **llm_kwargs: Additional keyword arguments for the LLM (overrides config).
         :type llm_kwargs: dict
         """
         if model is None:
@@ -215,7 +215,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  response_details: str = "",
                  model: Union[BaseLanguageModel, str] = None,
                  scenario: dict = None,
-                 llm_kwargs: dict = {}):
+                 **llm_kwargs):
         """
         Initializes a PersonaDialogGenerator.
 
@@ -233,7 +233,7 @@ class PersonaDialogGenerator(DialogGenerator):
         :type model: Union[BaseLanguageModel, str]
         :param scenario: Scenario metadata.
         :type scenario: dict
-        :param llm_kwargs: Additional keyword arguments for the LLM (overrides config).
+        :param **llm_kwargs: Additional keyword arguments for the LLM (overrides config).
         :type llm_kwargs: dict
         """
 
