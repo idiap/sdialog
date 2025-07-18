@@ -8,7 +8,9 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
-import json
+import re
+import logging
+import syllables
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -30,6 +32,8 @@ from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
 from ..util import KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
+
+logger = logging.getLogger(__name__)
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -144,22 +148,60 @@ class BaseDatasetEvaluator(ABC):
     """
     Base class for dataset evaluators.
     """
-    def __init__(self, dialog_score: BaseDialogScore = None):
-        """
-        Initialize the evaluator with the target dialog score.
-        """
+    def __init__(self, dialog_score: BaseDialogScore, name: str = None, verbose: bool = False):
         self.dialog_score = dialog_score
+        if not name:
+            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
+        else:
+            self.name = name
+        self.datasets_scores = {}
+        self.verbose = verbose
+
+    def __call__(self,
+                 dialogues: Union[str, List[Dialog]],
+                 dataset_name: str = "candidate",
+                 return_dialog_scores: bool = False) -> Union[dict, float]:
+        if not dataset_name or dataset_name == "candidate":
+            desc = f"Computing {self.name} scores for candidate dataset"
+        else:
+            desc = f"Computing {self.name} scores for dataset "
+            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+        scores = np.array([self.dialog_score(dialogue)
+                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
+        results = self.eval(scores)
+
+        return (results, scores) if return_dialog_scores else results
 
     @abstractmethod
-    def __call__(self, dialogues: Union[str, List[Dialog]]) -> Union[dict, float]:
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         """
-        Compute the dialog scores on each dialogue and return the evaluation.
-        :return: A dictionary with the evaluation results or a single score.
+        Plot the scores of the datasets.
+        :param dialog_scores: A dictionary with dataset names as keys and scores as values.
+        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
-    def eval(self, dialogues: Union[str, List[Dialog]], **kwargs) -> Union[dict, float]:
-        return self(dialogues, **kwargs)
+    def clear_history(self):
+        self.datasets_scores.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None):
+        if not self.datasets_scores:
+            return
+
+        # Plot box plots for each dataset
+        plt.figure(figsize=(8, 5))
+        self.__plot__(self.datasets_scores, plot=plt)
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    @abstractmethod
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        raise NotImplementedError("Subclasses should implement this method.")
 
 
 class BaseLLMJudge(ABC):
@@ -193,7 +235,7 @@ class BaseLLMJudge(ABC):
 
     def __call__(self, prompt: str) -> Union[dict, BaseModel]:
         self.messages[1].content = prompt
-        return self.llm.invoke(self.messages).content
+        return self.llm.invoke(self.messages)
 
     @abstractmethod
     def judge(self, dialogs: Union[Dialog, List[Dialog]]) -> dict:
@@ -210,6 +252,7 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  as_score: bool = False,
+                 as_score_error_value: int = -1,
                  **llm_kwargs):
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
@@ -220,6 +263,7 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
         self.prompt_template = Template(prompt_template)
         self.feedback = feedback
         self.as_score = as_score  # If True, returns either 1 or 0 instead of LLMJudgeYesNoOutput object
+        self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
         if isinstance(dialogs, Dialog):
@@ -227,9 +271,17 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
 
         prompt = self.prompt_template.render(dialogs=dialogs,
                                              feedback=feedback if feedback is not None else self.feedback)
-        output = self.output_format.model_validate(json.loads(super().__call__(prompt)))
+        output = self.output_format.model_validate(super().__call__(prompt))
 
-        return output if not self.as_score else int(output.yes)
+        if self.as_score:
+            try:
+                return int(output.yes)
+            except TypeError:
+                logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
+                             f"Returning default {self.as_score_error_value} value")
+                return self.as_score_error_value
+
+        return output
 
     __call__ = judge  # Allow direct call to judge method
 
@@ -325,125 +377,291 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
-class KDEDivergenceDatasetEvaluator(BaseDatasetEvaluator):
+class KDEDivergenceEvaluator(BaseDatasetEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
-                 name: str = None,
                  metric: str = "all",
                  kde_bw: float = None,
-                 verbose=False):
+                 name: str = None,
+                 verbose: bool = False,
+                 **evaluator_kwargs):
+        super().__init__(dialog_score, name=name, **evaluator_kwargs)
+
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
                 reference_dialogues = dialog_score.reference_dialogues
             else:
                 raise ValueError("Reference dialogues must be provided or "
                                  "the dialog_score must have a reference_dialogues attribute.")
+
+        if metric != "all":
+            self.name += f"-{metric}"
         self.metric = metric
         self.kde_bw = kde_bw
-        self.name = name or f"divergence-{dialog_score.name}" + (f"-{metric}" if metric != "all" else "")
-        self.verbose = verbose
-        self.dialog_score = dialog_score
-        self.datasets_scores = {}
-        self.ref_scores = np.array([self.dialog_score(dialogue)
-                                    for dialogue in tqdm(reference_dialogues,
-                                                         desc=f"Computing reference {self.name} scores",
-                                                         leave=verbose)])
+        self.reference_scores = [self.dialog_score(dialogue)
+                                 for dialogue in tqdm(reference_dialogues,
+                                                      desc=f"Computing reference {self.name} scores",
+                                                      leave=verbose)]
+        self.reference_scores = np.array(self.reference_scores)
 
-    def get_reference_scores(self) -> np.ndarray:
-        return self.ref_scores
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        for dataset_name, scores in dialog_scores.items():
+            pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+        plot.xlabel(self.dialog_score.name)
+        plot.legend()
+        plot.title(f"KDE of {self.dialog_score.name} distributions")
 
-    def clear_history(self):
-        self.datasets_scores.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None,
-             kde_bw: float = None):
-        kde_bw = kde_bw or self.kde_bw
-
-        plt.figure(figsize=(8, 5))
-        pd.Series(self.ref_scores, name="reference").plot.kde(bw_method=kde_bw)
-        for dataset_name, scores in self.datasets_scores.items():
-            pd.Series(scores, name=dataset_name).plot.kde(bw_method=kde_bw)
-        plt.legend()
-        plt.xlabel(self.name)
-        plt.title(f"KDE of {self.name} distributions")
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
-
-    def __call__(self,
-                 dialogues: Union[str, List[Dialog]],
-                 metric: str = None,
-                 kde_bw: float = None,
-                 return_dialog_scores: bool = False,
-                 dataset_name: str = "candidate") -> Union[dict, float]:
-        metric = metric or self.metric
-        kde_bw = kde_bw or self.kde_bw
-        if not dataset_name or dataset_name == "candidate":
-            desc = f"Computing {self.name} scores for candidate dataset"
-        else:
-            desc = f"Computing {self.name} scores for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        scores = np.array([self.dialog_score(dialogue)
-                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
-
-        if metric == "kl":
-            result = kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
-        elif metric == "cs":
-            result = cs_divergence(self.ref_scores, scores, bw_method=kde_bw)
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        if self.metric == "kl":
+            result = kl_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
+        elif self.metric == "cs":
+            result = cs_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
         else:
             result = {
-                "cs": cs_divergence(self.ref_scores, scores, bw_method=kde_bw),
-                "kl": kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
+                "cs": cs_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw),
+                "kl": kl_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
             }
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
-
-        return (result, scores) if return_dialog_scores else result
+        return result
 
 
 class StatsEvaluator(BaseDatasetEvaluator):
-    def __init__(self, dialog_score: BaseDialogScore, name: str = None):
-        self.dialog_score = dialog_score
-        self.name = name or f"average-{dialog_score.name}"
-        self.datasets_scores = {}
-
-    def clear_history(self):
-        self.datasets_scores.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None):
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        if self.datasets_scores:
-            pd.DataFrame(self.datasets_scores).boxplot()
-        # plt.legend()
-        # plt.xlabel(self.name)
-        # plt.title(f"KDE of {self.name} distributions")
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
+        plot.title(f"Boxplot of {self.dialog_score.name} scores")
+        plot.boxplot(list(dialog_scores.values()),
+                     labels=list(dialog_scores.keys()))
+        plot.xlabel("datasets")
+        plot.ylabel(self.dialog_score.name)
 
-    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate",
-                 return_dialog_scores: bool = False) -> Union[dict, float]:
-        scores = np.array([self.dialog_score(dialogue) for dialogue in dialogues])
-        result = {
-            "mean": np.mean(scores),
-            "std": np.std(scores),
-            "min": np.min(scores),
-            "max": np.max(scores),
-            "median": np.median(scores)
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        return {
+            "mean": np.mean(dialog_scores),
+            "std": np.std(dialog_scores),
+            "min": np.min(dialog_scores),
+            "max": np.max(dialog_scores),
+            "median": np.median(dialog_scores)
         }
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
 
-        if return_dialog_scores:
-            return result, scores
+
+class FrequencyEvaluator(BaseDatasetEvaluator):
+    """
+    Evaluator for computing the frequency or percentage of dialogues matching a condition (e.g., refusal responses).
+    """
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        # Bar plot for frequency/percentage
+        percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
+        bars = plot.bar(percentages.keys(), percentages.values(), color=plt.cm.tab10.colors[:len(percentages)])
+        # Add value labels on top of each bar
+        for bar in bars:
+            height = bar.get_height()
+            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%", ha='center', va='bottom')
+        plot.ylabel(f"Percentage of {self.dialog_score.name} (%)")
+        plot.xlabel("datasets")
+        plot.title(f"Percentage of {self.dialog_score.name} per dataset")
+
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        # Assumes dialog_scores are binary (0/1 or True/False)
+        total = len(dialog_scores)
+        count = np.sum(dialog_scores)
+        percentage = count / total if total > 0 else 0
+        return {
+            "count": int(count),
+            "total": int(total),
+            "percentage": percentage
+        }
+
+
+class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
+    def __init__(self, features=None, name="linguistic_features"):
+        super().__init__()
+        self.name = name
+        self.features = features or [
+            "mean_turn_length", "hesitation_rate", "gunning_fog", "flesch_reading_ease"
+        ]
+        self.all_results = []
+
+    @staticmethod
+    def clean_utterance(text):
+        cleaned = re.sub(r'<[^>]*>', '', text)
+        cleaned = re.sub(r'\*[^*]*\*', '', cleaned)
+        cleaned = re.sub(r'\([^)]*\)', '', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        return cleaned.strip()
+
+    @staticmethod
+    def count_syllables(word):
+        return max(1, syllables.estimate(word))
+
+    @staticmethod
+    def count_complex_words(text):
+        words = text.split()
+        return sum(1 for word in words if syllables.estimate(word) >= 3), len(words)
+
+    @staticmethod
+    def calculate_gunning_fog(text):
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        complex_words, total_words = LinguisticFeaturesDatasetEvaluator.count_complex_words(text)
+        avg_sentence_length = len(words) / len(sentences)
+        complex_word_ratio = (complex_words / total_words) * 100 if total_words > 0 else 0
+        fog_index = 0.4 * (avg_sentence_length + complex_word_ratio)
+        return fog_index
+
+    @staticmethod
+    def calculate_flesch_reading_ease(text):
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        total_syllables = sum(LinguisticFeaturesDatasetEvaluator.count_syllables(word) for word in words)
+        avg_sentence_length = len(words) / len(sentences)
+        avg_syllables_per_word = total_syllables / len(words)
+        flesch_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+        return flesch_score
+
+    @staticmethod
+    def count_hesitations(text):
+        # Exclude the backchannel
+        hesitation_patterns = [
+            r'\buh+\b',     # uh, uhh, uhhh
+            r'\bum+\b',     # um, umm, ummm
+            r'\ber+\b',     # er, err, errr
+            r'\bahh*\b',    # ah, ahh, ahhh
+            r'\bohh*\b',    # oh, ohh, ohhh
+            r'\bhmm+\b',    # hmm, hmmm
+            r'\bhuh+\b',    # h uh
+            r'\bmm+\b',     # mm, mmm
+            r'\bmhm+\b',    # mhm, mhmm
+            r'\buh\-huh\b',    # uh-huh (backchannel)
+            r'\bum-hum+\b',    # um-hum (backchannel)
+        ]
+        total_hesitations = 0
+        text_lower = text.lower()
+        for pattern in hesitation_patterns:
+            matches = re.findall(pattern, text_lower)
+            total_hesitations += len(matches)
+        return total_hesitations
+
+    def evaluate(self, dialog, dataset_name=None):
+        speaker_stats = {}
+        for turn in dialog.turns:
+            if not getattr(turn, 'speaker', None) or not getattr(turn, 'text', None):
+                continue
+            speaker = turn.speaker
+            if speaker not in speaker_stats:
+                speaker_stats[speaker] = []
+            speaker_stats[speaker].append(self.clean_utterance(turn.text))
+        results = {"dataset": dataset_name or "unknown"}
+        for speaker, utts in speaker_stats.items():
+            all_text = " ".join(utts)
+            turn_lengths = [len(utt.split()) for utt in utts]
+            hesitations = [self.count_hesitations(utt) for utt in utts]
+            results[f"{speaker}_mean_turn_length"] = np.mean(turn_lengths)
+            # results[f"{speaker}_hesitation_rate"] = sum(hesitations) / max(1, sum(turn_lengths))
+            results[f"{speaker}_hesitation_rate"] = (sum(hesitations) / max(1, sum(turn_lengths)) * 100)
+            results[f"{speaker}_gunning_fog"] = self.calculate_gunning_fog(all_text)
+            results[f"{speaker}_flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
+        self.all_results.append(results)
+        return results
+
+    def __call__(self, dialogs, dataset_name=None, **kwargs):
+        if isinstance(dialogs, list):
+            for dialog in dialogs:
+                self.evaluate(dialog, dataset_name=dataset_name)
+            keys = set(k for res in self.all_results for k in res.keys() if k != "dataset")
+            dataset_results = {
+                k: np.mean([
+                    res[k]
+                    for res in self.all_results
+                    if (k in res and (dataset_name is None or res["dataset"] == dataset_name))
+                ])
+                for k in keys
+            }
+            return dataset_results
         else:
-            return result
+            return self.evaluate(dialogs, dataset_name=dataset_name)
+
+    def plot(self, feature=None, kde_bw=0.3, show=True, save_dir=None, save_stats_csv=True):
+        if not self.all_results:
+            print("No results to plot. Please run evaluation first.")
+            return
+        df = pd.DataFrame(self.all_results)
+        if feature is None:
+            exclude_cols = {"dataset"}
+            all_features = [col for col in df.columns if col not in exclude_cols]
+            base_names = set("_".join(col.split("_")[1:]) for col in all_features)
+        else:
+            base_names = [feature]
+        stats_all = []
+        for base in base_names:
+            feature_cols = [col for col in df.columns if base in col]
+            if not feature_cols:
+                continue
+            for f in feature_cols:
+                plt.figure(figsize=(8, 5))
+                stats = {"feature": f}
+                means = {}
+                stds = {}
+                ax = plt.gca()
+                for dataset in df['dataset'].unique():
+                    values = df[df['dataset'] == dataset][f].dropna()
+                    if len(values) < 2:
+                        continue
+                    values.plot.kde(bw_method=kde_bw, label=f"{dataset}", ax=ax)
+                for i, dataset in enumerate(df['dataset'].unique()):
+                    values = df[df['dataset'] == dataset][f].dropna()
+                    if len(values) < 2:
+                        continue
+                    mean = values.mean()
+                    std = values.std()
+                    color = ax.get_lines()[i].get_color()
+                    plt.axvline(mean, linestyle="--", color=color, label=f"{dataset} mean ({mean:.2f})")
+                    stats[f"{dataset}_mean"] = mean
+                    stats[f"{dataset}_std"] = std
+                    means[dataset] = mean
+                    stds[dataset] = std
+                # sds_away calculation
+                if "primock" in means and "ours" in means and stds["primock"] > 0:
+                    sds_away = (means["ours"] - means["primock"]) / stds["primock"]
+                    stats["sds_away"] = sds_away
+                    if sds_away > 0:
+                        stats["sds_away_explanation"] = (
+                            f"Our dataset is {abs(sds_away):.2f} standard deviations higher than Primock."
+                        )
+                    else:
+                        stats["sds_away_explanation"] = (
+                            f"Our dataset is {abs(sds_away):.2f} standard deviations lower than Primock."
+                        )
+                # plt.xlabel(f)
+                plt.xlabel(f"{f} (%)" if "hesitation_rate" in f else f)
+                plt.ylabel("Density")
+                plt.title(f"KDE plot of {f} by dataset")
+                plt.legend()
+                plt.grid(alpha=0.3)
+                if save_dir:
+                    os.makedirs(save_dir, exist_ok=True)
+                    plt.savefig(os.path.join(save_dir, f"{f}.png"), dpi=300)
+                if show:
+                    plt.show()
+                plt.close()
+                stats_all.append(stats)
+        # Save all statistics as CSV
+        if save_stats_csv and save_dir:
+            stats_df = pd.DataFrame(stats_all)
+            stats_csv_path = os.path.join(save_dir, "all_feature_stats.csv")
+            stats_df.to_csv(stats_csv_path, index=False)
+            print(f"All feature statistics saved to {stats_csv_path}")
+        if save_dir:
+            print(f"All plots saved to {save_dir}")
 
 
 class DialogFlowScore(BaseDialogScore):
