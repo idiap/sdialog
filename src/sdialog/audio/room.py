@@ -4,53 +4,32 @@ This module provides classes for the room specification.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
-
-"""
-This module provides classes for the room specification.
-"""
-# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
-# SPDX-License-Identifier: MIT
-
+import time
 from dataclasses import dataclass, field
-from typing import List, Optional,Tuple, Dict, Union
-import numpy as np
-import math
-
 from enum import Enum
+from typing import Dict, Optional, Tuple, Union
 
-class RoomRole(Enum):
-    """Defines the functional role of the room"""
-    CONSULTATION = "consultation"
-    EXAMINATION = "examination"
-    TREATMENT = "treatment"
-    PATIENT_ROOM = "patient_room"
-    SURGERY = "surgery"
-    WAITING = "waiting"
-    EMERGENCY = "emergency"
-
-
-
-class Room:
-    """
-    A room is a place where the dialog takes place.
-    """
-
-    def __init__(self, name: str, description: str):
-        self.id: str
-        self.name = name
-        self.description = description
-        self.role: RoomRole
-        self.dimensions: Dimensions3D
-        self.walls_material: MaterialProperties
-        self.rt60: Optional[float] = None
-
-    def __str__(self):
-        return "Room"
-
+import numpy as np
 
 #------------------------------------------------
 #
+
+
+@dataclass
+class Position3D:
+    """3D position coordinates in meters"""
+    x: float
+    y: float
+    z: float
+
+    def __post_init__(self):
+        if any(coord < 0 for coord in [self.x, self.y, self.z]):
+            raise ValueError("Coordinates must be non-negative")
+    def __str__(self):
+        return f"pos: [{self.x}, {self.y}, {self.z}]"
+    def to_array(self) -> np.ndarray:
+        return np.array([self.x, self.y, self.z])
+
 
 @dataclass
 class Dimensions3D:
@@ -62,15 +41,15 @@ class Dimensions3D:
     def __post_init__(self):
         if any(dim <= 0 for dim in [self.width, self.length, self.height]):
             raise ValueError("All dimensions must be positive")
+    def __str__(self):
+        return f"dim: [{self.width}, {self.length}, {self.height}]"
 
     @property
     def volume(self) -> float:
         return self.width * self.length * self.height
-
     @property
     def floor_area(self) -> float:
         return self.width * self.length
-
     @classmethod
     def from_volume(cls, volume: float, aspect_ratio: Tuple[float, float, float] = (1.5, 1.0, 0.3)):
         """Generate dimensions from volume using aspect ratio (width:length:height)"""
@@ -86,23 +65,48 @@ class Dimensions3D:
             height=h_ratio * scale
         )
 
-
-@dataclass
-class Position3D:
-    """3D position coordinates in meters"""
-    x: float
-    y: float
-    z: float
-
-    def __post_init__(self):
-        if any(coord < 0 for coord in [self.x, self.y, self.z]):
-            raise ValueError("Coordinates must be non-negative")
-
-    def to_array(self) -> np.ndarray:
-        return np.array([self.x, self.y, self.z])
-
 #---------------------------------------------------------------------
-#
+# Enums
+
+
+class RoomRole(Enum):
+    """Defines the functional role of the room and dimentions that comes with it."""
+    CONSULTATION = "consultation"
+    EXAMINATION = "examination"
+    TREATMENT = "treatment"
+    PATIENT_ROOM = "patient_room"
+    SURGERY = "surgery" #operating_room
+    WAITING = "waiting_room"
+    EMERGENCY = "emergency"
+    OFFICE= "office"
+
+
+class DoctorPosition(Enum):
+    """Doctor placement locations in examination room"""
+    AT_DESK_SITTING = "at_desk_sitting"
+    NEXT_TO_BENCH_STANDING = "next_to_bench_standing"
+    NEXT_TO_SINK_FRONT = "next_to_sink_front"
+    NEXT_TO_SINK_BACK = "next_to_sink_back"
+    NEXT_TO_CUPBOARD_FRONT = "next_to_cupboard_front"
+    NEXT_TO_CUPBOARD_BACK = "next_to_cupboard_back"
+    NEXT_TO_DOOR_STANDING = "next_to_door_standing"
+    AT_DESK_SIDE_STANDING = "at_desk_side_standing"
+
+class PatientPosition(Enum):
+    """Patient placement locations in examination room"""
+    AT_DOOR_STANDING = "at_door_standing"
+    NEXT_TO_DESK_SITTING = "next_to_desk_sitting"
+    NEXT_TO_DESK_STANDING = "next_to_desk_standing"
+    SITTING_ON_BENCH = "sitting_on_bench"
+    CENTER_ROOM_STANDING = "center_room_standing"
+
+class MicrophonePosition(Enum):
+    """Different microphone placement options"""
+    TABLE_SMARTPHONE = "table_smartphone"
+    MONITOR = "monitor"
+    WALL_MOUNTED = "wall_mounted"
+    CEILING_CENTERED = "ceiling_centered"
+    CHEST_POCKET = "chest_pocket"
 
 class WallMaterial(Enum):
     """Common wall materials with typical absorption coefficients"""
@@ -122,6 +126,67 @@ class FloorMaterial(Enum):
     HARDWOOD = "hardwood"
     TILE = "tile"
     RUBBER = "rubber"
+
+
+class RecordingDevice(Enum):
+    """Types of recording devices with their characteristics"""
+    SMARTPHONE = "smartphone"
+    WEBCAM = "webcam"
+    TABLET = "tablet"
+    HIGH_QUALITY_MIC = "high_quality_mic"
+    BEAMFORMING_MIC = "beamforming_mic"
+    LAVALIER_MIC = "lavalier_mic"
+    SHOTGUN_MIC = "shotgun_mic"
+
+
+@dataclass
+class SpeakerSource:
+    """Represents a person speaking in the room"""
+    name: str
+    position: Position3D
+    voice_level: float = 60.0  # dB SPL
+    fundamental_frequency: float = 150.0  # Hz
+    is_primary: bool = True  # Primary speaker (doctor) vs secondary (patient)
+
+
+#------------------------------------------------
+#
+
+# https://github.com/LCAV/pyroomacoustics/blob/master/pyroomacoustics/room.py
+
+@dataclass
+class Room:
+    """
+    A room is a place where the dialog takes place.
+    """
+
+    def __init__(self, role: RoomRole, dimensions: Optional[Dimensions3D], name: str = "Room", description: str = "", rt60: float = 0.4,
+        speaker_position=[], mic_type=RecordingDevice.WEBCAM, mic_position=MicrophonePosition.MONITOR,furnitures=False):
+            self.id: str =  str(int(time.time()))[-4:]
+            self.name: str = name + self.id
+            self.description = description
+            self.role: RoomRole = role if role is not None else RoomRole.CONSULTATION
+            self.dimensions: Dimensions3D = dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
+            self.walls_material: Optional[MaterialProperties] = None  #absorbion_coefficient
+            self.rt60: Optional[float] = rt60
+
+    def __str__(self):
+        return f"Room {self.id}: {self.name}. {self.description}. (dimentions: {str(self.dimensions)}, rt60: {self.rt60} ) "
+
+
+@dataclass
+class RoomLayout:
+    """Defines the standard layout of furniture in examination room"""
+    door_position: Position3D
+    desk_position: Position3D
+    monitor_position: Optional[Position3D]
+    bench_position: Optional[Position3D]
+    sink_position: Optional[Position3D]
+    cupboard_position: Optional[Position3D]
+
+
+#---------------------------------------------------------------------
+#
 
 
 @dataclass
@@ -163,15 +228,16 @@ class MaterialProperties:
 class FurnitureType(Enum):
     """Types of furniture commonly found in medical rooms"""
     DESK = "desk"
-    CHAIR = "chair"
-    EXAMINATION_TABLE = "examination_table"
-    BENCH = "bench"
-    CABINET = "cabinet"
     MONITOR = "monitor"
+    CHAIR = "chair"
+    BENCH = "bench"
+    EXAMINATION_TABLE = "examination_table"
+    CABINET = "cabinet"
     EQUIPMENT_CART = "equipment_cart"
     BED = "bed"
     DIVIDER_CURTAIN = "divider_curtain"
     BOOKSHELF = "bookshelf"
+    SINK = "sink"
 
 
 @dataclass
@@ -189,28 +255,8 @@ class Furniture:
         return self.dimensions.volume
 
 
-
-#---------------------------------------------------------------------
+#------------------------------------------------
 #
-
-class MicrophonePosition(Enum):
-    """Different microphone placement options"""
-    TABLE_SMARTPHONE = "table_smartphone"
-    MONITOR = "monitor"
-    WALL_MOUNTED = "wall_mounted"
-    CEILING_CENTERED = "ceiling_centered"
-    CHEST_POCKET = "chest_pocket"
-
-class RecordingDevice(Enum):
-    """Types of recording devices with their characteristics"""
-    SMARTPHONE = "smartphone"
-    WEBCAM = "webcam"
-    TABLET = "tablet"
-    HIGH_QUALITY_MIC = "high_quality_mic"
-    BEAMFORMING_MIC = "beamforming_mic"
-    LAVALIER_MIC = "lavalier_mic"
-    SHOTGUN_MIC = "shotgun_mic"
-
 
 @dataclass
 class RecordingDeviceSpec:
@@ -243,38 +289,8 @@ class RecordingDeviceSpec:
                     setattr(self, key, value)
 
 
-
 #---------------------------------------------------------------------
 #
-
-class DoctorPosition(Enum):
-    """Doctor placement locations in examination room"""
-    AT_DESK_SITTING = "at_desk_sitting"
-    NEXT_TO_BENCH_STANDING = "next_to_bench_standing"
-    NEXT_TO_SINK_FRONT = "next_to_sink_front"
-    NEXT_TO_SINK_BACK = "next_to_sink_back"
-    NEXT_TO_CUPBOARD_FRONT = "next_to_cupboard_front"
-    NEXT_TO_CUPBOARD_BACK = "next_to_cupboard_back"
-    NEXT_TO_DOOR_STANDING = "next_to_door_standing"
-    AT_DESK_SIDE_STANDING = "at_desk_side_standing"
-
-class PatientPosition(Enum):
-    """Patient placement locations in examination room"""
-    AT_DOOR_STANDING = "at_door_standing"
-    NEXT_TO_DESK_SITTING = "next_to_desk_sitting"
-    NEXT_TO_DESK_STANDING = "next_to_desk_standing"
-    SITTING_ON_BENCH = "sitting_on_bench"
-    CENTER_ROOM_STANDING = "center_room_standing"
-
-
-@dataclass
-class SpeakerSource:
-    """Represents a person speaking in the room"""
-    name: str
-    position: Position3D
-    voice_level: float = 60.0  # dB SPL at 1m
-    fundamental_frequency: float = 150.0  # Hz (typical for adult male)
-    is_primary: bool = True  # Primary speaker (doctor) vs secondary (patient)
 
 
 
@@ -290,3 +306,70 @@ class EnvironmentalConditions:
     def sound_speed(self) -> float:
         """Calculate speed of sound based on temperature"""
         return 331.4 + 0.6 * self.temperature
+
+    def air_absorption_coefficient(self) -> float:
+        """
+        Calculate air absorption coefficient for sound attenuation.
+
+        Returns coefficient in dB/m for 1kHz frequency.
+        Based on ISO 9613-1:1993 standard for atmospheric absorption.
+        https://www.iso.org/obp/ui/#iso:std:iso:9613:-1:ed-1:v1:en
+        """
+
+        T = self.temperature + 273.15 # in Kelvin
+
+        # Saturation vapor pressure (Pa)
+        psat = 10**(8.07131 - 1730.63 / (T - 39.724))
+
+        # Molar concentration of water vapor
+        h = self.humidity * psat / self.atmospheric_pressure
+
+        # Simplified calculation for 1kHz
+        absorption = (1.84e-11 * (self.atmospheric_pressure / 101325) *
+                     (T / 293.15)**(-0.5) +
+                     (T / 293.15)**(-2.5) *
+                     (0.01275 * h * np.exp(-2239.1 / T) /
+                      (0.0963 + h * np.exp(-2239.1 / T))))
+
+        return absorption * 1000  # Convert to dB/m
+
+
+        def calculate_reverberation_time_adjustment(self, room_volume: float,
+                                                  base_rt60: float) -> float:
+            """
+            Calculate adjustment factor for reverberation time based on environmental conditions.
+
+            Args:
+                room_volume: Room volume in cubic meters
+                base_rt60: Base reverberation time at standard conditions (20°C, 50% RH)
+
+            Returns:
+                Adjusted RT60 in seconds
+
+            Environmental factors affect sound absorption:
+            - Higher humidity increases absorption at high frequencies
+            - Temperature affects air density and sound propagation
+            - Atmospheric pressure affects air density
+
+            ![](https://www.mdpi.com/buildings/buildings-12-01282/article_deploy/html/images/buildings-12-01282-g005.png)
+            ![](https://www.mdpi.com/buildings/buildings-12-01282/article_deploy/html/images/buildings-12-01282-g009a.png)
+            Reverberation times as a function of humidity and air temperature for octave frequencies,
+            where φ stands for relative humidity and θ stands for air temperature.
+
+            """
+            # Standard conditions (20°C, 50% RH, 101325 Pa)
+            standard_temp = 20.0
+            standard_humidity = 50.0
+            standard_pressure = 101325.0
+
+            temp_factor = (standard_temp + 273.15) / (self.temperature + 273.15)
+
+            # Higher humidity = more absorption = lower RT60
+            humidity_factor = 1.0 + (self.humidity - standard_humidity) * 0.002
+
+            pressure_factor = self.atmospheric_pressure / standard_pressure
+            env_factor = temp_factor * pressure_factor / humidity_factor
+
+            adjusted_rt60 = base_rt60 * env_factor
+
+            return max(0.01, adjusted_rt60)
