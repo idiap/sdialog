@@ -5,3 +5,4 @@ pyannote-audio
 soundfile
 tgt
 openai-whisper
+dscaper @ git+https://github.com/cyrta/dscaper.git

@@ -6,6 +6,8 @@ This module provides functionality to generate audio from text utterances in a d
 # SPDX-License-Identifier: MIT
 import os
 import torch
+import scaper
+import logging
 import whisper
 import numpy as np
 import soundfile as sf
@@ -14,6 +16,7 @@ from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.util import remove_audio_tags
 from sdialog.audio.tts_engine import BaseTTS
+from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
 
@@ -127,11 +130,24 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str) -> AudioDialog:
     return dialog
 
 
-# TODO: Implement this function
-def send_utterances_to_dscaper(dialog: AudioDialog) -> AudioDialog:
+def send_utterances_to_dscaper(dialog: AudioDialog, dscaper: scaper.Dscaper) -> AudioDialog:
     """
     Sends the utterances to DSCAPER.
     """
+
+    for turn in dialog.turns:
+
+        metadata = DscaperAudio(
+            library=f"dialog_{dialog.id}",
+            label=turn.speaker,
+            filename=os.path.basename(turn.audio_path)
+        )
+        
+        resp = dscaper.store_audio(turn.audio_path, metadata)
+        
+        if resp.status != "success":
+            logging.error(f"Problem storing audio for turn {turn.audio_path}: {resp.message}")
+
     return dialog
 
 
@@ -160,7 +176,8 @@ def audio_pipeline(
     dialog: AudioDialog,
     voice_database: BaseVoiceDatabase,
     tts_pipeline: BaseTTS,
-    dir_audio: str) -> AudioDialog:
+    dir_audio: str,
+    dscaper: scaper.Dscaper) -> AudioDialog:
     """
     Converts a Dialog object into a single audio track by generating audio for each utterance.
 
@@ -198,7 +215,7 @@ def audio_pipeline(
 
     # TODO: Generate SNR and position of the speaker in the room
 
-    dialog = send_utterances_to_dscaper(dialog)
+    dialog = send_utterances_to_dscaper(dialog, dscaper)
 
     dialog = generate_dscaper_timeline(dialog)
     
