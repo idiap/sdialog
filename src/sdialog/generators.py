@@ -148,7 +148,11 @@ class DialogGenerator:
         :rtype: Union[Dialog, dict, BaseModel]
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
-        self.llm.seed = seed if seed is not None else random.getrandbits(32)
+        if hasattr(self.llm, "seed"):
+            self.llm.seed = seed if seed is not None else random.getrandbits(32)
+        else:
+            logger.warning("The LLM does not support dynamically setting a seed.")
+            self.llm.seed = random.getrandbits(32)
         logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
 
         if isinstance(self.llm, ChatOllama):
@@ -632,7 +636,7 @@ class PersonaGenerator:
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
-                            className=type(output_persona).__name__,
+                            className=type(self._persona).__name__,
                             notes=notes
                         )
                 if len(personas) != n:
@@ -676,7 +680,7 @@ class PersonaGenerator:
             seed=seed,
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,
-            className=type(output_persona).__name__,
+            className=type(self._persona).__name__,
             notes=notes
         )
         return output_persona
