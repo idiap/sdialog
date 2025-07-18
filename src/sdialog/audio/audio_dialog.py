@@ -15,13 +15,21 @@ class AudioDialog(Dialog):
 
     def __init__(self):
         super().__init__()
+
+    def set_combined_audio(self, audio: np.ndarray):
+        """
+        Set the combined audio of the dialog.
+        """
+        self._combined_audio = audio
     
     @staticmethod
     def from_dialog(dialog: Dialog):
         audio_dialog = AudioDialog()
+
         for attr in dialog.__dict__:
             setattr(audio_dialog, attr, getattr(dialog, attr))
-        audio_dialog.turns = [AudioTurn(turn) for turn in dialog.turns]
+        
+        audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
         return audio_dialog
     
     def set_audio_dir_path(self, path: str):
@@ -42,6 +50,6 @@ class AudioDialog(Dialog):
         for turn in self.turns:
             sf.write(
                 f"{self.audio_dir_path}/dialog_{self.id}/utterances/{turn.id}_{turn.speaker}.wav",
-                turn.audio,
+                turn.get_audio(),
                 24_000
             )

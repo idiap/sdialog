@@ -53,7 +53,7 @@ def eval_wer_cer(dialog: AudioDialog) -> Dict:
     """
 
     # Transcript the audios
-    _transcripts = transcript([turn.audio for turn in dialog.turns])
+    _transcripts = transcript([turn.get_audio() for turn in dialog.turns])
     for idx, turn in enumerate(dialog.turns):
         turn.transcript = _transcripts[idx]
 
@@ -204,10 +204,10 @@ def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str
     scores = []
     for turn in tqdm(dialog.turns):
         
-        if torch.is_tensor(turn.audio):
-            input_tensor = turn.audio.clone().detach().to(torch.float32)
+        if torch.is_tensor(turn.get_audio()):
+            input_tensor = turn.get_audio().clone().detach().to(torch.float32)
         else:
-            input_tensor = torch.tensor(turn.audio, dtype=torch.float32)
+            input_tensor = torch.tensor(turn.get_audio(), dtype=torch.float32)
         
         _scores = nisqa(input_tensor).tolist()
         scores.append({
@@ -308,7 +308,7 @@ def speaker_consistency(dialog: AudioDialog) -> float:
     # Iterate through the utterances and compute x-vectors for each speaker
     for turn in dialog.turns:
 
-        tensor_audio = torch.Tensor(turn.audio.unsqueeze(0)).unsqueeze(0)
+        tensor_audio = torch.Tensor(turn.get_audio().unsqueeze(0)).unsqueeze(0)
         embedding = inference.infer(tensor_audio)
 
         xvectors[turn.speaker].append(embedding)

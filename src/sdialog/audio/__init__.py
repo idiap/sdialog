@@ -94,6 +94,8 @@ def audio_pipeline(dialog: AudioDialog, voice_database: BaseVoiceDatabase, tts_p
 
     dialog = generate_utterances_audios(dialog, voice_database=voice_database, tts_pipeline=tts_pipeline)
 
-    dialog._combined_audio = _master_audio(dialog)
+    dialog.set_combined_audio(
+        _master_audio(dialog)
+    )
 
     return dialog

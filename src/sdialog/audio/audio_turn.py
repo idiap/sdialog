@@ -18,8 +18,22 @@ class AudioTurn(Turn):
     :vartype alignment: Optional[List[Tuple[float, float, str]]]
     """
     
-    def __init__(
-        self,
+    _audio: np.ndarray = None
+    audio_path: str = None
+    audio_duration: float = None
+    audio_start_time: float = None
+    snr: float = None
+    alignment: List[Tuple[float, float, str]] = None
+    transcript: str = None
+
+    def get_audio(self) -> np.ndarray:
+        """
+        Get the audio of the turn.
+        """
+        return self._audio
+
+    @staticmethod
+    def from_turn(
         turn: Turn,
         audio: np.ndarray = None,
         audio_path: str = None,
@@ -29,12 +43,14 @@ class AudioTurn(Turn):
         alignment: List[Tuple[float, float, str]] = None,
         transcript: str = None):
 
-        super().__init__(turn.speaker, turn.text)
-        
-        self._audio = audio
-        self.audio_path = audio_path
-        self.audio_duration = audio_duration
-        self.audio_start_time = audio_start_time
-        self.snr = snr
-        self.alignment = alignment
-        self.transcript = transcript
+        audio_turn = AudioTurn(text=turn.text, speaker=turn.speaker)
+
+        audio_turn._audio = audio
+        audio_turn.audio_path = audio_path
+        audio_turn.audio_duration = audio_duration
+        audio_turn.audio_start_time = audio_start_time
+        audio_turn.snr = snr
+        audio_turn.alignment = alignment
+        audio_turn.transcript = transcript
+
+        return audio_turn
