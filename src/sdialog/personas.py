@@ -893,7 +893,10 @@ class Agent:
         """
         self.memory[:] = self.memory[:1]
         self.finished = False
-        self.llm.seed = seed
+        if hasattr(self.llm, "seed"):
+            self.llm.seed = seed if seed is not None else random.getrandbits(32)
+        else:
+            logger.warning("The LLM does not support dynamically setting a seed.")
 
         if self.orchestrators:
             for orchestrator in self.orchestrators:

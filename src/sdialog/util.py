@@ -168,16 +168,22 @@ def get_llm_model(model_name: str,
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading OpenAI model: {model_name}")
 
-        if output_format and not issubclass(output_format, BaseModel):
-            logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
         llm = ChatOpenAI(model=model_name,
-                         response_format=output_format,
                          **llm_kwargs)
+
+        if output_format and issubclass(output_format, BaseModel):
+            llm = llm.with_structured_output(output_format)
+        else:
+            logger.warning("Output format should be a pydantic's BaseModel for ChatOpenAI models.")
     elif is_aws_model_name(model_name):
         from langchain_aws import ChatBedrockConverse
         if ":" in model_name:
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading AWS model: {model_name}")
+
+        if "seed" in llm_kwargs:
+            logger.warning("Ignoring 'seed' parameter for AWS Bedrock models, as it is not supported.")
+            llm_kwargs.pop("seed")
 
         llm = ChatBedrockConverse(model=model_name, **llm_kwargs)
 
