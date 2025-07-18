@@ -434,6 +434,15 @@ class Dialog(BaseModel):
 
         return self
 
+    def clone(self) -> "Dialog":
+        """
+        Creates a deep copy of the dialogue.
+
+        :return: A new Dialog object that is a copy of this one.
+        :rtype: Dialog
+        """
+        return Dialog.from_dict(self.json())
+
     __str__ = description
 
 
