@@ -6,6 +6,7 @@ Jinja2
 langchain-huggingface
 langchain-openai
 langchain-google-genai
+langchain-aws
 langchain-ollama
 langchain>=0.3.26
 matplotlib
