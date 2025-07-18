@@ -1,0 +1,11 @@
+# requirements.txt
+# Core dependencies for the project.
+# Install using: pip install -r requirements.txt
+
+langchain-openai>=0.1.0
+pydantic>=2.0
+Jinja2>=3.0
+PyYAML>=6.0
+pandas>=2.0
+matplotlib>=3.7
+seaborn>=0.13
