@@ -9,6 +9,7 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-License-Identifier: MIT
 import os
 import re
+import logging
 import syllables
 import numpy as np
 import pandas as pd
@@ -31,6 +32,8 @@ from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
 from ..util import KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
+
+logger = logging.getLogger(__name__)
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -249,6 +252,7 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  as_score: bool = False,
+                 as_score_error_value: int = -1,
                  **llm_kwargs):
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
@@ -259,6 +263,7 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
         self.prompt_template = Template(prompt_template)
         self.feedback = feedback
         self.as_score = as_score  # If True, returns either 1 or 0 instead of LLMJudgeYesNoOutput object
+        self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
         if isinstance(dialogs, Dialog):
@@ -268,7 +273,15 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
                                              feedback=feedback if feedback is not None else self.feedback)
         output = self.output_format.model_validate(super().__call__(prompt))
 
-        return output if not self.as_score else int(output.yes)
+        if self.as_score:
+            try:
+                return int(output.yes)
+            except TypeError:
+                logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
+                             f"Returning default {self.as_score_error_value} value")
+                return self.as_score_error_value
+
+        return output
 
     __call__ = judge  # Allow direct call to judge method
 
