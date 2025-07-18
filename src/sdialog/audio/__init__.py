@@ -16,7 +16,7 @@ from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.util import remove_audio_tags
 from sdialog.audio.tts_engine import BaseTTS
-from scaper.dscaper_datatypes import DscaperAudio
+from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
 
@@ -151,16 +151,54 @@ def send_utterances_to_dscaper(dialog: AudioDialog, dscaper: scaper.Dscaper) -> 
     return dialog
 
 
-# TODO: Implement this function
-def generate_dscaper_timeline(dialog: AudioDialog) -> AudioDialog:
+def generate_dscaper_timeline(dialog: AudioDialog, dscaper: scaper.Dscaper) -> AudioDialog:
     """
     Generates a DSCAPER format for a Dialog object.
 
     :param dialog: The Dialog object containing the conversation.
     :type dialog: AudioDialog
+    :param dscaper: The dscaper object.
+    :type dscaper: scaper.Dscaper
     :return: A Dialog object with DSCAPER format.
     :rtype: AudioDialog
     """
+    timeline_name = f"dialog_{dialog.id}"
+    total_duration = dialog.get_combined_audio().shape[0] / 24_000
+
+    timeline_metadata = DscaperTimeline(
+        name=timeline_name,
+        duration=total_duration,
+        description=f"Timeline for dialog {dialog.id}"
+    )
+    dscaper.create_timeline(timeline_metadata)
+
+    current_time = 0.0
+    for i, turn in enumerate(dialog.turns):
+        position = "chair_1" if i % 2 == 0 else "chair_2"
+        event_metadata = DscaperEvent(
+            library=timeline_name,
+            label=["const", turn.speaker],
+            source_file=["const", os.path.basename(turn.audio_path)],
+            event_time=["const", str(current_time)],
+            event_duration=turn.audio_duration,
+            speaker=turn.speaker,
+            text=turn.text,
+            position=position,
+        )
+        dscaper.add_event(timeline_name, event_metadata)
+        current_time += turn.audio_duration
+
+    generate_metadata = DscaperGenerate(seed=0, save_isolated_positions=True)
+    resp = dscaper.generate_timeline(timeline_name, generate_metadata)
+
+    if resp.status == "success":
+        content = DscaperGenerate(**resp.content)
+        logging.info(f"Successfully generated dscaper timeline with ID: {content.id}")
+    else:
+        logging.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
+
+    print(f"Timeline path: {resp.content.timeline_path}")
+
     return dialog
 
 
@@ -217,7 +255,7 @@ def audio_pipeline(
 
     dialog = send_utterances_to_dscaper(dialog, dscaper)
 
-    dialog = generate_dscaper_timeline(dialog)
+    dialog = generate_dscaper_timeline(dialog, dscaper)
     
     dialog = generate_audio_room_accoustic(dialog)
 
