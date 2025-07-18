@@ -5,24 +5,30 @@ This module also includes the plotting logic for evaluation reports.
 """
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt # type: ignore
-import seaborn as sns # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
+import seaborn as sns  # type: ignore
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+
 
 class Dialogue(BaseModel):
     """Represents a single medical dialogue with optional metadata."""
     id: str = Field(..., description="Unique dialogue identifier.")
     content: str = Field(..., min_length=1, description="Full text of the conversation.")
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional context (e.g., patient age, gender).")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Additional context (e.g., patient age, gender).")
+
 
 class EvaluationResult(BaseModel):
     """Stores the structured outcome for a single evaluation indicator."""
     indicator_id: str = Field(..., description="Short, machine-readable ID of the indicator.")
     indicator_name: str = Field(..., description="Full name of the evaluated indicator.")
     not_applicable: bool = Field(..., description="True if the indicator does not apply to the dialogue.")
-    score: Optional[int] = Field(default=None, ge=1, le=5, description="The score from 1-5, or null if not applicable.")
-    justification: str = Field(..., min_length=3, description="Detailed explanation for the score or reason for being not applicable.")
+    score: Optional[int] = Field(
+        default=None, ge=1, le=5, description="The score from 1-5, or null if not applicable.")
+    justification: str = Field(
+        ..., min_length=3, description="Detailed explanation for the score or reason for being not applicable.")
+
 
 class FullEvaluationReport(BaseModel):
     """A comprehensive report containing all evaluation results for a single dialogue."""
@@ -61,7 +67,8 @@ class FullEvaluationReport(BaseModel):
     def _plot_bar(self, df: pd.DataFrame, save_path: Optional[str]):
         """Generates a bar chart."""
         plt.figure(figsize=(12, 8))
-        ax = sns.barplot(x='score', y='indicator_name', data=df.sort_values('score'), palette='viridis', hue='indicator_name', dodge=False, legend=False)
+        ax = sns.barplot(x='score', y='indicator_name', data=df.sort_values('score'), \
+                         palette='viridis', hue='indicator_name', dodge=False, legend=False)
         ax.set_title(f"Evaluation Scores for Dialogue: {self.dialogue_id}", fontsize=16, weight='bold')
         ax.set_xlabel("Score (1-5)", fontsize=12)
         ax.set_ylabel("Indicator", fontsize=12)
@@ -75,23 +82,17 @@ class FullEvaluationReport(BaseModel):
         """Generates a radar chart."""
         labels = df['indicator_name'].values
         stats = df['score'].values
-        
         angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
         stats = np.concatenate((stats, [stats[0]]))
         angles += angles[:1]
-
         fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))
         ax.plot(angles, stats, color='blue', linewidth=2, linestyle='solid')
         ax.fill(angles, stats, color='blue', alpha=0.25)
-        
         ax.set_rlim(0, 5)
         ax.set_yticklabels([])
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(labels, size=12)
         ax.set_title(f"Evaluation Profile for Dialogue: {self.dialogue_id}", size=16, weight='bold', y=1.1)
-        
         if save_path:
             plt.savefig(save_path, dpi=300)
         plt.close()
-
-        

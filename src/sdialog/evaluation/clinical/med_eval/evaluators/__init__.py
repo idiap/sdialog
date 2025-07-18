@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List
 from .base import BaseEvaluator
 
+
 def discover_evaluators() -> List[BaseEvaluator]:
     """Finds and instantiates all BaseEvaluator subclasses in this package."""
     evaluator_instances = []
@@ -24,5 +25,5 @@ def discover_evaluators() -> List[BaseEvaluator]:
                 
     return sorted(evaluator_instances, key=lambda x: x.indicator_name)
 
-ALL_EVALUATORS = discover_evaluators()
 
+ALL_EVALUATORS = discover_evaluators()

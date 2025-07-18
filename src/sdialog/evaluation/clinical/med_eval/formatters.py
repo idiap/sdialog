@@ -8,9 +8,11 @@ import io
 from typing import List, Dict
 from data_models import FullEvaluationReport
 
+
 def to_json(reports: List[FullEvaluationReport]) -> str:
     """Formats a list of reports into a JSON string."""
     return json.dumps([r.dict() for r in reports], indent=2, ensure_ascii=False)
+
 
 def to_csv(reports: List[FullEvaluationReport]) -> str:
     """Formats reports into a single CSV string, ideal for spreadsheets."""
@@ -33,6 +35,7 @@ def to_csv(reports: List[FullEvaluationReport]) -> str:
             
     return output.getvalue()
 
+
 def to_markdown(reports: List[FullEvaluationReport]) -> str:
     """Formats reports into a human-readable Markdown string."""
     lines = ["# Clinical Dialogue Evaluation Reports\n"]
@@ -43,13 +46,14 @@ def to_markdown(reports: List[FullEvaluationReport]) -> str:
         for result in report.evaluation_results:
             score_display = "N/A" if result.not_applicable else f"{result.score}/5"
             justification = result.justification.replace("\n", " ")
-            lines.append(f"| **{result.indicator_name}**<br>(`{result.indicator_id}`) | {score_display} | {justification} |")
+            lines.append(f"| **{result.indicator_name}**<br>(`{result.indicator_id}`) \
+                          | {score_display} | {justification} |")
         lines.append("\n---\n")
     return "\n".join(lines)
+
 
 FORMATTERS: Dict[str, callable] = {
     "json": to_json,
     "csv": to_csv,
     "md": to_markdown,
 }
-

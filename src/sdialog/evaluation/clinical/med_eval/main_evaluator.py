@@ -12,6 +12,7 @@ from logger import logger
 from prompts import PROMPT_TEMPLATE
 from utils import get_llm_client, EvaluationOutput
 
+
 class DialogueEvaluator:
     """Orchestrates the asynchronous evaluation of a medical dialogue."""
     def __init__(self, evaluators: List[BaseEvaluator]):
@@ -33,7 +34,6 @@ class DialogueEvaluator:
                 dialogue_content=dialogue.content
             )
             llm_response: EvaluationOutput = await self.llm_client.ainvoke(prompt)
-            
             return EvaluationResult(
                 indicator_id=evaluator.indicator_id,
                 indicator_name=evaluator.indicator_name,
@@ -63,5 +63,3 @@ class DialogueEvaluator:
             dialogue_id=dialogue.id,
             evaluation_results=evaluation_results
         )
-    
-    

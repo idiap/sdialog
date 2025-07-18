@@ -5,6 +5,7 @@ This modular design allows users to easily add new evaluators.
 """
 from abc import ABC, abstractmethod
 
+
 class BaseEvaluator(ABC):
     """Abstract base class for a single evaluation indicator."""
     @property
@@ -30,4 +31,3 @@ class BaseEvaluator(ABC):
     def scoring_rubric(self) -> dict:
         """A dictionary with 'low_example' and 'high_example' descriptions."""
         pass
-    

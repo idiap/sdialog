@@ -12,6 +12,7 @@ from evaluators import discover_evaluators
 from logger import logger
 from formatters import FORMATTERS
 
+
 def parse_args():
     """Parses command-line arguments."""
     parser = argparse.ArgumentParser(description="Run asynchronous medical dialogue evaluations.")
@@ -44,6 +45,7 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def load_dialogues(dialogue_file: str) -> List[Dialogue]:
     """Loads dialogues from a JSON Lines (.jsonl) file."""
     dialogues = []
@@ -58,6 +60,7 @@ def load_dialogues(dialogue_file: str) -> List[Dialogue]:
     except FileNotFoundError:
         logger.error(f"FATAL: Dialogue file not found at: {dialogue_file}")
     return dialogues
+
 
 async def main():
     """Main asynchronous function to orchestrate the evaluation process."""
@@ -101,5 +104,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-    
