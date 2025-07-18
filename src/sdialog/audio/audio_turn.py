@@ -32,6 +32,12 @@ class AudioTurn(Turn):
         """
         return self._audio
 
+    def set_audio(self, audio: np.ndarray):
+        """
+        Set the audio of the turn.
+        """
+        self._audio = audio
+
     @staticmethod
     def from_turn(
         turn: Turn,

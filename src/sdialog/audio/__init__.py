@@ -18,7 +18,7 @@ def _master_audio(dialog: AudioDialog) -> np.ndarray:
     """
     Combines multiple audio segments into a single master audio track.
     """
-    return np.concatenate([turn.audio for turn in dialog.turns])
+    return np.concatenate([turn.get_audio() for turn in dialog.turns])
 
 
 def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
@@ -51,7 +51,7 @@ def generate_utterances_audios(
             turn_voice,
             tts_pipeline=tts_pipeline
         )
-        turn.audio = utterance_audio
+        turn.set_audio(utterance_audio)
 
     return dialog
 
@@ -81,8 +81,7 @@ def generate_utterance(text: str, voice: str, tts_pipeline: BaseTTS) -> np.ndarr
     return tts_pipeline.generate(text, voice=voice)
 
 
-@staticmethod
-def audio_pipeline(dialog: AudioDialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS) -> np.ndarray:
+def audio_pipeline(dialog: AudioDialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS) -> AudioDialog:
     """
     Converts a Dialog object into a single audio track by generating audio for each utterance.
 

@@ -47,9 +47,9 @@ class AudioDialog(Dialog):
         if self.audio_dir_path is None:
             self.set_audio_dir_path("./outputs")
 
-        for turn in self.turns:
+        for idx, turn in enumerate(self.turns):
             sf.write(
-                f"{self.audio_dir_path}/dialog_{self.id}/utterances/{turn.id}_{turn.speaker}.wav",
+                f"{self.audio_dir_path}/dialog_{self.id}/utterances/{idx}_{turn.speaker}.wav",
                 turn.get_audio(),
                 24_000
             )
