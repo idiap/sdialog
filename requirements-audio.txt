@@ -4,4 +4,4 @@ more-itertools
 pyannote-audio
 soundfile
 tgt
-whisper
+openai-whisper

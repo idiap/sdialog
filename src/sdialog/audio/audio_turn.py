@@ -23,8 +23,9 @@ class AudioTurn(Turn):
     audio_duration: float = None
     audio_start_time: float = None
     snr: float = None
-    alignment: List[Tuple[float, float, str]] = None
+    alignment: List[dict] = None
     transcript: str = None
+    voice: str = None
 
     def get_audio(self) -> np.ndarray:
         """
@@ -46,8 +47,9 @@ class AudioTurn(Turn):
         audio_duration: float = None,
         audio_start_time: float = None,
         snr: float = None,
-        alignment: List[Tuple[float, float, str]] = None,
-        transcript: str = None):
+        alignment: List[dict] = None,
+        transcript: str = None,
+        voice: str = None):
 
         audio_turn = AudioTurn(text=turn.text, speaker=turn.speaker)
 
@@ -58,5 +60,6 @@ class AudioTurn(Turn):
         audio_turn.snr = snr
         audio_turn.alignment = alignment
         audio_turn.transcript = transcript
-
+        audio_turn.voice = voice
+        
         return audio_turn

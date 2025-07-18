@@ -21,6 +21,12 @@ class AudioDialog(Dialog):
         Set the combined audio of the dialog.
         """
         self._combined_audio = audio
+
+    def get_combined_audio(self) -> np.ndarray:
+        """
+        Get the combined audio of the dialog.
+        """
+        return self._combined_audio
     
     @staticmethod
     def from_dialog(dialog: Dialog):
@@ -31,25 +37,3 @@ class AudioDialog(Dialog):
         
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
         return audio_dialog
-    
-    def set_audio_dir_path(self, path: str):
-        """
-        Set the audio directory path for the dialog.
-        """
-        self.audio_dir_path = path.rstrip("/")
-        os.makedirs(f"{self.audio_dir_path}/dialog_{self.id}/utterances", exist_ok=True)
-        os.makedirs(f"{self.audio_dir_path}/dialog_{self.id}/exported_audios", exist_ok=True)
-
-    def save_utterances_audios(self):
-        """
-        Save the utterances audios to the given path.
-        """
-        if self.audio_dir_path is None:
-            self.set_audio_dir_path("./outputs")
-
-        for idx, turn in enumerate(self.turns):
-            sf.write(
-                f"{self.audio_dir_path}/dialog_{self.id}/utterances/{idx}_{turn.speaker}.wav",
-                turn.get_audio(),
-                24_000
-            )
