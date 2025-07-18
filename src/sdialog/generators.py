@@ -330,7 +330,7 @@ class PersonaGenerator:
                  persona: BasePersona,
                  generated_attributes: str = "all",  # None
                  model: str = None,
-                 llm_kwargs: dict = {}):
+                 **llm_kwargs):
         if isinstance(persona, BasePersona):
             self._persona = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
