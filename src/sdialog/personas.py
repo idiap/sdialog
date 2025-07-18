@@ -24,7 +24,6 @@ from pydantic import BaseModel, Field
 from print_color import print as cprint
 from typing import List, Union, Optional
 
-from langchain_huggingface import ChatHuggingFace
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages.base import messages_to_dict
 from langchain_core.language_models.base import BaseLanguageModel
@@ -36,6 +35,7 @@ from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 from .util import get_llm_model, camel_or_snake_to_words, get_timestamp, remove_newlines, get_universal_id
+from .util import is_aws_model_name, is_huggingface_model_name
 
 
 logger = logging.getLogger(__name__)
@@ -431,12 +431,12 @@ class MinimalPatient(BasePersona):
     race: str = ""
     gender: str = ""
     language: str = "English"
-    forgetfulness: str = ""
-    formality: str = ""
-    hurriedness: str = ""
-    openness: str = ""
-    height: Union[int, str] = None
-    weight: Union[int, str] = None
+    forgetfulness: Union[str, float] = ""
+    formality: Union[str, float] = ""
+    hurriedness: Union[str, float] = ""
+    openness: Union[str, float] = ""
+    height: Union[int, str] = ""
+    weight: Union[int, str] = ""
     occupation: str = ""
     marital_status: str = ""
     insurance: str = ""
@@ -495,7 +495,7 @@ class MinimalDoctor(BasePersona):
     :vartype openness: str
     """
     name: str = ""
-    age: Union[int, str] = None
+    age: Union[int, str] = ""
     race: str = ""
     gender: str = ""
     language: str = "English"
@@ -563,6 +563,7 @@ class Agent:
         """
         if model is None:
             model = config["llm"]["model"]
+        self.model_uri = model
 
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
@@ -583,7 +584,6 @@ class Agent:
                                      **llm_kwargs)
         else:
             self.llm = model
-        self.hf_model = isinstance(self.llm, ChatHuggingFace)
 
         self.memory = [SystemMessage(system_prompt)]
 
@@ -654,11 +654,16 @@ class Agent:
             response = AIMessage(content=response)
         else:
             current_memory = self.memory_dump()
-            if self.hf_model and not isinstance(self.memory[-1], HumanMessage):
-                # Ensure last message is HumanMessage to avoid "Last message must be a HumanMessage!"
+            if len(self.memory) == 1 and (is_huggingface_model_name(self.model_uri)
+                                          or is_aws_model_name(self.model_uri)):
+                # Ensure that the first message is HumanMessage to avoid
+                # "Last message must be a HumanMessage!" (huggingface)
+                # Or "A conversation must start with a user message" (aws)
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
                 # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
-                response = self.llm.invoke(self.memory + [HumanMessage(content="")])
+                response = self.llm.invoke(self.memory + [HumanMessage(
+                    content="" if is_huggingface_model_name(self.model_uri) else ".")
+                ])
             else:
                 response = self.llm.invoke(self.memory)
 

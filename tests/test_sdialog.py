@@ -187,3 +187,14 @@ def test_dialog_rename_speaker():
     dialog.rename_speaker("bob", "Dave")
     assert dialog.turns[1].speaker == "Dave"
     assert dialog.events[1].agent == "Dave"
+
+
+def test_dialog_clone():
+    dialog = Dialog(turns=[Turn(speaker="Alice", text="Hello, Bob!"),
+                           Turn(speaker="Bob", text="Hi, Alice! How are you?")])
+
+    dialog_clone = dialog.clone()
+    dialog_clone.turns.append(Turn(speaker="Alice", text="I'm fine, thanks!"))
+
+    assert len(dialog) == 2
+    assert len(dialog_clone) == 3

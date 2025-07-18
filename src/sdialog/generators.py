@@ -24,7 +24,7 @@ from langchain_core.language_models.base import BaseLanguageModel
 from . import Dialog, Turn
 from .config import config
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
-from .util import get_llm_model, set_ollama_model_defaults, get_universal_id
+from .util import get_llm_model, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,13 @@ class LLMDialogOutput(BaseModel):
     :vartype dialog: List[Turn]
     """
     dialog: List[Turn]
+
+
+class ListOfPersonas(BaseModel):
+    personas: List[Persona]
+
+
+_personas_schema = ListOfPersonas.model_json_schema()
 
 
 # TODO: create a BaseDialogGenerator
@@ -148,12 +155,13 @@ class DialogGenerator:
         :rtype: Union[Dialog, dict, BaseModel]
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
+        seed = seed if seed is not None else random.getrandbits(32)
         if hasattr(self.llm, "seed"):
-            self.llm.seed = seed if seed is not None else random.getrandbits(32)
+            self.llm.seed = seed
+            logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
         else:
+            seed = None
             logger.warning("The LLM does not support dynamically setting a seed.")
-            self.llm.seed = random.getrandbits(32)
-        logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
 
         if isinstance(self.llm, ChatOllama):
             # hack to avoid seed bug in prompt cache in Ollama
@@ -163,20 +171,20 @@ class DialogGenerator:
             self.llm.invoke(self.messages)
             self.llm.num_predict = _
 
-        dialogue = self.llm.invoke(self.messages).content
+        dialogue = self.llm.invoke(self.messages)
 
         logger.log(logging.INFO, f"Prompt used: {messages_to_dict(self.messages)}")
 
         if not self.output_format:
-            return dialogue
+            return dialogue.content
         else:
-            llm_output = self.output_format.model_validate(json.loads(dialogue))
+            llm_output = self.output_format.model_validate(dialogue)
 
             if self.output_format is LLMDialogOutput:
                 return Dialog(id=id if id is not None else get_universal_id(),
                               parentId=parent_id,
                               model=self.model_name,
-                              seed=self.llm.seed,
+                              seed=seed,
                               personas=self._personas,
                               scenario=self.scenario if self.scenario else self.dialogue_details,
                               notes=notes,
@@ -560,11 +568,19 @@ class PersonaGenerator:
                     llm = self.llm_model
                 else:
                     schema = self._persona.model_json_schema()
-                    schema["properties"] = {k: v
-                                            for k, v in schema["properties"].items()
-                                            if k in random_persona_dict}
+                    filtered_properties = schema
                     if n > 1:
-                        schema["type"] = "array"
+                        if is_ollama_model_name(self.llm_model):
+                            schema["type"] = "array"
+                        else:
+                            schema = _personas_schema.copy()
+                            filtered_properties = list(schema["$defs"].values())[0]
+                    # Filter properties to only make the LLM to output the attributes that are required
+                    filtered_properties["properties"] = {
+                        k: v
+                        for k, v in filtered_properties["properties"].items()
+                        if k in random_persona_dict
+                    }
                     # Collect LLM parameters from config, only if not None
                     llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
                     llm_kwargs = {**llm_config_params, **self.llm_kwargs}
@@ -587,7 +603,10 @@ class PersonaGenerator:
 
                 if n > 1:
                     for ix in range(max_attempts):
-                        llm_output = json.loads(llm.invoke(messages).content)
+                        llm_output = llm.invoke(messages)
+                        if not is_ollama_model_name(self.llm_model):
+                            llm_output = llm_output["personas"]
+
                         if type(llm_output) is list:
                             break
                         else:
@@ -596,6 +615,7 @@ class PersonaGenerator:
                             )
 
                     if type(llm_output) is list:
+                        llm_output = llm_output[:n]  # Limit to n personas
                         for ix in range(len(llm_output)):
                             llm_output[ix] = {
                                 k: llm_output[ix].get(k, None) if v is None else v
@@ -605,7 +625,7 @@ class PersonaGenerator:
                         logging.error("LLM failed to generate a list of personas, all attributes will be left empty.")
                         llm_output = []
                 else:
-                    llm_output = json.loads(llm.invoke(messages).content)
+                    llm_output = llm.invoke(messages)
                     random_persona_dict.update({k: v
                                                 for k, v in llm_output.items()
                                                 if random_persona_dict[k] is None})
@@ -626,10 +646,11 @@ class PersonaGenerator:
                         )
                     except ValidationError as e:
                         logger.warning(f"Validation error in generated persona {ix + 1}: {e}")
-                        persona_dict = {k: persona_dict[k]
-                                        if k in persona_dict and persona_dict[k] not in [None, "", "null"]
-                                        else v
-                                        for k, v in self._persona.__class__().model_dump().items()}
+                        persona_dict = {k: v if v or v == 0
+                                        else (persona_dict[k]
+                                              if k in persona_dict and persona_dict[k] is not None
+                                              else v)
+                                        for k, v in self._persona.model_dump().items()}
                         personas.append(self._persona.model_validate(persona_dict))
                         personas[-1]._metadata = PersonaMetadata(
                             model=str(llm) if llm else None,

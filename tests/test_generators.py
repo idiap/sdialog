@@ -1,5 +1,4 @@
 import os
-import json
 
 from sdialog.generators import DialogGenerator, PersonaDialogGenerator, LLMDialogOutput, Turn
 from sdialog.generators import PersonaGenerator
@@ -24,9 +23,24 @@ class DummyLLM:
     def invoke(self, memory):
         return type(
             "Msg", (),
-            {"content": LLMDialogOutput(
-                dialog=[Turn(speaker="A", text="Hi")]).model_dump_json()}
+            {"content": "Hi there!"}
         )()
+
+    def __str__(self):
+        return "dummy"
+
+
+# Patch LLM call for structured output
+class DummyLLMDialogOutput:
+    seed = 0
+    num_predict = 1
+    temperature = None
+
+    def __init__(self, *a, **kw):
+        pass
+
+    def invoke(self, memory):
+        return LLMDialogOutput(dialog=[Turn(speaker="A", text="Hi")]).model_dump()
 
     def __str__(self):
         return "dummy"
@@ -42,16 +56,11 @@ class DummyPersonaLLM:
         pass
 
     def invoke(self, memory):
-        return type(
-            "Msg", (),
-            {"content": json.dumps({
-                "name": "Dummy",
+        return {"name": "Dummy",
                 "age": 30,
                 "city": "Unknown",
                 "hobby": "Reading",
-                "occupation": "Engineer"
-            })}
-        )()
+                "occupation": "Engineer"}
 
     def __str__(self):
         return "dummy"
@@ -66,14 +75,14 @@ class DummyPersona(BasePersona):
 
 
 def test_dialog_generator(monkeypatch):
-    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     gen = DialogGenerator(dialogue_details="test", model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
 
 
 def test_persona_dialog_generator(monkeypatch):
-    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
@@ -82,7 +91,7 @@ def test_persona_dialog_generator(monkeypatch):
 
 
 def test_persona_dialog_generator_personas(monkeypatch):
-    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
@@ -192,7 +201,7 @@ def test_persona_generator_defaults(monkeypatch):
 
 
 def test_dialog_generator_example_dialogs(monkeypatch):
-    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     gen = DialogGenerator(dialogue_details="test", example_dialogs=[example_dialog])
     assert gen.example_dialogs[0] == example_dialog
     _ = gen()
@@ -200,7 +209,7 @@ def test_dialog_generator_example_dialogs(monkeypatch):
 
 
 def test_persona_dialog_generator_example_dialogs(monkeypatch):
-    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
     gen = PersonaDialogGenerator(persona_a, persona_b, example_dialogs=[example_dialog])
