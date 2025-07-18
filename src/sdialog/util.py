@@ -136,11 +136,16 @@ def is_ollama_model_name(model_name: str) -> bool:
         or not is_huggingface_model_name(model_name)
         and not is_openai_model_name(model_name)
         and not is_google_genai_model_name(model_name)
+        and not is_aws_model_name(model_name)
     )
 
 
 def is_openai_model_name(model_name: str) -> bool:
     return model_name.startswith("openai:")
+
+
+def is_aws_model_name(model_name: str) -> bool:
+    return model_name.startswith("aws:")
 
 
 def is_google_genai_model_name(model_name: str) -> bool:
@@ -168,6 +173,18 @@ def get_llm_model(model_name: str,
         llm = ChatOpenAI(model=model_name,
                          response_format=output_format,
                          **llm_kwargs)
+    elif is_aws_model_name(model_name):
+        from langchain_aws import ChatBedrockConverse
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading AWS model: {model_name}")
+
+        llm = ChatBedrockConverse(model=model_name, **llm_kwargs)
+
+        if output_format and issubclass(output_format, BaseModel):
+            llm = llm.with_structured_output(output_format)
+        else:
+            logger.warning("Output format should be a pydantic's BaseModel for ChatBedrockConverse models.")
     elif is_google_genai_model_name(model_name):
         from langchain_google_genai import ChatGoogleGenerativeAI
         if ":" in model_name:
