@@ -25,6 +25,7 @@ from print_color import print as cprint
 from typing import List, Union, Optional
 
 from langchain_huggingface import ChatHuggingFace
+from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages.base import messages_to_dict
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -900,8 +901,8 @@ class Agent:
 
         self._reset_interpretability_state()
 
-        if not self.hf_model:
-            # hack to avoid seed bug in prompt cache
+        if isinstance(self.llm, ChatOllama):
+            # hack to avoid seed bug in prompt cache in Ollama
             # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
             _ = self.llm.num_predict
             self.llm.num_predict = 1

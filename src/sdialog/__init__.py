@@ -250,11 +250,12 @@ class Dialog(BaseModel):
                   type: str = "auto",
                   txt_turn_template: str = "{speaker}: {text}",
                   csv_speaker_col: Union[int, str] = "speaker",
-                  csv_text_col: Union[int, str] = "text"):
+                  csv_text_col: Union[int, str] = "text") -> Union["Dialog", List["Dialog"]]:
         """
         Loads a dialogue from a file.
 
-        :param path: Path to the dialogue file.
+        :param path: Path to the dialogue file or directory. In case of a directory, all dialogues in the directory
+                     will be loaded and returned as a list of Dialog objects.
         :type path: str
         :param type: "json", "txt", "csv", "tsv", or "auto" (determined by file extension).
         :type type: str
@@ -268,6 +269,15 @@ class Dialog(BaseModel):
         :rtype: Dialog
         :raises ValueError: If the file format is not recognized or if required columns are missing
         """
+        if os.path.isdir(path):
+            return [Dialog.from_file(os.path.join(path, filename), type=type,
+                                     txt_turn_template=txt_turn_template,
+                                     csv_speaker_col=csv_speaker_col,
+                                     csv_text_col=csv_text_col)
+                    for filename in os.listdir(path)
+                    if ((type == "auto" and filename.endswith((".json", ".txt", ".csv", ".tsv")))
+                        or filename.endswith(type))]
+
         type = type.lower()
         if type == "auto":
             _, ext = os.path.splitext(path)

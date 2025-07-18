@@ -29,7 +29,7 @@ from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import KNNModel, softmax, get_llm_model, dict_to_table
+from ..util import KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -196,34 +196,40 @@ class BaseLLMJudge(ABC):
         return self.llm.invoke(self.messages).content
 
     @abstractmethod
-    def judge(self, input: Union[Dialog, List[Dialog]]) -> dict:
+    def judge(self, dialogs: Union[Dialog, List[Dialog]]) -> dict:
         """
         Judge the dialogs using the LLM.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
 
-class LLMJudgeYesNo(BaseLLMJudge):
+class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
     def __init__(self,
                  prompt_template: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
+                 as_score: bool = False,
                  **llm_kwargs):
-        super().__init__(output_format=LLMJudgeYesNoOutput, model=model, **llm_kwargs)
+        BaseDialogScore.__init__(self,
+                                 name=upper_camel_to_dash(self.__class__.__name__))
+        super().__init__(output_format=LLMJudgeYesNoOutput,
+                         model=model,
+                         **llm_kwargs)
 
         self.prompt_template = Template(prompt_template)
         self.feedback = feedback
+        self.as_score = as_score  # If True, returns either 1 or 0 instead of LLMJudgeYesNoOutput object
 
-    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> LLMJudgeYesNoOutput:
+    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
         prompt = self.prompt_template.render(dialogs=dialogs,
                                              feedback=feedback if feedback is not None else self.feedback)
-        output = super().__call__(prompt)
+        output = self.output_format.model_validate(json.loads(super().__call__(prompt)))
 
-        return self.output_format.model_validate(json.loads(output))
+        return output if not self.as_score else int(output.yes)
 
     __call__ = judge  # Allow direct call to judge method
 
@@ -233,29 +239,56 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
     LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and feedback.
     Returns an instance of LLMJudgeYesNoOutput.
     """  # noqa: E501
-    def __init__(self, model: Union[BaseLanguageModel, str] = None, feedback: bool = False, **llm_kwargs):
-        with open(config["prompts"]["evaluation"]["llm_as_judge_real_or_not"], encoding="utf-8") as f:
+    def __init__(self,
+                 model: Union[BaseLanguageModel, str] = None,
+                 feedback: bool = False,
+                 as_score: bool = False,
+                 **llm_kwargs):
+        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog"], encoding="utf-8") as f:
             prompt_template_real_or_not = f.read()
         super().__init__(prompt_template_real_or_not,
                          model=model,
                          feedback=feedback,
+                         as_score=as_score,
+                         **llm_kwargs)
+
+
+class LLMJudgeRefusal(LLMJudgeYesNo):
+    """
+    LLM judge for evaluating if a dialogue contains a refusal response.
+    """
+    def __init__(self,
+                 model: Union[BaseLanguageModel, str] = None,
+                 feedback: bool = False,
+                 as_score: bool = False,
+                 **llm_kwargs):
+        with open(config["prompts"]["evaluation"]["llm_as_judge_refusal"], encoding="utf-8") as f:
+            prompt_template_real_or_not = f.read()
+        super().__init__(prompt_template_real_or_not,
+                         model=model,
+                         feedback=feedback,
+                         as_score=as_score,
                          **llm_kwargs)
 
 
 class LLMJudgePersonaAttributes(LLMJudgeYesNo):
+    """LLM judge for evaluating if a speaker follows the persona attributes in a dialogue."""
     def __init__(self,
                  persona: BasePersona,
+                 speaker: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
+                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
-        prompt_template = prompt_template.render(persona=persona)
+        prompt_template = prompt_template.render(persona=persona, speaker=speaker)
 
         super().__init__(prompt_template,
                          model=model,
                          feedback=feedback,
+                         as_score=as_score,
                          **llm_kwargs)
 
 
@@ -371,6 +404,48 @@ class KDEDivergenceDatasetEvaluator(BaseDatasetEvaluator):
         return (result, scores) if return_dialog_scores else result
 
 
+class StatsEvaluator(BaseDatasetEvaluator):
+    def __init__(self, dialog_score: BaseDialogScore, name: str = None):
+        self.dialog_score = dialog_score
+        self.name = name or f"average-{dialog_score.name}"
+        self.datasets_scores = {}
+
+    def clear_history(self):
+        self.datasets_scores.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None):
+        # Plot box plots for each dataset
+        plt.figure(figsize=(8, 5))
+        if self.datasets_scores:
+            pd.DataFrame(self.datasets_scores).boxplot()
+        # plt.legend()
+        # plt.xlabel(self.name)
+        # plt.title(f"KDE of {self.name} distributions")
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate",
+                 return_dialog_scores: bool = False) -> Union[dict, float]:
+        scores = np.array([self.dialog_score(dialogue) for dialogue in dialogues])
+        result = {
+            "mean": np.mean(scores),
+            "std": np.std(scores),
+            "min": np.min(scores),
+            "max": np.max(scores),
+            "median": np.median(scores)
+        }
+        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
+
+        if return_dialog_scores:
+            return result, scores
+        else:
+            return result
+
+
 class DialogFlowScore(BaseDialogScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -436,7 +511,7 @@ class DatasetComparator:
             if not isinstance(evaluator, BaseDatasetEvaluator):
                 raise TypeError(f"Evaluator {evaluator} is not an instance of `BaseDatasetEvaluator`")
 
-        self._evaluators = evaluators
+        self.evaluators = evaluators
 
     def __call__(
         self,
@@ -456,7 +531,7 @@ class DatasetComparator:
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
-            for evaluator in self._evaluators:
+            for evaluator in self.evaluators:
                 evaluator_name = evaluator.name
                 score = evaluator(dataset, dataset_name=dataset_name)
                 if isinstance(score, dict):
@@ -477,10 +552,10 @@ class DatasetComparator:
         """
         Plot the results of the evaluators.
         """
-        if not self._evaluators:
+        if not self.evaluators:
             raise ValueError("No evaluators to plot.")
 
-        for evaluator in self._evaluators:
+        for evaluator in self.evaluators:
             evaluator.plot(show=show,
                            save_path=os.path.join(save_folder_path,
                                                   f"{evaluator.name}.png") if save_folder_path else None)
