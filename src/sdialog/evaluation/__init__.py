@@ -565,17 +565,17 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
     def count_hesitations(text):
         # Exclude the backchannel
         hesitation_patterns = [
-        r'\buh+\b',     # uh, uhh, uhhh
-        r'\bum+\b',     # um, umm, ummm
-        r'\ber+\b',     # er, err, errr
-        r'\bahh*\b',    # ah, ahh, ahhh
-        r'\bohh*\b',    # oh, ohh, ohhh
-        r'\bhmm+\b',    # hmm, hmmm
-        r'\bhuh+\b',    # huh 
-        r'\bmm+\b',     # mm, mmm 
-        r'\bmhm+\b',    # mhm, mhmm
-        r'\buh\-huh\b', # uh-huh (backchannel)
-        r'\bum-hum+\b', # um-hum (backchannel)
+            r'\buh+\b',     # uh, uhh, uhhh
+            r'\bum+\b',     # um, umm, ummm
+            r'\ber+\b',     # er, err, errr
+            r'\bahh*\b',    # ah, ahh, ahhh
+            r'\bohh*\b',    # oh, ohh, ohhh
+            r'\bhmm+\b',    # hmm, hmmm
+            r'\bhuh+\b',    # h uh
+            r'\bmm+\b',     # mm, mmm
+            r'\bmhm+\b',    # mhm, mhmm
+            r'\buh\-huh\b',    # uh-huh (backchannel)
+            r'\bum-hum+\b',    # um-hum (backchannel)
         ]
         total_hesitations = 0
         text_lower = text.lower()
@@ -593,14 +593,13 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
             if speaker not in speaker_stats:
                 speaker_stats[speaker] = []
             speaker_stats[speaker].append(self.clean_utterance(turn.text))
-        
         results = {"dataset": dataset_name or "unknown"}
         for speaker, utts in speaker_stats.items():
             all_text = " ".join(utts)
             turn_lengths = [len(utt.split()) for utt in utts]
             hesitations = [self.count_hesitations(utt) for utt in utts]
             results[f"{speaker}_mean_turn_length"] = np.mean(turn_lengths)
-            #results[f"{speaker}_hesitation_rate"] = sum(hesitations) / max(1, sum(turn_lengths))
+            # results[f"{speaker}_hesitation_rate"] = sum(hesitations) / max(1, sum(turn_lengths))
             results[f"{speaker}_hesitation_rate"] = (sum(hesitations) / max(1, sum(turn_lengths)) * 100)
             results[f"{speaker}_gunning_fog"] = self.calculate_gunning_fog(all_text)
             results[f"{speaker}_flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
@@ -612,11 +611,18 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
             for dialog in dialogs:
                 self.evaluate(dialog, dataset_name=dataset_name)
             keys = set(k for res in self.all_results for k in res.keys() if k != "dataset")
-            dataset_results = {k: np.mean([res[k] for res in self.all_results if k in res and (dataset_name is None or res["dataset"]==dataset_name)])
-                               for k in keys}
+            dataset_results = {
+                k: np.mean([
+                    res[k]
+                    for res in self.all_results
+                    if (k in res and (dataset_name is None or res["dataset"] == dataset_name))
+                ])
+                for k in keys
+            }
             return dataset_results
         else:
             return self.evaluate(dialogs, dataset_name=dataset_name)
+
     def plot(self, feature=None, kde_bw=0.3, show=True, save_dir=None, save_stats_csv=True):
         if not self.all_results:
             print("No results to plot. Please run evaluation first.")
@@ -638,8 +644,7 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
                 stats = {"feature": f}
                 means = {}
                 stds = {}
-                ax = plt.gca() 
-                color_map = {}
+                ax = plt.gca()
                 for dataset in df['dataset'].unique():
                     values = df[df['dataset'] == dataset][f].dropna()
                     if len(values) < 2:
@@ -669,7 +674,7 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
                         stats["sds_away_explanation"] = (
                             f"Our dataset is {abs(sds_away):.2f} standard deviations lower than Primock."
                         )
-                #plt.xlabel(f)
+                # plt.xlabel(f)
                 plt.xlabel(f"{f} (%)" if "hesitation_rate" in f else f)
                 plt.ylabel("Density")
                 plt.title(f"KDE plot of {f} by dataset")
