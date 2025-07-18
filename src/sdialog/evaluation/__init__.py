@@ -8,12 +8,11 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
-import json
+import re
+import syllables
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import re
-import syllables
 
 from jinja2 import Template
 from typing import Optional
@@ -146,22 +145,60 @@ class BaseDatasetEvaluator(ABC):
     """
     Base class for dataset evaluators.
     """
-    def __init__(self, dialog_score: BaseDialogScore = None):
-        """
-        Initialize the evaluator with the target dialog score.
-        """
+    def __init__(self, dialog_score: BaseDialogScore, name: str = None, verbose: bool = False):
         self.dialog_score = dialog_score
+        if not name:
+            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
+        else:
+            self.name = name
+        self.datasets_scores = {}
+        self.verbose = verbose
+
+    def __call__(self,
+                 dialogues: Union[str, List[Dialog]],
+                 dataset_name: str = "candidate",
+                 return_dialog_scores: bool = False) -> Union[dict, float]:
+        if not dataset_name or dataset_name == "candidate":
+            desc = f"Computing {self.name} scores for candidate dataset"
+        else:
+            desc = f"Computing {self.name} scores for dataset "
+            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+        scores = np.array([self.dialog_score(dialogue)
+                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
+        results = self.eval(scores)
+
+        return (results, scores) if return_dialog_scores else results
 
     @abstractmethod
-    def __call__(self, dialogues: Union[str, List[Dialog]]) -> Union[dict, float]:
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         """
-        Compute the dialog scores on each dialogue and return the evaluation.
-        :return: A dictionary with the evaluation results or a single score.
+        Plot the scores of the datasets.
+        :param dialog_scores: A dictionary with dataset names as keys and scores as values.
+        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
-    def eval(self, dialogues: Union[str, List[Dialog]], **kwargs) -> Union[dict, float]:
-        return self(dialogues, **kwargs)
+    def clear_history(self):
+        self.datasets_scores.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None):
+        if not self.datasets_scores:
+            return
+
+        # Plot box plots for each dataset
+        plt.figure(figsize=(8, 5))
+        self.__plot__(self.datasets_scores, plot=plt)
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    @abstractmethod
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        raise NotImplementedError("Subclasses should implement this method.")
 
 
 class BaseLLMJudge(ABC):
@@ -195,7 +232,7 @@ class BaseLLMJudge(ABC):
 
     def __call__(self, prompt: str) -> Union[dict, BaseModel]:
         self.messages[1].content = prompt
-        return self.llm.invoke(self.messages).content
+        return self.llm.invoke(self.messages)
 
     @abstractmethod
     def judge(self, dialogs: Union[Dialog, List[Dialog]]) -> dict:
@@ -229,7 +266,7 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
 
         prompt = self.prompt_template.render(dialogs=dialogs,
                                              feedback=feedback if feedback is not None else self.feedback)
-        output = self.output_format.model_validate(json.loads(super().__call__(prompt)))
+        output = self.output_format.model_validate(super().__call__(prompt))
 
         return output if not self.as_score else int(output.yes)
 
@@ -327,182 +364,99 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
-class KDEDivergenceDatasetEvaluator(BaseDatasetEvaluator):
+class KDEDivergenceEvaluator(BaseDatasetEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
-                 name: str = None,
                  metric: str = "all",
                  kde_bw: float = None,
-                 verbose=False):
+                 name: str = None,
+                 verbose: bool = False,
+                 **evaluator_kwargs):
+        super().__init__(dialog_score, name=name, **evaluator_kwargs)
+
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
                 reference_dialogues = dialog_score.reference_dialogues
             else:
                 raise ValueError("Reference dialogues must be provided or "
                                  "the dialog_score must have a reference_dialogues attribute.")
+
+        if metric != "all":
+            self.name += f"-{metric}"
         self.metric = metric
         self.kde_bw = kde_bw
-        self.name = name or f"divergence-{dialog_score.name}" + (f"-{metric}" if metric != "all" else "")
-        self.verbose = verbose
-        self.dialog_score = dialog_score
-        self.datasets_scores = {}
-        self.ref_scores = np.array([self.dialog_score(dialogue)
-                                    for dialogue in tqdm(reference_dialogues,
-                                                         desc=f"Computing reference {self.name} scores",
-                                                         leave=verbose)])
+        self.reference_scores = [self.dialog_score(dialogue)
+                                 for dialogue in tqdm(reference_dialogues,
+                                                      desc=f"Computing reference {self.name} scores",
+                                                      leave=verbose)]
+        self.reference_scores = np.array(self.reference_scores)
 
-    def get_reference_scores(self) -> np.ndarray:
-        return self.ref_scores
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        for dataset_name, scores in dialog_scores.items():
+            pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+        plot.xlabel(self.dialog_score.name)
+        plot.legend()
+        plot.title(f"KDE of {self.dialog_score.name} distributions")
 
-    def clear_history(self):
-        self.datasets_scores.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None,
-             kde_bw: float = None):
-        kde_bw = kde_bw or self.kde_bw
-
-        plt.figure(figsize=(8, 5))
-        pd.Series(self.ref_scores, name="reference").plot.kde(bw_method=kde_bw)
-        for dataset_name, scores in self.datasets_scores.items():
-            pd.Series(scores, name=dataset_name).plot.kde(bw_method=kde_bw)
-        plt.legend()
-        plt.xlabel(self.name)
-        plt.title(f"KDE of {self.name} distributions")
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
-
-    def __call__(self,
-                 dialogues: Union[str, List[Dialog]],
-                 metric: str = None,
-                 kde_bw: float = None,
-                 return_dialog_scores: bool = False,
-                 dataset_name: str = "candidate") -> Union[dict, float]:
-        metric = metric or self.metric
-        kde_bw = kde_bw or self.kde_bw
-        if not dataset_name or dataset_name == "candidate":
-            desc = f"Computing {self.name} scores for candidate dataset"
-        else:
-            desc = f"Computing {self.name} scores for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        scores = np.array([self.dialog_score(dialogue)
-                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
-
-        if metric == "kl":
-            result = kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
-        elif metric == "cs":
-            result = cs_divergence(self.ref_scores, scores, bw_method=kde_bw)
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        if self.metric == "kl":
+            result = kl_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
+        elif self.metric == "cs":
+            result = cs_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
         else:
             result = {
-                "cs": cs_divergence(self.ref_scores, scores, bw_method=kde_bw),
-                "kl": kl_divergence(self.ref_scores, scores, bw_method=kde_bw)
+                "cs": cs_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw),
+                "kl": kl_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
             }
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
-
-        return (result, scores) if return_dialog_scores else result
+        return result
 
 
 class StatsEvaluator(BaseDatasetEvaluator):
-    def __init__(self, dialog_score: BaseDialogScore, name: str = None):
-        self.dialog_score = dialog_score
-        self.name = name or f"average-{dialog_score.name}"
-        self.datasets_scores = {}
-
-    def clear_history(self):
-        self.datasets_scores.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None):
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        if self.datasets_scores:
-            pd.DataFrame(self.datasets_scores).boxplot()
-        # plt.legend()
-        # plt.xlabel(self.name)
-        # plt.title(f"KDE of {self.name} distributions")
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
+        plot.title(f"Boxplot of {self.dialog_score.name} scores")
+        plot.boxplot(list(dialog_scores.values()),
+                     labels=list(dialog_scores.keys()))
+        plot.xlabel("datasets")
+        plot.ylabel(self.dialog_score.name)
 
-    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate",
-                 return_dialog_scores: bool = False) -> Union[dict, float]:
-        scores = np.array([self.dialog_score(dialogue) for dialogue in dialogues])
-        result = {
-            "mean": np.mean(scores),
-            "std": np.std(scores),
-            "min": np.min(scores),
-            "max": np.max(scores),
-            "median": np.median(scores)
-        }
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
-
-        if return_dialog_scores:
-            return result, scores
-        else:
-            return result
-
-
-class DialogFlowScore(BaseDialogScore):
-    def __init__(self,
-                 reference_dialogues: Union[str, List[Dialog]],
-                 k_neighbors=64,
-                 use_softmax=True,
-                 only_system=False,
-                 name=None,
-                 verbose=False,
-                 **d2f_kwargs):
-        super().__init__(name=name if name else "dfs" + ("+sm" if use_softmax else ""))
-
-        d2f_kwargs = {"node_llm_labels_enabled": False,
-                      "out_png": False,
-                      #  "node_embedding_model": embedding_model,
-                      "verbose": verbose,
-                      **d2f_kwargs}
-
-        self.use_softmax = use_softmax
-        self.only_system = only_system
-        self.reference_dialogues = reference_dialogues
-        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
-        self.speakers = self.nodes["_metadata"]["speakers"]
-        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
-        self.knn_models = {
-            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
-                             k=k_neighbors),
-            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
-                               k=k_neighbors)
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        return {
+            "mean": np.mean(dialog_scores),
+            "std": np.std(dialog_scores),
+            "min": np.min(dialog_scores),
+            "max": np.max(dialog_scores),
+            "median": np.median(dialog_scores)
         }
 
-    def __call__(self, dialog: Dialog):
-        sum_log_p = 0
-        sys_turns = 0
-        prev_node = DEFAULT_TOKEN_START
-        for turn in dialog.turns:
-            speaker = turn.speaker.lower()
-            if speaker in self.speakers:
-                speaker = self.speakers[speaker]
-            else:
-                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
-                                 f"{list(self.speakers.keys())}")
-            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
-            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
-            nearest_id, _ = neighbors[0]
-            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
 
-            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
-            if (not self.only_system or speaker == "system") and prob_next_node is not None:
-                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
-                sys_turns += 1
-            prev_node = nearest_id
+class FrequencyEvaluator(BaseDatasetEvaluator):
+    """
+    Evaluator for computing the frequency or percentage of dialogues matching a condition (e.g., refusal responses).
+    """
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        # Bar plot for frequency/percentage
+        percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
+        bars = plot.bar(percentages.keys(), percentages.values(), color=plt.cm.tab10.colors[:len(percentages)])
+        # Add value labels on top of each bar
+        for bar in bars:
+            height = bar.get_height()
+            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%", ha='center', va='bottom')
+        plot.ylabel(f"Percentage of {self.dialog_score.name} (%)")
+        plot.xlabel("datasets")
+        plot.title(f"Percentage of {self.dialog_score.name} per dataset")
 
-        return exp(-sum_log_p / sys_turns)
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        # Assumes dialog_scores are binary (0/1 or True/False)
+        total = len(dialog_scores)
+        count = np.sum(dialog_scores)
+        percentage = count / total if total > 0 else 0
+        return {
+            "count": int(count),
+            "total": int(total),
+            "percentage": percentage
+        }
 
 
 class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
@@ -695,6 +649,63 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
             print(f"All feature statistics saved to {stats_csv_path}")
         if save_dir:
             print(f"All plots saved to {save_dir}")
+
+
+class DialogFlowScore(BaseDialogScore):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 k_neighbors=64,
+                 use_softmax=True,
+                 only_system=False,
+                 name=None,
+                 verbose=False,
+                 **d2f_kwargs):
+        super().__init__(name=name if name else "dfs" + ("+sm" if use_softmax else ""))
+
+        d2f_kwargs = {"node_llm_labels_enabled": False,
+                      "out_png": False,
+                      #  "node_embedding_model": embedding_model,
+                      "verbose": verbose,
+                      **d2f_kwargs}
+
+        self.use_softmax = use_softmax
+        self.only_system = only_system
+        self.reference_dialogues = reference_dialogues
+        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
+        self.speakers = self.nodes["_metadata"]["speakers"]
+        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+        self.knn_models = {
+            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
+                             k=k_neighbors),
+            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
+                               k=k_neighbors)
+        }
+
+    def __call__(self, dialog: Dialog):
+        sum_log_p = 0
+        sys_turns = 0
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
+            nearest_id, _ = neighbors[0]
+            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
+
+            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
+            if (not self.only_system or speaker == "system") and prob_next_node is not None:
+                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
+                sys_turns += 1
+            prev_node = nearest_id
+
+        return exp(-sum_log_p / sys_turns)
 
 
 class DatasetComparator:

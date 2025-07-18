@@ -65,7 +65,7 @@ class Turn(BaseModel):
     :ivar text: The utterance text for this turn.
     :vartype text: str
     """
-    speaker: Optional[str]
+    speaker: Optional[str] = None
     text: str
 
     def __str__(self):
