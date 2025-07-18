@@ -12,6 +12,8 @@ import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
+import syllables
 
 from jinja2 import Template
 from typing import Optional
@@ -501,6 +503,193 @@ class DialogFlowScore(BaseDialogScore):
             prev_node = nearest_id
 
         return exp(-sum_log_p / sys_turns)
+
+
+class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
+    def __init__(self, features=None, name="linguistic_features"):
+        super().__init__()
+        self.name = name
+        self.features = features or [
+            "mean_turn_length", "hesitation_rate", "gunning_fog", "flesch_reading_ease"
+        ]
+        self.all_results = []
+
+    @staticmethod
+    def clean_utterance(text):
+        cleaned = re.sub(r'<[^>]*>', '', text)
+        cleaned = re.sub(r'\*[^*]*\*', '', cleaned)
+        cleaned = re.sub(r'\([^)]*\)', '', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        return cleaned.strip()
+
+    @staticmethod
+    def count_syllables(word):
+        return max(1, syllables.estimate(word))
+
+    @staticmethod
+    def count_complex_words(text):
+        words = text.split()
+        return sum(1 for word in words if syllables.estimate(word) >= 3), len(words)
+
+    @staticmethod
+    def calculate_gunning_fog(text):
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        complex_words, total_words = LinguisticFeaturesDatasetEvaluator.count_complex_words(text)
+        avg_sentence_length = len(words) / len(sentences)
+        complex_word_ratio = (complex_words / total_words) * 100 if total_words > 0 else 0
+        fog_index = 0.4 * (avg_sentence_length + complex_word_ratio)
+        return fog_index
+
+    @staticmethod
+    def calculate_flesch_reading_ease(text):
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        total_syllables = sum(LinguisticFeaturesDatasetEvaluator.count_syllables(word) for word in words)
+        avg_sentence_length = len(words) / len(sentences)
+        avg_syllables_per_word = total_syllables / len(words)
+        flesch_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+        return flesch_score
+
+    @staticmethod
+    def count_hesitations(text):
+        # Exclude the backchannel
+        hesitation_patterns = [
+        r'\buh+\b',     # uh, uhh, uhhh
+        r'\bum+\b',     # um, umm, ummm
+        r'\ber+\b',     # er, err, errr
+        r'\bahh*\b',    # ah, ahh, ahhh
+        r'\bohh*\b',    # oh, ohh, ohhh
+        r'\bhmm+\b',    # hmm, hmmm
+        r'\bhuh+\b',    # huh 
+        r'\bmm+\b',     # mm, mmm 
+        r'\bmhm+\b',    # mhm, mhmm
+        r'\buh\-huh\b', # uh-huh (backchannel)
+        r'\bum-hum+\b', # um-hum (backchannel)
+        ]
+        total_hesitations = 0
+        text_lower = text.lower()
+        for pattern in hesitation_patterns:
+            matches = re.findall(pattern, text_lower)
+            total_hesitations += len(matches)
+        return total_hesitations
+
+    def evaluate(self, dialog, dataset_name=None):
+        speaker_stats = {}
+        for turn in dialog.turns:
+            if not getattr(turn, 'speaker', None) or not getattr(turn, 'text', None):
+                continue
+            speaker = turn.speaker
+            if speaker not in speaker_stats:
+                speaker_stats[speaker] = []
+            speaker_stats[speaker].append(self.clean_utterance(turn.text))
+        
+        results = {"dataset": dataset_name or "unknown"}
+        for speaker, utts in speaker_stats.items():
+            all_text = " ".join(utts)
+            turn_lengths = [len(utt.split()) for utt in utts]
+            hesitations = [self.count_hesitations(utt) for utt in utts]
+            results[f"{speaker}_mean_turn_length"] = np.mean(turn_lengths)
+            #results[f"{speaker}_hesitation_rate"] = sum(hesitations) / max(1, sum(turn_lengths))
+            results[f"{speaker}_hesitation_rate"] = (sum(hesitations) / max(1, sum(turn_lengths)) * 100)
+            results[f"{speaker}_gunning_fog"] = self.calculate_gunning_fog(all_text)
+            results[f"{speaker}_flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
+        self.all_results.append(results)
+        return results
+
+    def __call__(self, dialogs, dataset_name=None, **kwargs):
+        if isinstance(dialogs, list):
+            for dialog in dialogs:
+                self.evaluate(dialog, dataset_name=dataset_name)
+            keys = set(k for res in self.all_results for k in res.keys() if k != "dataset")
+            dataset_results = {k: np.mean([res[k] for res in self.all_results if k in res and (dataset_name is None or res["dataset"]==dataset_name)])
+                               for k in keys}
+            return dataset_results
+        else:
+            return self.evaluate(dialogs, dataset_name=dataset_name)
+    def plot(self, feature=None, kde_bw=0.3, show=True, save_dir=None, save_stats_csv=True):
+        if not self.all_results:
+            print("No results to plot. Please run evaluation first.")
+            return
+        df = pd.DataFrame(self.all_results)
+        if feature is None:
+            exclude_cols = {"dataset"}
+            all_features = [col for col in df.columns if col not in exclude_cols]
+            base_names = set("_".join(col.split("_")[1:]) for col in all_features)
+        else:
+            base_names = [feature]
+        stats_all = []
+        for base in base_names:
+            feature_cols = [col for col in df.columns if base in col]
+            if not feature_cols:
+                continue
+            for f in feature_cols:
+                plt.figure(figsize=(8, 5))
+                stats = {"feature": f}
+                means = {}
+                stds = {}
+                ax = plt.gca() 
+                color_map = {}
+                for dataset in df['dataset'].unique():
+                    values = df[df['dataset'] == dataset][f].dropna()
+                    if len(values) < 2:
+                        continue
+                    values.plot.kde(bw_method=kde_bw, label=f"{dataset}", ax=ax)
+                for i, dataset in enumerate(df['dataset'].unique()):
+                    values = df[df['dataset'] == dataset][f].dropna()
+                    if len(values) < 2:
+                        continue
+                    mean = values.mean()
+                    std = values.std()
+                    color = ax.get_lines()[i].get_color()
+                    plt.axvline(mean, linestyle="--", color=color, label=f"{dataset} mean ({mean:.2f})")
+                    stats[f"{dataset}_mean"] = mean
+                    stats[f"{dataset}_std"] = std
+                    means[dataset] = mean
+                    stds[dataset] = std
+                # sds_away calculation
+                if "primock" in means and "ours" in means and stds["primock"] > 0:
+                    sds_away = (means["ours"] - means["primock"]) / stds["primock"]
+                    stats["sds_away"] = sds_away
+                    if sds_away > 0:
+                        stats["sds_away_explanation"] = (
+                            f"Our dataset is {abs(sds_away):.2f} standard deviations higher than Primock."
+                        )
+                    else:
+                        stats["sds_away_explanation"] = (
+                            f"Our dataset is {abs(sds_away):.2f} standard deviations lower than Primock."
+                        )
+                #plt.xlabel(f)
+                plt.xlabel(f"{f} (%)" if "hesitation_rate" in f else f)
+                plt.ylabel("Density")
+                plt.title(f"KDE plot of {f} by dataset")
+                plt.legend()
+                plt.grid(alpha=0.3)
+                if save_dir:
+                    os.makedirs(save_dir, exist_ok=True)
+                    plt.savefig(os.path.join(save_dir, f"{f}.png"), dpi=300)
+                if show:
+                    plt.show()
+                plt.close()
+                stats_all.append(stats)
+        # Save all statistics as CSV
+        if save_stats_csv and save_dir:
+            stats_df = pd.DataFrame(stats_all)
+            stats_csv_path = os.path.join(save_dir, "all_feature_stats.csv")
+            stats_df.to_csv(stats_csv_path, index=False)
+            print(f"All feature statistics saved to {stats_csv_path}")
+        if save_dir:
+            print(f"All plots saved to {save_dir}")
 
 
 class DatasetComparator:
