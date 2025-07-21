@@ -14,7 +14,7 @@ from sdialog.audio.room import SoundSource  # , Position3D
 # from scipy.signal import resample
 
 
-class dRender:
+class Drender:
     def __init__(self, room: Optional[Room] = None):
         self.sampling_rate = 16000
         self.ref_db = 45  # - dB
@@ -150,7 +150,7 @@ class dRender:
         try:
             with open(filepath, "r", encoding="utf-8") as file:
                 json_data = json.load(file)
-            return dRender.load_sound_sources_from_json(json_data)
+            return Drender.load_sound_sources_from_json(json_data)
         except FileNotFoundError:
             raise FileNotFoundError(f"JSON file not found: {filepath}")
         except PermissionError:
@@ -168,14 +168,14 @@ if __name__ == "__main__":
         {"name": "background_noise", "position": [1.25, 1.6, 2.5], "directivity": "omnidirectional", "snr_db": -15},
     ]
 
-    sound_sources = dRender.load_sound_sources_from_json(source_config)
+    sound_sources = Drender.load_sound_sources_from_json(source_config)
     for source in sound_sources:
         print(f"Source: {source.name}")
         print(f"  Position: ({source.position.x}, {source.position.y}, {source.position.z})")
         print(f"  Directivity: {source.directivity}")
         print(f"  SNR: {source.snr_db} dB")
 
-    dr = dRender()
+    dr = Drender()
 
     output_mixed_sound = dr.render(sound_sources)
 

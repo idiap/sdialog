@@ -231,7 +231,7 @@ class SoundSource:
         primary_names = [
             "doctor", "physician", "main_speaker", "speaker_a", "primary",
             "médecin", "medecin", "docteur",
-            "lekarz", "doktor", "lékař",
+            "lekarz", "doktor", "lékař"
         ]
         return name in primary_names
 # fmt: on
@@ -279,7 +279,6 @@ class Room:
 @dataclass
 class RoomLayout:
     """Defines the standard layout of furniture in examination room"""
-
     door_position: Position3D
     desk_position: Position3D
     monitor_position: Optional[Position3D]
