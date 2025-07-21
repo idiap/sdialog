@@ -661,7 +661,7 @@ class PersonaGenerator:
                             notes=notes
                         )
                 if len(personas) != n:
-                    logger.warning(f"Only {len(personas)} personas out of {n }were generated fully. "
+                    logger.warning(f"Only {len(personas)} personas out of {n} were generated fully. "
                                    "Returning the generated personas anyway.")
                 return personas
             else:

@@ -83,13 +83,13 @@ class RoomRole(Enum):
 class DoctorPosition(Enum):
     """Doctor placement locations in examination room"""
     AT_DESK_SITTING = "at_desk_sitting"
+    AT_DESK_SIDE_STANDING = "at_desk_side_standing"
     NEXT_TO_BENCH_STANDING = "next_to_bench_standing"
     NEXT_TO_SINK_FRONT = "next_to_sink_front"
     NEXT_TO_SINK_BACK = "next_to_sink_back"
     NEXT_TO_CUPBOARD_FRONT = "next_to_cupboard_front"
     NEXT_TO_CUPBOARD_BACK = "next_to_cupboard_back"
     NEXT_TO_DOOR_STANDING = "next_to_door_standing"
-    AT_DESK_SIDE_STANDING = "at_desk_side_standing"
 
 
 class PatientPosition(Enum):

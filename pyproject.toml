@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sdialog"
 authors = [
-  { name="Sergio Burdisso", email="sergio.burdisso@gmail.com" },
-  { name="Severin Baroudi", email="sevbargal@outlook.fr" },
-  { name="Yanis Labrak", email="yanis.labrak@univ-avignon.fr" },
+    { name = "Sergio Burdisso", email = "sergio.burdisso@gmail.com" },
+    { name = "Severin Baroudi", email = "sevbargal@outlook.fr" },
+    { name = "Yanis Labrak", email = "yanis.labrak@univ-avignon.fr" },
 ]
 description = "Synthetic Dialogue Generation and Analysis"
 readme = "README.md"
@@ -35,18 +35,29 @@ Source = "https://github.com/idiap/sdialog"
 Documentation = "https://sdialog.readthedocs.io"
 
 [tool.setuptools.dynamic]
-version = {attr = "sdialog.__version__"}
-dependencies = {file = ["requirements.txt"]}
+version = { attr = "sdialog.__version__" }
+dependencies = { file = ["requirements.txt"] }
 
 
 [tool.setuptools.package-data]
-sdialog = ["**/*.yaml", "**/*.j2", "evaluation/dialog2flow/util/visualization/**"]
+sdialog = [
+    "**/*.yaml",
+    "**/*.j2",
+    "evaluation/dialog2flow/util/visualization/**",
+]
 
 [tool.pytest.ini_options]
 pythonpath = "src/"
-addopts = [
-    "--import-mode=importlib",
-]
+addopts = ["--import-mode=importlib"]
 
 [tool.flake8]
 max-line-length = 120
+
+[tool.ruff]
+line-length = 120
+# ignore = ["W503"]
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
