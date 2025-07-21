@@ -224,24 +224,17 @@ class SoundSource:
         )
         # fundamental_frequency=fundamental_freq,
 
+# fmt: off
     @staticmethod
     def _determine_primary_status(name: str) -> bool:
         """Determine if a source is primary based on its name."""
         primary_names = [
-            "doctor",
-            "physician",
-            "main_speaker",
-            "speaker_a",
-            "primary",
-            "médecin",
-            "medecin",
-            "docteur",
-            "lekarz",
-            "doktor",
-            "lékař",
+            "doctor", "physician", "main_speaker", "speaker_a", "primary",
+            "médecin", "medecin", "docteur",
+            "lekarz", "doktor", "lékař",
         ]
         return name in primary_names
-
+# fmt: on
 
 # ------------------------------------------------------------------------------
 
