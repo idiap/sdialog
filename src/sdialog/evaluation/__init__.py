@@ -221,14 +221,9 @@ class BaseLLMJudge(ABC):
 
         self.output_format = output_format
 
-        if isinstance(model, str):
-            self.llm = get_llm_model(model_name=model,
-                                     output_format=self.output_format,
-                                     **llm_kwargs)
-        else:
-            self.llm = model
-            if output_format:
-                self.llm.format = self.output_format.model_json_schema()
+        self.llm = get_llm_model(model_name=model,
+                                 output_format=self.output_format,
+                                 **llm_kwargs)
 
         with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
             self.messages = [SystemMessage(f.read()), HumanMessage("")]

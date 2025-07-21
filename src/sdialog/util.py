@@ -174,7 +174,12 @@ def get_llm_model(model_name: str,
                   **llm_kwargs):
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
-    if is_openai_model_name(model_name):
+    if not isinstance(model_name, str):
+        if hasattr(model_name, "invoke") and callable(model_name.invoke):
+            llm = model_name
+        else:
+            raise ValueError("model_name must be a string or a valid Langchain model instance.")
+    elif is_openai_model_name(model_name):
         # If the model name is a string, assume it's an OpenAI model
         from langchain_openai import ChatOpenAI
         if ":" in model_name:

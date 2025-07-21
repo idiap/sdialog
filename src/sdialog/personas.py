@@ -585,11 +585,7 @@ class Agent:
 
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
         llm_kwargs = {**llm_config_params, **llm_kwargs}
-        if isinstance(model, str):
-            self.llm = get_llm_model(model_name=model,
-                                     **llm_kwargs)
-        else:
-            self.llm = model
+        self.llm = get_llm_model(model_name=model, **llm_kwargs)
 
         self.memory = [SystemMessage(system_prompt)]
 

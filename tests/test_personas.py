@@ -1,7 +1,7 @@
-from sdialog.personas import Agent
-from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
-from sdialog.generators import LLMDialogOutput, Turn
 from sdialog import Dialog
+from sdialog.personas import Agent
+from sdialog.generators import LLMDialogOutput, Turn
+from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
 
 MODEL = "smollm:135m"
 example_dialog = Dialog(turns=[Turn(speaker="A", text="This is an example!"), Turn(speaker="B", text="Hi!")])
