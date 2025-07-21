@@ -177,6 +177,7 @@ class BaseDatasetEvaluator(ABC):
             )
             scores_cache.save()  # Save the cache to disk after scoring
             raise KeyboardInterrupt
+        scores_cache.save()
 
         self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         results = self.eval(scores)
@@ -300,8 +301,8 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         except TypeError:
             # TODO: this error will be stored in the cache...
             #       should we handle it differently? perhaps simply raise an exception?
-            logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
-                         f"Returning default {self.as_score_error_value} value")
+            logger.error(f"LLMJudgeYesNo output '{output.yes}' is not a boolean or list of booleans, "
+                         f"cannot convert to score. Returning default {self.as_score_error_value} value")
             return self.as_score_error_value
 
 

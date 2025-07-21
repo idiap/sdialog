@@ -94,7 +94,7 @@ class CacheDialogScore:
                 else:
                     attr_items = self._score_obj_attributes[score_obj_class]
                 attr_str = json.dumps(attr_items, sort_keys=True)
-                key = f"{score_obj_class}:{score_obj.name}:{dialog_path}:{attr_str}"
+                key = f"{score_obj_class}:{attr_str}:{dialog_path}"
                 if key in self._cache:
                     return self._cache[key]
                 result = func(score_obj, dialog, *args, **kwargs)
