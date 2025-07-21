@@ -4,6 +4,7 @@ import soundfile as sf
 from typing import List
 from sdialog import Dialog
 from sdialog.audio.audio_turn import AudioTurn
+from sdialog.audio.audio_events import Timeline
 
 class AudioDialog(Dialog):
     """
@@ -12,6 +13,7 @@ class AudioDialog(Dialog):
     turns: List[AudioTurn] = []
     _combined_audio: np.ndarray = None
     audio_dir_path: str = None
+    timeline: Timeline = None
 
     def __init__(self):
         super().__init__()

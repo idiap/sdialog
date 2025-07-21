@@ -189,6 +189,21 @@ def compute_evaluation_audio(dialog: AudioDialog) -> Dict:
         "wer": 0.0,
         "stoi": 0.0,
         "pesq": 0.0,
+        "timing_statistics": {
+            "mean_word_duration": 0.0,
+            "mean_utterance_duration": 0.0,
+            "mean_silence_duration": 0.0,
+            "mean_speaker_duration": {
+                "speaker_1": 0.0,
+                "speaker_2": 0.0,
+            }
+        },
+        "f0_statistics": {
+            "mean_f0": 0.0,
+            "std_f0": 0.0,
+            "min_f0": 0.0,
+            "max_f0": 0.0,
+        },
     }
 
 

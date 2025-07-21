@@ -23,12 +23,6 @@ from sdialog.audio.voice_database import BaseVoiceDatabase
 device = "cuda" if torch.cuda.is_available() else "cpu"
 whisper_model = whisper.load_model("large-v3", device=device)
 
-def _master_audio(dialog: AudioDialog) -> np.ndarray:
-    """
-    Combines multiple audio segments into a single master audio track.
-    """
-    return np.concatenate([turn.get_audio() for turn in dialog.turns])
-
 
 def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
     """
@@ -66,7 +60,9 @@ def generate_utterances_audios(
     return dialog
 
 
-def match_voice_to_persona(dialog: AudioDialog, voice_database: BaseVoiceDatabase) -> AudioDialog:
+def match_voice_to_persona(
+        dialog: AudioDialog,
+        voice_database: BaseVoiceDatabase) -> AudioDialog:
     """
     Matches a voice to a persona.
     """
@@ -132,7 +128,7 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str) -> AudioDialog:
 
 def send_utterances_to_dscaper(dialog: AudioDialog, dscaper: scaper.Dscaper) -> AudioDialog:
     """
-    Sends the utterances to DSCAPER.
+    Sends the utterances audio files to dSCAPER database.
     """
 
     for turn in dialog.turns:
@@ -147,19 +143,21 @@ def send_utterances_to_dscaper(dialog: AudioDialog, dscaper: scaper.Dscaper) -> 
         
         if resp.status != "success":
             logging.error(f"Problem storing audio for turn {turn.audio_path}: {resp.message}")
+        else:
+            turn.is_stored_in_dscaper = True
 
     return dialog
 
 
 def generate_dscaper_timeline(dialog: AudioDialog, dscaper: scaper.Dscaper) -> AudioDialog:
     """
-    Generates a DSCAPER format for a Dialog object.
+    Generates a dSCAPER timeline for a Dialog object.
 
     :param dialog: The Dialog object containing the conversation.
     :type dialog: AudioDialog
     :param dscaper: The dscaper object.
     :type dscaper: scaper.Dscaper
-    :return: A Dialog object with DSCAPER format.
+    :return: A Dialog object with dSCAPER timeline.
     :rtype: AudioDialog
     """
     timeline_name = f"dialog_{dialog.id}"
@@ -209,54 +207,3 @@ def generate_audio_room_accoustic(dialog: AudioDialog) -> AudioDialog:
     """
     return dialog
 
-
-def audio_pipeline(
-    dialog: AudioDialog,
-    voice_database: BaseVoiceDatabase,
-    tts_pipeline: BaseTTS,
-    dir_audio: str,
-    dscaper: scaper.Dscaper) -> AudioDialog:
-    """
-    Converts a Dialog object into a single audio track by generating audio for each utterance.
-
-    :param dialog: The Dialog object containing the conversation.
-    :type dialog: Dialog
-    :return: A Dialog object with the audio pipeline applied.
-    :rtype: AudioDialog
-    :param voice_database: The voice database to use for the audio generation.
-    :type voice_database: BaseVoiceDatabase
-    :param tts_pipeline: The TTS pipeline to use for the audio generation.
-    :type tts_pipeline: BaseTTS
-    :param dir_audio: The directory to save the audio files.
-    :type dir_audio: str
-    """
-
-    dialog = generate_utterances_audios(
-        dialog,
-        voice_database=voice_database,
-        tts_pipeline=tts_pipeline
-    )
-
-    dialog = save_utterances_audios(dialog, dir_audio)
-
-    dialog.set_combined_audio(
-        _master_audio(dialog)
-    )
-    # save the combined audio to exported_audios folder
-    sf.write(
-        f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios/combined_audio.wav",
-        dialog.get_combined_audio(),
-        24_000
-    )
-
-    # dialog = generate_word_alignments(dialog)
-
-    # TODO: Generate SNR and position of the speaker in the room
-
-    dialog = send_utterances_to_dscaper(dialog, dscaper)
-
-    dialog = generate_dscaper_timeline(dialog, dscaper)
-    
-    dialog = generate_audio_room_accoustic(dialog)
-
-    return dialog

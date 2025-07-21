@@ -14,6 +14,7 @@ from jinja2 import Template
 from typing import List, Tuple
 from sdialog import Dialog, config
 from sdialog.generators import DialogGenerator
+from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events import Timeline, AudioEvent
 
 logger = logging.getLogger(__name__)
@@ -41,58 +42,66 @@ class AudioEventsEnricher:
     Audio events enricher pipeline.
     """
     
-    def extract_events(self, dialog: Dialog, utterances_audios: List[Tuple[np.ndarray, str]]) -> Timeline:
+    def extract_events(self, dialog: AudioDialog) -> AudioDialog:
         """
         Extract the audio events from the dialog.
         """
-        self.dialog = dialog
-        self.utterances_audios = utterances_audios
 
         print("Generating audio events from dialog...")
-        self._enrich()
-        self.dialog.print()
+        dialog = self._enrich(dialog)
 
         print("Computing alignment...")
-        timeline = self._compute_alignment(self.utterances_audios)
-        print(timeline)
+        dialog = self._compute_alignment(dialog)
 
-        return timeline
+        return dialog
 
-    def _enrich(self):
+    def _enrich(self, dialog: AudioDialog) -> AudioDialog:
         """
         Use an LLM to enrich the audio events in the dialog.
         """
 
         # Load and populate the prompt with the dialog
         with open(config.config["prompts"]["audio"]["enricher"], "r") as f:
-            prompt = Template(f.read()).render(dialog=str(self.dialog))
+            prompt = Template(f.read()).render(dialog=str(dialog))
 
-        self.dialog = DialogGenerator(dialogue_details=prompt).generate()
-
+        return DialogGenerator(dialogue_details=prompt).generate()
+    
     # TODO: Parse outputs correctly and verify the SNR values
-    def _generate_snr(self):
+    def generate_snr(self, dialog: AudioDialog) -> AudioDialog:
         """
         Use an LLM to compute the SNR of the speakers in the dialog.
         """
 
         with open(config.config["prompts"]["audio"]["snr"], "r") as f:
-            prompt = Template(f.read()).render(dialog=str(self.dialog))
+            prompt = Template(f.read()).render(dialog=str(dialog))
 
-        self.dialog_with_snr = DialogGenerator(dialogue_details=prompt).generate()
-
-        all_snr = []
+        dialog_with_snr = DialogGenerator(dialogue_details=prompt).generate()
 
         # Extract the SNR from the dialog
-        for turn in self.dialog_with_snr.turns:
+        for turn in dialog_with_snr.turns:
             snr = re.search(r'snr="(\d+)"', turn.text)
-            if snr:
-                all_snr.append(int(snr.group(1)))
-            else:
-                all_snr.append(None)
+            turn.snr = int(snr.group(1)) if snr else None
 
-        return all_snr # TODO: Add SNR value to the dialog
+        return dialog_with_snr
+    
+    def generate_room_position(self, dialog: AudioDialog) -> AudioDialog:
+        """
+        Use an LLM to compute the position of the speakers in the room based on predefined positions and the dialog.
+        """
+        
+        with open(config.config["prompts"]["audio"]["room_position"], "r") as f:
+            prompt = Template(f.read()).render(dialog=str(dialog))
+        
+        dialog_with_room_position = DialogGenerator(dialogue_details=prompt).generate()
 
-    def _structure_markup_language(self) -> List[dict]:
+        # Extract the position and microphone position from the dialog
+        for turn in dialog_with_room_position.turns:
+            turn.position = re.search(r'position="([^"]+)"', turn.text).group(1) if re.search(r'position="([^"]+)"', turn.text) else None
+            turn.microphone_position = re.search(r'microphone_position="([^"]+)"', turn.text).group(1) if re.search(r'microphone_position="([^"]+)"', turn.text) else None
+
+        return dialog_with_room_position
+
+    def _structure_markup_language(self, dialog: AudioDialog) -> List[dict]:
         """
         Extract the markup language structure of the dialog and align the events
         at the words level by considering the position to be before the word and
@@ -112,7 +121,7 @@ class AudioEventsEnricher:
         tag_pattern = re.compile(r'(<(\w+)\s*.*?>(.*?)</\2>)|(<(\w+)[^>]*?/>)|(<(\w+)>)')
 
         full_text_with_tags = ""
-        for turn in self.dialog.turns:
+        for turn in dialog.turns:
             full_text_with_tags += f"[{turn.speaker}] {turn.text}\n"
 
         for match in tag_pattern.finditer(full_text_with_tags):
@@ -164,18 +173,18 @@ class AudioEventsEnricher:
     #     """
     #     Remove the markup language tags from the dialog.
     #     """
-    #     for turn in self.dialog.turns:
+    #     for turn in dialog.turns:
     #         # This regex finds all XML-like tags (e.g., <tag>, </tag>, <tag/>)
     #         # and removes them, keeping the inner text of span tags.
     #         turn.text = re.sub(r'<[^>]+>', '', turn.text)
-    #     return self.dialog
+    #     return dialog
 
-    def _compute_alignment(self) -> Timeline:
+    def _compute_alignment(self, dialog: AudioDialog) -> AudioDialog:
         """
         Compute the alignment of the audio events in the dialog based on the position
         of the anchors tokens (begin_token and end_token) and the utterances audios.
         """
-        structured_events = self._structure_markup_language()
+        structured_events = self._structure_markup_language(dialog)
         timeline = Timeline()
         dialog_word_timings = []
         turn_word_offsets = [0]
@@ -186,10 +195,10 @@ class AudioEventsEnricher:
 
         current_time_offset_s = 0.0
 
-        for i, (turn, (audio, speaker)) in enumerate(zip(self.dialog.turns, self.utterances_audios)):
+        for i, turn in enumerate(dialog.turns):
             # Add utterance to timeline
             utterance_start_time_s = current_time_offset_s
-            utterance_duration_s = len(audio) / sample_rate if sample_rate > 0 else 0
+            utterance_duration_s = len(turn.get_audio()) / sample_rate if sample_rate > 0 else 0
             clean_text_for_label = re.sub(r'<[^>]+>', '', turn.text).strip()
 
             if clean_text_for_label or utterance_duration_s > 0:
@@ -198,12 +207,12 @@ class AudioEventsEnricher:
                     source_file="<utterance_audio>",  # This is not a real file
                     start_time=int(utterance_start_time_s * 1000),
                     duration=int(utterance_duration_s * 1000),
-                    role=speaker
+                    role=turn.speaker
                 )
                 timeline.add_event(utterance_event)
 
             # Add placeholder for speaker tag, as counted in structure_markup_language
-            dialog_word_timings.append({'word': f'[{speaker}]', 'start': current_time_offset_s, 'end': current_time_offset_s})
+            dialog_word_timings.append({'word': f'[{turn.speaker}]', 'start': current_time_offset_s, 'end': current_time_offset_s})
             cumulative_words += 1
 
             clean_text = re.sub(r'<[^>]+>', '', turn.text)
@@ -215,7 +224,7 @@ class AudioEventsEnricher:
 
             # Resample audio to 16kHz if necessary, assuming we know original sr
             # For now, we assume it is already 16kHz from the TTS engine
-            result = whisper_model.transcribe(audio, word_timestamps=True, fp16=False, language='en')
+            result = whisper_model.transcribe(turn.get_audio(), word_timestamps=True, fp16=False, language='en')
 
             turn_words_with_ts = []
             for segment in result.get('segments', []):
@@ -250,8 +259,8 @@ class AudioEventsEnricher:
 
             start_time_ms = dialog_word_timings[begin_token_idx]['start'] * 1000
             
-            turn_index = next((i - 1 for i, offset in enumerate(turn_word_offsets) if begin_token_idx < offset), len(self.dialog.turns) - 1)
-            speaker_role = self.dialog.turns[turn_index].speaker
+            turn_index = next((i - 1 for i, offset in enumerate(turn_word_offsets) if begin_token_idx < offset), len(dialog.turns) - 1)
+            speaker_role = dialog.turns[turn_index].speaker
 
             duration_ms = 0
             if event['end_token'] is not None:
@@ -271,5 +280,6 @@ class AudioEventsEnricher:
             )
             timeline.add_event(audio_event)
 
-        return timeline
+        dialog.timeline = timeline
 
+        return dialog

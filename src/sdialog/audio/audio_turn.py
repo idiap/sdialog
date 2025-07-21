@@ -26,6 +26,9 @@ class AudioTurn(Turn):
     alignment: List[dict] = None
     transcript: str = None
     voice: str = None
+    position: str = None
+    microphone_position: str = None
+    is_stored_in_dscaper: bool = False
 
     def get_audio(self) -> np.ndarray:
         """
@@ -49,7 +52,10 @@ class AudioTurn(Turn):
         snr: float = None,
         alignment: List[dict] = None,
         transcript: str = None,
-        voice: str = None):
+        voice: str = None,
+        position: str = None,
+        microphone_position: str = None,
+        is_stored_in_dscaper: bool = False):
 
         audio_turn = AudioTurn(text=turn.text, speaker=turn.speaker)
 
@@ -61,5 +67,8 @@ class AudioTurn(Turn):
         audio_turn.alignment = alignment
         audio_turn.transcript = transcript
         audio_turn.voice = voice
+        audio_turn.position = position
+        audio_turn.microphone_position = microphone_position
+        audio_turn.is_stored_in_dscaper = is_stored_in_dscaper
         
         return audio_turn
