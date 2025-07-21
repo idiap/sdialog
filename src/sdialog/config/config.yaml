@@ -18,3 +18,7 @@ llm:
   top_p: null
   frequency_penalty: null
   presence_penalty: null
+
+cache:
+  enabled: true
+  path: ~/.sdialog/cache

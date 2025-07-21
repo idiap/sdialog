@@ -7,16 +7,19 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import os
 import re
 import json
 import uuid
 import torch
+import pickle
 import logging
 import subprocess
 import transformers
 import pandas as pd
 
 from typing import Union
+from functools import wraps
 from pydantic import BaseModel
 from sklearn.neighbors import NearestNeighbors
 from langchain_ollama.chat_models import ChatOllama
@@ -43,6 +46,69 @@ class KNNModel:
         return [(self.model.ix2id[indexes[ix]], dist) for ix, dist in enumerate(dists)]
 
     __call__ = neighbors
+
+
+class CacheDialogScore:
+    def __init__(self, path, enable_cache=True):
+        cache_dir = os.path.expanduser(path)
+        os.makedirs(cache_dir, exist_ok=True)
+        self.enable_cache = enable_cache
+        self.cache_path = os.path.join(cache_dir, "dialog_scores.pkl")
+        self._score_obj_attributes = {}
+        # Load cache dict if exists
+        if os.path.exists(self.cache_path):
+            with open(self.cache_path, "rb") as f:
+                self._cache = pickle.load(f)
+        else:
+            self._cache = {}
+
+    def save(self):
+        """
+        Save the cache to the file.
+        """
+        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+        with open(self.cache_path, "wb") as f:
+            pickle.dump(self._cache, f)
+
+    def cache(self, func):
+        @wraps(func)
+        def wrapper(score_obj, dialog, *args, **kwargs):
+            # Build cache key
+            dialog_path = getattr(dialog, "_path", None)
+            if not self.enable_cache or dialog_path is None:
+                result = func(score_obj, dialog, *args, **kwargs)
+            else:
+                # Build a hashable key that includes score_obj attributes (sorted, serializable only)
+                # Cache attr_items for each score_obj class
+                score_obj_class = score_obj.__class__.__name__
+                if score_obj_class not in self._score_obj_attributes:
+                    attr_items = []
+                    for attr in sorted(vars(score_obj)):
+                        value = getattr(score_obj, attr)
+                        try:
+                            json.dumps(value)
+                            attr_items.append((attr, value))
+                        except (TypeError, OverflowError):
+                            continue
+                    self._score_obj_attributes[score_obj_class] = attr_items
+                else:
+                    attr_items = self._score_obj_attributes[score_obj_class]
+                attr_str = json.dumps(attr_items, sort_keys=True)
+                key = f"{score_obj_class}:{score_obj.name}:{dialog_path}:{attr_str}"
+                if key in self._cache:
+                    return self._cache[key]
+                result = func(score_obj, dialog, *args, **kwargs)
+                self._cache[key] = result
+            return result
+        return wrapper
+
+    # TODO: add a filter to clear only specific keys
+    def clear(self):
+        """
+        Clear the cache.
+        """
+        self._cache = {}
+        self.save()
 
 
 def check_valid_model_name(func):

@@ -31,9 +31,11 @@ from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
+from ..util import CacheDialogScore, KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
 
 logger = logging.getLogger(__name__)
+
+scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -122,7 +124,6 @@ class BaseDialogScore(ABC):
         """
         self.name = name
 
-    # TODO: @cache_dialog_score
     def __call__(self, dialog: Dialog):
         """
         Computes the score for the provided dialog.
@@ -166,11 +167,19 @@ class BaseDatasetEvaluator(ABC):
         else:
             desc = f"Computing {self.name} scores for dataset "
             desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        scores = np.array([self.dialog_score(dialogue)
-                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+        try:
+            scores = np.array([self.dialog_score(dialogue)
+                               for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+        except KeyboardInterrupt:
+            logger.warning(
+                f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
+                f"with evaluator '{self.name}' will be saved to disk."
+            )
+            scores_cache.save()  # Save the cache to disk after scoring
+            raise KeyboardInterrupt
+
         self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         results = self.eval(scores)
-
         return (results, scores) if return_dialog_scores else results
 
     @abstractmethod
@@ -277,6 +286,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
         return output
 
+    @scores_cache.cache
     def score(self, dialog: Dialog) -> float:
         """
         Computes the score for the provided dialog.
@@ -288,6 +298,8 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         try:
             return int(output.yes)
         except TypeError:
+            # TODO: this error will be stored in the cache...
+            #       should we handle it differently? perhaps simply raise an exception?
             logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
                          f"Returning default {self.as_score_error_value} value")
             return self.as_score_error_value
@@ -468,11 +480,7 @@ class FrequencyEvaluator(BaseDatasetEvaluator):
         total = len(dialog_scores)
         count = np.sum(dialog_scores)
         percentage = count / total if total > 0 else 0
-        return {
-            "count": int(count),
-            "total": int(total),
-            "percentage": percentage
-        }
+        return percentage
 
 
 class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
@@ -699,6 +707,7 @@ class DialogFlowScore(BaseDialogScore):
                                k=k_neighbors)
         }
 
+    @scores_cache.cache
     def score(self, dialog: Dialog) -> float:
         sum_log_p = 0
         sys_turns = 0
