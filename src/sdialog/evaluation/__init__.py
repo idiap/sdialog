@@ -421,7 +421,7 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         if "reference" not in dialog_scores and self.reference_scores is not None:
-            pd.Series(self.reference_scores, name="reference").plot.kde(bw_method=self.kde_bw)
+            pd.Series(self.reference_scores, name="reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
             pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
         plot.xlabel(self.dialog_score.name)
@@ -676,7 +676,7 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
             print(f"All plots saved to {save_dir}")
 
 
-class DialogFlowScore(BaseDialogScore):
+class DialogFlowPPL(BaseDialogScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  k_neighbors=64,
@@ -685,7 +685,7 @@ class DialogFlowScore(BaseDialogScore):
                  name=None,
                  verbose=False,
                  **d2f_kwargs):
-        super().__init__(name=name if name else "dfs" + ("+sm" if use_softmax else ""))
+        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""))
 
         d2f_kwargs = {"node_llm_labels_enabled": False,
                       "out_png": False,
