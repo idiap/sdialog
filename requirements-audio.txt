@@ -5,3 +5,4 @@ pyannote-audio
 soundfile
 tgt
 whisper
+pyroomacoustics

@@ -1,6 +1,7 @@
 """
 This module provides classes for the room specification.
 """
+
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
@@ -9,12 +10,13 @@ import numpy as np
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, List, Any
 
 
 @dataclass
 class Position3D:
     """3D position coordinates in meters"""
+
     x: float
     y: float
     z: float
@@ -29,11 +31,18 @@ class Position3D:
     def to_array(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z])
 
+    @classmethod
+    def from_list(cls, position_list: List[float]):
+        if len(position_list) != 3:
+            raise ValueError("Position must have exactly 3 coordinates [x, y, z]")
+        return cls(x=position_list[0], y=position_list[1], z=position_list[2])
+
 
 @dataclass
 class Dimensions3D:
     """3D dimensions in meters"""
-    width: float   # x-axis
+
+    width: float  # x-axis
     length: float  # y-axis
     height: float  # z-axis
 
@@ -61,15 +70,12 @@ class Dimensions3D:
         w_ratio, l_ratio, h_ratio = aspect_ratio
         scale = (volume / (w_ratio * l_ratio * h_ratio)) ** (1 / 3)
 
-        return cls(
-            width=w_ratio * scale,
-            length=l_ratio * scale,
-            height=h_ratio * scale
-        )
+        return cls(width=w_ratio * scale, length=l_ratio * scale, height=h_ratio * scale)
 
 
 class RoomRole(Enum):
     """Defines the functional role of the room and dimentions that comes with it."""
+
     CONSULTATION = "consultation"
     EXAMINATION = "examination"
     TREATMENT = "treatment"
@@ -82,6 +88,7 @@ class RoomRole(Enum):
 
 class DoctorPosition(Enum):
     """Doctor placement locations in examination room"""
+
     AT_DESK_SITTING = "at_desk_sitting"
     AT_DESK_SIDE_STANDING = "at_desk_side_standing"
     NEXT_TO_BENCH_STANDING = "next_to_bench_standing"
@@ -94,6 +101,7 @@ class DoctorPosition(Enum):
 
 class PatientPosition(Enum):
     """Patient placement locations in examination room"""
+
     AT_DOOR_STANDING = "at_door_standing"
     NEXT_TO_DESK_SITTING = "next_to_desk_sitting"
     NEXT_TO_DESK_STANDING = "next_to_desk_standing"
@@ -103,6 +111,7 @@ class PatientPosition(Enum):
 
 class MicrophonePosition(Enum):
     """Different microphone placement options"""
+
     TABLE_SMARTPHONE = "table_smartphone"
     MONITOR = "monitor"
     WALL_MOUNTED = "wall_mounted"
@@ -112,6 +121,7 @@ class MicrophonePosition(Enum):
 
 class WallMaterial(Enum):
     """Common wall materials with typical absorption coefficients"""
+
     DRYWALL = "drywall"
     CONCRETE = "concrete"
     BRICK = "brick"
@@ -123,6 +133,7 @@ class WallMaterial(Enum):
 
 class FloorMaterial(Enum):
     """Floor materials affecting acoustics"""
+
     CARPET = "carpet"
     VINYL = "vinyl"
     CONCRETE = "concrete"
@@ -133,6 +144,7 @@ class FloorMaterial(Enum):
 
 class RecordingDevice(Enum):
     """Types of recording devices with their characteristics"""
+
     SMARTPHONE = "smartphone"
     WEBCAM = "webcam"
     TABLET = "tablet"
@@ -142,14 +154,96 @@ class RecordingDevice(Enum):
     SHOTGUN_MIC = "shotgun_mic"
 
 
+# ------------------------------------------------------------------------------
+
+
 @dataclass
-class SpeakerSource:
-    """Represents a person speaking in the room"""
+class SoundSource:
+    """Represents an object, speaker that makes sounds in the room"""
+
     name: str
     position: Position3D
-    voice_level: float = 60.0  # dB SPL
-    fundamental_frequency: float = 150.0  # Hz
-    is_primary: bool = True  # Primary speaker (doctor) vs secondary (patient)
+    directivity: Optional[str] = "omnidirectional"
+    # sound_level: float = 60.0  # dB SPL
+    snr_db: float = 0.0  # dB SPL
+    fundamental_frequency: Optional[float] = 150.0  # Hz
+    is_primary: Optional[bool] = True  # Primary speaker (doctor) vs secondary (patient)
+
+    @property
+    def x(self) -> float:
+        return self.position.x
+
+    @property
+    def y(self) -> float:
+        return self.position.y
+
+    @property
+    def z(self) -> float:
+        return self.position.z
+
+    def distance_to(self, other_position: Tuple[float, float, float]) -> float:
+        return (
+            (self.x - other_position[0]) ** 2 + (self.y - other_position[1]) ** 2 + (self.z - other_position[2]) ** 2
+        ) ** 0.5
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SoundSource":
+        """
+        Create SoundSource from dictionary data.
+
+        Args:
+            data: Dictionary containing sound source configuration
+
+        Returns:
+            SoundSource object
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        if "name" not in data:
+            raise ValueError("Missing required field 'name'")
+        name = data['name'].lower()
+
+        if "position" not in data:
+            raise ValueError("Missing required field 'position'")
+        try:
+            position = Position3D.from_list(data["position"])
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid position data: {e}")
+
+        is_primary = cls._determine_primary_status(name)
+        # if "fundamental_frequency" in data:
+        #     fundamental_frequency = data["fundamental_frequency"]
+
+        return cls(
+            name=data["name"],
+            position=position,
+            directivity=data.get("directivity", "omnidirectional"),
+            snr_db=data.get("snr_db", 0.0),
+            is_primary=data.get("is_primary", is_primary),  # Allow override
+        )
+        # fundamental_frequency=fundamental_freq,
+
+    @staticmethod
+    def _determine_primary_status(name: str) -> bool:
+        """Determine if a source is primary based on its name."""
+        primary_names = [
+            "doctor",
+            "physician",
+            "main_speaker",
+            "speaker_a",
+            "primary",
+            "médecin",
+            "medecin",
+            "docteur",
+            "lekarz",
+            "doktor",
+            "lékař",
+        ]
+        return name in primary_names
+
+
+# ------------------------------------------------------------------------------
 
 
 # https://github.com/LCAV/pyroomacoustics/blob/master/pyroomacoustics/room.py
@@ -159,16 +253,18 @@ class Room:
     A room is a place where the dialog takes place.
     """
 
-    def __init__(self,
-                 role: RoomRole,
-                 dimensions: Optional[Dimensions3D],
-                 name: str = "Room",
-                 description: str = "",
-                 rt60: float = 0.4,
-                 speaker_position=[],
-                 mic_type=RecordingDevice.WEBCAM,
-                 mic_position=MicrophonePosition.MONITOR,
-                 furnitures=False):
+    def __init__(
+        self,
+        role: RoomRole,
+        dimensions: Optional[Dimensions3D],
+        name: str = "Room",
+        description: str = "",
+        rt60: float = 0.4,
+        speaker_position=[],
+        mic_type=RecordingDevice.WEBCAM,
+        mic_position=MicrophonePosition.MONITOR,
+        furnitures=False,
+    ):
         self.id: str = str(int(time.time()))[-4:]
         self.name: str = name + self.id
         self.description = description
@@ -181,13 +277,16 @@ class Room:
         self.furnitures = furnitures
 
     def __str__(self):
-        return (f"Room {self.id}: {self.name}. {self.description}. "
-                f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60} ) ")
+        return (
+            f"Room {self.id}: {self.name}. {self.description}. "
+            f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60} ) "
+        )
 
 
 @dataclass
 class RoomLayout:
     """Defines the standard layout of furniture in examination room"""
+
     door_position: Position3D
     desk_position: Position3D
     monitor_position: Optional[Position3D]
@@ -199,6 +298,7 @@ class RoomLayout:
 @dataclass
 class MaterialProperties:
     """Acoustic properties of materials"""
+
     material_type: Union[WallMaterial, FloorMaterial, str]
     absorption_coefficients: Dict[int, float] = field(default_factory=dict)  # frequency -> coefficient
     scattering_coefficient: float = 0.1
@@ -234,6 +334,7 @@ class MaterialProperties:
 
 class FurnitureType(Enum):
     """Types of furniture commonly found in medical rooms"""
+
     DESK = "desk"
     MONITOR = "monitor"
     CHAIR = "chair"
@@ -250,6 +351,7 @@ class FurnitureType(Enum):
 @dataclass
 class Furniture:
     """Furniture object in the room"""
+
     name: str
     furniture_type: FurnitureType
     position: Position3D
@@ -265,6 +367,7 @@ class Furniture:
 @dataclass
 class RecordingDeviceSpec:
     """Recording device specifications"""
+
     device_type: RecordingDevice
     sensitivity: float = -40.0  # dBV/Pa
     frequency_response: Tuple[int, int] = (20, 20000)  # Hz range
@@ -280,25 +383,31 @@ class RecordingDeviceSpec:
             RecordingDevice.WEBCAM: {"sensitivity": -42.0, "snr": 45.0, "num_channels": 1},
             RecordingDevice.TABLET: {"sensitivity": -40.0, "snr": 48.0, "num_channels": 1},
             RecordingDevice.HIGH_QUALITY_MIC: {"sensitivity": -35.0, "snr": 70.0, "num_channels": 1},
-            RecordingDevice.BEAMFORMING_MIC: {"sensitivity": -40.0,
-                                              "snr": 65.0,
-                                              "num_channels": 8,
-                                              "directivity_pattern": "beamformed"},
-            RecordingDevice.LAVALIER_MIC: {"sensitivity": -44.0,
-                                           "snr": 55.0,
-                                           "num_channels": 1,
-                                           "directivity_pattern": "omnidirectional"},
-            RecordingDevice.SHOTGUN_MIC: {"sensitivity": -35.0,
-                                          "snr": 65.0,
-                                          "num_channels": 1,
-                                          "directivity_pattern": "shotgun"},
+            RecordingDevice.BEAMFORMING_MIC: {
+                "sensitivity": -40.0,
+                "snr": 65.0,
+                "num_channels": 8,
+                "directivity_pattern": "beamformed",
+            },
+            RecordingDevice.LAVALIER_MIC: {
+                "sensitivity": -44.0,
+                "snr": 55.0,
+                "num_channels": 1,
+                "directivity_pattern": "omnidirectional",
+            },
+            RecordingDevice.SHOTGUN_MIC: {
+                "sensitivity": -35.0,
+                "snr": 65.0,
+                "num_channels": 1,
+                "directivity_pattern": "shotgun",
+            },
         }
 
         if self.device_type in device_defaults:
             defaults = device_defaults[self.device_type]
             for key, value in defaults.items():
                 # Only update if still at default value
-                value = getattr(RecordingDeviceSpec.__dataclass_fields__[key], 'default', None)
+                value = getattr(RecordingDeviceSpec.__dataclass_fields__[key], "default", None)
                 if hasattr(self, key) and getattr(self, key) == value:
                     setattr(self, key, value)
 
@@ -306,6 +415,7 @@ class RecordingDeviceSpec:
 @dataclass
 class EnvironmentalConditions:
     """Environmental factors affecting acoustics"""
+
     temperature: float = 20.0  # Celsius
     humidity: float = 50.0  # Relative humidity %
     atmospheric_pressure: float = 101325.0  # Pa
@@ -328,17 +438,15 @@ class EnvironmentalConditions:
         T = self.temperature + 273.15  # in Kelvin
 
         # Saturation vapor pressure (Pa)
-        psat = 10**(8.07131 - 1730.63 / (T - 39.724))
+        psat = 10 ** (8.07131 - 1730.63 / (T - 39.724))
 
         # Molar concentration of water vapor
         h = self.humidity * psat / self.atmospheric_pressure
 
         # Simplified calculation for 1kHz
-        absorption = (1.84e-11 * (self.atmospheric_pressure / 101325)
-                      * (T / 293.15)**(-0.5)
-                      + (T / 293.15)**(-2.5)
-                      * (0.01275 * h * np.exp(-2239.1 / T)
-                      / (0.0963 + h * np.exp(-2239.1 / T))))
+        absorption = 1.84e-11 * (self.atmospheric_pressure / 101325) * (T / 293.15) ** (-0.5) + (T / 293.15) ** (
+            -2.5
+        ) * (0.01275 * h * np.exp(-2239.1 / T) / (0.0963 + h * np.exp(-2239.1 / T)))
 
         return absorption * 1000  # Convert to dB/m
 
