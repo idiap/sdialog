@@ -1,34 +1,33 @@
-from operator import ge
 """
 This module provides classes for the room generation.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
-from dataclasses import dataclass
-from sdialog.audio.room import Room, Position3D, Dimensions3D, RoomRole, RecordingDevice,
-from sdialog.audio.room import  DoctorPosition, PatientPosition,  MicrophonePosition,
-from typing import Optional, List
 import math
+
+from sdialog.audio.room import Room, Dimensions3D, RoomRole
+from typing import List
 
 
 # Standard room sizes (floor area in m²)
-ROOM_SIZES: List[float] = [4.5, 6, 8, 9.5, 12, 15, 18] # 20, 24, 32]
+ROOM_SIZES: List[float] = [4.5, 6, 8, 9.5, 12, 15, 18]
 
 
 # Standard aspect ratios for different room sizes (width:length)
 ROOM_ASPECT_RATIOS = {
-        4.5: (1.5, 1.0),   # 2.12 x 2.12m (compact square)
-        6: (1.5, 1.0),     # 2.45 x 2.45m
-        8: (1.6, 1.0),     # 3.58 x 2.24m (slightly rectangular)
-        9.5: (1.7, 1.0),   # 4.0 x 2.35m
-        12: (1.8, 1.0),    # 4.65 x 2.58m
-        15: (2.0, 1.0),    # 5.48 x 2.74m
-        18: (2.2, 1.0),    # 6.26 x 2.87m
-        20: (2.5, 1.0),    # 7.07 x 2.83m
-        24: (2.4, 1.0),    # 7.59 x 3.16m
-        32: (2.8, 1.0),    # 9.49 x 3.37m (long rectangular)
-    }
+    4.5: (1.5, 1.0),   # 2.12 x 2.12m (compact square)
+    6: (1.5, 1.0),     # 2.45 x 2.45m
+    8: (1.6, 1.0),     # 3.58 x 2.24m (slightly rectangular)
+    9.5: (1.7, 1.0),   # 4.0 x 2.35m
+    12: (1.8, 1.0),    # 4.65 x 2.58m
+    15: (2.0, 1.0),    # 5.48 x 2.74m
+    18: (2.2, 1.0),    # 6.26 x 2.87m
+    20: (2.5, 1.0),    # 7.07 x 2.83m
+    24: (2.4, 1.0),    # 7.59 x 3.16m
+    32: (2.8, 1.0),    # 9.49 x 3.37m (long rectangular)
+}
+
 
 class RoomGenerator:
     """
@@ -60,21 +59,14 @@ class RoomGenerator:
                 name="RoomRole.OFFICE" + " room",
                 description="office",
                 dimensions=self.calculate_room_dimensions(ROOM_SIZES[4]),
-                rt60 = 0.3
+                rt60=0.3
             )
-        return Room(
-                role=RoomRole.CONSULTATION,
-                name="RoomRole.CONSULTATION" + " room",
-                description="consultation room",
-                dimensions=self.calculate_room_dimensions(ROOM_SIZES[3]),
-                rt60 = 0.5
-            )
+        return Room(role=RoomRole.CONSULTATION,
+                    name="RoomRole.CONSULTATION" + " room",
+                    description="consultation room",
+                    dimensions=self.calculate_room_dimensions(ROOM_SIZES[3]),
+                    rt60=0.5)
 
-
-
-
-#----------------
-#
 
 if __name__ == "__main__":
     print(" Room Generator creates:")

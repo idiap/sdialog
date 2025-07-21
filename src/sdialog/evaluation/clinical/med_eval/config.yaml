@@ -1,7 +1,0 @@
-# config.yaml
-# Configuration for the medical dialogue evaluator.
-# These values will be used if the file is present. Otherwise, defaults are used.
-
-llm:
-  model: "gpt-4-turbo"
-  temperature: 0.0

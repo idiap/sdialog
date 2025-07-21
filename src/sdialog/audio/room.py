@@ -5,14 +5,11 @@ This module provides classes for the room specification.
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import time
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, Optional, Tuple, Union
-
 import numpy as np
 
-#------------------------------------------------
-#
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Tuple, Union
 
 
 @dataclass
@@ -25,8 +22,10 @@ class Position3D:
     def __post_init__(self):
         if any(coord < 0 for coord in [self.x, self.y, self.z]):
             raise ValueError("Coordinates must be non-negative")
+
     def __str__(self):
         return f"pos: [{self.x}, {self.y}, {self.z}]"
+
     def to_array(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z])
 
@@ -41,15 +40,18 @@ class Dimensions3D:
     def __post_init__(self):
         if any(dim <= 0 for dim in [self.width, self.length, self.height]):
             raise ValueError("All dimensions must be positive")
+
     def __str__(self):
         return f"dim: [{self.width}, {self.length}, {self.height}]"
 
     @property
     def volume(self) -> float:
         return self.width * self.length * self.height
+
     @property
     def floor_area(self) -> float:
         return self.width * self.length
+
     @classmethod
     def from_volume(cls, volume: float, aspect_ratio: Tuple[float, float, float] = (1.5, 1.0, 0.3)):
         """Generate dimensions from volume using aspect ratio (width:length:height)"""
@@ -57,16 +59,13 @@ class Dimensions3D:
             raise ValueError("Volume must be positive")
 
         w_ratio, l_ratio, h_ratio = aspect_ratio
-        scale = (volume / (w_ratio * l_ratio * h_ratio)) ** (1/3)
+        scale = (volume / (w_ratio * l_ratio * h_ratio)) ** (1 / 3)
 
         return cls(
             width=w_ratio * scale,
             length=l_ratio * scale,
             height=h_ratio * scale
         )
-
-#---------------------------------------------------------------------
-# Enums
 
 
 class RoomRole(Enum):
@@ -75,10 +74,10 @@ class RoomRole(Enum):
     EXAMINATION = "examination"
     TREATMENT = "treatment"
     PATIENT_ROOM = "patient_room"
-    SURGERY = "surgery" #operating_room
+    SURGERY = "surgery"  # operating_room
     WAITING = "waiting_room"
     EMERGENCY = "emergency"
-    OFFICE= "office"
+    OFFICE = "office"
 
 
 class DoctorPosition(Enum):
@@ -92,6 +91,7 @@ class DoctorPosition(Enum):
     NEXT_TO_DOOR_STANDING = "next_to_door_standing"
     AT_DESK_SIDE_STANDING = "at_desk_side_standing"
 
+
 class PatientPosition(Enum):
     """Patient placement locations in examination room"""
     AT_DOOR_STANDING = "at_door_standing"
@@ -100,6 +100,7 @@ class PatientPosition(Enum):
     SITTING_ON_BENCH = "sitting_on_bench"
     CENTER_ROOM_STANDING = "center_room_standing"
 
+
 class MicrophonePosition(Enum):
     """Different microphone placement options"""
     TABLE_SMARTPHONE = "table_smartphone"
@@ -107,6 +108,7 @@ class MicrophonePosition(Enum):
     WALL_MOUNTED = "wall_mounted"
     CEILING_CENTERED = "ceiling_centered"
     CHEST_POCKET = "chest_pocket"
+
 
 class WallMaterial(Enum):
     """Common wall materials with typical absorption coefficients"""
@@ -117,6 +119,7 @@ class WallMaterial(Enum):
     ACOUSTIC_TILE = "acoustic_tile"
     GLASS = "glass"
     METAL = "metal"
+
 
 class FloorMaterial(Enum):
     """Floor materials affecting acoustics"""
@@ -149,29 +152,34 @@ class SpeakerSource:
     is_primary: bool = True  # Primary speaker (doctor) vs secondary (patient)
 
 
-#------------------------------------------------
-#
-
 # https://github.com/LCAV/pyroomacoustics/blob/master/pyroomacoustics/room.py
-
 @dataclass
 class Room:
     """
     A room is a place where the dialog takes place.
     """
 
-    def __init__(self, role: RoomRole, dimensions: Optional[Dimensions3D], name: str = "Room", description: str = "", rt60: float = 0.4,
-        speaker_position=[], mic_type=RecordingDevice.WEBCAM, mic_position=MicrophonePosition.MONITOR,furnitures=False):
-            self.id: str =  str(int(time.time()))[-4:]
-            self.name: str = name + self.id
-            self.description = description
-            self.role: RoomRole = role if role is not None else RoomRole.CONSULTATION
-            self.dimensions: Dimensions3D = dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
-            self.walls_material: Optional[MaterialProperties] = None  #absorbion_coefficient
-            self.rt60: Optional[float] = rt60
+    def __init__(self,
+                 role: RoomRole,
+                 dimensions: Optional[Dimensions3D],
+                 name: str = "Room",
+                 description: str = "",
+                 rt60: float = 0.4,
+                 speaker_position=[],
+                 mic_type=RecordingDevice.WEBCAM,
+                 mic_position=MicrophonePosition.MONITOR,
+                 furnitures=False):
+        self.id: str = str(int(time.time()))[-4:]
+        self.name: str = name + self.id
+        self.description = description
+        self.role: RoomRole = role if role is not None else RoomRole.CONSULTATION
+        self.dimensions: Dimensions3D = dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
+        self.walls_material: Optional[MaterialProperties] = None  # absorbion_coefficient
+        self.rt60: Optional[float] = rt60
 
     def __str__(self):
-        return f"Room {self.id}: {self.name}. {self.description}. (dimentions: {str(self.dimensions)}, rt60: {self.rt60} ) "
+        return (f"Room {self.id}: {self.name}. {self.description}. "
+                f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60} ) ")
 
 
 @dataclass
@@ -183,10 +191,6 @@ class RoomLayout:
     bench_position: Optional[Position3D]
     sink_position: Optional[Position3D]
     cupboard_position: Optional[Position3D]
-
-
-#---------------------------------------------------------------------
-#
 
 
 @dataclass
@@ -255,9 +259,6 @@ class Furniture:
         return self.dimensions.volume
 
 
-#------------------------------------------------
-#
-
 @dataclass
 class RecordingDeviceSpec:
     """Recording device specifications"""
@@ -276,22 +277,27 @@ class RecordingDeviceSpec:
             RecordingDevice.WEBCAM: {"sensitivity": -42.0, "snr": 45.0, "num_channels": 1},
             RecordingDevice.TABLET: {"sensitivity": -40.0, "snr": 48.0, "num_channels": 1},
             RecordingDevice.HIGH_QUALITY_MIC: {"sensitivity": -35.0, "snr": 70.0, "num_channels": 1},
-            RecordingDevice.BEAMFORMING_MIC: {"sensitivity": -40.0, "snr": 65.0, "num_channels": 8, "directivity_pattern": "beamformed"},
-            RecordingDevice.LAVALIER_MIC: {"sensitivity": -44.0, "snr": 55.0, "num_channels": 1, "directivity_pattern": "omnidirectional"},
-            RecordingDevice.SHOTGUN_MIC: {"sensitivity": -35.0, "snr": 65.0, "num_channels": 1, "directivity_pattern": "shotgun"},
+            RecordingDevice.BEAMFORMING_MIC: {"sensitivity": -40.0,
+                                              "snr": 65.0,
+                                              "num_channels": 8,
+                                              "directivity_pattern": "beamformed"},
+            RecordingDevice.LAVALIER_MIC: {"sensitivity": -44.0,
+                                           "snr": 55.0,
+                                           "num_channels": 1,
+                                           "directivity_pattern": "omnidirectional"},
+            RecordingDevice.SHOTGUN_MIC: {"sensitivity": -35.0,
+                                          "snr": 65.0,
+                                          "num_channels": 1,
+                                          "directivity_pattern": "shotgun"},
         }
 
         if self.device_type in device_defaults:
             defaults = device_defaults[self.device_type]
             for key, value in defaults.items():
                 # Only update if still at default value
-                if hasattr(self, key) and getattr(self, key) == getattr(RecordingDeviceSpec.__dataclass_fields__[key], 'default', None):
+                value = getattr(RecordingDeviceSpec.__dataclass_fields__[key], 'default', None)
+                if hasattr(self, key) and getattr(self, key) == value:
                     setattr(self, key, value)
-
-
-#---------------------------------------------------------------------
-#
-
 
 
 @dataclass
@@ -316,7 +322,7 @@ class EnvironmentalConditions:
         https://www.iso.org/obp/ui/#iso:std:iso:9613:-1:ed-1:v1:en
         """
 
-        T = self.temperature + 273.15 # in Kelvin
+        T = self.temperature + 273.15  # in Kelvin
 
         # Saturation vapor pressure (Pa)
         psat = 10**(8.07131 - 1730.63 / (T - 39.724))
@@ -325,17 +331,15 @@ class EnvironmentalConditions:
         h = self.humidity * psat / self.atmospheric_pressure
 
         # Simplified calculation for 1kHz
-        absorption = (1.84e-11 * (self.atmospheric_pressure / 101325) *
-                     (T / 293.15)**(-0.5) +
-                     (T / 293.15)**(-2.5) *
-                     (0.01275 * h * np.exp(-2239.1 / T) /
-                      (0.0963 + h * np.exp(-2239.1 / T))))
+        absorption = (1.84e-11 * (self.atmospheric_pressure / 101325)
+                      * (T / 293.15)**(-0.5)
+                      + (T / 293.15)**(-2.5)
+                      * (0.01275 * h * np.exp(-2239.1 / T)
+                      / (0.0963 + h * np.exp(-2239.1 / T))))
 
         return absorption * 1000  # Convert to dB/m
 
-
-        def calculate_reverberation_time_adjustment(self, room_volume: float,
-                                                  base_rt60: float) -> float:
+        def calculate_reverberation_time_adjustment(self, room_volume: float, base_rt60: float) -> float:
             """
             Calculate adjustment factor for reverberation time based on environmental conditions.
 
