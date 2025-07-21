@@ -82,17 +82,18 @@ class CacheDialogScore:
                 # Cache attr_items for each score_obj class
                 score_obj_class = score_obj.__class__.__name__
                 if score_obj_class not in self._score_obj_attributes:
-                    attr_items = []
+                    attrs = []
                     for attr in sorted(vars(score_obj)):
                         value = getattr(score_obj, attr)
                         try:
                             json.dumps(value)
-                            attr_items.append((attr, value))
+                            attrs.append(attr)
                         except (TypeError, OverflowError):
                             continue
-                    self._score_obj_attributes[score_obj_class] = attr_items
+                    self._score_obj_attributes[score_obj_class] = attrs
                 else:
-                    attr_items = self._score_obj_attributes[score_obj_class]
+                    attrs = self._score_obj_attributes[score_obj_class]
+                attr_items = {attr: getattr(score_obj, attr) for attr in attrs}
                 attr_str = json.dumps(attr_items, sort_keys=True)
                 key = f"{score_obj_class}:{attr_str}:{dialog_path}"
                 if key in self._cache:
