@@ -15,9 +15,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from tqdm.auto import tqdm
 from jinja2 import Template
 from typing import Optional
-from tqdm.auto import tqdm
 from pydantic import BaseModel
 from math import exp, log, sqrt
 from abc import ABC, abstractmethod
@@ -102,18 +102,6 @@ class LLMJudgeYesNoOutput(BaseModel):
     feedback: Optional[Union[str, List[str]]] = None
 
 
-class BaseEvaluator(ABC):
-    def __init__(self, metrics=None):
-        pass
-
-    @abstractmethod
-    def evaluate(self, input: Union[Dialog, List[Dialog]]) -> dict:
-        """
-        Evaluate the dialogs.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
 class BaseMetric(ABC):
     """
     Base class for metrics.
@@ -134,7 +122,18 @@ class BaseDialogScore(ABC):
         """
         self.name = name
 
+    # TODO: @cache_dialog_score
     def __call__(self, dialog: Dialog):
+        """
+        Computes the score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the score of the dialog.
+        """
+        return self.score(dialog)
+
+    @abstractmethod
+    def score(self, dialog: Dialog) -> float:
         """
         Computes the score for the provided dialog.
 
@@ -231,12 +230,6 @@ class BaseLLMJudge(ABC):
         with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
             self.messages = [SystemMessage(f.read()), HumanMessage("")]
 
-    def prompt(self, system: bool = False) -> str:
-        """
-        Returns the prompt template used by the LLM judge.
-        """
-        return self.messages[0].content if system else self.messages[1].content
-
     def __call__(self, prompt: str) -> Union[dict, BaseModel]:
         self.messages[1].content = prompt
         return self.llm.invoke(self.messages)
@@ -248,25 +241,30 @@ class BaseLLMJudge(ABC):
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
+    def prompt(self, system: bool = False) -> str:
+        """
+        Returns the prompt template used by the LLM judge.
+        """
+        return self.messages[0].content if system else self.messages[1].content
 
-class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
+
+class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
     def __init__(self,
                  prompt_template: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  as_score_error_value: int = -1,
                  **llm_kwargs):
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
-        super().__init__(output_format=LLMJudgeYesNoOutput,
-                         model=model,
-                         prompt_template=prompt_template,
-                         **llm_kwargs)
+        BaseLLMJudge.__init__(self,
+                              model=model,
+                              output_format=LLMJudgeYesNoOutput,
+                              prompt_template=prompt_template,
+                              **llm_kwargs)
 
         self.feedback = feedback
-        self.as_score = as_score  # If True, returns either 1 or 0 instead of LLMJudgeYesNoOutput object
         self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
@@ -275,19 +273,24 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
 
         prompt = self.prompt_template.render(dialogs=dialogs,
                                              feedback=feedback if feedback is not None else self.feedback)
-        output = self.output_format.model_validate(super().__call__(prompt))
-
-        if self.as_score:
-            try:
-                return int(output.yes)
-            except TypeError:
-                logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
-                             f"Returning default {self.as_score_error_value} value")
-                return self.as_score_error_value
+        output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
 
         return output
 
-    __call__ = judge  # Allow direct call to judge method
+    def score(self, dialog: Dialog) -> float:
+        """
+        Computes the score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the score of the dialog.
+        """
+        output = self.judge(dialog)
+        try:
+            return int(output.yes)
+        except TypeError:
+            logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
+                         f"Returning default {self.as_score_error_value} value")
+            return self.as_score_error_value
 
 
 class LLMJudgeRealDialog(LLMJudgeYesNo):
@@ -298,14 +301,12 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog"], encoding="utf-8") as f:
             prompt_template_real_or_not = f.read()
         super().__init__(prompt_template_real_or_not,
                          model=model,
                          feedback=feedback,
-                         as_score=as_score,
                          **llm_kwargs)
 
 
@@ -316,14 +317,12 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_refusal"], encoding="utf-8") as f:
             prompt_template_real_or_not = f.read()
         super().__init__(prompt_template_real_or_not,
                          model=model,
                          feedback=feedback,
-                         as_score=as_score,
                          **llm_kwargs)
 
 
@@ -334,7 +333,6 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                  speaker: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
@@ -344,7 +342,6 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
         super().__init__(prompt_template,
                          model=model,
                          feedback=feedback,
-                         as_score=as_score,
                          **llm_kwargs)
 
 
@@ -702,7 +699,7 @@ class DialogFlowScore(BaseDialogScore):
                                k=k_neighbors)
         }
 
-    def __call__(self, dialog: Dialog):
+    def score(self, dialog: Dialog) -> float:
         sum_log_p = 0
         sys_turns = 0
         prev_node = DEFAULT_TOKEN_START
