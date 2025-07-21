@@ -176,6 +176,9 @@ class Room:
         self.dimensions: Dimensions3D = dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
         self.walls_material: Optional[MaterialProperties] = None  # absorbion_coefficient
         self.rt60: Optional[float] = rt60
+        self.mic_type = mic_type
+        self.mic_position = mic_position
+        self.furnitures = furnitures
 
     def __str__(self):
         return (f"Room {self.id}: {self.name}. {self.description}. "
