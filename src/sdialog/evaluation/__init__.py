@@ -159,9 +159,10 @@ class BaseDatasetEvaluator(ABC):
 
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
-                 dataset_name: str = "candidate",
+                 dataset_name: str = None,
                  return_dialog_scores: bool = False) -> Union[dict, float]:
-        if not dataset_name or dataset_name == "candidate":
+        dataset_name = dataset_name or "candidate"
+        if dataset_name == "candidate":
             desc = f"Computing {self.name} scores for candidate dataset"
         else:
             desc = f"Computing {self.name} scores for dataset "
@@ -210,6 +211,7 @@ class BaseLLMJudge(ABC):
     """
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
+                 prompt_template: str = "",
                  output_format: Union[dict, BaseModel] = None,
                  **llm_kwargs):
         if model is None:
@@ -220,6 +222,7 @@ class BaseLLMJudge(ABC):
         llm_kwargs = {**llm_config_params, **llm_kwargs}
 
         self.output_format = output_format
+        self.prompt_template = Template(prompt_template)
 
         self.llm = get_llm_model(model_name=model,
                                  output_format=self.output_format,
@@ -227,6 +230,12 @@ class BaseLLMJudge(ABC):
 
         with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
             self.messages = [SystemMessage(f.read()), HumanMessage("")]
+
+    def prompt(self, system: bool = False) -> str:
+        """
+        Returns the prompt template used by the LLM judge.
+        """
+        return self.messages[0].content if system else self.messages[1].content
 
     def __call__(self, prompt: str) -> Union[dict, BaseModel]:
         self.messages[1].content = prompt
@@ -253,9 +262,9 @@ class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
                                  name=upper_camel_to_dash(self.__class__.__name__))
         super().__init__(output_format=LLMJudgeYesNoOutput,
                          model=model,
+                         prompt_template=prompt_template,
                          **llm_kwargs)
 
-        self.prompt_template = Template(prompt_template)
         self.feedback = feedback
         self.as_score = as_score  # If True, returns either 1 or 0 instead of LLMJudgeYesNoOutput object
         self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
@@ -401,6 +410,8 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
         self.reference_scores = np.array(self.reference_scores)
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        if "reference" not in dialog_scores and self.reference_scores is not None:
+            pd.Series(self.reference_scores, name="reference").plot.kde(bw_method=self.kde_bw)
         for dataset_name, scores in dialog_scores.items():
             pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
         plot.xlabel(self.dialog_score.name)

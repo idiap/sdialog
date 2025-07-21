@@ -135,8 +135,9 @@ class Dialog(BaseModel):
     personas: Optional[dict[str, Any]] = None  # Any is a subclass of MetaPersona
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
     turns: List[Turn]  # the list of turns of the conversation
-    events: Optional[List[Event]] = None
+    events: Optional[List[Event]] = None  # the list of events of the conversation (optional)
     notes: Optional[str] = None  # Free-text notes or comments about the dialogue
+    _path: Optional[str] = None  # Path to the file where the dialogue was loaded or saved
 
     def __len__(self):
         """
@@ -224,17 +225,24 @@ class Dialog(BaseModel):
         """
         _print_dialog(self, *a, **kw)
 
-    def to_file(self, path: str, type: str = "auto", makedir: bool = True):
+    def to_file(self, path: str = None, type: str = "auto", makedir: bool = True, overwrite: bool = True):
         """
         Saves the dialogue to a file in JSON, CSV, or plain text format.
 
-        :param path: Output file path.
+        :param path: Output file path, if not provided, uses the same path used to load the dialogue.
         :type path: str
         :param type: "json", "csv", "txt", or "auto" (determined by file extension).
         :type type: str
         :param makedir: If True, creates parent directories as needed.
         :type makedir: bool
         """
+        if not path:
+            if self._path:
+                path = self._path
+            else:
+                raise ValueError("No path provided to save the dialogue and no loading path available. "
+                                 "Please specify a valid file path.")
+
         if type == "auto":
             _, ext = os.path.splitext(path)
             ext = ext.lower()[1:]
@@ -242,6 +250,9 @@ class Dialog(BaseModel):
 
         if makedir and os.path.split(path)[0]:
             os.makedirs(os.path.split(path)[0], exist_ok=True)
+
+        if not overwrite and os.path.exists(path):
+            raise FileExistsError(f"File '{path}' already exists. Use 'overwrite=True' to overwrite it.")
 
         with open(path, "w", newline='') as writer:
             if type == "json":
@@ -314,7 +325,9 @@ class Dialog(BaseModel):
         turns = []
         with open(path) as reader:
             if type == "json":
-                return Dialog.from_dict(json.load(reader))
+                dialog = Dialog.from_dict(json.load(reader))
+                dialog._path = path  # Store the path for later use
+                return dialog
             elif type in ["csv", "tsv"]:
                 is_tsv = type == "tsv"
                 if isinstance(csv_speaker_col, str) and isinstance(csv_text_col, str):
@@ -360,7 +373,9 @@ class Dialog(BaseModel):
             else:
                 raise ValueError(f"Unknown file type '{type}'. Supported types: 'json', 'txt', 'csv', 'tsv'.")
 
-            return Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+            dialog = Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+            dialog._path = path
+            return dialog
 
     @staticmethod
     def from_dict(data: dict):
