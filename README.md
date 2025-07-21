@@ -123,8 +123,6 @@ dialog.print()
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://www.cyrta.com"><img src="https://avatars.githubusercontent.com/u/83173?v=4?s=100" width="100px;" alt="Pawel Cyrta"/><br /><sub><b>Pawel Cyrta</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=cyrta" title="Code">💻</a> <a href="#ideas-cyrta" title="Ideas, Planning, & Feedback">🤔</a></td>
-    </tr>
-    <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Amyyyyeah"><img src="https://avatars.githubusercontent.com/u/122391422?v=4?s=100" width="100px;" alt="ABCDEFGHIJKL"/><br /><sub><b>ABCDEFGHIJKL</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=Amyyyyeah" title="Code">💻</a></td>
     </tr>
   </tbody>
