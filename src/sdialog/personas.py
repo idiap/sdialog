@@ -66,8 +66,8 @@ class PersonaMetadata(BaseModel):
     timestamp: Optional[str] = Field(default_factory=get_timestamp)
     model: Optional[str] = None
     seed: Optional[int] = None
-    id: Optional[int] = None
-    parentId: Optional[int] = None
+    id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)
+    parentId: Optional[Union[int, str]] = None
     className: str = None
     notes: Optional[str] = None
 

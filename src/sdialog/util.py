@@ -9,7 +9,7 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-License-Identifier: MIT
 import re
 import json
-import time
+import uuid
 import torch
 import logging
 import subprocess
@@ -65,7 +65,7 @@ def get_universal_id() -> str:
     :return: A unique identifier as a string.
     :rtype: str
     """
-    return int(time.time() * 1000)
+    return str(uuid.uuid4())
 
 
 def remove_newlines(s: str) -> str:

@@ -129,8 +129,8 @@ class Dialog(BaseModel):
     timestamp: Optional[str] = Field(default_factory=get_timestamp)  # Timestamp of dialogue creation
     model: Optional[str] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generate the dialogue
-    id: Optional[int] = None  # Unique ID for the dialogue
-    parentId: Optional[int] = None  # ID of the parent dialogue, if any
+    id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)  # Unique ID for the dialogue
+    parentId: Optional[Union[int, str]] = None  # ID of the parent dialogue, if any
     complete: Optional[bool] = None
     personas: Optional[dict[str, Any]] = None  # Any is a subclass of MetaPersona
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
@@ -272,7 +272,7 @@ class Dialog(BaseModel):
         :type path: str
         :param type: "json", "txt", "csv", "tsv", or "auto" (determined by file extension).
         :type type: str
-        :param txt_turn_template: Template for parsing text dialogue turns.
+        :param txt_turn_template: Template for parsing text dialogue turns (default "{speaker}: {text}").
         :type txt_turn_template: str
         :param csv_speaker_col: Column identifier for speaker in CSV/TSV files (can be index or header name).
         :type csv_speaker_col: Union[int, str]
@@ -283,13 +283,27 @@ class Dialog(BaseModel):
         :raises ValueError: If the file format is not recognized or if required columns are missing
         """
         if os.path.isdir(path):
-            return [Dialog.from_file(os.path.join(path, filename), type=type,
-                                     txt_turn_template=txt_turn_template,
-                                     csv_speaker_col=csv_speaker_col,
-                                     csv_text_col=csv_text_col)
-                    for filename in os.listdir(path)
-                    if ((type == "auto" and filename.endswith((".json", ".txt", ".csv", ".tsv")))
-                        or filename.endswith(type))]
+            # Let's load first all dialogues without a stored ID (all non-json files)
+            filenames = sorted([filename
+                                for filename in os.listdir(path)
+                                if ((type == "auto" and filename.endswith((".txt", ".csv", ".tsv")))
+                                    or (type != "json" and filename.endswith(type)))])
+            dialogs = [Dialog.from_file(os.path.join(path, filename), type=type,
+                                        txt_turn_template=txt_turn_template,
+                                        csv_speaker_col=csv_speaker_col,
+                                        csv_text_col=csv_text_col)
+                       for filename in filenames]
+            # Make sure the ID is always the same, for the same file (as long as no more files are added)
+            for ix, dialog in enumerate(dialogs):
+                dialog.id = ix + 1
+            # Adding json files too, assuming they have an id already
+            dialogs.extend([Dialog.from_file(os.path.join(path, filename), type=type,
+                                             txt_turn_template=txt_turn_template,
+                                             csv_speaker_col=csv_speaker_col,
+                                             csv_text_col=csv_text_col)
+                            for filename in os.listdir(path)
+                            if (type in ["auto", "json"]) and filename.endswith(".json")])
+            return dialogs
 
         type = type.lower()
         if type == "auto":
@@ -308,8 +322,8 @@ class Dialog(BaseModel):
                 elif isinstance(csv_speaker_col, int) and isinstance(csv_text_col, int):
                     reader = csv.reader(reader, delimiter='\t' if is_tsv else ',')
                 else:
-                    raise ValueError("`csv_speaker_col` and `csv_text_col` must be either both strings (column names) "
-                                     "or both integers (column indices).")
+                    raise ValueError(f"File '{path}': `csv_speaker_col` and `csv_text_col` must be either both "
+                                     "strings (column names) or both integers (column indices).")
 
                 for ix, row in enumerate(reader):
                     speaker = row[csv_speaker_col]
@@ -317,7 +331,7 @@ class Dialog(BaseModel):
                     if speaker is None:
                         raise ValueError(f"Missing speaker in row {ix}: {row}")
                     if not text:
-                        logger.warning(f"Empty text in row {ix}: {row}. Skipping this turn.")
+                        logger.warning(f"File '{path}': Empty text in row {ix}: {row}. Skipping this turn.")
                         continue
                     turns.append((speaker.strip(), text.strip()))
             elif type == "txt":
@@ -338,7 +352,7 @@ class Dialog(BaseModel):
                         speaker = m.group('speaker').strip()
                         text = m.group('text').strip()
                     else:
-                        raise ValueError(f"Line {ix + 1} '{line}' does not match the expected "
+                        raise ValueError(f"File '{path}': Line {ix + 1} '{line}' does not match the expected "
                                          f"format: {txt_turn_template}. Make sure the template "
                                          "matches the dialogue format.")
 
