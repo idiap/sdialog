@@ -49,8 +49,10 @@ class Drender:
             self._pyroom = self._create_pyroom(self.room)
 
         print(f"dialogs: {sound_sources}")
-        for s in enumerate(sound_sources):
+        for i, s in enumerate(sound_sources):
             print(f"{s}")
+            saudio = np.ones(16000)
+            self._pyroom.add_source(s.position.to_list(), signal=saudio)
 
         # Add default microphone if it doesn't exist
         if self._pyroom.mic_array is None:
@@ -60,6 +62,10 @@ class Drender:
                 self.room.dimensions.height / 2,
             ]
             self._pyroom.add_microphone(mic_position)
+
+
+        # Microphone position (webcam on monitor)
+        # mic_position = [1.3, 0.7, 1.6]
 
         self._pyroom.simulate()
 
@@ -84,15 +90,15 @@ class Drender:
 
     def plot_room_setup(self):
         """Visualize the room setup"""
-        _, ax = plt.subplots(1, 1, figsize=(10, 8))
-        self._pyroom.plot(ax=ax)
-        ax.set_title("Room Setup with Sources and Microphone")
-        ax.set_xlabel("X (m)")
-        ax.set_ylabel("Y (m)")
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.savefig("room_setup.png", dpi=300, bbox_inches="tight")
-        plt.show()
+        # _, ax = plt.subplots(1, 1, figsize=(10, 8))
+        self._pyroom.plot() #.plot(ax=ax)
+        # ax.set_title("Room Setup with Sources and Microphone")
+        # ax.set_xlabel("X (m)")
+        # ax.set_ylabel("Y (m)")
+        # plt.grid(True, alpha=0.3)
+        # # plt.tight_layout()
+        plt.savefig("room_setup.png", dpi=300) #, bbox_inches="tight")
+        # plt.show()
 
     @staticmethod
     def load_sound_sources_from_json(json_data: Union[str, List[Dict[str, Any]]]) -> List[SoundSource]:
@@ -204,8 +210,8 @@ if __name__ == "__main__":
                 pos=({source.position.x:.1f},{source.position.y:.1f},{source.position.z:.1f})"
             )
 
-        print("\nGenerating room visualization...")
-        dr.plot_room_setup()
+        # print("\nGenerating room visualization...")
+        # dr.plot_room_setup()
 
     else:
         print("❌ ERROR: No audio signal generated - check source configuration and room setup")

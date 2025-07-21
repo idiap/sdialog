@@ -43,23 +43,24 @@ class RoomGenerator:
         """
         Generate a room based on predefined setups.
         """
-
+        room = None
         if room_type == RoomRole.OFFICE:
-            return Room(
+            room =  Room(
                 role=RoomRole.OFFICE,
                 name="RoomRole.OFFICE" + " room",
                 description="office",
                 dimensions=calculate_room_dimensions(ROOM_SIZES[4]),
                 rt60=0.3,
             )
-        return Room(
-            role=RoomRole.CONSULTATION,
-            name="RoomRole.CONSULTATION" + " room",
-            description="consultation room",
-            dimensions=calculate_room_dimensions(ROOM_SIZES[3]),
-            rt60=0.5,
-        )
-
+        else:
+            room = Room(
+                        role=RoomRole.CONSULTATION,
+                        name=f"{(RoomRole.CONSULTATION).value}" + "_room",
+                        description="consultation room",
+                        dimensions=calculate_room_dimensions(ROOM_SIZES[3]),
+                        rt60=0.5,
+                    )
+        return room
 
 def calculate_room_dimensions(floor_area: float) -> Dimensions3D:
     """Calculate room dimensions from floor area"""
