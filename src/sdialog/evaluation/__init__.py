@@ -297,13 +297,10 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         """
         output = self.judge(dialog)
         try:
-            return int(output.yes)
+            return int(output.yes[0]) if isinstance(output.yes, list) else int(output.yes)
         except TypeError:
-            # TODO: this error will be stored in the cache...
-            #       should we handle it differently? perhaps simply raise an exception?
-            logger.error(f"LLMJudgeYesNo output '{output.yes}' is not a boolean or list of booleans, "
-                         f"cannot convert to score. Returning default {self.as_score_error_value} value")
-            return self.as_score_error_value
+            raise ValueError(f"LLMJudgeYesNo output '{output.yes}' is not a boolean or list of booleans, "
+                             f"cannot convert to integer score.")
 
 
 class LLMJudgeRealDialog(LLMJudgeYesNo):

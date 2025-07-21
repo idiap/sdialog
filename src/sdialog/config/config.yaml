@@ -21,4 +21,4 @@ llm:
 
 cache:
   enabled: true
-  path: ~/.sdialog/cache
+  path: ~/.sdialog/

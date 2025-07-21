@@ -53,12 +53,12 @@ class CacheDialogScore:
         cache_dir = os.path.expanduser(path)
         os.makedirs(cache_dir, exist_ok=True)
         self.enable_cache = enable_cache
-        self.cache_path = os.path.join(cache_dir, "dialog_scores.pkl")
+        self.cache_path = os.path.join(cache_dir, "dialog_scores_cache.json")
         self._score_obj_attributes = {}
         # Load cache dict if exists
         if os.path.exists(self.cache_path):
-            with open(self.cache_path, "rb") as f:
-                self._cache = pickle.load(f)
+            with open(self.cache_path) as f:
+                self._cache = json.load(f)
         else:
             self._cache = {}
 
@@ -67,8 +67,8 @@ class CacheDialogScore:
         Save the cache to the file.
         """
         os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
-        with open(self.cache_path, "wb") as f:
-            pickle.dump(self._cache, f)
+        with open(self.cache_path, "w") as f:
+            json.dump(self._cache, f)
 
     def cache(self, func):
         @wraps(func)
