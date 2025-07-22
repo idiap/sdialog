@@ -156,6 +156,7 @@ def dialog2trajectories(
         thresholds = [thresholds]
 
     domain = "default"
+    # TODO: remove all this code, use `input_dialogues = Dialog.from_file(path)` instead
     if isinstance(input_dialogues, str) and os.path.isdir(input_dialogues):
         logger.log(log_level, "Reading conversations...")
         if not os.path.exists(input_dialogues):

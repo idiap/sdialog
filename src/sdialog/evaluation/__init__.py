@@ -277,7 +277,6 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                  prompt_template: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score_error_value: int = -1,
                  **llm_kwargs):
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
@@ -288,7 +287,6 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                               **llm_kwargs)
 
         self.feedback = feedback
-        self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
         if isinstance(dialogs, Dialog):
@@ -754,10 +752,18 @@ class DialogFlowPPL(BaseDialogScore):
                       "verbose": verbose,
                       **d2f_kwargs}
 
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
+        self.d2f_kwargs = d2f_kwargs  # for the key cache
+
+        self.reference_dialogues = reference_dialogues
         self.use_softmax = use_softmax
         self.only_system = only_system
-        self.reference_dialogues = reference_dialogues
-        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
+        self.graph, self.nodes = dialog2graph(reference_dialogues, **self.d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
         self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {

@@ -94,11 +94,18 @@ class CacheDialogScore:
                     attrs = self._score_obj_attributes[score_obj_class]
                 attr_items = {attr: getattr(score_obj, attr) for attr in attrs}
                 attr_str = json.dumps(attr_items, sort_keys=True)
-                key = f"{score_obj_class}:{attr_str}:{dialog_path}"
-                if key in self._cache:
-                    return self._cache[key]
+                if (
+                    score_obj_class in self._cache
+                    and attr_str in self._cache[score_obj_class]
+                    and dialog_path in self._cache[score_obj_class][attr_str]
+                ):
+                    return self._cache[score_obj_class][attr_str][dialog_path]
                 result = func(score_obj, dialog, *args, **kwargs)
-                self._cache[key] = result
+                if score_obj_class not in self._cache:
+                    self._cache[score_obj_class] = {}
+                if attr_str not in self._cache[score_obj_class]:
+                    self._cache[score_obj_class][attr_str] = {}
+                self._cache[score_obj_class][attr_str][dialog_path] = result
             return result
         return wrapper
 
