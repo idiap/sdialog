@@ -400,25 +400,6 @@ class Dialog(BaseModel):
         """
         return Dialog.from_dict(json.loads(json_str))
 
-    def to_audio(self, path=None):
-        """ Converts the dialogue to audio format.
-
-        :param path: If provided, saves the audio to this file path.
-        :type path: Optional[str]
-        :return: The audio data as a numpy array.
-        :rtype: np.ndarray
-        """
-        from .audio import dialog_to_audio, to_wav
-
-        audio = dialog_to_audio(self)
-
-        if path:
-            if not path.endswith(".wav"):
-                path += ".wav"
-            to_wav(audio, path)
-
-        return audio
-
     def get_length(self, mode: str = "turns") -> float:
         """
         Returns the length of the dialogue according to the specified mode.

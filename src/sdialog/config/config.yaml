@@ -4,6 +4,10 @@ prompts:
   persona_generator_n: ../prompts/generator_persona_n.j2
   dialog_generator: ../prompts/generator_dialog.j2
   persona_agent: ../prompts/agent_persona.j2
+  audio:
+    enricher: ../prompts/audio/audio_enricher.j2
+    snr: ../prompts/audio/audio_snr.j2
+    room_position: ../prompts/audio/audio_room_position.j2
   evaluation:
     llm_as_judge: ../prompts/evaluation/llm_as_judge.j2
     llm_as_judge_refusal: ../prompts/evaluation/llm_as_judge_refusal.j2
@@ -11,7 +15,6 @@ prompts:
     llm_as_judge_real_dialog_score: ../prompts/evaluation/llm_as_judge_real_dialog_score.j2
     llm_as_judge_real_dialog_likert_score: ../prompts/evaluation/llm_as_judge_real_dialog_likert_score.j2
     llm_as_judge_persona_attributes: ../prompts/evaluation/llm_as_judge_persona_attributes.j2
-
 llm:
   model: gemma3:27b
   temperature: null  # model's default
