@@ -321,7 +321,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                 "Consider using int for discrete scales."
             )
 
-        class Output(BaseModel):
+        class LLMJudgeScoreOutput(BaseModel):
             score: Annotated[
                 score_type,
                 Field(gt=min_score, lt=max_score)
