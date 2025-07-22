@@ -348,7 +348,7 @@ class LLMJudgeLikert(BaseDialogScore, BaseLLMJudge):
         self.feedback = feedback
         self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
-    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeLikertOutput, 
+    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeLikertOutput,
                                                                                           List[LLMJudgeLikertOutput]]:
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
