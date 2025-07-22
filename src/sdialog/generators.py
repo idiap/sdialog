@@ -86,14 +86,9 @@ class DialogGenerator:
 
         self.output_format = output_format
 
-        if isinstance(model, str):
-            self.llm = get_llm_model(model_name=model,
-                                     output_format=self.output_format,
-                                     **llm_kwargs)
-        else:
-            self.llm = model
-            if output_format:
-                self.llm.format = self.output_format.model_json_schema()
+        self.llm = get_llm_model(model_name=model,
+                                 output_format=self.output_format,
+                                 **llm_kwargs)
 
         with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
             self.system_prompt_template = Template(f.read())
@@ -564,36 +559,33 @@ class PersonaGenerator:
                         attributes_instructions=llm_attribute_instructions_txt
                     )
 
-                if not isinstance(self.llm_model, str):
-                    llm = self.llm_model
-                else:
-                    schema = self._persona.model_json_schema()
-                    filtered_properties = schema
-                    if n > 1:
-                        if is_ollama_model_name(self.llm_model):
-                            schema["type"] = "array"
-                        else:
-                            schema = _personas_schema.copy()
-                            filtered_properties = list(schema["$defs"].values())[0]
-                    # Filter properties to only make the LLM to output the attributes that are required
-                    filtered_properties["properties"] = {
-                        k: v
-                        for k, v in filtered_properties["properties"].items()
-                        if k in random_persona_dict
-                    }
-                    # Collect LLM parameters from config, only if not None
-                    llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-                    llm_kwargs = {**llm_config_params, **self.llm_kwargs}
-                    llm_kwargs = set_ollama_model_defaults(self.llm_model, llm_kwargs)
-                    # temperature from function argument overrides config
-                    if temperature is not None:
-                        llm_kwargs["temperature"] = temperature
-                    llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
-                    # llm_kwargs from __init__ override config
+                schema = self._persona.model_json_schema()
+                filtered_properties = schema
+                if n > 1:
+                    if is_ollama_model_name(self.llm_model):
+                        schema["type"] = "array"
+                    else:
+                        schema = _personas_schema.copy()
+                        filtered_properties = list(schema["$defs"].values())[0]
+                # Filter properties to only make the LLM to output the attributes that are required
+                filtered_properties["properties"] = {
+                    k: v
+                    for k, v in filtered_properties["properties"].items()
+                    if k in random_persona_dict
+                }
+                # Collect LLM parameters from config, only if not None
+                llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+                llm_kwargs = {**llm_config_params, **self.llm_kwargs}
+                llm_kwargs = set_ollama_model_defaults(self.llm_model, llm_kwargs)
+                # temperature from function argument overrides config
+                if temperature is not None:
+                    llm_kwargs["temperature"] = temperature
+                llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
+                # llm_kwargs from __init__ override config
 
-                    llm = get_llm_model(model_name=self.llm_model,
-                                        output_format=schema,
-                                        **llm_kwargs)
+                llm = get_llm_model(model_name=self.llm_model,
+                                    output_format=schema,
+                                    **llm_kwargs)
 
                 messages = [
                     SystemMessage("You are an expert at generating persona JSON objects "

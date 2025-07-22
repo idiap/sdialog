@@ -87,14 +87,15 @@ class STAR:
         :return: The loaded dialogue object.
         :rtype: Dialog
         """
-        with open(os.path.join(STAR._path, f"dialogues/{id}.json")) as reader:
+        dialog_path = os.path.join(STAR._path, f"dialogues/{id}.json")
+        with open(dialog_path) as reader:
             dialog = json.load(reader)
 
         for e in dialog["Events"]:
             if e["Agent"] == "Wizard":
                 e["Agent"] = "System"
 
-        return Dialog(
+        dialog = Dialog(
             id=id,
             scenario=dialog["Scenario"],
             turns=[Turn(speaker=e["Agent"], text=e["Text"])
@@ -108,6 +109,8 @@ class STAR:
                     for e in dialog["Events"]
                     if "Text" in e]
         )
+        dialog._path = dialog_path
+        return dialog
 
     @staticmethod
     def get_dialogs(domain: str = None, task_name: str = None, happy: bool = None, multitask: bool = None):

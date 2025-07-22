@@ -66,8 +66,8 @@ class PersonaMetadata(BaseModel):
     timestamp: Optional[str] = Field(default_factory=get_timestamp)
     model: Optional[str] = None
     seed: Optional[int] = None
-    id: Optional[int] = None
-    parentId: Optional[int] = None
+    id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)
+    parentId: Optional[Union[int, str]] = None
     className: str = None
     notes: Optional[str] = None
 
@@ -532,7 +532,8 @@ class Agent:
                  orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,
                  inspectors: Union['Inspector', List['Inspector']] = None,
                  scenario: Union[dict, str] = None,
-                 llm_kwargs: dict = {}):
+                 postprocess_fn: Optional[callable] = None,
+                 **llm_kwargs):
         """
         Initializes a PersonaAgent for role-play dialogue.
 
@@ -558,12 +559,17 @@ class Agent:
         :type inspectors: Union[Inspector, List[Inspector]]
         :param scenario: Scenario metadata.
         :type scenario: Union[dict, str]
-        :param llm_kwargs: Additional parameters for the LLM.
+        :param postprocess_fn: Optional function to postprocess each utterance (input string, output string).
+        :type postprocess_fn: callable, optional
+        :param **llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
         if model is None:
             model = config["llm"]["model"]
         self.model_uri = model
+
+        if postprocess_fn and not callable(postprocess_fn):
+            raise ValueError("postprocess_fn must be a callable function that takes a string and outputs a string.")
 
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
@@ -579,11 +585,7 @@ class Agent:
 
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
         llm_kwargs = {**llm_config_params, **llm_kwargs}
-        if isinstance(model, str):
-            self.llm = get_llm_model(model_name=model,
-                                     **llm_kwargs)
-        else:
-            self.llm = model
+        self.llm = get_llm_model(model_name=model, **llm_kwargs)
 
         self.memory = [SystemMessage(system_prompt)]
 
@@ -597,6 +599,7 @@ class Agent:
         self.add_orchestrators(orchestrators)
         self.inspectors = None
         self.add_inspectors(inspectors)
+        self.postprocess_fn = postprocess_fn
 
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
                      f"with prompt in '{config['prompts']['persona_agent']}'.")
@@ -669,6 +672,9 @@ class Agent:
 
         if self.inspectors:
             self.utterance_hook.new_utterance_event(current_memory)
+
+        if self.postprocess_fn:
+            response.content = self.postprocess_fn(response.content)
 
         if self.orchestrators:
             self.memory[:] = [msg for msg in self.memory

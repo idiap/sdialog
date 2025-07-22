@@ -7,9 +7,10 @@ objects can be safely converted to JSON for storage or transmission.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import os
 import re
 import json
-import time
+import uuid
 import torch
 import logging
 import subprocess
@@ -17,6 +18,7 @@ import transformers
 import pandas as pd
 
 from typing import Union
+from functools import wraps
 from pydantic import BaseModel
 from sklearn.neighbors import NearestNeighbors
 from langchain_ollama.chat_models import ChatOllama
@@ -45,6 +47,77 @@ class KNNModel:
     __call__ = neighbors
 
 
+class CacheDialogScore:
+    def __init__(self, path, enable_cache=True):
+        cache_dir = os.path.expanduser(path)
+        os.makedirs(cache_dir, exist_ok=True)
+        self.enable_cache = enable_cache
+        self.cache_path = os.path.join(cache_dir, "dialog_scores_cache.json")
+        self._score_obj_attributes = {}
+        # Load cache dict if exists
+        if os.path.exists(self.cache_path):
+            with open(self.cache_path) as f:
+                self._cache = json.load(f)
+        else:
+            self._cache = {}
+
+    def save(self):
+        """
+        Save the cache to the file.
+        """
+        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+        with open(self.cache_path, "w") as f:
+            json.dump(self._cache, f)
+
+    def cache(self, func):
+        @wraps(func)
+        def wrapper(score_obj, dialog, *args, **kwargs):
+            # Build cache key
+            dialog_path = getattr(dialog, "_path", None)
+            if not self.enable_cache or dialog_path is None:
+                result = func(score_obj, dialog, *args, **kwargs)
+            else:
+                # Build a hashable key that includes score_obj attributes (sorted, serializable only)
+                # Cache attr_items for each score_obj class
+                score_obj_class = score_obj.__class__.__name__
+                if score_obj_class not in self._score_obj_attributes:
+                    attrs = []
+                    for attr in sorted(vars(score_obj)):
+                        value = getattr(score_obj, attr)
+                        try:
+                            json.dumps(value)
+                            attrs.append(attr)
+                        except (TypeError, OverflowError):
+                            continue
+                    self._score_obj_attributes[score_obj_class] = attrs
+                else:
+                    attrs = self._score_obj_attributes[score_obj_class]
+                attr_items = {attr: getattr(score_obj, attr) for attr in attrs}
+                attr_str = json.dumps(attr_items, sort_keys=True)
+                if (
+                    score_obj_class in self._cache
+                    and attr_str in self._cache[score_obj_class]
+                    and dialog_path in self._cache[score_obj_class][attr_str]
+                ):
+                    return self._cache[score_obj_class][attr_str][dialog_path]
+                result = func(score_obj, dialog, *args, **kwargs)
+                if score_obj_class not in self._cache:
+                    self._cache[score_obj_class] = {}
+                if attr_str not in self._cache[score_obj_class]:
+                    self._cache[score_obj_class][attr_str] = {}
+                self._cache[score_obj_class][attr_str][dialog_path] = result
+            return result
+        return wrapper
+
+    # TODO: add a filter to clear only specific keys
+    def clear(self):
+        """
+        Clear the cache.
+        """
+        self._cache = {}
+        self.save()
+
+
 def check_valid_model_name(func):
     def wrapper(model_name, *args, **kwargs):
         if not isinstance(model_name, str):
@@ -65,7 +138,7 @@ def get_universal_id() -> str:
     :return: A unique identifier as a string.
     :rtype: str
     """
-    return int(time.time() * 1000)
+    return str(uuid.uuid4())
 
 
 def remove_newlines(s: str) -> str:
@@ -174,7 +247,12 @@ def get_llm_model(model_name: str,
                   **llm_kwargs):
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
-    if is_openai_model_name(model_name):
+    if not isinstance(model_name, str):
+        if hasattr(model_name, "invoke") and callable(model_name.invoke):
+            llm = model_name
+        else:
+            raise ValueError("model_name must be a string or a valid Langchain model instance.")
+    elif is_openai_model_name(model_name):
         # If the model name is a string, assume it's an OpenAI model
         from langchain_openai import ChatOpenAI
         if ":" in model_name:

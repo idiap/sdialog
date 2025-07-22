@@ -15,14 +15,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from jinja2 import Template
-from typing import Optional
 from tqdm.auto import tqdm
-from pydantic import BaseModel
+from jinja2 import Template
 from math import exp, log, sqrt
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict
 from scipy.stats import gaussian_kde
+from pydantic import BaseModel, Field
+from typing import Optional, Annotated
 from sentence_transformers import SentenceTransformer
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
@@ -31,9 +31,11 @@ from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
+from ..util import CacheDialogScore, KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
 
 logger = logging.getLogger(__name__)
+
+scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -102,18 +104,6 @@ class LLMJudgeYesNoOutput(BaseModel):
     feedback: Optional[Union[str, List[str]]] = None
 
 
-class BaseEvaluator(ABC):
-    def __init__(self, metrics=None):
-        pass
-
-    @abstractmethod
-    def evaluate(self, input: Union[Dialog, List[Dialog]]) -> dict:
-        """
-        Evaluate the dialogs.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
 class BaseMetric(ABC):
     """
     Base class for metrics.
@@ -141,6 +131,16 @@ class BaseDialogScore(ABC):
         :param dialog: The dialog to score.
         :return: A float representing the score of the dialog.
         """
+        return self.score(dialog)
+
+    @abstractmethod
+    def score(self, dialog: Dialog) -> float:
+        """
+        Computes the score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the score of the dialog.
+        """
         raise NotImplementedError("Subclasses should implement this method.")
 
 
@@ -159,18 +159,28 @@ class BaseDatasetEvaluator(ABC):
 
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
-                 dataset_name: str = "candidate",
+                 dataset_name: str = None,
                  return_dialog_scores: bool = False) -> Union[dict, float]:
-        if not dataset_name or dataset_name == "candidate":
+        dataset_name = dataset_name or "candidate"
+        if dataset_name == "candidate":
             desc = f"Computing {self.name} scores for candidate dataset"
         else:
             desc = f"Computing {self.name} scores for dataset "
             desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        scores = np.array([self.dialog_score(dialogue)
-                           for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+        try:
+            scores = np.array([self.dialog_score(dialogue)
+                               for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+        except KeyboardInterrupt:
+            logger.warning(
+                f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
+                f"with evaluator '{self.name}' will be saved to disk."
+            )
+            scores_cache.save()  # Save the cache to disk after scoring
+            raise KeyboardInterrupt
+        scores_cache.save()
+
         self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         results = self.eval(scores)
-
         return (results, scores) if return_dialog_scores else results
 
     @abstractmethod
@@ -210,6 +220,7 @@ class BaseLLMJudge(ABC):
     """
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
+                 prompt_template: str = "",
                  output_format: Union[dict, BaseModel] = None,
                  **llm_kwargs):
         if model is None:
@@ -220,15 +231,11 @@ class BaseLLMJudge(ABC):
         llm_kwargs = {**llm_config_params, **llm_kwargs}
 
         self.output_format = output_format
+        self.prompt_template = Template(prompt_template)
 
-        if isinstance(model, str):
-            self.llm = get_llm_model(model_name=model,
-                                     output_format=self.output_format,
-                                     **llm_kwargs)
-        else:
-            self.llm = model
-            if output_format:
-                self.llm.format = self.output_format.model_json_schema()
+        self.llm = get_llm_model(model_name=model,
+                                 output_format=self.output_format,
+                                 **llm_kwargs)
 
         with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
             self.messages = [SystemMessage(f.read()), HumanMessage("")]
@@ -244,46 +251,134 @@ class BaseLLMJudge(ABC):
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
+    def prompt(self, system: bool = False) -> str:
+        """
+        Returns the prompt template used by the LLM judge.
+        """
+        return self.messages[0].content if system else self.messages[1].content
 
-class LLMJudgeYesNo(BaseLLMJudge, BaseDialogScore):
+
+class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
     def __init__(self,
                  prompt_template: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
-                 as_score_error_value: int = -1,
                  **llm_kwargs):
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
-        super().__init__(output_format=LLMJudgeYesNoOutput,
-                         model=model,
-                         **llm_kwargs)
+        BaseLLMJudge.__init__(self,
+                              model=model,
+                              output_format=LLMJudgeYesNoOutput,
+                              prompt_template=prompt_template,
+                              **llm_kwargs)
 
-        self.prompt_template = Template(prompt_template)
         self.feedback = feedback
-        self.as_score = as_score  # If True, returns either 1 or 0 instead of LLMJudgeYesNoOutput object
-        self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
         prompt = self.prompt_template.render(dialogs=dialogs,
+                                             dialog=dialogs[0],
                                              feedback=feedback if feedback is not None else self.feedback)
-        output = self.output_format.model_validate(super().__call__(prompt))
-
-        if self.as_score:
-            try:
-                return int(output.yes)
-            except TypeError:
-                logger.error("Output 'yes' is not a boolean or list of booleans, cannot convert to score. "
-                             f"Returning default {self.as_score_error_value} value")
-                return self.as_score_error_value
+        output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
 
         return output
 
-    __call__ = judge  # Allow direct call to judge method
+    @scores_cache.cache
+    def score(self, dialog: Dialog) -> int:
+        """
+        Computes the score for the provided dialog, 1 if dialogues is judged as real, 0 otherwise.
+
+        :param dialog: The dialog to score.
+        :return: An int representing the score of the dialog.
+        """
+        output = self.judge(dialog)
+        try:
+            return int(output.yes[0]) if isinstance(output.yes, list) else int(output.yes)
+        except TypeError:
+            raise ValueError(f"LLMJudgeYesNo output '{output.yes}' is not a boolean or list of booleans, "
+                             f"cannot convert to integer score.")
+
+
+class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
+    """LLM judge for scoring a dialogue with a numerical score and optional feedback."""
+    def __init__(self,
+                 prompt_template: str,
+                 model: Union[BaseLanguageModel, str] = None,
+                 min_score: float = 1,
+                 max_score: float = 5,
+                 score_type: type = int,
+                 feedback: bool = False,
+                 **llm_kwargs):
+
+        if score_type not in [int, float]:
+            raise ValueError(f"Invalid score_type: {score_type}. Must be int or float.")
+        elif score_type is float:
+            logger.warning(
+                "Using float as `score_type` may cause boundary issues (min_score, max_score). "
+                "Consider using int for discrete scales."
+            )
+
+        class LLMJudgeScoreOutput(BaseModel):
+            score: Annotated[
+                score_type,
+                Field(gt=min_score, lt=max_score)
+            ]
+            feedback: Optional[str] = None
+
+        BaseDialogScore.__init__(self,
+                                 name=upper_camel_to_dash(self.__class__.__name__))
+        BaseLLMJudge.__init__(self,
+                              model=model,
+                              output_format=LLMJudgeScoreOutput,
+                              prompt_template=prompt_template,
+                              **llm_kwargs)
+
+        self.score_type = score_type
+        self.min_score = min_score
+        self.max_score = max_score
+        self.feedback = feedback
+
+    def judge(self,
+              dialogs: Union[Dialog, List[Dialog]],
+              feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int, float]:
+        if isinstance(dialogs, Dialog):
+            dialogs = [dialogs]  # Wrap single dialog in a list
+
+        prompt = self.prompt_template.render(dialogs=dialogs,
+                                             dialog=dialogs[0],
+                                             min_score=self.min_score,
+                                             max_score=self.max_score,
+                                             feedback=feedback if feedback is not None else self.feedback)
+        output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
+
+        return output
+
+    @scores_cache.cache
+    def score(self, dialog: Dialog) -> Union[float, int]:
+        """
+        Computes the score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the score of the dialog.
+        """
+        output = self.judge(dialog)
+        try:
+            score = output.score[0] if isinstance(output.score, list) else output.score
+            # Clamp score to [min_score, max_score] if out of bounds
+            if score < self.min_score or score > self.max_score:
+                old_score = score
+                score = max(self.score_min, min(score, self.max_score))
+                logger.warning(
+                    f"Generated score {old_score} is out of bounds [{self.score_min}, {self.max_score}]. "
+                    f"Clamping to valid range: {score}."
+                )
+            return score
+        except TypeError:
+            raise ValueError(f"LLMJudgeScore output ({output.score}) is not a {self.score_type} or list of booleans, "
+                             "cannot convert to integer score.")
 
 
 class LLMJudgeRealDialog(LLMJudgeYesNo):
@@ -294,14 +389,55 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog"], encoding="utf-8") as f:
-            prompt_template_real_or_not = f.read()
-        super().__init__(prompt_template_real_or_not,
+            prompt_template = f.read()
+        super().__init__(prompt_template,
                          model=model,
                          feedback=feedback,
-                         as_score=as_score,
+                         **llm_kwargs)
+
+
+class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
+    """
+    LLM judge for evaluating whether a dialogue appears real (human) or synthetic (machine-generated),
+    providing a Likert score between 1 (definitely synthetic) and 5 (definitely real), with optional feedback.
+    """
+    def __init__(self,
+                 model: Union[BaseLanguageModel, str] = None,
+                 feedback: bool = False,
+                 **llm_kwargs):
+        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog_likert_score"], encoding="utf-8") as f:
+            prompt_template = f.read()
+        super().__init__(prompt_template,
+                         model=model,
+                         score_type=int,
+                         score_min=1,
+                         max_score=5,
+                         feedback=feedback,
+                         **llm_kwargs)
+
+
+class LLMJudgeRealDialogScore(LLMJudgeScore):
+    """
+    LLM judge for evaluating how "real" (human-like) or "synthetic" (machine-generated) a dialogue appears,
+    returning a numerical score (e.g., Likert scale or custom range) and optional feedback.
+    Useful for fine-grained assessment of dialogue authenticity.
+    """
+    def __init__(self,
+                 model: Union[BaseLanguageModel, str] = None,
+                 min_score: int = 0,
+                 max_score: int = 10,
+                 feedback: bool = False,
+                 **llm_kwargs):
+        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog_score"], encoding="utf-8") as f:
+            prompt_template = f.read()
+        super().__init__(prompt_template,
+                         model=model,
+                         score_type=int,
+                         min_score=min_score,
+                         max_score=max_score,
+                         feedback=feedback,
                          **llm_kwargs)
 
 
@@ -312,14 +448,12 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_refusal"], encoding="utf-8") as f:
-            prompt_template_real_or_not = f.read()
-        super().__init__(prompt_template_real_or_not,
+            prompt_template = f.read()
+        super().__init__(prompt_template,
                          model=model,
                          feedback=feedback,
-                         as_score=as_score,
                          **llm_kwargs)
 
 
@@ -330,7 +464,6 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                  speaker: str,
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
-                 as_score: bool = False,
                  **llm_kwargs):
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
@@ -340,7 +473,6 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
         super().__init__(prompt_template,
                          model=model,
                          feedback=feedback,
-                         as_score=as_score,
                          **llm_kwargs)
 
 
@@ -406,6 +538,8 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
         self.reference_scores = np.array(self.reference_scores)
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        if "reference" not in dialog_scores and self.reference_scores is not None:
+            pd.Series(self.reference_scores, name="reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
             pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
         plot.xlabel(self.dialog_score.name)
@@ -465,11 +599,7 @@ class FrequencyEvaluator(BaseDatasetEvaluator):
         total = len(dialog_scores)
         count = np.sum(dialog_scores)
         percentage = count / total if total > 0 else 0
-        return {
-            "count": int(count),
-            "total": int(total),
-            "percentage": percentage
-        }
+        return percentage
 
 
 class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
@@ -664,7 +794,7 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
             print(f"All plots saved to {save_dir}")
 
 
-class DialogFlowScore(BaseDialogScore):
+class DialogFlowPPL(BaseDialogScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  k_neighbors=64,
@@ -673,7 +803,7 @@ class DialogFlowScore(BaseDialogScore):
                  name=None,
                  verbose=False,
                  **d2f_kwargs):
-        super().__init__(name=name if name else "dfs" + ("+sm" if use_softmax else ""))
+        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""))
 
         d2f_kwargs = {"node_llm_labels_enabled": False,
                       "out_png": False,
@@ -681,10 +811,18 @@ class DialogFlowScore(BaseDialogScore):
                       "verbose": verbose,
                       **d2f_kwargs}
 
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
+        self.d2f_kwargs = d2f_kwargs  # for the key cache
+
+        self.reference_dialogues = reference_dialogues
         self.use_softmax = use_softmax
         self.only_system = only_system
-        self.reference_dialogues = reference_dialogues
-        self.graph, self.nodes = dialog2graph(reference_dialogues, **d2f_kwargs)
+        self.graph, self.nodes = dialog2graph(reference_dialogues, **self.d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
         self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {
@@ -696,7 +834,8 @@ class DialogFlowScore(BaseDialogScore):
                                k=k_neighbors)
         }
 
-    def __call__(self, dialog: Dialog):
+    @scores_cache.cache
+    def score(self, dialog: Dialog) -> float:
         sum_log_p = 0
         sys_turns = 0
         prev_node = DEFAULT_TOKEN_START
