@@ -13,7 +13,7 @@ from typing import List
 from random import choice
 from sdialog import config
 from jinja2 import Template
-from sdialog.audio.room import Room
+from sdialog.audio.room import Room, MicrophonePosition
 from sdialog.generators import DialogGenerator
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events import Timeline, AudioEvent
@@ -110,7 +110,9 @@ class AudioEventsEnricher:
         """
 
         # Randomly sample the microphone position for the whole dialogue
-        microphone_position = choice(Room.get_microphone_positions())
+        microphone_position = choice(
+            [p.value for p in MicrophonePosition]
+        )
 
         for turn in dialog.turns:
             turn.microphone_position = microphone_position
