@@ -1,8 +1,8 @@
 ########################
 # Test the room module
 ########################
-import sdialog.audio
-from sdialog.audio import room
+import sdialog.audio  # noqa: F401
+from sdialog.audio import room  # noqa: F401
 # from sdialog.audio import audio_dialog
 # from sdialog.audio import audio_turn
 # from sdialog.audio import audio_events
