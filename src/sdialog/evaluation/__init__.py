@@ -107,13 +107,11 @@ class LLMJudgeYesNoOutput(BaseModel):
     feedback: Optional[Union[str, List[str]]] = None
 
 
-LikertInt: conint(ge=1, le=5)
-
 class LLMJudgeLikertOutput(BaseModel):
     """
     Pydantic model for LLM-generated dialogue output.
     """
-    score: LikertInt
+    score: conint(ge=1, le=5)
     feedback: Optional[str] = None
 
 
@@ -350,14 +348,15 @@ class LLMJudgeLikert(BaseDialogScore, BaseLLMJudge):
         self.feedback = feedback
         self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
 
-    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeLikertOutput, List[LLMJudgeLikertOutput]]:
+    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeLikertOutput, 
+                                                                                          List[LLMJudgeLikertOutput]]:
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
         outputs = []
         for dialog in dialogs:
             prompt = self.prompt_template.render(dialog=dialog,
-                                                feedback=feedback if feedback is not None else self.feedback)
+                                                 feedback=feedback if feedback is not None else self.feedback)
             output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
             outputs.append(output)
 
