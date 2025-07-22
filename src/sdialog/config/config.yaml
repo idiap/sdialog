@@ -8,6 +8,8 @@ prompts:
     llm_as_judge: ../prompts/evaluation/llm_as_judge.j2
     llm_as_judge_refusal: ../prompts/evaluation/llm_as_judge_refusal.j2
     llm_as_judge_real_dialog: ../prompts/evaluation/llm_as_judge_real_dialog.j2
+    llm_as_judge_real_dialog_score: ../prompts/evaluation/llm_as_judge_real_dialog_score.j2
+    llm_as_judge_real_dialog_likert_score: ../prompts/evaluation/llm_as_judge_real_dialog_likert_score.j2
     llm_as_judge_persona_attributes: ../prompts/evaluation/llm_as_judge_persona_attributes.j2
 
 llm:
