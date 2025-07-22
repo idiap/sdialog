@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 from tqdm.auto import tqdm
 from jinja2 import Template
+from scipy.stats import norm
 from math import exp, log, sqrt
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict
@@ -116,6 +117,37 @@ class BaseMetric(ABC):
         raise NotImplementedError("Subclasses should implement this method.")
 
 
+class BaseDialogEmbedder(ABC):
+    """
+    Base class for dialog embedding models.
+    """
+    def __init__(self, name: Optional[str] = None):
+        """
+        Initialize the dialog embedder with a name.
+        :param name: Name of the dialog embedder.
+        """
+        self.name = name
+
+    def __call__(self, dialog: Dialog) -> np.ndarray:
+        """
+        Embed a dialog into a vector representation.
+
+        :param dialog: The dialog to embed.
+        :return: A numpy array representing the embedded dialog.
+        """
+        return self.embed(dialog)
+
+    @abstractmethod
+    def embed(self, dialog: Dialog) -> np.ndarray:
+        """
+        Embed a dialog into a vector representation.
+
+        :param dialog: The dialog to embed.
+        :return: A numpy array representing the embedded dialog.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+
 class BaseDialogScore(ABC):
     def __init__(self, name: Optional[str] = None):
         """
@@ -160,7 +192,7 @@ class BaseDatasetEvaluator(ABC):
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
                  dataset_name: str = None,
-                 return_dialog_scores: bool = False) -> Union[dict, float]:
+                 return_scores: bool = False) -> Union[dict, float]:
         dataset_name = dataset_name or "candidate"
         if dataset_name == "candidate":
             desc = f"Computing {self.name} scores for candidate dataset"
@@ -181,7 +213,7 @@ class BaseDatasetEvaluator(ABC):
 
         self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         results = self.eval(scores)
-        return (results, scores) if return_dialog_scores else results
+        return (results, scores) if return_scores else results
 
     @abstractmethod
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
@@ -211,6 +243,90 @@ class BaseDatasetEvaluator(ABC):
 
     @abstractmethod
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        raise NotImplementedError("Subclasses should implement this method.")
+
+
+class BaseDatasetEmbeddingEvaluator(ABC):
+    """
+    Base class for dataset evaluators.
+    """
+    def __init__(self,
+                 dialog_embedder: BaseDialogEmbedder,
+                 name: str = None,
+                 keep_history: bool = True,
+                 verbose: bool = False):
+        self.dialog_embedder = dialog_embedder
+        if not name:
+            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "")
+        else:
+            self.name = name
+        self.datasets_embs = {}
+        self.keep_history = keep_history
+        self.verbose = verbose
+
+    def __call__(self,
+                 dialogues: Union[str, List[Dialog]],
+                 dataset_name: str = None,
+                 return_embs: bool = False) -> Union[dict, float]:
+        dataset_name = dataset_name or "candidate"
+        if dataset_name == "candidate":
+            desc = f"Computing {self.name} embeddings for candidate dataset"
+        else:
+            desc = f"Computing {self.name} embeddings for dataset "
+            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+        embs = np.array([self.dialog_embedder(dialogue)
+                         for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+
+        if self.keep_history:
+            self.datasets_embs[dataset_name] = embs  # Store the embeddings for later use
+        results = self.eval(embs)
+        return (results, embs) if return_embs else results
+
+    def clear_history(self):
+        self.datasets_embs.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None):
+        if not self.datasets_embs:
+            logger.warning("No datasets embeddings available to plot. Make sure `keep_history` is set to True.")
+            return
+        from sklearn.manifold import TSNE
+
+        # Plot box plots for each dataset
+        plt.figure(figsize=(8, 5))
+        # Plot the t-SNE embeddings of the embeddings stored in self.datasets_embs, one color per dataset
+
+        # Concatenate all embeddings and keep track of dataset labels
+        all_embs = []
+        all_labels = []
+        for dataset_name, embs in self.datasets_embs.items():
+            all_embs.append(embs)
+            all_labels.extend([dataset_name] * len(embs))
+        all_embs = np.vstack(all_embs)
+        all_labels = np.array(all_labels)
+
+        # Compute t-SNE (2D)
+        tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
+        tsne_embs = tsne.fit_transform(all_embs)
+
+        # Plot
+        unique_labels = np.unique(all_labels)
+        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
+        for i, label in enumerate(unique_labels):
+            idx = all_labels == label
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1], label=label, alpha=0.7, color=colors[i % len(colors)])
+        plt.xlabel("t-SNE 1")
+        plt.ylabel("t-SNE 2")
+        plt.title("t-SNE visualization of dialog embeddings")
+        plt.legend()
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+    @abstractmethod
+    def eval(self, dialog_embs: List[np.ndarray]) -> Union[dict, float]:
         raise NotImplementedError("Subclasses should implement this method.")
 
 
@@ -509,6 +625,83 @@ class SentenceTransformerSimilarity(SimilarityScore):
         return self.model.similarity(embs[0], embs[1])
 
 
+class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
+    """
+    Dialog embedder using SentenceTransformer.
+    Can embed a dialog as the mean of turn embeddings or as a single embedding of the whole dialog text.
+    """
+    def __init__(self,
+                 model_name: str = "sentence-transformers/LaBSE",
+                 mean: bool = True,
+                 name: str = None,
+                 verbose: bool = False):
+        """
+        :param model_name: SentenceTransformer model name.
+        :param mean: If True, embed as mean of turn embeddings; if False, embed whole dialog as a single string.
+        :param name: Optional name for the embedder.
+        """
+        mode_str = "mean" if mean else "whole"
+        super().__init__(name=name or f"st-{mode_str}-{model_name.split('/')[-1]}")
+        self.model = SentenceTransformer(model_name)
+        self.mean = mean
+        self.verbose = verbose
+
+    def embed(self, dialog: Dialog) -> np.ndarray:
+        if self.mean:
+            texts = [turn.text for turn in dialog.turns if hasattr(turn, "text")]
+            if not texts:
+                return np.zeros(self.model.get_sentence_embedding_dimension())
+            embs = self.model.encode(texts, show_progress_bar=self.verbose)
+            return np.mean(embs, axis=0)
+        else:
+            dialog_text = "\n".join([turn.text for turn in dialog.turns if hasattr(turn, "text")])
+            if not dialog_text:
+                return np.zeros(self.model.get_sentence_embedding_dimension())
+            emb = self.model.encode([dialog_text], show_progress_bar=self.verbose)[0]
+            return emb
+
+
+class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
+    """
+    Evaluator that computes the centroid of reference dialog embeddings and compares
+    the centroid of candidate dialog embeddings using cosine similarity.
+    """
+    def __init__(self,
+                 dialog_embedder: BaseDialogEmbedder,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 name: str = None,
+                 keep_history: bool = True,
+                 verbose: bool = False):
+        name = name or f"centroid-similarity-{dialog_embedder.name}"
+        super().__init__(dialog_embedder, name=name, keep_history=keep_history, verbose=verbose)
+        # Compute reference centroid
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        reference_embs = np.array([self.dialog_embedder(dialog)
+                                   for dialog in tqdm(reference_dialogues,
+                                                      desc="Computing reference embeddings",
+                                                      leave=verbose)])
+        self.reference_centroid = np.mean(reference_embs, axis=0)
+
+    def eval(self, dialog_embs: List[np.ndarray]) -> float:
+        """
+        Compute the centroid of the given embeddings and return the cosine similarity
+        with the reference centroid.
+        """
+        if isinstance(dialog_embs, list):
+            dialog_embs = np.array(dialog_embs)
+        if dialog_embs.ndim == 1:
+            dialog_embs = dialog_embs.reshape(1, -1)
+        centroid = np.mean(dialog_embs, axis=0)
+        # Cosine similarity
+        dot = np.dot(self.reference_centroid, centroid)
+        norm_ref = np.linalg.norm(self.reference_centroid)
+        norm_cand = np.linalg.norm(centroid)
+        if norm_ref == 0 or norm_cand == 0:
+            return 0.0
+        return float(dot / (norm_ref * norm_cand))
+
+
 class KDEDivergenceEvaluator(BaseDatasetEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
@@ -557,6 +750,49 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
                 "kl": kl_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
             }
         return result
+
+
+class FrechetDistanceEvaluator(BaseDatasetEvaluator):
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 reference_dialogues: Union[str, List[Dialog]] = None,
+                 name: str = None,
+                 verbose: bool = False,
+                 **evaluator_kwargs):
+        super().__init__(dialog_score, name=name, **evaluator_kwargs)
+
+        if reference_dialogues is None:
+            if hasattr(dialog_score, "reference_dialogues"):
+                reference_dialogues = dialog_score.reference_dialogues
+            else:
+                raise ValueError("Reference dialogues must be provided or "
+                                 "the dialog_score must have a reference_dialogues attribute.")
+
+        reference_scores = np.array([self.dialog_score(dialogue)
+                                     for dialogue in tqdm(reference_dialogues,
+                                                          desc=f"Computing reference {self.name} scores",
+                                                          leave=verbose)])
+        self.reference_norm_dist = norm(loc=np.mean(reference_scores), scale=np.std(reference_scores))
+
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        if "reference" not in dialog_scores and self.reference_norm_dist is not None:
+            x = np.linspace(self.reference_norm_dist.ppf(0.001), self.reference_norm_dist.ppf(0.999), 100)
+            plot.plot(x, self.reference_norm_dist.pdf(x), color="grey", lw=3, label="reference")
+        for dataset_name, scores in dialog_scores.items():
+            x = np.linspace(np.min(scores), np.max(scores), 100)
+            plot.plot(x, norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)), label=dataset_name)
+        plot.xlabel(self.dialog_score.name)
+        plot.legend()
+        plot.title(f"Normal Distributions of {self.dialog_score.name}")
+
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        # Compute the Frechet distance between the reference normal distribution and the one from dialog_scores
+        if not isinstance(dialog_scores, np.ndarray):
+            dialog_scores = np.array(dialog_scores)
+        mu1, sigma1 = self.reference_norm_dist.mean(), self.reference_norm_dist.std()
+        mu2, sigma2 = np.mean(dialog_scores), np.std(dialog_scores)
+        # Frechet distance between two 1D Gaussians: sqrt((mu1-mu2)^2 + (sigma1-sigma2)^2)
+        return np.sqrt((mu1 - mu2) ** 2 + (sigma1 - sigma2) ** 2)
 
 
 class StatsEvaluator(BaseDatasetEvaluator):
@@ -865,7 +1101,7 @@ class DatasetComparator:
         if not evaluators:
             raise ValueError("No evaluators provided for comparison.")
         for evaluator in evaluators:
-            if not isinstance(evaluator, BaseDatasetEvaluator):
+            if not isinstance(evaluator, (BaseDatasetEvaluator, BaseDatasetEmbeddingEvaluator)):
                 raise TypeError(f"Evaluator {evaluator} is not an instance of `BaseDatasetEvaluator`")
 
         self.evaluators = evaluators
@@ -916,5 +1152,3 @@ class DatasetComparator:
             evaluator.plot(show=show,
                            save_path=os.path.join(save_folder_path,
                                                   f"{evaluator.name}.png") if save_folder_path else None)
-
-    compare = __call__  # Allow direct call to compare method
