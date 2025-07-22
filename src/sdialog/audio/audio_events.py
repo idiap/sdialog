@@ -59,7 +59,7 @@ class Timeline(BaseModel):
 
         roles = sorted(list(set(event.role for event in self.events)))
         role_y_map = {role: i for i, role in enumerate(roles)}
-        
+
         # Color mapping for roles
         colors = plt.get_cmap('tab20', len(roles))
         role_colors = {role: colors(i) for i, role in enumerate(roles)}
@@ -68,7 +68,7 @@ class Timeline(BaseModel):
             y_pos = role_y_map[event.role]
             start_sec = event.start_time / time_scale
             duration_sec = event.duration / time_scale
-            
+
             # Draw a rectangle for the event
             rect = patches.Rectangle(
                 (start_sec, y_pos - 0.4),  # x, y
@@ -79,7 +79,7 @@ class Timeline(BaseModel):
                 alpha=0.7
             )
             ax.add_patch(rect)
-            
+
             # Add the event label
             text_x = start_sec + duration_sec / 2
             text_y = y_pos
@@ -89,16 +89,16 @@ class Timeline(BaseModel):
         max_time = max((e.start_time + e.duration) / time_scale for e in self.events) if self.events else 1
         ax.set_xlim(0, max_time * 1.05)
         ax.set_ylim(-0.5, len(roles) - 0.5)
-        
+
         ax.set_yticks(range(len(roles)))
         ax.set_yticklabels(roles)
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Role")
         ax.set_title("Audio Event Timeline")
-        
+
         plt.grid(True, which='both', linestyle='--', linewidth=0.5)
         plt.tight_layout()
-        
+
         plt.savefig(output_file, dpi=300)
         plt.close(fig)
         print(f"Timeline saved to {output_file}")

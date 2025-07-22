@@ -167,7 +167,7 @@ def compute_evaluation_utterances(dialog: AudioDialog) -> Dict:
     mos_score = compute_mos(dialog, show_figure=True)
     speaker_consistency_score = speaker_consistency(dialog)
     wer_score = eval_wer_cer(dialog)
-    
+
     return {
         "wer": wer_score,
         "speaker_similarity": 0.0,
@@ -184,7 +184,7 @@ def compute_evaluation_audio(dialog: AudioDialog) -> Dict:
     :return: The evaluation metrics based on the reference audio before room accoustics.
     :rtype: Dict
     """
-    
+
     return {
         "wer": 0.0,
         "stoi": 0.0,
@@ -218,12 +218,12 @@ def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str
     nisqa = NonIntrusiveSpeechQualityAssessment(16000)
     scores = []
     for turn in tqdm(dialog.turns):
-        
+
         if torch.is_tensor(turn.get_audio()):
             input_tensor = turn.get_audio().clone().detach().to(torch.float32)
         else:
             input_tensor = torch.tensor(turn.get_audio(), dtype=torch.float32)
-        
+
         _scores = nisqa(input_tensor).tolist()
         scores.append({
             "umos": _scores[0],
@@ -234,7 +234,7 @@ def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str
                 "loudness": _scores[4],
             }
         })
-    
+
     # Compute the mean of each accoustics features for the MOS scores in the ranges
     mos_ranges = {
         _range: {
@@ -251,7 +251,7 @@ def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str
             if score["umos"] >= _range[0] and score["umos"] < _range[1]:
                 for key, value in score["accoustics"].items():
                     mos_ranges[_range][key].append(value)
-    
+
     # Compute the mean of each accoustics features for the MOS scores in the ranges
     for _range in mos_ranges:
         for key, value in mos_ranges[_range].items():
@@ -260,10 +260,10 @@ def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str
             else:
                 mos_ranges[_range][key] = 0
 
-    # Draw the spider chart figure of the accoustics features, where each color is based on the MOS scores ranges 
+    # Draw the spider chart figure of the accoustics features, where each color is based on the MOS scores ranges
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='polar')
-    
+
     labels = list(list(mos_ranges.values())[0].keys())
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
     angles += angles[:1]
@@ -284,7 +284,7 @@ def compute_mos(dialog: AudioDialog, show_figure: bool = False, output_file: str
             ax.fill(angles, values, alpha=0.25)
 
     ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
-    
+
     if show_figure:
         plt.show()
 

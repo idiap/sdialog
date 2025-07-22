@@ -1,10 +1,9 @@
-import os
 import numpy as np
-import soundfile as sf
 from typing import List
 from sdialog import Dialog
 from sdialog.audio.audio_turn import AudioTurn
 from sdialog.audio.audio_events import Timeline
+
 
 class AudioDialog(Dialog):
     """
@@ -31,13 +30,13 @@ class AudioDialog(Dialog):
         Get the combined audio of the dialog.
         """
         return self._combined_audio
-    
+
     @staticmethod
     def from_dialog(dialog: Dialog):
         audio_dialog = AudioDialog()
 
         for attr in dialog.__dict__:
             setattr(audio_dialog, attr, getattr(dialog, attr))
-        
+
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
         return audio_dialog

@@ -9,11 +9,10 @@ import re
 import torch
 import logging
 import whisper
-import numpy as np
+from typing import List
 from random import choice
+from sdialog import config
 from jinja2 import Template
-from typing import List, Tuple
-from sdialog import Dialog, config
 from sdialog.audio.room import Room
 from sdialog.generators import DialogGenerator
 from sdialog.audio.audio_dialog import AudioDialog
@@ -43,7 +42,7 @@ class AudioEventsEnricher:
     """
     Audio events enricher pipeline.
     """
-    
+
     def extract_events(self, dialog: AudioDialog) -> AudioDialog:
         """
         Extract the audio events from the dialog.
@@ -67,7 +66,7 @@ class AudioEventsEnricher:
             prompt = Template(f.read()).render(dialog=str(dialog))
 
         return DialogGenerator(dialogue_details=prompt).generate()
-    
+
     # TODO: Parse outputs correctly and verify the SNR values
     def generate_snr(self, dialog: AudioDialog) -> AudioDialog:
         """
@@ -85,35 +84,31 @@ class AudioEventsEnricher:
             turn.snr = int(snr.group(1)) if snr else None
 
         return dialog_with_snr
-    
 
     def generate_room_position(self, dialog: AudioDialog) -> AudioDialog:
         """
         Use an LLM to compute the position of the speakers in the room based on predefined positions and the dialog.
         """
-        
+
         with open(config.config["prompts"]["audio"]["room_position"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(dialog))
-        
+
         dialog_with_room_position = DialogGenerator(dialogue_details=prompt).generate()
 
         # Extract the position and microphone position from the dialog
         for turn in dialog_with_room_position.turns:
-            
+
             turn.position = re.search(
                 r'position="([^"]+)"',
-                turn.text).group(1) if re.search(r'position="([^"]+)"',
-                turn.text
-            ) else None
+                turn.text).group(1) if re.search(r'position="([^"]+)"', turn.text) else None
 
         return dialog_with_room_position
 
-    
     def generate_microphone_position(self, dialog: AudioDialog) -> AudioDialog:
         """
         Randomly sample the microphone position for the whole dialogue.
         """
-        
+
         # Randomly sample the microphone position for the whole dialogue
         microphone_position = choice(Room.get_microphone_positions())
 
@@ -210,7 +205,7 @@ class AudioEventsEnricher:
         dialog_word_timings = []
         turn_word_offsets = [0]
         cumulative_words = 0
-        
+
         # We assume audio is 16kHz for whisper
         sample_rate = 16000
 
@@ -233,11 +228,15 @@ class AudioEventsEnricher:
                 timeline.add_event(utterance_event)
 
             # Add placeholder for speaker tag, as counted in structure_markup_language
-            dialog_word_timings.append({'word': f'[{turn.speaker}]', 'start': current_time_offset_s, 'end': current_time_offset_s})
+            dialog_word_timings.append({
+                'word': f'[{turn.speaker}]',
+                'start': current_time_offset_s,
+                'end': current_time_offset_s
+            })
             cumulative_words += 1
 
             clean_text = re.sub(r'<[^>]+>', '', turn.text)
-            
+
             if not clean_text.strip():
                 turn_word_offsets.append(cumulative_words)
                 current_time_offset_s += utterance_duration_s
@@ -265,7 +264,7 @@ class AudioEventsEnricher:
 
             cumulative_words += len(turn_words_with_ts)
             turn_word_offsets.append(cumulative_words)
-            
+
             if turn_words_with_ts:
                 current_time_offset_s = turn_words_with_ts[-1]['end']
             else:
@@ -279,8 +278,11 @@ class AudioEventsEnricher:
                 continue
 
             start_time_ms = dialog_word_timings[begin_token_idx]['start'] * 1000
-            
-            turn_index = next((i - 1 for i, offset in enumerate(turn_word_offsets) if begin_token_idx < offset), len(dialog.turns) - 1)
+
+            turn_index = next((
+                i - 1 for i, offset in enumerate(turn_word_offsets) if begin_token_idx < offset),
+                len(dialog.turns) - 1
+            )
             speaker_role = dialog.turns[turn_index].speaker
 
             duration_ms = 0

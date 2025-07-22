@@ -47,6 +47,7 @@ class KokoroTTS(BaseTTS):
 
         return audio
 
+
 # TODO: Test this model
 class ChatterboxTTS(BaseTTS):
     """
@@ -66,7 +67,7 @@ class ChatterboxTTS(BaseTTS):
         """
         Generate audio from text using the Chatterbox model.
         """
-        
+
         wav = self.pipeline.generate(text, audio_prompt_path=voice)
 
         return wav.cpu().numpy().squeeze()

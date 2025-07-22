@@ -7,12 +7,13 @@ from typing import List
 from sdialog import Dialog
 from datasets import load_dataset
 from sdialog.audio.tts_engine import BaseTTS
-from sdialog.audio.audio_events import Timeline
 from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
-from sdialog.audio import generate_utterances_audios, save_utterances_audios, send_utterances_to_dscaper, generate_dscaper_timeline, generate_audio_room_accoustic, generate_word_alignments
+from sdialog.audio import generate_utterances_audios, save_utterances_audios, send_utterances_to_dscaper
+from sdialog.audio import generate_dscaper_timeline, generate_audio_room_accoustic, generate_word_alignments
+
 
 class AudioPipeline:
     """
@@ -37,7 +38,6 @@ class AudioPipeline:
         self._dscaper = dscaper
         self.enricher = enricher
         self.sampling_rate = sampling_rate
-    
 
     def populate_dscaper(self, datasets: List[str]) -> int:
         """
@@ -64,11 +64,13 @@ class AudioPipeline:
                     label=label_str,
                     filename=filename
                 )
-                
+
                 resp = self._dscaper.store_audio(data["audio"]["path"], metadata)
-                
+
                 if resp.status != "success":
-                    logging.error(f"Problem storing audio {data['audio']['path']} (the audio can also be already stored)")
+                    logging.error(
+                        f"Problem storing audio {data['audio']['path']} (the audio can also be already stored)"
+                    )
                 else:
                     n_audio_files += 1
 
@@ -79,7 +81,6 @@ class AudioPipeline:
         Combines multiple audio segments into a single master audio track.
         """
         return np.concatenate([turn.get_audio() for turn in dialog.turns])
-    
 
     def enrich(self, dialog: AudioDialog) -> AudioDialog:
         """
@@ -87,11 +88,10 @@ class AudioPipeline:
         """
         if self.enricher is None:
             raise ValueError("Enricher is not set")
-        
-        dialog = self.enricher.extract_events(dialog)
-        
-        return dialog
 
+        dialog = self.enricher.extract_events(dialog)
+
+        return dialog
 
     def inference(
             self,
@@ -142,7 +142,7 @@ class AudioPipeline:
 
         # Generate the timeline from dSCAPER
         dialog = generate_dscaper_timeline(dialog, self._dscaper)
-        
+
         # Generate the audio room accoustic
         dialog = generate_audio_room_accoustic(dialog)
 

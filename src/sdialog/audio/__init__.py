@@ -11,7 +11,6 @@ import logging
 import whisper
 import numpy as np
 import soundfile as sf
-from typing import List, Tuple
 from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.util import remove_audio_tags
@@ -115,7 +114,7 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str, sampling_rate: i
     current_time = 0.0
 
     for idx, turn in enumerate(dialog.turns):
-        turn.audio_path = f"{dialog.audio_dir_path}/dialog_{dialog.id}/utterances/{idx}_{turn.speaker}.wav"        
+        turn.audio_path = f"{dialog.audio_dir_path}/dialog_{dialog.id}/utterances/{idx}_{turn.speaker}.wav"
         turn.audio_duration = turn.get_audio().shape[0] / sampling_rate
         turn.audio_start_time = current_time
         current_time += turn.audio_duration
@@ -125,7 +124,7 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str, sampling_rate: i
             turn.get_audio(),
             sampling_rate
         )
-    
+
     return dialog
 
 
@@ -141,9 +140,9 @@ def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) ->
             label=turn.speaker,
             filename=os.path.basename(turn.audio_path)
         )
-        
+
         resp = _dscaper.store_audio(turn.audio_path, metadata)
-        
+
         if resp.status != "success":
             logging.error(f"Problem storing audio for turn {turn.audio_path}")
         else:
@@ -152,7 +151,10 @@ def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) ->
     return dialog
 
 
-def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sampling_rate: int = 24_000) -> AudioDialog:
+def generate_dscaper_timeline(
+        dialog: AudioDialog,
+        _dscaper: scaper.Dscaper,
+        sampling_rate: int = 24_000) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
 
@@ -180,7 +182,7 @@ def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sam
     background_metadata = DscaperBackground(
         library="background",
         label=["const", "ac_noise"],
-        source_file=["choose","[]"]
+        source_file=["choose", "[]"]
     )
     _dscaper.add_background(timeline_name, background_metadata)
 
@@ -189,30 +191,19 @@ def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sam
     foreground_metadata = DscaperEvent(
         library="foreground",
         label=["const", "white_noise"],
-        source_file=["choose","[]"],
-        event_time=["const","0"],
-        event_duration=["const","0.1"],
+        source_file=["choose", "[]"],
+        event_time=["const", "0"],
+        event_duration=["const", "0.1"],
         position="at_desk_sitting",
         speaker="foreground",
-        text="foreground",
-        # pitch_shift=["const", "0"],
-        # time_stretch=["const", "0"]
+        text="foreground"
     )
     _dscaper.add_event(timeline_name, foreground_metadata)
 
     # Add the events and utterances to the timeline
     current_time = 0.0
     for i, turn in enumerate(dialog.turns):
-        # print(timeline_name)
-        # print(turn.speaker)
-        # print(os.path.basename(turn.audio_path))
-        # print(f"{turn.audio_duration:.1f}")
-        # print(turn.position)
-        # print(turn.text)
-        # print(f"{turn.audio_start_time:.1f}")
-        # print("*"*10)
-        # test_1 = 20.5
-        # test_2 = 21.5
+        # TODO: Remove this hardcoded default position
         default_position = "at_desk_sitting" if turn.speaker == "DOCTOR" else "next_to_desk_sitting"
         _event_metadata = DscaperEvent(
             library=timeline_name,
@@ -242,7 +233,7 @@ def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sam
 
     # Check if the timeline was generated successfully
     if resp.status == "success":
-        logging.info(f"Successfully generated dscaper timeline.")
+        logging.info("Successfully generated dscaper timeline.")
     else:
         logging.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
 
@@ -255,4 +246,3 @@ def generate_audio_room_accoustic(dialog: AudioDialog) -> AudioDialog:
     Generates the audio room accoustic.
     """
     return dialog
-

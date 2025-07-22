@@ -1,6 +1,7 @@
 import numpy as np
+from typing import List
 from sdialog import Turn
-from typing import List, Tuple, Optional
+
 
 class AudioTurn(Turn):
     """
@@ -17,7 +18,7 @@ class AudioTurn(Turn):
     :ivar alignment: The alignment of the audio with the text.
     :vartype alignment: Optional[List[Tuple[float, float, str]]]
     """
-    
+
     _audio: np.ndarray = None
     audio_path: str = None
     audio_duration: float = None
@@ -44,18 +45,21 @@ class AudioTurn(Turn):
 
     @staticmethod
     def from_turn(
-        turn: Turn,
-        audio: np.ndarray = None,
-        audio_path: str = None,
-        audio_duration: float = None,
-        audio_start_time: float = None,
-        snr: float = None,
-        alignment: List[dict] = None,
-        transcript: str = None,
-        voice: str = None,
-        position: str = None,
-        microphone_position: str = None,
-        is_stored_in_dscaper: bool = False):
+            turn: Turn,
+            audio: np.ndarray = None,
+            audio_path: str = None,
+            audio_duration: float = None,
+            audio_start_time: float = None,
+            snr: float = None,
+            alignment: List[dict] = None,
+            transcript: str = None,
+            voice: str = None,
+            position: str = None,
+            microphone_position: str = None,
+            is_stored_in_dscaper: bool = False):
+        """
+        Create an AudioTurn from a Turn object.
+        """
 
         audio_turn = AudioTurn(text=turn.text, speaker=turn.speaker)
 
@@ -70,5 +74,5 @@ class AudioTurn(Turn):
         audio_turn.position = position
         audio_turn.microphone_position = microphone_position
         audio_turn.is_stored_in_dscaper = is_stored_in_dscaper
-        
+
         return audio_turn
