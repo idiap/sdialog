@@ -54,15 +54,13 @@ class AudioPipeline:
 
             for data in tqdm(dataset, desc=f"Populating dSCAPER with {dataset_name} dataset..."):
 
-                print(data)
-                print(data["label"])
-                print(data["audio"])
-                print("~"*50)
+                filename = data["audio"]["path"].split("/")[-1]
+                label_str = dataset.features["label"].names[data["label"]]
 
                 metadata = DscaperAudio(
-                    library=dataset_name,
-                    label=data["label"], # TODO: Get the string label and not the class identifier
-                    filename=data["audio"]["filename"]
+                    library=dataset_name.split("/")[-1],
+                    label=label_str,
+                    filename=filename
                 )
                 
                 resp = self._dscaper.store_audio(data["audio"]["path"], metadata)
