@@ -10,9 +10,11 @@ import torch
 import logging
 import whisper
 import numpy as np
+from random import choice
 from jinja2 import Template
 from typing import List, Tuple
 from sdialog import Dialog, config
+from sdialog.audio.room import Room
 from sdialog.generators import DialogGenerator
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events import Timeline, AudioEvent
@@ -84,6 +86,7 @@ class AudioEventsEnricher:
 
         return dialog_with_snr
     
+
     def generate_room_position(self, dialog: AudioDialog) -> AudioDialog:
         """
         Use an LLM to compute the position of the speakers in the room based on predefined positions and the dialog.
@@ -96,10 +99,28 @@ class AudioEventsEnricher:
 
         # Extract the position and microphone position from the dialog
         for turn in dialog_with_room_position.turns:
-            turn.position = re.search(r'position="([^"]+)"', turn.text).group(1) if re.search(r'position="([^"]+)"', turn.text) else None
-            turn.microphone_position = re.search(r'microphone_position="([^"]+)"', turn.text).group(1) if re.search(r'microphone_position="([^"]+)"', turn.text) else None
+            
+            turn.position = re.search(
+                r'position="([^"]+)"',
+                turn.text).group(1) if re.search(r'position="([^"]+)"',
+                turn.text
+            ) else None
 
         return dialog_with_room_position
+
+    
+    def generate_microphone_position(self, dialog: AudioDialog) -> AudioDialog:
+        """
+        Randomly sample the microphone position for the whole dialogue.
+        """
+        
+        # Randomly sample the microphone position for the whole dialogue
+        microphone_position = choice(Room.get_microphone_positions())
+
+        for turn in dialog.turns:
+            turn.microphone_position = microphone_position
+
+        return dialog
 
     def _structure_markup_language(self, dialog: AudioDialog) -> List[dict]:
         """

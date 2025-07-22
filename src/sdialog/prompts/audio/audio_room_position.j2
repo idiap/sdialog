@@ -1,6 +1,6 @@
 Your task is to rewrite the following dialogue by adding position attributes to each speaker's tag to simulate an examination room environment.
 
-Both the `DOCTOR` and `PATIENT` tags must include a `position` attribute and a `microphone_position` attribute. The `microphone_position` must be the same for both speakers throughout the dialogue.
+Both the `DOCTOR` and `PATIENT` tags must include a `position` attribute.
 
 Select a plausible value for each attribute from the lists below based on the context of the dialogue:
 
@@ -21,13 +21,6 @@ Select a plausible value for each attribute from the lists below based on the co
 - `sitting_on_bench`
 - `center_room_standing`
 
-**Microphone Positions:**
-- `table_smartphone`
-- `monitor`
-- `wall_mounted`
-- `ceiling_centered`
-- `chest_pocket`
-
 The dialogue content, speakers, and order must remain exactly the same. You should only add the attributes to each speaker tag in the format `attribute="value"`.
 
 Here is an example of the expected transformation:
@@ -37,10 +30,10 @@ Original Turn:
 [PATIENT] I have a sore throat.
 
 Modified Turn:
-[DOCTOR position="at_desk_sitting" microphone_position="table_smartphone"] Hello, how can I help you today?
-[PATIENT position="next_to_desk_sitting" microphone_position="table_smartphone"] I have a sore throat.
+[DOCTOR position="at_desk_sitting"] Hello, how can I help you today?
+[PATIENT position="next_to_desk_sitting"] I have a sore throat.
 
 Here is the original dialogue:
 {{ dialog }}
 
-Return only the modified dialogue with the `position` and `microphone_position` attributes included in the speaker tags. The microphone position must be identical for both speakers for each pair of turns.
+Return only the modified dialogue with the `position` attribute included in the speaker tags.

@@ -103,7 +103,7 @@ def generate_word_alignments(dialog: AudioDialog) -> AudioDialog:
     return dialog
 
 
-def save_utterances_audios(dialog: AudioDialog, dir_audio: str) -> AudioDialog:
+def save_utterances_audios(dialog: AudioDialog, dir_audio: str, sampling_rate: int = 24_000) -> AudioDialog:
     """
     Save the utterances audios to the given path.
     """
@@ -112,21 +112,24 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str) -> AudioDialog:
     os.makedirs(f"{dialog.audio_dir_path}/dialog_{dialog.id}/utterances", exist_ok=True)
     os.makedirs(f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios", exist_ok=True)
 
+    current_time = 0.0
+
     for idx, turn in enumerate(dialog.turns):
-        
         turn.audio_path = f"{dialog.audio_dir_path}/dialog_{dialog.id}/utterances/{idx}_{turn.speaker}.wav"        
-        turn.audio_duration = turn.get_audio().shape[0] / 24_000
+        turn.audio_duration = turn.get_audio().shape[0] / sampling_rate
+        turn.audio_start_time = current_time
+        current_time += turn.audio_duration
 
         sf.write(
             turn.audio_path,
             turn.get_audio(),
-            24_000
+            sampling_rate
         )
     
     return dialog
 
 
-def send_utterances_to_dscaper(dialog: AudioDialog, dscaper: scaper.Dscaper) -> AudioDialog:
+def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) -> AudioDialog:
     """
     Sends the utterances audio files to dSCAPER database.
     """
@@ -139,63 +142,80 @@ def send_utterances_to_dscaper(dialog: AudioDialog, dscaper: scaper.Dscaper) -> 
             filename=os.path.basename(turn.audio_path)
         )
         
-        resp = dscaper.store_audio(turn.audio_path, metadata)
+        resp = _dscaper.store_audio(turn.audio_path, metadata)
         
         if resp.status != "success":
-            logging.error(f"Problem storing audio for turn {turn.audio_path}: {resp.message}")
+            logging.error(f"Problem storing audio for turn {turn.audio_path}")
         else:
             turn.is_stored_in_dscaper = True
 
     return dialog
 
 
-def generate_dscaper_timeline(dialog: AudioDialog, dscaper: scaper.Dscaper) -> AudioDialog:
+def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sampling_rate: int = 24_000) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
 
     :param dialog: The Dialog object containing the conversation.
     :type dialog: AudioDialog
-    :param dscaper: The dscaper object.
-    :type dscaper: scaper.Dscaper
+    :param _dscaper: The _dscaper object.
+    :type _dscaper: scaper.Dscaper
     :return: A Dialog object with dSCAPER timeline.
     :rtype: AudioDialog
     """
     timeline_name = f"dialog_{dialog.id}"
-    total_duration = dialog.get_combined_audio().shape[0] / 24_000
+    total_duration = dialog.get_combined_audio().shape[0] / sampling_rate
 
     timeline_metadata = DscaperTimeline(
         name=timeline_name,
         duration=total_duration,
         description=f"Timeline for dialog {dialog.id}"
     )
-    dscaper.create_timeline(timeline_metadata)
+    _dscaper.create_timeline(timeline_metadata)
 
     current_time = 0.0
     for i, turn in enumerate(dialog.turns):
-        position = "chair_1" if i % 2 == 0 else "chair_2"
+        print(timeline_name)
+        print(turn.speaker)
+        print(os.path.basename(turn.audio_path))
+        print(f"{turn.audio_duration:.1f}")
+        print(turn.position)
+        print(turn.text)
+        print(f"{turn.audio_start_time:.1f}")
+        print("*"*10)
+        test_1 = 20.5
+        test_2 = 21.5
         event_metadata = DscaperEvent(
             library=timeline_name,
-            label=["const", turn.speaker],
-            source_file=["const", os.path.basename(turn.audio_path)],
-            event_time=["const", str(current_time)],
-            event_duration=turn.audio_duration,
+            label=['const', turn.speaker],
+            source_file=['const', os.path.basename(turn.audio_path)],
+            event_time=['const', str(test_1)],
+            event_duration=['const', str(test_2)],
+            # event_time=["const", f"{turn.audio_start_time:.1f}"],
+            # event_duration=["const", f"{turn.audio_duration:.1f}"],
             speaker=turn.speaker,
             text=turn.text,
-            position=position,
+            position=turn.position
+            # TODO: Add the microphone position
         )
-        dscaper.add_event(timeline_name, event_metadata)
+        _dscaper.add_event(timeline_name, event_metadata)
         current_time += turn.audio_duration
 
-    generate_metadata = DscaperGenerate(seed=0, save_isolated_positions=True)
-    resp = dscaper.generate_timeline(timeline_name, generate_metadata)
+    resp = _dscaper.generate_timeline(
+        timeline_name,
+        DscaperGenerate(
+            seed=0,
+            save_isolated_positions=True,
+            ref_db=-20,
+            reverb=0,
+            save_isolated_events=False
+        )
+    )
 
     if resp.status == "success":
-        content = DscaperGenerate(**resp.content)
-        logging.info(f"Successfully generated dscaper timeline with ID: {content.id}")
+        logging.info(f"Successfully generated dscaper timeline.")
     else:
         logging.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
-
-    print(f"Timeline path: {resp.content.timeline_path}")
 
     return dialog
 

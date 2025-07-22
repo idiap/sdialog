@@ -1,9 +1,14 @@
 import scaper
+import logging
 import numpy as np
+from tqdm import tqdm
 import soundfile as sf
+from typing import List
 from sdialog import Dialog
+from datasets import load_dataset
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_events import Timeline
+from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
@@ -29,12 +34,47 @@ class AudioPipeline:
         self.dir_audio = dir_audio
         self.tts_pipeline = tts_pipeline
         self.voice_database = voice_database
-        self.dscaper = dscaper
-        self.sampling_rate = sampling_rate
+        self._dscaper = dscaper
         self.enricher = enricher
+        self.sampling_rate = sampling_rate
     
 
-    def _master_audio(dialog: AudioDialog) -> np.ndarray:
+    def populate_dscaper(self, datasets: List[str]) -> int:
+        """
+        Populate the dSCAPER with the audio recordings.
+        """
+
+        n_audio_files = 0
+
+        # For each huggingface dataset, save the audio recordings to the dSCAPER
+        for dataset_name in datasets:
+
+            # Load huggingface dataset
+            dataset = load_dataset(dataset_name, split="train")
+
+            for data in tqdm(dataset, desc=f"Populating dSCAPER with {dataset_name} dataset..."):
+
+                print(data)
+                print(data["label"])
+                print(data["audio"])
+                print("~"*50)
+
+                metadata = DscaperAudio(
+                    library=dataset_name,
+                    label=data["label"], # TODO: Get the string label and not the class identifier
+                    filename=data["audio"]["filename"]
+                )
+                
+                resp = self._dscaper.store_audio(data["audio"]["path"], metadata)
+                
+                if resp.status != "success":
+                    logging.error(f"Problem storing audio {data['path']}")
+                else:
+                    n_audio_files += 1
+
+        return n_audio_files
+
+    def master_audio(self, dialog: AudioDialog) -> np.ndarray:
         """
         Combines multiple audio segments into a single master audio track.
         """
@@ -73,7 +113,7 @@ class AudioPipeline:
 
         # Combine the audio segments into a single master audio track as a baseline
         dialog.set_combined_audio(
-            self._master_audio(dialog)
+            self.master_audio(dialog)
         )
         # save the combined audio to exported_audios folder
         sf.write(
@@ -94,11 +134,14 @@ class AudioPipeline:
         if do_room_position:
             dialog = self.enricher.generate_room_position(dialog)
 
+        # Randomly sample a static microphone position for the whole dialogue
+        dialog = self.enricher.generate_microphone_position(dialog)
+
         # Send the utterances to dSCAPER
-        dialog = send_utterances_to_dscaper(dialog, self.dscaper)
+        dialog = send_utterances_to_dscaper(dialog, self._dscaper)
 
         # Generate the timeline from dSCAPER
-        dialog = generate_dscaper_timeline(dialog, self.dscaper)
+        dialog = generate_dscaper_timeline(dialog, self._dscaper)
         
         # Generate the audio room accoustic
         dialog = generate_audio_room_accoustic(dialog)
