@@ -332,7 +332,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                                  name=upper_camel_to_dash(self.__class__.__name__))
         BaseLLMJudge.__init__(self,
                               model=model,
-                              output_format=Output,
+                              output_format=LLMJudgeScoreOutput,
                               prompt_template=prompt_template,
                               **llm_kwargs)
 
