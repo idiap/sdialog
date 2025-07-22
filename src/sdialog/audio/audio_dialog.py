@@ -14,6 +14,8 @@ class AudioDialog(Dialog):
     _combined_audio: np.ndarray = None
     audio_dir_path: str = None
     timeline: Timeline = None
+    total_duration: float = None
+    timeline_name: str = None
 
     def __init__(self):
         super().__init__()

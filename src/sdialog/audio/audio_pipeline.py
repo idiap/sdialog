@@ -57,6 +57,8 @@ class AudioPipeline:
                 filename = data["audio"]["path"].split("/")[-1]
                 label_str = dataset.features["label"].names[data["label"]]
 
+                # WARNING: Create a name for the "library" based
+                # on the dataset name minus the organization name
                 metadata = DscaperAudio(
                     library=dataset_name.split("/")[-1],
                     label=label_str,
@@ -66,7 +68,7 @@ class AudioPipeline:
                 resp = self._dscaper.store_audio(data["audio"]["path"], metadata)
                 
                 if resp.status != "success":
-                    logging.error(f"Problem storing audio {data['path']}")
+                    logging.error(f"Problem storing audio {data['audio']['path']} (the audio can also be already stored)")
                 else:
                     n_audio_files += 1
 

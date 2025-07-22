@@ -16,9 +16,9 @@ from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.util import remove_audio_tags
 from sdialog.audio.tts_engine import BaseTTS
-from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
+from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 whisper_model = whisper.load_model("large-v3", device=device)
@@ -165,7 +165,10 @@ def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sam
     """
     timeline_name = f"dialog_{dialog.id}"
     total_duration = dialog.get_combined_audio().shape[0] / sampling_rate
+    dialog.total_duration = total_duration
+    dialog.timeline_name = timeline_name
 
+    # Create the timeline
     timeline_metadata = DscaperTimeline(
         name=timeline_name,
         duration=total_duration,
@@ -173,34 +176,59 @@ def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sam
     )
     _dscaper.create_timeline(timeline_metadata)
 
+    # Add the background to the timeline
+    background_metadata = DscaperBackground(
+        library="background",
+        label=["const", "ac_noise"],
+        source_file=["choose","[]"]
+    )
+    _dscaper.add_background(timeline_name, background_metadata)
+
+    # Add the foreground to the timeline
+    # TODO: Add the foreground to the timeline dynamically
+    foreground_metadata = DscaperEvent(
+        library="foreground",
+        label=["const", "white_noise"],
+        source_file=["choose","[]"],
+        event_time=["const","0"],
+        event_duration=["const","0.1"],
+        position="at_desk_sitting",
+        speaker="foreground",
+        text="foreground",
+        # pitch_shift=["const", "0"],
+        # time_stretch=["const", "0"]
+    )
+    _dscaper.add_event(timeline_name, foreground_metadata)
+
+    # Add the events and utterances to the timeline
     current_time = 0.0
     for i, turn in enumerate(dialog.turns):
-        print(timeline_name)
-        print(turn.speaker)
-        print(os.path.basename(turn.audio_path))
-        print(f"{turn.audio_duration:.1f}")
-        print(turn.position)
-        print(turn.text)
-        print(f"{turn.audio_start_time:.1f}")
-        print("*"*10)
-        test_1 = 20.5
-        test_2 = 21.5
-        event_metadata = DscaperEvent(
+        # print(timeline_name)
+        # print(turn.speaker)
+        # print(os.path.basename(turn.audio_path))
+        # print(f"{turn.audio_duration:.1f}")
+        # print(turn.position)
+        # print(turn.text)
+        # print(f"{turn.audio_start_time:.1f}")
+        # print("*"*10)
+        # test_1 = 20.5
+        # test_2 = 21.5
+        default_position = "at_desk_sitting" if turn.speaker == "DOCTOR" else "next_to_desk_sitting"
+        _event_metadata = DscaperEvent(
             library=timeline_name,
             label=['const', turn.speaker],
             source_file=['const', os.path.basename(turn.audio_path)],
-            event_time=['const', str(test_1)],
-            event_duration=['const', str(test_2)],
-            # event_time=["const", f"{turn.audio_start_time:.1f}"],
-            # event_duration=["const", f"{turn.audio_duration:.1f}"],
+            event_time=['const', str(f"{turn.audio_start_time:.1f}")],
+            event_duration=['const', str(f"{turn.audio_duration:.1f}")],
             speaker=turn.speaker,
             text=turn.text,
-            position=turn.position
+            position=turn.position if turn.position else default_position
             # TODO: Add the microphone position
         )
-        _dscaper.add_event(timeline_name, event_metadata)
+        _dscaper.add_event(timeline_name, _event_metadata)
         current_time += turn.audio_duration
 
+    # Generate the timeline
     resp = _dscaper.generate_timeline(
         timeline_name,
         DscaperGenerate(
@@ -212,6 +240,7 @@ def generate_dscaper_timeline(dialog: AudioDialog, _dscaper: scaper.Dscaper, sam
         )
     )
 
+    # Check if the timeline was generated successfully
     if resp.status == "success":
         logging.info(f"Successfully generated dscaper timeline.")
     else:
