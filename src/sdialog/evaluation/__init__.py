@@ -19,6 +19,7 @@ from tqdm.auto import tqdm
 from jinja2 import Template
 from scipy.stats import norm
 from math import exp, log, sqrt
+from sklearn.manifold import TSNE
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict
 from scipy.stats import gaussian_kde
@@ -282,6 +283,16 @@ class BaseDatasetEmbeddingEvaluator(ABC):
         results = self.eval(embs)
         return (results, embs) if return_embs else results
 
+    @abstractmethod
+    def __plot__(self, dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]):
+        """
+        Plot the embeddings of the datasets.
+        :param dialog_embs: A dictionary with dataset names as keys and embeddings as values.
+        :param tsne_model: The t-SNE model used for dimensionality reduction.
+        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
     def clear_history(self):
         self.datasets_embs.clear()
 
@@ -291,35 +302,10 @@ class BaseDatasetEmbeddingEvaluator(ABC):
         if not self.datasets_embs:
             logger.warning("No datasets embeddings available to plot. Make sure `keep_history` is set to True.")
             return
-        from sklearn.manifold import TSNE
 
         # Plot box plots for each dataset
         plt.figure(figsize=(8, 5))
-        # Plot the t-SNE embeddings of the embeddings stored in self.datasets_embs, one color per dataset
-
-        # Concatenate all embeddings and keep track of dataset labels
-        all_embs = []
-        all_labels = []
-        for dataset_name, embs in self.datasets_embs.items():
-            all_embs.append(embs)
-            all_labels.extend([dataset_name] * len(embs))
-        all_embs = np.vstack(all_embs)
-        all_labels = np.array(all_labels)
-
-        # Compute t-SNE (2D)
-        tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
-        tsne_embs = tsne.fit_transform(all_embs)
-
-        # Plot
-        unique_labels = np.unique(all_labels)
-        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
-        for i, label in enumerate(unique_labels):
-            idx = all_labels == label
-            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1], label=label, alpha=0.7, color=colors[i % len(colors)])
-        plt.xlabel("t-SNE 1")
-        plt.ylabel("t-SNE 2")
-        plt.title("t-SNE visualization of dialog embeddings")
-        plt.legend()
+        self.__plot__(self.datasets_embs, plot=plt)
         if save_path:
             plt.savefig(save_path, dpi=300)
         if show:
@@ -682,6 +668,41 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                                                       desc="Computing reference embeddings",
                                                       leave=verbose)])
         self.reference_centroid = np.mean(reference_embs, axis=0)
+
+    def __plot__(self, dialog_embs: Dict[str, np.ndarray], plot: Optional[plt.Axes]):
+        """
+        Plot the embeddings of the datasets.
+        :param dialog_embs: A dictionary with dataset names as keys and embeddings as values.
+        :param tsne_model: The t-SNE model used for dimensionality reduction.
+        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
+        """
+        # Concatenate all embeddings and keep track of dataset labels
+        all_embs = [self.reference_centroid.reshape(1, -1)]
+        all_labels = ["reference"]
+        for dataset_name, embs in dialog_embs.items():
+            all_embs.append(embs)
+            all_labels.extend([dataset_name] * len(embs))
+        all_embs = np.vstack(all_embs)
+        all_labels = np.array(all_labels)
+
+        # Compute t-SNE (2D)
+        tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
+        tsne_embs = tsne.fit_transform(all_embs)
+
+        # Plot
+        unique_labels = np.unique(all_labels)
+        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
+        for i, label in enumerate(unique_labels):
+            idx = all_labels == label
+            if label == "reference":
+                plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                            label=label, alpha=0.7, color="black", s=100, marker="x")
+            else:
+                plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1], label=label, alpha=0.7, color=colors[i % len(colors)])
+        plt.xlabel("t-SNE 1")
+        plt.ylabel("t-SNE 2")
+        plt.title(f"t-SNE visualization of dialog {self.name} embeddings")
+        plt.legend()
 
     def eval(self, dialog_embs: List[np.ndarray]) -> float:
         """
