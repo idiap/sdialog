@@ -324,7 +324,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
         class LLMJudgeScoreOutput(BaseModel):
             score: Annotated[
                 score_type,
-                Field(gt=min_score, lt=max_score)
+                Field(ge=min_score, le=max_score)
             ]
             feedback: Optional[str] = None
 
