@@ -7,6 +7,9 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+
+# pyright: reportInvalidTypeForm=false
+
 import os
 import re
 import logging
@@ -18,7 +21,7 @@ import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 from jinja2 import Template
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, conint
 from math import exp, log, sqrt
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict
@@ -102,6 +105,16 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     yes: Union[bool, List[bool]]
     feedback: Optional[Union[str, List[str]]] = None
+
+
+LikertInt: conint(ge=1, le=5)
+
+class LLMJudgeLikertOutput(BaseModel):
+    """
+    Pydantic model for LLM-generated dialogue output.
+    """
+    score: LikertInt
+    feedback: Optional[str] = None
 
 
 class BaseMetric(ABC):
@@ -318,6 +331,57 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
                          model=model,
                          feedback=feedback,
                          **llm_kwargs)
+
+
+class LLMJudgeLikert(BaseDialogScore, BaseLLMJudge):
+    """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
+    def __init__(self,
+                 prompt_template: str,
+                 model: Union[BaseLanguageModel, str] = None,
+                 feedback: bool = False,
+                 as_score_error_value: int = -1,
+                 **llm_kwargs):
+        BaseDialogScore.__init__(self,
+                                 name=upper_camel_to_dash(self.__class__.__name__))
+        BaseLLMJudge.__init__(self,
+                              model=model,
+                              output_format=LLMJudgeLikertOutput,
+                              prompt_template=prompt_template,
+                              **llm_kwargs)
+
+        self.feedback = feedback
+        self.as_score_error_value = as_score_error_value  # Default value to return if LLM output cannot be parsed
+
+    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeLikertOutput, List[LLMJudgeLikertOutput]]:
+        if isinstance(dialogs, Dialog):
+            dialogs = [dialogs]  # Wrap single dialog in a list
+
+        outputs = []
+        for dialog in dialogs:
+            prompt = self.prompt_template.render(dialog=dialog,
+                                                feedback=feedback if feedback is not None else self.feedback)
+            output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
+            outputs.append(output)
+
+        if isinstance(dialogs, Dialog):
+            outputs = outputs[0]  # Take single output in a list
+
+        return outputs
+
+    @scores_cache.cache
+    def score(self, dialog: Dialog) -> float:
+        """
+        Computes the score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the score of the dialog.
+        """
+        output = self.judge(dialog)
+        try:
+            return int(output.score[0]) if isinstance(output.score, list) else int(output.score)
+        except TypeError:
+            raise ValueError(f"LLMJudgeLikert output '{output.score}' is not a boolean or list of booleans, "
+                             f"cannot convert to integer score.")
 
 
 class LLMJudgeRefusal(LLMJudgeYesNo):
