@@ -13,8 +13,8 @@ from typing import List
 from random import choice
 from sdialog import config
 from jinja2 import Template
-from sdialog.audio.room import Room, MicrophonePosition
 from sdialog.generators import DialogGenerator
+from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events import Timeline, AudioEvent
 
