@@ -66,7 +66,8 @@ def get_turn_tag(speaker_name: str) -> str:
 
     if speaker_name not in name2speaker:
         name2speaker[speaker_name] = speakers[len(name2speaker) % len(speakers)]
-        speaker2mame[name2speaker[speaker_name]] = speaker_name  # We assume only two speakers
+        if name2speaker[speaker_name] not in speaker2mame:  # Added only once, we assume only two speakers
+            speaker2mame[name2speaker[speaker_name]] = speaker_name
 
     return name2speaker[speaker_name]
 
@@ -136,6 +137,7 @@ def plot_dendrogram(model, title, path, labels=None, **kwargs):
 
 def dialog2trajectories(
     input_dialogues: Union[str, List[Dialog]],
+    system_speaker_name: str = None,
     output_path: str = None,
     embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     thresholds: Union[Union[float, int], List[Union[float, int]]] = .6,  # [system threshold, user threshold]
@@ -148,6 +150,11 @@ def dialog2trajectories(
 ) -> str:
     global speaker2mame, name2speaker
     log_level = logging.INFO if verbose else logging.DEBUG
+
+    if system_speaker_name:
+        system_speaker_name = system_speaker_name.lower()
+        name2speaker[system_speaker_name] = DEFAULT_SYS_NAME
+        speaker2mame[DEFAULT_SYS_NAME] = system_speaker_name
 
     if labels_model is None:
         labels_model = config["llm"]["model"]
@@ -400,6 +407,7 @@ def dialog2trajectories(
 
 def dialog2graph(
     input_dialogues: Union[str, List[Dialog]],
+    system_speaker_name: str = None,
     output_path: str = None,
     node_embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     node_thresholds: Union[Union[float, int], List[Union[float, int]]] = .55,  # [system threshold, user threshold]
@@ -417,6 +425,7 @@ def dialog2graph(
 
     path_trajectories = dialog2trajectories(
         input_dialogues=input_dialogues,
+        system_speaker_name=system_speaker_name,
         output_path=output_path,
         embedding_model=node_embedding_model,
         thresholds=node_thresholds,

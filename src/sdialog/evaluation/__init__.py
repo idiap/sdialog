@@ -20,7 +20,6 @@ from tqdm.auto import tqdm
 from scipy.stats import norm
 from math import exp, log, sqrt
 from sklearn.manifold import TSNE
-from abc import ABC, abstractmethod
 from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
@@ -35,7 +34,7 @@ from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
 from ..util import SentencePairTransformer, KNNModel, softmax
 from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
-from .base import scores_cache, BaseMetric, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
+from .base import scores_cache, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
 
 logger = logging.getLogger(__name__)
@@ -105,6 +104,74 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     yes: Union[bool, List[bool]]
     feedback: Optional[Union[str, List[str]]] = None
+
+
+class DialogFlowPPL(BaseDialogScore):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
+                 k_neighbors: int = 64,
+                 use_softmax: bool = True,
+                 name: str = None,
+                 verbose: bool = False,
+                 **d2f_kwargs):
+        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""), ai_speaker=ai_speaker)
+
+        d2f_kwargs = {"node_llm_labels_enabled": False,
+                      "out_png": False,
+                      #  "node_embedding_model": embedding_model,
+                      "verbose": verbose,
+                      **d2f_kwargs}
+
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
+        self.d2f_kwargs = d2f_kwargs  # for the key cache
+
+        self.reference_dialogues = reference_dialogues
+        self.use_softmax = use_softmax
+        self.only_system = bool(ai_speaker)
+        self.graph, self.nodes = dialog2graph(reference_dialogues,
+                                              system_speaker_name=ai_speaker,
+                                              **self.d2f_kwargs)
+        self.speakers = self.nodes["_metadata"]["speakers"]
+        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+        self.knn_models = {
+            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
+                             k=k_neighbors),
+            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
+                               k=k_neighbors)
+        }
+
+    @scores_cache.cache
+    def score(self, dialog: Dialog) -> float:
+        sum_log_p = 0
+        sys_turns = 0
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
+            nearest_id, _ = neighbors[0]
+            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
+
+            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
+            if (not self.only_system or speaker == "system") and prob_next_node is not None:
+                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
+                sys_turns += 1
+            prev_node = nearest_id
+
+        return exp(-sum_log_p / sys_turns)
 
 
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
@@ -1036,72 +1103,6 @@ class LinguisticFeaturesDatasetEvaluator(BaseDatasetScoreEvaluator):
             print(f"All feature statistics saved to {stats_csv_path}")
         if save_dir:
             print(f"All plots saved to {save_dir}")
-
-
-class DialogFlowPPL(BaseDialogScore):
-    def __init__(self,
-                 reference_dialogues: Union[str, List[Dialog]],
-                 k_neighbors=64,
-                 use_softmax=True,
-                 only_system=False,
-                 name=None,
-                 verbose=False,
-                 **d2f_kwargs):
-        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""))
-
-        d2f_kwargs = {"node_llm_labels_enabled": False,
-                      "out_png": False,
-                      #  "node_embedding_model": embedding_model,
-                      "verbose": verbose,
-                      **d2f_kwargs}
-
-        if isinstance(reference_dialogues, str):
-            reference_dialogues = Dialog.from_file(reference_dialogues)
-        if not reference_dialogues or not isinstance(reference_dialogues, list):
-            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
-
-        self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
-        self.d2f_kwargs = d2f_kwargs  # for the key cache
-
-        self.reference_dialogues = reference_dialogues
-        self.use_softmax = use_softmax
-        self.only_system = only_system
-        self.graph, self.nodes = dialog2graph(reference_dialogues, **self.d2f_kwargs)
-        self.speakers = self.nodes["_metadata"]["speakers"]
-        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
-        self.knn_models = {
-            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
-                             k=k_neighbors),
-            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
-                               k=k_neighbors)
-        }
-
-    @scores_cache.cache
-    def score(self, dialog: Dialog) -> float:
-        sum_log_p = 0
-        sys_turns = 0
-        prev_node = DEFAULT_TOKEN_START
-        for turn in dialog.turns:
-            speaker = turn.speaker.lower()
-            if speaker in self.speakers:
-                speaker = self.speakers[speaker]
-            else:
-                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
-                                 f"{list(self.speakers.keys())}")
-            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
-            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
-            nearest_id, _ = neighbors[0]
-            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
-
-            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
-            if (not self.only_system or speaker == "system") and prob_next_node is not None:
-                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
-                sys_turns += 1
-            prev_node = nearest_id
-
-        return exp(-sum_log_p / sys_turns)
 
 
 class DatasetComparator:
