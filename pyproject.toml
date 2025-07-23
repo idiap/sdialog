@@ -47,15 +47,3 @@ pythonpath = "src/"
 addopts = [
     "--import-mode=importlib",
 ]
-
-[tool.flake8]
-max-line-length = 120
-
-[tool.ruff]
-line-length = 120
-# ignore = ["W503"]
-
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
