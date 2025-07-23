@@ -14,16 +14,64 @@ import uuid
 import torch
 import logging
 import subprocess
+import numpy as np
 import transformers
 import pandas as pd
 
-from typing import Union
+from tqdm.auto import tqdm
 from functools import wraps
 from pydantic import BaseModel
+from typing import Union, List
 from sklearn.neighbors import NearestNeighbors
+from transformers import AutoTokenizer, AutoModel
 from langchain_ollama.chat_models import ChatOllama
+from torch.utils.data import DataLoader, TensorDataset
+from sentence_transformers.util import get_device_name, batch_to_device
 
 logger = logging.getLogger(__name__)
+
+
+class SentencePairTransformer:  # As opposed to SentenceTransformer
+    """
+    A transformer that takes a pair of sentences and returns the [cls] BERT embedding for sent1<sep>sent2 (as in NLI).
+    """
+    def __init__(self, model_name: str = "roberta-base", device: str = None, verbose: bool = True):
+        if device is None:
+            device = get_device_name()
+            logger.info(f"Use pytorch device_name: {device}")
+        self.verbose = verbose
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name, return_dict=True)
+        self.model.to(device)
+
+    def encode(self,
+               sent1: Union[str, List[str]],
+               sent2: Union[str, List[str]] = None,
+               batch_size: int = 128,
+               show_progress_bar: bool = True,
+               progress_bar_desc: str = "Computing embeddings") -> np.ndarray:
+        """
+        Encode a pair of sentences into a single BERT embeddings.
+
+        :param sent1: The first sentence or list of first sentences.
+        :param sent2: The second sentence or list of second sentences.
+        :return: A numpy array containing the BERT embeddings.
+        :rtype: np.ndarray
+        """
+        embs = []
+        self.model.eval()
+        with torch.no_grad():
+            inputs = self.tokenizer(sent1, sent2, return_tensors='pt', padding=True, truncation=True)
+            dataset = TensorDataset(*inputs.values())
+            loader = DataLoader(dataset, batch_size=batch_size)
+            for batch in tqdm(loader,
+                              desc=progress_bar_desc,
+                              disable=not show_progress_bar, leave=self.verbose):
+                batch_inputs = batch_to_device({k: v for k, v in zip(inputs.keys(), batch)}, self.model.device)
+                outputs = self.model(**batch_inputs)
+                embs.append(outputs.last_hidden_state[:, 0].cpu().data)
+
+        return torch.cat(embs).numpy()
 
 
 class KNNModel:

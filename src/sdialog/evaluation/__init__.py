@@ -9,7 +9,6 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-License-Identifier: MIT
 import os
 import re
-import torch
 import logging
 import syllables
 import numpy as np
@@ -26,17 +25,14 @@ from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
 from typing import Union, List, Dict, Tuple
-from transformers import AutoTokenizer, AutoModel
 from sentence_transformers import SentenceTransformer
-from torch.utils.data import DataLoader, TensorDataset
 from langchain_core.language_models.base import BaseLanguageModel
-from sentence_transformers.util import get_device_name, batch_to_device
 
 from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import KNNModel, softmax, dict_to_table, upper_camel_to_dash
+from ..util import SentencePairTransformer, KNNModel, softmax, dict_to_table, upper_camel_to_dash
 from .base import scores_cache, BaseMetric, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
 
@@ -614,8 +610,11 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
         return np.sqrt((mu_src - mu_tgt) ** 2 + (sigma_src - sigma_tgt) ** 2)
 
 
-# https://aclanthology.org/2021.findings-acl.193/
 class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
+    """
+    Frechet distance evaluator based on BERT embeddings.
+    See: https://aclanthology.org/2021.findings-acl.193/ where it was introduced
+    """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  name: str = None,
@@ -623,16 +622,12 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
                  batch_size: int = 128,
                  device: str = None,
                  verbose: bool = False):
-        if device is None:
-            device = get_device_name()
-            logger.info(f"Use pytorch device_name: {device}")
-        self.name = name or f"frechet-bert-{model_name.split('/')[-1]}"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name, return_dict=True)
-        self.batch_size = batch_size
         self.verbose = verbose
-
-        self.model.to(device)
+        self.name = name or f"frechet-bert-{model_name.split('/')[-1]}"
+        self.batch_size = batch_size
+        self.model = SentencePairTransformer(model_name=model_name,
+                                             device=device,
+                                             verbose=verbose)
 
         if isinstance(reference_dialogues, str):
             reference_dialogues = Dialog.from_file(reference_dialogues)
@@ -658,23 +653,9 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
             utts.extend(turns[:-1])
             utts_next.extend(turns[1:])
 
-        utts, utts_next
-
-        embs = []
-        self.model.eval()
-        with torch.no_grad():
-            # Tokenize all at once for efficiency
-            inputs = self.tokenizer(utts, utts_next, return_tensors='pt', padding=True, truncation=True)
-            dataset = TensorDataset(*inputs.values())
-            loader = DataLoader(dataset, batch_size=self.batch_size)
-
-            for batch in tqdm(loader,
-                              desc=f"Computing embeddings for FrechetBERT on {dataset_name}",
-                              leave=self.verbose):
-                batch_inputs = batch_to_device({k: v for k, v in zip(inputs.keys(), batch)}, self.model.device)
-                outputs = self.model(**batch_inputs)
-                embs.append(outputs.last_hidden_state[:, 0].cpu().data)
-        embs = torch.cat(embs).numpy()
+        embs = self.model.encode(utts, utts_next,
+                                 batch_size=self.batch_size,
+                                 progress_bar_desc=f"Computing embeddings for FrechetBERT on {dataset_name}")
 
         mu = np.mean(embs, axis=0)
         sigma = np.cov(embs, rowvar=False)
