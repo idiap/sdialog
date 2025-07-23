@@ -26,6 +26,7 @@ class STAR:
     Provides methods for loading dialogues, extracting scenarios, flowcharts, responses, and constructing
     Agent objects for simulation and evaluation.
     """
+
     _path = None
     _speakers = ["User", "Wizard"]
 
@@ -71,7 +72,6 @@ class STAR:
         :rtype: Union[str, dict]
         """
         with open(os.path.join(STAR._path, f"tasks/{task_name}/responses.json")) as reader:
-            responses = json.load(reader)
             responses = {key: re.sub(r"{(.+?)(?::\w+?)?}", lambda m: m.group(1).upper(), value)
                          for key, value in responses.items()
                          if key != "out_of_scope"}
@@ -98,16 +98,22 @@ class STAR:
         dialog = Dialog(
             id=id,
             scenario=dialog["Scenario"],
-            turns=[Turn(speaker=e["Agent"], text=e["Text"])
-                   for e in dialog["Events"]
-                   if e["Action"] in ["utter", "pick_suggestion"]],
-            events=[Event(agent=e["Agent"],
-                          action=e["Action"],
-                          actionLabel=e["ActionLabel"] if "ActionLabel" in e else None,
-                          text=e["Text"],
-                          timestamp=e["UnixTime"])
-                    for e in dialog["Events"]
-                    if "Text" in e]
+            turns=[
+                Turn(speaker=e["Agent"], text=e["Text"])
+                for e in dialog["Events"]
+                if e["Action"] in ["utter", "pick_suggestion"]
+            ],
+            events=[
+                Event(
+                    agent=e["Agent"],
+                    action=e["Action"],
+                    actionLabel=e["ActionLabel"] if "ActionLabel" in e else None,
+                    text=e["Text"],
+                    timestamp=e["UnixTime"],
+                )
+                for e in dialog["Events"]
+                if "Text" in e
+            ],
         )
         dialog._path = dialog_path
         return dialog
@@ -135,11 +141,15 @@ class STAR:
             dialog_id = int(os.path.splitext(fname)[0])
             scenario = STAR.get_dialog_scenario(dialog_id)
 
-            if (domain is None or domain in scenario["Domains"]) and \
-               (happy is None or scenario["Happy"] == happy) and \
-               (multitask is None or scenario["MultiTask"] == multitask) and \
-               (task_name is None or any(capability["Task"] == task_name
-                                         for capability in scenario["WizardCapabilities"])):
+            if (
+                (domain is None or domain in scenario["Domains"])
+                and (happy is None or scenario["Happy"] == happy)
+                and (multitask is None or scenario["MultiTask"] == multitask)
+                and (
+                    task_name is None
+                    or any(capability["Task"] == task_name for capability in scenario["WizardCapabilities"])
+                )
+            ):
                 dialogs.append(STAR.get_dialog(dialog_id))
         return dialogs
 
@@ -238,13 +248,16 @@ class STAR:
         :return: Mapping from turn index to instruction text.
         :rtype: dict
         """
+
         def get_user_n_turns_before(turn_ix, events):
-            return len([e for e in events[:turn_ix]
-                        if e["Agent"] == "User" and e["Action"] == "utter"])
+            return len([e for e in events[:turn_ix] if e["Agent"] == "User" and e["Action"] == "utter"])
+
         events = STAR.get_dialog_events(id)
-        return {get_user_n_turns_before(ix, events): e["Text"]
-                for ix, e in enumerate(events)
-                if e["Action"] == "instruct" and e["Agent"] == "UserGuide"}
+        return {
+            get_user_n_turns_before(ix, events): e["Text"]
+            for ix, e in enumerate(events)
+            if e["Action"] == "instruct" and e["Agent"] == "UserGuide"
+        }
 
     @staticmethod
     def get_dialog_graphs_and_responses(id):
@@ -273,7 +286,7 @@ class STAR:
         for task in scenario["WizardCapabilities"]:
             task_name = task["Task"]
             flowcharts += f"""
-The graph for the task '{task_name}' with domain '{task['Domain']}' is:
+The graph for the task '{task_name}' with domain '{task["Domain"]}' is:
 ```dot
 {STAR.read_graph(task_name)}
 ```
@@ -282,26 +295,39 @@ and one example responses for each node is provided in the following json:
 {STAR.read_graph_responses(task_name)}
 ```
 
+# flake8: noqa: E501
+
 ---
 """
         # Finally, let's return the scenario object and natural language description for it.
-        return f"""The conversation is between a User and a AI assistant in the following domains: {', '.join(scenario['Domains'])}.
+        return f"""The conversation is between a User and a AI assistant in the following domains: {
+            ", ".join(scenario["Domains"])
+        }.
 
-The User instructions are: {scenario['UserTask']}
-The AI assistant instructions are: {scenario['WizardTask']}
+The User instructions are: {scenario["UserTask"]}
+The AI assistant instructions are: {scenario["WizardTask"]}
 
-In addition, the AI assistant is instructed to follow specific flowcharts to address the tasks. Flowcharts are defined as graph described using DOT.
+In addition, the AI assistant is instructed to follow specific flowcharts to address the tasks.
+Flowcharts are defined as graph described using DOT.
 The actual DOT for the current tasks are:
 {flowcharts}
 
 Finally, the following should be considered regarding the conversation:
-   1. {"The conversation follows the 'happy path', meaning the conversations goes according to what it is described in the flowcharts"
-       if scenario['Happy'] else
-       "The conversation does NOT follow a 'happy path', meaning something happend to the user to change its mind or something happend "
-       "in the environment for the conversation to not flow as expected, as described in the flowchart"}.
-   2. {"The user is calling to perform multiple tasks, involving all the tasks defined as flowcharts above (" + ', '.join(task['Task'] for task in scenario['WizardCapabilities']) + ")"
-        if scenario['MultiTask'] else
-        "The user is calling to perform only the defined task (" + scenario['WizardCapabilities'][0]['Task'] + "), nothing else"}.
+   1. {
+            "The conversation follows the 'happy path', ] meaning the conversations goes according to what it is described in the flowcharts"
+            if scenario["Happy"]
+            else "The conversation does NOT follow a 'happy path', meaning something happend to the user to change its mind or something happend "
+            "in the environment for the conversation to not flow as expected, as described in the flowchart"
+        }.
+   2. {
+            "The user is calling to perform multiple tasks, involving all the tasks defined as flowcharts above ("
+            + ", ".join(task["Task"] for task in scenario["WizardCapabilities"])
+            + ")"
+            if scenario["MultiTask"]
+            else "The user is calling to perform only the defined task ("
+            + scenario["WizardCapabilities"][0]["Task"]
+            + "), nothing else"
+        }.
 """  # noqa: E501
 
     @staticmethod
@@ -329,17 +355,25 @@ Finally, the following should be considered regarding the conversation:
         """
         dialogue_details = f"""
 The following should be considered regarding the conversation:
-   1. {"The conversation follows a 'happy path', meaning the conversations goes smoothly without any unexpected behavior"
-       if scenario['Happy'] else
-       "The conversation does NOT follow a 'happy path', meaning you have to simulate something happend in the middle of the conversation, "
-       "perhaps you changed your mind at some point or something external happend in the environment for the conversation to not flow as expected"}.
-   2. {"The conversation involves multiple tasks, that is, you want the assistant to perform multiple tasks (" + ', '.join(task['Task'] for task in scenario['WizardCapabilities']) + "), not just one."
-        if scenario['MultiTask'] else
-        "The conversation involves only one task you were instructed to (" + scenario['WizardCapabilities'][0]['Task'] + "), nothing else"}"""  # noqa: E501
+   1. {
+            "The conversation follows a 'happy path', meaning the conversations goes smoothly without any unexpected behavior"
+            if scenario["Happy"]
+            else "The conversation does NOT follow a 'happy path', meaning you have to simulate something happend in the middle of the conversation, "
+            "perhaps you changed your mind at some point or something external happend in the environment for the conversation to not flow as expected"
+        }.
+   2. {
+            "The conversation involves multiple tasks, that is, you want the assistant to perform multiple tasks ("
+            + ", ".join(task["Task"] for task in scenario["WizardCapabilities"])
+            + "), not just one."
+            if scenario["MultiTask"]
+            else "The conversation involves only one task you were instructed to ("
+            + scenario["WizardCapabilities"][0]["Task"]
+            + "), nothing else"
+        }"""  # noqa: E501
 
         return Persona(
             role="user calling a AI assistant that can perform multiple tasks in the following domains: "
-                 f"{', '.join(scenario['Domains'])}.\n" + dialogue_details,
+            f"{', '.join(scenario['Domains'])}.\n" + dialogue_details,
             circumstances=scenario["UserTask"],
         )
 
@@ -357,9 +391,9 @@ The following should be considered regarding the conversation:
         for task in scenario["WizardCapabilities"]:
             task_name = task["Task"]
             flowcharts += f"""
-## {task_name} ({task['Domain']})
+## {task_name} ({task["Domain"]})
 
-The flowchart described as an action transition graph for the task '{task_name}' with domain '{task['Domain']}' is:
+The flowchart described as an action transition graph for the task '{task_name}' with domain '{task["Domain"]}' is:
 ```dot
 {STAR.read_graph(task_name)}
 ```
@@ -387,7 +421,7 @@ The actual DOT for the current tasks are:
 """  # noqa: E501
         return Persona(
             role="AI assistant.\n" + dialogue_details,
-            circumstances=scenario['WizardTask'],
+            circumstances=scenario["WizardTask"],
         )
 
     @staticmethod
@@ -402,12 +436,9 @@ The actual DOT for the current tasks are:
         :return: (system, user) agents.
         :rtype: Tuple[Agent, Agent]
         """
-        user = Agent(STAR.get_user_persona_for_scenario(scenario),
-                     name="User",
-                     can_finish=True)
+        user = Agent(STAR.get_user_persona_for_scenario(scenario), name="User", can_finish=True)
 
-        system = Agent(STAR.get_system_persona_for_scenario(scenario),
-                       name="System")
+        system = Agent(STAR.get_system_persona_for_scenario(scenario), name="System")
 
         return system, user
 
@@ -455,9 +486,6 @@ The actual DOT for the current tasks are:
 
         graphs, responses = STAR.get_dialog_graphs_and_responses(id)
         response_action_orchestrator = SimpleResponseOrchestrator(responses[0], graph=graphs[0])
-        instr_list_orchestrator = InstructionListOrchestrator(
-            STAR.get_dialog_user_instructions(id),
-            persistent=True
-        )
+        instr_list_orchestrator = InstructionListOrchestrator(STAR.get_dialog_user_instructions(id), persistent=True)
 
         return system | response_action_orchestrator, user | instr_list_orchestrator

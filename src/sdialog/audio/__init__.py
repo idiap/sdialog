@@ -1,6 +1,7 @@
 """
 This module provides functionality to generate audio from text utterances in a dialog.
 """
+
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
@@ -32,9 +33,8 @@ def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
 
 
 def generate_utterances_audios(
-        dialog: AudioDialog,
-        voice_database: BaseVoiceDatabase,
-        tts_pipeline: BaseTTS) -> AudioDialog:
+    dialog: AudioDialog, voice_database: BaseVoiceDatabase, tts_pipeline: BaseTTS
+) -> AudioDialog:
     """
     Generates audio for each utterance in a Dialog object.
 
@@ -48,27 +48,19 @@ def generate_utterances_audios(
 
     for turn in dialog.turns:
         turn_voice = _get_persona_voice(dialog, turn)["identifier"]
-        utterance_audio = generate_utterance(
-            remove_audio_tags(turn.text),
-            turn_voice,
-            tts_pipeline=tts_pipeline
-        )
+        utterance_audio = generate_utterance(remove_audio_tags(turn.text), turn_voice, tts_pipeline=tts_pipeline)
         turn.set_audio(utterance_audio)
         turn.voice = turn_voice
 
     return dialog
 
 
-def match_voice_to_persona(
-        dialog: AudioDialog,
-        voice_database: BaseVoiceDatabase) -> AudioDialog:
+def match_voice_to_persona(dialog: AudioDialog, voice_database: BaseVoiceDatabase) -> AudioDialog:
     """
     Matches a voice to a persona.
     """
     for speaker, persona in dialog.personas.items():
-        persona["_metadata"]["voice"] = voice_database.get_voice(
-            genre=persona["gender"], age=persona["age"]
-        )
+        persona["_metadata"]["voice"] = voice_database.get_voice(genre=persona["gender"], age=persona["age"])
     return dialog
 
 
@@ -91,13 +83,9 @@ def generate_word_alignments(dialog: AudioDialog) -> AudioDialog:
     Generates word alignments for each utterance in a Dialog object.
     """
     for turn in dialog.turns:
-        result = whisper_model.transcribe(
-            turn.get_audio(),
-            word_timestamps=True,
-            fp16=False
-        )
-        turn.alignment = result['segments'][0]['words']
-        turn.transcript = result['text']
+        result = whisper_model.transcribe(turn.get_audio(), word_timestamps=True, fp16=False)
+        turn.alignment = result["segments"][0]["words"]
+        turn.transcript = result["text"]
 
     return dialog
 
@@ -119,11 +107,7 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str, sampling_rate: i
         turn.audio_start_time = current_time
         current_time += turn.audio_duration
 
-        sf.write(
-            turn.audio_path,
-            turn.get_audio(),
-            sampling_rate
-        )
+        sf.write(turn.audio_path, turn.get_audio(), sampling_rate)
 
     return dialog
 
@@ -134,11 +118,8 @@ def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) ->
     """
 
     for turn in dialog.turns:
-
         metadata = DscaperAudio(
-            library=f"dialog_{dialog.id}",
-            label=turn.speaker,
-            filename=os.path.basename(turn.audio_path)
+            library=f"dialog_{dialog.id}", label=turn.speaker, filename=os.path.basename(turn.audio_path)
         )
 
         resp = _dscaper.store_audio(turn.audio_path, metadata)
@@ -152,9 +133,8 @@ def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) ->
 
 
 def generate_dscaper_timeline(
-        dialog: AudioDialog,
-        _dscaper: scaper.Dscaper,
-        sampling_rate: int = 24_000) -> AudioDialog:
+    dialog: AudioDialog, _dscaper: scaper.Dscaper, sampling_rate: int = 24_000
+) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
 
@@ -172,17 +152,13 @@ def generate_dscaper_timeline(
 
     # Create the timeline
     timeline_metadata = DscaperTimeline(
-        name=timeline_name,
-        duration=total_duration,
-        description=f"Timeline for dialog {dialog.id}"
+        name=timeline_name, duration=total_duration, description=f"Timeline for dialog {dialog.id}"
     )
     _dscaper.create_timeline(timeline_metadata)
 
     # Add the background to the timeline
     background_metadata = DscaperBackground(
-        library="background",
-        label=["const", "ac_noise"],
-        source_file=["choose", "[]"]
+        library="background", label=["const", "ac_noise"], source_file=["choose", "[]"]
     )
     _dscaper.add_background(timeline_name, background_metadata)
 
@@ -196,7 +172,7 @@ def generate_dscaper_timeline(
         event_duration=["const", "0.1"],
         position="at_desk_sitting",
         speaker="foreground",
-        text="foreground"
+        text="foreground",
     )
     _dscaper.add_event(timeline_name, foreground_metadata)
 
@@ -207,13 +183,13 @@ def generate_dscaper_timeline(
         default_position = "at_desk_sitting" if turn.speaker == "DOCTOR" else "next_to_desk_sitting"
         _event_metadata = DscaperEvent(
             library=timeline_name,
-            label=['const', turn.speaker],
-            source_file=['const', os.path.basename(turn.audio_path)],
-            event_time=['const', str(f"{turn.audio_start_time:.1f}")],
-            event_duration=['const', str(f"{turn.audio_duration:.1f}")],
+            label=["const", turn.speaker],
+            source_file=["const", os.path.basename(turn.audio_path)],
+            event_time=["const", str(f"{turn.audio_start_time:.1f}")],
+            event_duration=["const", str(f"{turn.audio_duration:.1f}")],
             speaker=turn.speaker,
             text=turn.text,
-            position=turn.position if turn.position else default_position
+            position=turn.position if turn.position else default_position,
             # TODO: Add the microphone position
         )
         _dscaper.add_event(timeline_name, _event_metadata)
@@ -222,13 +198,7 @@ def generate_dscaper_timeline(
     # Generate the timeline
     resp = _dscaper.generate_timeline(
         timeline_name,
-        DscaperGenerate(
-            seed=0,
-            save_isolated_positions=True,
-            ref_db=-20,
-            reverb=0,
-            save_isolated_events=False
-        )
+        DscaperGenerate(seed=0, save_isolated_positions=True, ref_db=-20, reverb=0, save_isolated_events=False),
     )
 
     # Check if the timeline was generated successfully
@@ -245,4 +215,16 @@ def generate_audio_room_accoustic(dialog: AudioDialog) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
+    # We need to have a list of sources that are going to be put into room space
+    #
+    # from room_acoustics_simulator import RoomAcousticsSimulator
+    # RoomAcousticsSimulator room_acoustics(dialog.room)
+    # sources = dialog._audio_source #:List[AudioSource]
+    # room_acoustics.add_sources(sources)
+    # room_acoustics.add_microphone( .. )
+    # audio = room_acoustics.simulate()
+    # audio_output_filepath = os.join('audio_dir_path', 'audiopipeline_step3.wav')
+    # dialog._audio_filepath = audio_output_filepath
+    # sf.wavwrite(audio_output_filepath, audio, 16000)
+
     return dialog

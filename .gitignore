@@ -1,6 +1,12 @@
-dist
-*.egg-info
+
 .*
 __*__
-*.wav
+
 dscaper_data/
+
+#audio files
+*.wav
+*.mp3
+*.mp4
+*.flac
+*.ogg
