@@ -16,7 +16,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from tqdm.auto import tqdm
-from jinja2 import Template
 from scipy.stats import norm
 from math import exp, log, sqrt
 from sklearn.manifold import TSNE
@@ -26,18 +25,17 @@ from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
 from sentence_transformers import SentenceTransformer
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import CacheDialogScore, KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
+from ..util import KNNModel, softmax, dict_to_table, upper_camel_to_dash
+from .base import scores_cache, BaseMetric, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
+from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
 
 logger = logging.getLogger(__name__)
-
-scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -104,264 +102,6 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     yes: Union[bool, List[bool]]
     feedback: Optional[Union[str, List[str]]] = None
-
-
-class BaseMetric(ABC):
-    """
-    Base class for metrics.
-    """
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def compute(self, input: Union[Dialog, List[Dialog]]) -> Union[dict, float]:
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseDialogEmbedder(ABC):
-    """
-    Base class for dialog embedding models.
-    """
-    def __init__(self, name: Optional[str] = None):
-        """
-        Initialize the dialog embedder with a name.
-        :param name: Name of the dialog embedder.
-        """
-        self.name = name
-
-    def __call__(self, dialog: Dialog) -> np.ndarray:
-        """
-        Embed a dialog into a vector representation.
-
-        :param dialog: The dialog to embed.
-        :return: A numpy array representing the embedded dialog.
-        """
-        return self.embed(dialog)
-
-    @abstractmethod
-    def embed(self, dialog: Dialog) -> np.ndarray:
-        """
-        Embed a dialog into a vector representation.
-
-        :param dialog: The dialog to embed.
-        :return: A numpy array representing the embedded dialog.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseDialogScore(ABC):
-    def __init__(self, name: Optional[str] = None):
-        """
-        Initialize the dialog score with a name.
-        :param name: Name of the dialog score.
-        """
-        self.name = name
-
-    def __call__(self, dialog: Dialog):
-        """
-        Computes the score for the provided dialog.
-
-        :param dialog: The dialog to score.
-        :return: A float representing the score of the dialog.
-        """
-        return self.score(dialog)
-
-    @abstractmethod
-    def score(self, dialog: Dialog) -> float:
-        """
-        Computes the score for the provided dialog.
-
-        :param dialog: The dialog to score.
-        :return: A float representing the score of the dialog.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseDatasetEvaluator(ABC):
-    """
-    Base class for dataset evaluators.
-    """
-    def __init__(self,
-                 dialog_score: BaseDialogScore,
-                 name: str = None,
-                 enable_plotting: bool = True,
-                 verbose: bool = False):
-        self.dialog_score = dialog_score
-        if not name:
-            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
-        else:
-            self.name = name
-        self.datasets_scores = {}
-        self.enable_plotting = enable_plotting
-        self.verbose = verbose
-
-    def __call__(self,
-                 dialogues: Union[str, List[Dialog]],
-                 dataset_name: str = None,
-                 return_scores: bool = False) -> Union[dict, float]:
-        dataset_name = dataset_name or "candidate"
-        if dataset_name == "candidate":
-            desc = f"Computing {self.name} scores for candidate dataset"
-        else:
-            desc = f"Computing {self.name} scores for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        try:
-            scores = np.array([self.dialog_score(dialogue)
-                               for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
-        except KeyboardInterrupt:
-            logger.warning(
-                f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
-                f"with evaluator '{self.name}' will be saved to disk."
-            )
-            scores_cache.save()  # Save the cache to disk after scoring
-            raise KeyboardInterrupt
-        scores_cache.save()
-
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
-        results = self.eval(scores)
-        return (results, scores) if return_scores else results
-
-    @abstractmethod
-    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
-        """
-        Plot the scores of the datasets.
-        :param dialog_scores: A dictionary with dataset names as keys and scores as values.
-        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-    def clear_history(self):
-        self.datasets_scores.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None):
-        if not self.enable_plotting or not self.datasets_scores:
-            return
-
-        # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        self.__plot__(self.datasets_scores, plot=plt)
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
-
-    @abstractmethod
-    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseDatasetEmbeddingEvaluator(ABC):
-    """
-    Base class for dataset evaluators.
-    """
-    def __init__(self,
-                 dialog_embedder: BaseDialogEmbedder,
-                 name: str = None,
-                 enable_plotting: bool = True,
-                 verbose: bool = False):
-        self.dialog_embedder = dialog_embedder
-        if not name:
-            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "")
-        else:
-            self.name = name
-        self.datasets_embs = {}
-        self.enable_plotting = enable_plotting
-        self.verbose = verbose
-
-    def __call__(self,
-                 dialogues: Union[str, List[Dialog]],
-                 dataset_name: str = None,
-                 return_embs: bool = False) -> Union[dict, float]:
-        dataset_name = dataset_name or "candidate"
-        if dataset_name == "candidate":
-            desc = f"Computing {self.name} embeddings for candidate dataset"
-        else:
-            desc = f"Computing {self.name} embeddings for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        embs = np.array([self.dialog_embedder(dialogue)
-                         for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
-
-        if self.enable_plotting:
-            self.datasets_embs[dataset_name] = embs  # Store the embeddings for later use
-        results = self.eval(embs)
-        return (results, embs) if return_embs else results
-
-    def clear_history(self):
-        self.datasets_embs.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None):
-        if not self.enable_plotting or not self.datasets_embs:
-            return
-
-        # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        self.__plot__(self.datasets_embs, plot=plt)
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
-
-    @abstractmethod
-    def __plot__(self, dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]):
-        """
-        Plot the embeddings of the datasets.
-        :param dialog_embs: A dictionary with dataset names as keys and embeddings as values.
-        :param tsne_model: The t-SNE model used for dimensionality reduction.
-        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-    @abstractmethod
-    def eval(self, dialog_embs: List[np.ndarray]) -> Union[dict, float]:
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseLLMJudge(ABC):
-    """
-    Base class for LLM judges.
-    """
-    def __init__(self,
-                 model: Union[BaseLanguageModel, str] = None,
-                 prompt_template: str = "",
-                 output_format: Union[dict, BaseModel] = None,
-                 **llm_kwargs):
-        if model is None:
-            model = config["llm"]["model"]
-
-        # Collect LLM parameters from config, only if not None
-        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-        llm_kwargs = {**llm_config_params, **llm_kwargs}
-
-        self.output_format = output_format
-        self.prompt_template = Template(prompt_template)
-
-        self.llm = get_llm_model(model_name=model,
-                                 output_format=self.output_format,
-                                 **llm_kwargs)
-
-        with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
-            self.messages = [SystemMessage(f.read()), HumanMessage("")]
-
-    def __call__(self, prompt: str) -> Union[dict, BaseModel]:
-        self.messages[1].content = prompt
-        return self.llm.invoke(self.messages)
-
-    @abstractmethod
-    def judge(self, dialogs: Union[Dialog, List[Dialog]]) -> dict:
-        """
-        Judge the dialogs using the LLM.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-    def prompt(self, system: bool = False) -> str:
-        """
-        Returns the prompt template used by the LLM judge.
-        """
-        return self.messages[0].content if system else self.messages[1].content
 
 
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
@@ -708,7 +448,6 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                         alpha=0.15 if label == "reference" else 0.7,
                         color="black" if label == "reference" else colors[i % len(colors)])
         for label in ["reference"] + list(dialog_embs.keys()):
-            # if "centroid-" in label and label == "centroid-reference":
             idx = all_labels == f"centroid-{label}"
             plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
                         label="Reference centroid" if label == "reference" else None,
@@ -742,7 +481,7 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         return float(dot / (norm_ref * norm_cand))
 
 
-class KDEDivergenceEvaluator(BaseDatasetEvaluator):
+class KDEDivergenceEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
@@ -773,7 +512,7 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         if "reference" not in dialog_scores and self.reference_scores is not None:
-            pd.Series(self.reference_scores, name="reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
+            pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
             pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
         plot.xlabel(self.dialog_score.name)
@@ -793,7 +532,7 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
         return result
 
 
-class FrechetDistanceEvaluator(BaseDatasetEvaluator):
+class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
@@ -819,7 +558,7 @@ class FrechetDistanceEvaluator(BaseDatasetEvaluator):
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         if "reference" not in dialog_scores and self.reference_norm_dist is not None:
             x = np.linspace(self.reference_norm_dist.ppf(0.001), self.reference_norm_dist.ppf(0.999), 100)
-            plot.plot(x, self.reference_norm_dist.pdf(x), color="grey", lw=3, label="reference")
+            plot.plot(x, self.reference_norm_dist.pdf(x), color="grey", lw=3, label="Reference")
         for dataset_name, scores in dialog_scores.items():
             x = np.linspace(np.min(scores), np.max(scores), 100)
             plot.plot(x, norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)), label=dataset_name)
@@ -837,7 +576,7 @@ class FrechetDistanceEvaluator(BaseDatasetEvaluator):
         return np.sqrt((mu1 - mu2) ** 2 + (sigma1 - sigma2) ** 2)
 
 
-class StatsEvaluator(BaseDatasetEvaluator):
+class StatsEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  name: str = None,
@@ -863,7 +602,7 @@ class StatsEvaluator(BaseDatasetEvaluator):
         }
 
 
-class FrequencyEvaluator(BaseDatasetEvaluator):
+class FrequencyEvaluator(BaseDatasetScoreEvaluator):
     """
     Evaluator for computing the frequency or percentage of dialogues matching a condition (e.g., refusal responses).
     """
@@ -894,7 +633,7 @@ class FrequencyEvaluator(BaseDatasetEvaluator):
         return percentage
 
 
-class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
+class LinguisticFeaturesDatasetEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self, features=None, name="linguistic_features", enable_plotting: bool = True):
         super().__init__(dialog_score=None, name=name, enable_plotting=enable_plotting)
         self.name = name
@@ -1157,7 +896,7 @@ class DatasetComparator:
         if not evaluators:
             raise ValueError("No evaluators provided for comparison.")
         for evaluator in evaluators:
-            if not isinstance(evaluator, (BaseDatasetEvaluator, BaseDatasetEmbeddingEvaluator)):
+            if not isinstance(evaluator, BaseDatasetEvaluator):
                 raise TypeError(f"Evaluator {evaluator} is not an instance of `BaseDatasetEvaluator`")
 
         self.evaluators = evaluators
