@@ -191,7 +191,7 @@ class AudioSource:
     _is_primary: Optional[bool] = False  # Primary speaker (doctor) vs secondary (patient)
 
     def __post_init__(self):
-        is_primary = self._determine_primary_status(self.name)
+        self._is_primary = self._determine_primary_status(self.name)
 
     @property
     def x(self) -> float:
@@ -211,7 +211,7 @@ class AudioSource:
         ) ** 0.5
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SoundSource":
+    def from_dict(cls, data: Dict[str, Any]) -> "AudioSource":
         """
         Create SoundSource from dictionary data.
         """
@@ -227,7 +227,6 @@ class AudioSource:
             snr=data.get("snr", 0.0),
             directivity=data.get("directivity", "omnidirectional"),
             source_file=data.get("source_file", ""),
-            _is_primary=data.get("is_primary", is_primary),  # Allow override
         )
 
     @staticmethod
