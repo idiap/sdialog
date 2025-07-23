@@ -21,8 +21,10 @@ class Position3D:
     y: float
     z: float
 
-    def __init__(self, position: List[float] = [0.0, 0.0, 0.0]):
-        self.from_list
+    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
+        self.x = x
+        self.y = y
+        self.z = z
 
     def __post_init__(self):
         if any(coord < 0 for coord in [self.x, self.y, self.z]):
@@ -80,7 +82,9 @@ class Dimensions3D:
         return [self.length, self.width, self.height]
 
     @classmethod
-    def from_volume(cls, volume: float, aspect_ratio: Tuple[float, float, float] = (1.5, 1.0, 0.3)):
+    def from_volume(
+        cls, volume: float, aspect_ratio: Tuple[float, float, float] = (1.5, 1.0, 0.3)
+    ):
         """Generate dimensions from volume using aspect ratio (width:length:height)"""
         if volume <= 0:
             raise ValueError("Volume must be positive")
@@ -88,7 +92,9 @@ class Dimensions3D:
         w_ratio, l_ratio, h_ratio = aspect_ratio
         scale = (volume / (w_ratio * l_ratio * h_ratio)) ** (1 / 3)
 
-        return cls(width=w_ratio * scale, length=l_ratio * scale, height=h_ratio * scale)
+        return cls(
+            width=w_ratio * scale, length=l_ratio * scale, height=h_ratio * scale
+        )
 
 
 class RoomRole(Enum):
@@ -195,25 +201,27 @@ class AudioSource:
 
     @property
     def x(self) -> float:
-        return self.position3d.x
+        return self._position3d.x
 
     @property
     def y(self) -> float:
-        return self.position3d.y
+        return self._position3d.y
 
     @property
     def z(self) -> float:
-        return self.position3d.z
+        return self._position3d.z
 
     def distance_to(self, other_position: Tuple[float, float, float]) -> float:
         return (
-            (self.x - other_position[0]) ** 2 + (self.y - other_position[1]) ** 2 + (self.z - other_position[2]) ** 2
+            (self.x - other_position[0]) ** 2
+            + (self.y - other_position[1]) ** 2
+            + (self.z - other_position[2]) ** 2
         ) ** 0.5
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AudioSource":
         """
-        Create SoundSource from dictionary data.
+        Create AudioSource from dictionary data.
         """
         if "name" not in data:
             raise ValueError("Missing required field 'name'")
@@ -275,8 +283,12 @@ class Room:
         self.name: str = f"{name}_{self.id}"
         self.description = description
         self.role: RoomRole = role if role is not None else RoomRole.CONSULTATION
-        self.dimensions: Dimensions3D = dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
-        self.walls_material: Optional[MaterialProperties] = None  # absorbion_coefficient
+        self.dimensions: Dimensions3D = (
+            dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
+        )
+        self.walls_material: Optional[MaterialProperties] = (
+            None  # absorbion_coefficient
+        )
         self.rt60: Optional[float] = rt60
         self.mic_type = mic_type
         self.mic_position = mic_position
@@ -306,7 +318,9 @@ class MaterialProperties:
     """Acoustic properties of materials"""
 
     material_type: Union[WallMaterial, FloorMaterial, str]
-    absorption_coefficients: Dict[int, float] = field(default_factory=dict)  # frequency -> coefficient
+    absorption_coefficients: Dict[int, float] = field(
+        default_factory=dict
+    )  # frequency -> coefficient
     scattering_coefficient: float = 0.1
 
     def __post_init__(self):
@@ -317,25 +331,112 @@ class MaterialProperties:
     def _get_default_absorption(self) -> Dict[int, float]:
         """Default absorption coefficients for common frequencies (Hz)"""
         defaults = {
-            WallMaterial.DRYWALL: {125: 0.05, 250: 0.06, 500: 0.08, 1000: 0.09, 2000: 0.10, 4000: 0.11},
-            WallMaterial.CONCRETE: {125: 0.02, 250: 0.02, 500: 0.03, 1000: 0.04, 2000: 0.05, 4000: 0.06},
-            WallMaterial.ACOUSTIC_TILE: {125: 0.20, 250: 0.40, 500: 0.65, 1000: 0.75, 2000: 0.80, 4000: 0.85},
-            WallMaterial.WOOD_PANEL: {125: 0.10, 250: 0.15, 500: 0.20, 1000: 0.25, 2000: 0.30, 4000: 0.35},
-            WallMaterial.GLASS: {125: 0.03, 250: 0.03, 500: 0.03, 1000: 0.04, 2000: 0.05, 4000: 0.05},
-            WallMaterial.METAL: {125: 0.02, 250: 0.02, 500: 0.03, 1000: 0.04, 2000: 0.05, 4000: 0.05},
-            FloorMaterial.CARPET: {125: 0.05, 250: 0.10, 500: 0.20, 1000: 0.30, 2000: 0.40, 4000: 0.50},
-            FloorMaterial.VINYL: {125: 0.02, 250: 0.03, 500: 0.03, 1000: 0.04, 2000: 0.04, 4000: 0.05},
-            FloorMaterial.CONCRETE: {125: 0.02, 250: 0.02, 500: 0.03, 1000: 0.04, 2000: 0.05, 4000: 0.06},
-            FloorMaterial.HARDWOOD: {125: 0.08, 250: 0.09, 500: 0.10, 1000: 0.11, 2000: 0.12, 4000: 0.13},
-            FloorMaterial.TILE: {125: 0.02, 250: 0.02, 500: 0.03, 1000: 0.03, 2000: 0.04, 4000: 0.05},
-            FloorMaterial.RUBBER: {125: 0.04, 250: 0.05, 500: 0.08, 1000: 0.12, 2000: 0.15, 4000: 0.18},
+            WallMaterial.DRYWALL: {
+                125: 0.05,
+                250: 0.06,
+                500: 0.08,
+                1000: 0.09,
+                2000: 0.10,
+                4000: 0.11,
+            },
+            WallMaterial.CONCRETE: {
+                125: 0.02,
+                250: 0.02,
+                500: 0.03,
+                1000: 0.04,
+                2000: 0.05,
+                4000: 0.06,
+            },
+            WallMaterial.ACOUSTIC_TILE: {
+                125: 0.20,
+                250: 0.40,
+                500: 0.65,
+                1000: 0.75,
+                2000: 0.80,
+                4000: 0.85,
+            },
+            WallMaterial.WOOD_PANEL: {
+                125: 0.10,
+                250: 0.15,
+                500: 0.20,
+                1000: 0.25,
+                2000: 0.30,
+                4000: 0.35,
+            },
+            WallMaterial.GLASS: {
+                125: 0.03,
+                250: 0.03,
+                500: 0.03,
+                1000: 0.04,
+                2000: 0.05,
+                4000: 0.05,
+            },
+            WallMaterial.METAL: {
+                125: 0.02,
+                250: 0.02,
+                500: 0.03,
+                1000: 0.04,
+                2000: 0.05,
+                4000: 0.05,
+            },
+            FloorMaterial.CARPET: {
+                125: 0.05,
+                250: 0.10,
+                500: 0.20,
+                1000: 0.30,
+                2000: 0.40,
+                4000: 0.50,
+            },
+            FloorMaterial.VINYL: {
+                125: 0.02,
+                250: 0.03,
+                500: 0.03,
+                1000: 0.04,
+                2000: 0.04,
+                4000: 0.05,
+            },
+            FloorMaterial.CONCRETE: {
+                125: 0.02,
+                250: 0.02,
+                500: 0.03,
+                1000: 0.04,
+                2000: 0.05,
+                4000: 0.06,
+            },
+            FloorMaterial.HARDWOOD: {
+                125: 0.08,
+                250: 0.09,
+                500: 0.10,
+                1000: 0.11,
+                2000: 0.12,
+                4000: 0.13,
+            },
+            FloorMaterial.TILE: {
+                125: 0.02,
+                250: 0.02,
+                500: 0.03,
+                1000: 0.03,
+                2000: 0.04,
+                4000: 0.05,
+            },
+            FloorMaterial.RUBBER: {
+                125: 0.04,
+                250: 0.05,
+                500: 0.08,
+                1000: 0.12,
+                2000: 0.15,
+                4000: 0.18,
+            },
         }
 
         if isinstance(self.material_type, str):
             # Return generic values for custom materials
             return {125: 0.05, 250: 0.06, 500: 0.08, 1000: 0.09, 2000: 0.10, 4000: 0.11}
 
-        return defaults.get(self.material_type, {125: 0.05, 250: 0.06, 500: 0.08, 1000: 0.09, 2000: 0.10, 4000: 0.11})
+        return defaults.get(
+            self.material_type,
+            {125: 0.05, 250: 0.06, 500: 0.08, 1000: 0.09, 2000: 0.10, 4000: 0.11},
+        )
 
 
 class FurnitureType(Enum):
@@ -385,10 +486,26 @@ class RecordingDeviceSpec:
     def __post_init__(self):
         # Set default values based on device type
         device_defaults = {
-            RecordingDevice.SMARTPHONE: {"sensitivity": -38.0, "snr": 50.0, "num_channels": 1},
-            RecordingDevice.WEBCAM: {"sensitivity": -42.0, "snr": 45.0, "num_channels": 1},
-            RecordingDevice.TABLET: {"sensitivity": -40.0, "snr": 48.0, "num_channels": 1},
-            RecordingDevice.HIGH_QUALITY_MIC: {"sensitivity": -35.0, "snr": 70.0, "num_channels": 1},
+            RecordingDevice.SMARTPHONE: {
+                "sensitivity": -38.0,
+                "snr": 50.0,
+                "num_channels": 1,
+            },
+            RecordingDevice.WEBCAM: {
+                "sensitivity": -42.0,
+                "snr": 45.0,
+                "num_channels": 1,
+            },
+            RecordingDevice.TABLET: {
+                "sensitivity": -40.0,
+                "snr": 48.0,
+                "num_channels": 1,
+            },
+            RecordingDevice.HIGH_QUALITY_MIC: {
+                "sensitivity": -35.0,
+                "snr": 70.0,
+                "num_channels": 1,
+            },
             RecordingDevice.BEAMFORMING_MIC: {
                 "sensitivity": -40.0,
                 "snr": 65.0,
@@ -413,6 +530,8 @@ class RecordingDeviceSpec:
             defaults = device_defaults[self.device_type]
             for key, value in defaults.items():
                 # Only update if still at default value
-                value = getattr(RecordingDeviceSpec.__dataclass_fields__[key], "default", None)
+                value = getattr(
+                    RecordingDeviceSpec.__dataclass_fields__[key], "default", None
+                )
                 if hasattr(self, key) and getattr(self, key) == value:
                     setattr(self, key, value)
