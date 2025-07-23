@@ -47,3 +47,6 @@ pythonpath = "src/"
 addopts = [
     "--import-mode=importlib",
 ]
+
+[tool.flake8]
+max-line-length = 120
