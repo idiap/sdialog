@@ -121,7 +121,7 @@ def get_cluster_label(utterances, llm_model_name):
         {"role": "user", "content": ("Give the following list of utterance provide a single canonical "
                                      "name that represent all of them:\n{utts}").replace(
                                          "{utts}",
-                                         "\n".join(f"{ix+1}. {utt}" for ix, utt in enumerate(utterances)))},
+                                         "\n".join(f"{ix + 1}. {utt}" for ix, utt in enumerate(utterances)))},
         {"role": "assistant", "content": 'Canonical form is: "'}
     ]
     response = get_openai_response(gpt_client,
