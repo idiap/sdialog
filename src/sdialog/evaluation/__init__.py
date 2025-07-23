@@ -9,23 +9,28 @@ including LLM judges, metrics, and similarity scores.
 # SPDX-License-Identifier: MIT
 import os
 import re
+import torch
 import logging
 import syllables
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from scipy import linalg
 from tqdm.auto import tqdm
 from scipy.stats import norm
 from math import exp, log, sqrt
 from sklearn.manifold import TSNE
 from abc import ABC, abstractmethod
-from typing import Union, List, Dict
 from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
+from typing import Union, List, Dict, Tuple
+from transformers import AutoTokenizer, AutoModel
 from sentence_transformers import SentenceTransformer
+from torch.utils.data import DataLoader, TensorDataset
 from langchain_core.language_models.base import BaseLanguageModel
+from sentence_transformers.util import get_device_name, batch_to_device
 
 from .. import Dialog
 from ..personas import BasePersona
@@ -94,6 +99,35 @@ def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     p2_vals = np.clip(p2_vals, eps, None)
 
     return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
+
+
+def frechet_distance(mu_src, sigma_src, mu_tgt, sigma_tgt):
+    """
+    Compute the Frechet distance (a.k.a. Fréchet Inception Distance, FID) between two multivariate Gaussians.
+    See: https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance#Application_in_machine_learning
+
+    :param mu_src: Mean vector of the source distribution (np.ndarray, shape [d])
+    :param sigma_src: Covariance matrix of the source distribution (np.ndarray, shape [d, d])
+    :param mu_tgt: Mean vector of the target distribution (np.ndarray, shape [d])
+    :param sigma_tgt: Covariance matrix of the target distribution (np.ndarray, shape [d, d])
+    :return: The Frechet distance (float)
+    """
+    mu_src = np.atleast_1d(mu_src)
+    mu_tgt = np.atleast_1d(mu_tgt)
+    sigma_src = np.atleast_2d(sigma_src)
+    sigma_tgt = np.atleast_2d(sigma_tgt)
+
+    diff = mu_src - mu_tgt
+
+    covmean, _ = linalg.sqrtm(sigma_src.dot(sigma_tgt), disp=False)
+    if np.iscomplexobj(covmean):
+        if not np.allclose(np.imag(covmean), 0, atol=1e-6):
+            logger.warning("linalg.sqrtm returned complex values; taking real part of result.")
+        covmean = np.real(covmean)
+
+    tr_covmean = np.trace(covmean)
+    fid = float(diff.dot(diff) + np.trace(sigma_src) + np.trace(sigma_tgt) - 2 * tr_covmean)
+    return max(fid, 0.0)
 
 
 class LLMJudgeYesNoOutput(BaseModel):
@@ -499,6 +533,10 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
             else:
                 raise ValueError("Reference dialogues must be provided or "
                                  "the dialog_score must have a reference_dialogues attribute.")
+        elif isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        elif not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
 
         if metric != "all":
             self.name += f"-{metric}"
@@ -570,10 +608,81 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
         # Compute the Frechet distance between the reference normal distribution and the one from dialog_scores
         if not isinstance(dialog_scores, np.ndarray):
             dialog_scores = np.array(dialog_scores)
-        mu1, sigma1 = self.reference_norm_dist.mean(), self.reference_norm_dist.std()
-        mu2, sigma2 = np.mean(dialog_scores), np.std(dialog_scores)
-        # Frechet distance between two 1D Gaussians: sqrt((mu1-mu2)^2 + (sigma1-sigma2)^2)
-        return np.sqrt((mu1 - mu2) ** 2 + (sigma1 - sigma2) ** 2)
+        mu_src, sigma_src = self.reference_norm_dist.mean(), self.reference_norm_dist.std()
+        mu_tgt, sigma_tgt = np.mean(dialog_scores), np.std(dialog_scores)
+        # Frechet distance between two 1D Gaussians: sqrt((mu_src-mu_tgt)^2 + (sigma_src-sigma_tgt)^2)
+        return np.sqrt((mu_src - mu_tgt) ** 2 + (sigma_src - sigma_tgt) ** 2)
+
+
+# https://aclanthology.org/2021.findings-acl.193/
+class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 name: str = None,
+                 model_name: str = "roberta-base",
+                 batch_size: int = 128,
+                 device: str = None,
+                 verbose: bool = False):
+        if device is None:
+            device = get_device_name()
+            logger.info(f"Use pytorch device_name: {device}")
+        self.name = name or f"frechet-bert-{model_name.split('/')[-1]}"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name, return_dict=True)
+        self.batch_size = batch_size
+        self.verbose = verbose
+
+        self.model.to(device)
+
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.reference_mu, self.reference_sigma = self._get_multidim_gaussian_mu_sigma(reference_dialogues)
+
+    def _get_multidim_gaussian_mu_sigma(self,
+                                        dialogs: List[Dialog],
+                                        dataset_name: str = "reference") -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute the mean and covariance matrix of a set of embeddings.
+
+        :param embeddings: A 2D numpy array of shape (n_samples, n_features).
+        :param dataset_name: Name of the dataset for logging.
+        :return: A tuple (mean, covariance_matrix).
+        """
+        utts = []
+        utts_next = []
+        for dialog in dialogs:
+            turns = [t.text for t in dialog.turns]
+            utts.extend(turns[:-1])
+            utts_next.extend(turns[1:])
+
+        utts, utts_next
+
+        embs = []
+        self.model.eval()
+        with torch.no_grad():
+            # Tokenize all at once for efficiency
+            inputs = self.tokenizer(utts, utts_next, return_tensors='pt', padding=True, truncation=True)
+            dataset = TensorDataset(*inputs.values())
+            loader = DataLoader(dataset, batch_size=self.batch_size)
+
+            for batch in tqdm(loader,
+                              desc=f"Computing embeddings for FrechetBERT on {dataset_name}",
+                              leave=self.verbose):
+                batch_inputs = batch_to_device({k: v for k, v in zip(inputs.keys(), batch)}, self.model.device)
+                outputs = self.model(**batch_inputs)
+                embs.append(outputs.last_hidden_state[:, 0].cpu().data)
+        embs = torch.cat(embs).numpy()
+
+        mu = np.mean(embs, axis=0)
+        sigma = np.cov(embs, rowvar=False)
+        return mu, sigma
+
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = None) -> Union[dict, float]:
+        target_mu, target_sigma = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
+        return frechet_distance(self.reference_mu, self.reference_sigma, target_mu, target_sigma)
 
 
 class StatsEvaluator(BaseDatasetScoreEvaluator):
@@ -945,6 +1054,7 @@ class DatasetComparator:
             return
 
         for evaluator in self.evaluators:
-            evaluator.plot(show=show,
-                           save_path=os.path.join(save_folder_path,
-                                                  f"{evaluator.name}.png") if save_folder_path else None)
+            if hasattr(evaluator, "plot"):
+                evaluator.plot(show=show,
+                               save_path=os.path.join(save_folder_path,
+                                                      f"{evaluator.name}.png") if save_folder_path else None)
