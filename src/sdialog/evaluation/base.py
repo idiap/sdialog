@@ -68,12 +68,16 @@ class BaseDialogEmbedder(ABC):
 
 
 class BaseDialogScore(ABC):
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, ai_speaker: str = None):
         """
         Initialize the dialog score with a name.
+
         :param name: Name of the dialog score.
+        :param ai_speaker: If specified, the score will only consider the AI responses.
+                           This is useful when we want to study only the AI responses quality.
         """
         self.name = name
+        self.ai_speaker = ai_speaker
 
     def __call__(self, dialog: Dialog):
         """
