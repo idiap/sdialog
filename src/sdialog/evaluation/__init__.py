@@ -181,13 +181,18 @@ class BaseDatasetEvaluator(ABC):
     """
     Base class for dataset evaluators.
     """
-    def __init__(self, dialog_score: BaseDialogScore, name: str = None, verbose: bool = False):
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
         self.dialog_score = dialog_score
         if not name:
             self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
         else:
             self.name = name
         self.datasets_scores = {}
+        self.enable_plotting = enable_plotting
         self.verbose = verbose
 
     def __call__(self,
@@ -231,7 +236,7 @@ class BaseDatasetEvaluator(ABC):
     def plot(self,
              show: bool = True,
              save_path: str = None):
-        if not self.datasets_scores:
+        if not self.enable_plotting or not self.datasets_scores:
             return
 
         # Plot box plots for each dataset
@@ -254,7 +259,7 @@ class BaseDatasetEmbeddingEvaluator(ABC):
     def __init__(self,
                  dialog_embedder: BaseDialogEmbedder,
                  name: str = None,
-                 keep_history: bool = True,
+                 enable_plotting: bool = True,
                  verbose: bool = False):
         self.dialog_embedder = dialog_embedder
         if not name:
@@ -262,7 +267,7 @@ class BaseDatasetEmbeddingEvaluator(ABC):
         else:
             self.name = name
         self.datasets_embs = {}
-        self.keep_history = keep_history
+        self.enable_plotting = enable_plotting
         self.verbose = verbose
 
     def __call__(self,
@@ -278,10 +283,27 @@ class BaseDatasetEmbeddingEvaluator(ABC):
         embs = np.array([self.dialog_embedder(dialogue)
                          for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
 
-        if self.keep_history:
+        if self.enable_plotting:
             self.datasets_embs[dataset_name] = embs  # Store the embeddings for later use
         results = self.eval(embs)
         return (results, embs) if return_embs else results
+
+    def clear_history(self):
+        self.datasets_embs.clear()
+
+    def plot(self,
+             show: bool = True,
+             save_path: str = None):
+        if not self.enable_plotting or not self.datasets_embs:
+            return
+
+        # Plot box plots for each dataset
+        plt.figure(figsize=(8, 5))
+        self.__plot__(self.datasets_embs, plot=plt)
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
 
     @abstractmethod
     def __plot__(self, dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]):
@@ -292,24 +314,6 @@ class BaseDatasetEmbeddingEvaluator(ABC):
         :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
         """
         raise NotImplementedError("Subclasses should implement this method.")
-
-    def clear_history(self):
-        self.datasets_embs.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None):
-        if not self.datasets_embs:
-            logger.warning("No datasets embeddings available to plot. Make sure `keep_history` is set to True.")
-            return
-
-        # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        self.__plot__(self.datasets_embs, plot=plt)
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
 
     @abstractmethod
     def eval(self, dialog_embs: List[np.ndarray]) -> Union[dict, float]:
@@ -626,8 +630,8 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
         :param mean: If True, embed as mean of turn embeddings; if False, embed whole dialog as a single string.
         :param name: Optional name for the embedder.
         """
-        mode_str = "mean" if mean else "whole"
-        super().__init__(name=name or f"st-{mode_str}-{model_name.split('/')[-1]}")
+        mode_str = "mean-" if mean else ""
+        super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}")
         self.model = SentenceTransformer(model_name)
         self.mean = mean
         self.verbose = verbose
@@ -656,10 +660,10 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                  dialog_embedder: BaseDialogEmbedder,
                  reference_dialogues: Union[str, List[Dialog]],
                  name: str = None,
-                 keep_history: bool = True,
+                 enable_plotting: bool = True,
                  verbose: bool = False):
         name = name or f"centroid-similarity-{dialog_embedder.name}"
-        super().__init__(dialog_embedder, name=name, keep_history=keep_history, verbose=verbose)
+        super().__init__(dialog_embedder, name=name, enable_plotting=enable_plotting, verbose=verbose)
         # Compute reference centroid
         if isinstance(reference_dialogues, str):
             reference_dialogues = Dialog.from_file(reference_dialogues)
@@ -667,6 +671,7 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                                    for dialog in tqdm(reference_dialogues,
                                                       desc="Computing reference embeddings",
                                                       leave=verbose)])
+        self.reference_embs = reference_embs if enable_plotting else None
         self.reference_centroid = np.mean(reference_embs, axis=0)
 
     def __plot__(self, dialog_embs: Dict[str, np.ndarray], plot: Optional[plt.Axes]):
@@ -678,10 +683,14 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         """
         # Concatenate all embeddings and keep track of dataset labels
         all_embs = [self.reference_centroid.reshape(1, -1)]
-        all_labels = ["reference"]
+        all_labels = ["centroid-reference"]
+        all_embs.append(self.reference_embs)
+        all_labels.extend(["reference"] * len(self.reference_embs))
         for dataset_name, embs in dialog_embs.items():
             all_embs.append(embs)
             all_labels.extend([dataset_name] * len(embs))
+            all_embs.append(np.mean(embs, axis=0).reshape(1, -1))
+            all_labels.append("centroid-" + dataset_name)
         all_embs = np.vstack(all_embs)
         all_labels = np.array(all_labels)
 
@@ -690,18 +699,28 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         tsne_embs = tsne.fit_transform(all_embs)
 
         # Plot
-        unique_labels = np.unique(all_labels)
+        unique_labels = [label for label in np.unique(all_labels).tolist() if "centroid-" not in label]
         colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
         for i, label in enumerate(unique_labels):
             idx = all_labels == label
-            if label == "reference":
-                plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
-                            label=label, alpha=0.7, color="black", s=100, marker="x")
-            else:
-                plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1], label=label, alpha=0.7, color=colors[i % len(colors)])
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                        label=label if label != "reference" else None,
+                        alpha=0.15 if label == "reference" else 0.7,
+                        color="black" if label == "reference" else colors[i % len(colors)])
+        for label in ["reference"] + list(dialog_embs.keys()):
+            # if "centroid-" in label and label == "centroid-reference":
+            idx = all_labels == f"centroid-{label}"
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                        label="Reference centroid" if label == "reference" else None,
+                        linewidths=3 if label == "reference" else 2,
+                        alpha=1,  # if label == "reference" else 0.7,
+                        color="black" if label == "reference" else colors[unique_labels.index(label) % len(colors)],
+                        s=100,
+                        marker="x")
+
         plt.xlabel("t-SNE 1")
         plt.ylabel("t-SNE 2")
-        plt.title(f"t-SNE visualization of dialog {self.name} embeddings")
+        plt.title(f"Dialog embeddings ({self.dialog_embedder.name}) with centroids")
         plt.legend()
 
     def eval(self, dialog_embs: List[np.ndarray]) -> float:
@@ -730,9 +749,10 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
                  metric: str = "all",
                  kde_bw: float = None,
                  name: str = None,
+                 enable_plotting: bool = True,
                  verbose: bool = False,
                  **evaluator_kwargs):
-        super().__init__(dialog_score, name=name, **evaluator_kwargs)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
 
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
@@ -778,9 +798,10 @@ class FrechetDistanceEvaluator(BaseDatasetEvaluator):
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
                  name: str = None,
+                 enable_plotting: bool = True,
                  verbose: bool = False,
                  **evaluator_kwargs):
-        super().__init__(dialog_score, name=name, **evaluator_kwargs)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
 
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
@@ -817,6 +838,13 @@ class FrechetDistanceEvaluator(BaseDatasetEvaluator):
 
 
 class StatsEvaluator(BaseDatasetEvaluator):
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Plot box plots for each dataset
         plot.title(f"Boxplot of {self.dialog_score.name} scores")
@@ -839,6 +867,13 @@ class FrequencyEvaluator(BaseDatasetEvaluator):
     """
     Evaluator for computing the frequency or percentage of dialogues matching a condition (e.g., refusal responses).
     """
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Bar plot for frequency/percentage
         percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
@@ -860,8 +895,8 @@ class FrequencyEvaluator(BaseDatasetEvaluator):
 
 
 class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
-    def __init__(self, features=None, name="linguistic_features"):
-        super().__init__()
+    def __init__(self, features=None, name="linguistic_features", enable_plotting: bool = True):
+        super().__init__(dialog_score=None, name=name, enable_plotting=enable_plotting)
         self.name = name
         self.features = features or [
             "mean_turn_length", "hesitation_rate", "gunning_fog", "flesch_reading_ease"
@@ -1167,7 +1202,8 @@ class DatasetComparator:
         Plot the results of the evaluators.
         """
         if not self.evaluators:
-            raise ValueError("No evaluators to plot.")
+            logger.info("No evaluators to plot.")
+            return
 
         for evaluator in self.evaluators:
             evaluator.plot(show=show,
