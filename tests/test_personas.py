@@ -1,7 +1,7 @@
-from sdialog.personas import Agent
-from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
-from sdialog.generators import LLMDialogOutput, Turn
 from sdialog import Dialog
+from sdialog.personas import Agent
+from sdialog.generators import LLMDialogOutput, Turn
+from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
 
 MODEL = "smollm:135m"
 example_dialog = Dialog(turns=[Turn(speaker="A", text="This is an example!"), Turn(speaker="B", text="Hi!")])
@@ -83,6 +83,16 @@ def test_persona_agent_dialog_with():
     assert len(dialog.turns) > 0
     assert "A" in dialog.personas
     assert "B" in dialog.personas
+
+
+def test_agent_postprocessing_fn():
+    persona1 = Persona(name="A")
+    persona2 = Persona(name="B")
+    agent1 = Agent(persona=persona1, name="A", model=DummyLLM())
+    agent2 = Agent(persona2, "B", DummyLLM(), postprocess_fn=lambda x: x.upper())
+    dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
+    assert dialog.turns[1].text.isupper(), "Postprocessing function did not apply correctly."
+    assert not dialog.turns[0].text.isupper(), "Postprocessing function should not have effect."
 
 
 def test_extended_persona_fields_and_description():

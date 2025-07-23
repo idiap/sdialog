@@ -1,9 +1,6 @@
 
-
 .*
 __*__
-*.wav
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -135,8 +132,8 @@ ehthumbs_vista.db
 Network Trash Folder
 Temporary Items
 .apdisk
-# Thumbnails
-._*
+  # Thumbnails
+  ._*
 
 # Linux
 .fuse_hidden*
@@ -146,3 +143,14 @@ Temporary Items
 
 # CMake
 cmake-build-*/
+
+
+dscaper_data/
+
+#audio files
+*.wav
+*.mp3
+*.mp4
+*.flac
+*.ogg
+

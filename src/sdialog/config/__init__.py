@@ -57,6 +57,39 @@ def set_llm_params(**params):
     config["llm"].update(params)
 
 
+def set_cache_enabled(enable):
+    """
+    Enable or disable caching.
+
+    :param enable: Whether to enable caching or not.
+    :type enable: bool
+    """
+    config["cache"]["enabled"] = enable
+
+
+def set_cache_path(path):
+    """
+    Set the path for the cache directory.
+
+    :param path: The new path for the cache directory.
+    :type path: str
+    """
+    config["cache"]["path"] = path
+
+
+def set_cache(path, enable=True):
+    """
+    Set the cache path and enable/disable caching.
+
+    :param path: The path to the cache directory.
+    :type path: str
+    :param enable: Whether to enable caching or not.
+    :type enable: bool
+    """
+    set_cache_path(path)
+    set_cache_enabled(enable)
+
+
 # Prompt setters for each prompt type in config.yaml
 def set_persona_dialog_generator_prompt(path):
     """

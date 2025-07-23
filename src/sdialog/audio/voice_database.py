@@ -49,6 +49,12 @@ class DummyVoiceDatabase(BaseVoiceDatabase):
     def __init__(self):
         BaseVoiceDatabase.__init__(self)
 
+    def get_data(self) -> dict:
+        """
+        Get the data of the voice database.
+        """
+        return self._data
+
     def populate(self) -> dict:
         """
         Populate the voice database.
@@ -62,14 +68,14 @@ class DummyVoiceDatabase(BaseVoiceDatabase):
             "am_onyx", "am_puck"
         ]
 
-        self._data = {
-            ("male", 52): [
+        males_voices = {
+            ("male", age): [
                 {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._mans
-            ],
-            ("male", 62): [
-                {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._mans
-            ],
-            ("female", 26): [
-                {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._womans
-            ]
+            ] for age in range(0, 150, 1)
         }
+        females_voices = {
+            ("female", age): [
+                {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._womans
+            ] for age in range(0, 150, 1)
+        }
+        self._data = {**males_voices, **females_voices}
