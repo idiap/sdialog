@@ -7,17 +7,19 @@ import matplotlib.pyplot as plt
 
 from tqdm.auto import tqdm
 from jinja2 import Template
+from typing import Optional
+from pydantic import BaseModel
 from sklearn.manifold import TSNE
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict
-from pydantic import BaseModel
-from typing import Optional
+from sentence_transformers import SentenceTransformer
 from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
 from ..config import config
-from ..util import CacheDialogScore, get_llm_model, upper_camel_to_dash
+from .dialog2flow import dialog2graph
 from langchain_core.messages import HumanMessage, SystemMessage
+from ..util import CacheDialogScore, KNNModel, get_llm_model, upper_camel_to_dash
 
 
 scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
@@ -95,6 +97,59 @@ class BaseDialogScore(ABC):
 
         :param dialog: The dialog to score.
         :return: A float representing the score of the dialog.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+
+class BaseDialogFlowScore(BaseDialogScore):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
+                 k_neighbors: int = 64,
+                 use_softmax: bool = True,
+                 name: str = None,
+                 verbose: bool = False,
+                 **d2f_kwargs):
+        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""), ai_speaker=ai_speaker)
+
+        d2f_kwargs = {"node_llm_labels_enabled": False,
+                      "out_png": False,
+                      #  "node_embedding_model": embedding_model,
+                      "verbose": verbose,
+                      **d2f_kwargs}
+
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
+        self.d2f_kwargs = d2f_kwargs  # for the key cache
+
+        self.reference_dialogues = reference_dialogues
+        self.use_softmax = use_softmax
+        self.only_system = bool(ai_speaker)
+        self.graph, self.nodes = dialog2graph(reference_dialogues,
+                                              system_speaker_name=ai_speaker,
+                                              **self.d2f_kwargs)
+        self.speakers = self.nodes["_metadata"]["speakers"]
+        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+        self.knn_models = {
+            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
+                             k=k_neighbors),
+            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
+                               k=k_neighbors)
+        }
+
+    @abstractmethod
+    def score(self, dialog: Dialog) -> float:
+        """
+        Computes the flow PPL score for the provided dialog.
+
+        :param dialog: The dialog to score.
+        :return: A float representing the flow PPL score of the dialog.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 

@@ -29,13 +29,13 @@ from sentence_transformers import SentenceTransformer
 from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
-from ..personas import BasePersona
 from ..config import config
-from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import SentencePairTransformer, KNNModel, softmax
+from ..personas import BasePersona
+from .dialog2flow import DEFAULT_TOKEN_START
+from ..util import SentencePairTransformer, softmax
 from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
-from .base import scores_cache, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
+from .base import scores_cache, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class LLMJudgeYesNoOutput(BaseModel):
     feedback: Optional[Union[str, List[str]]] = None
 
 
-class DialogFlowPPL(BaseDialogScore):
+class DialogFlowPPL(BaseDialogFlowScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  ai_speaker: str = None,
@@ -115,38 +115,15 @@ class DialogFlowPPL(BaseDialogScore):
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
-        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""), ai_speaker=ai_speaker)
-
-        d2f_kwargs = {"node_llm_labels_enabled": False,
-                      "out_png": False,
-                      #  "node_embedding_model": embedding_model,
-                      "verbose": verbose,
-                      **d2f_kwargs}
-
-        if isinstance(reference_dialogues, str):
-            reference_dialogues = Dialog.from_file(reference_dialogues)
-        if not reference_dialogues or not isinstance(reference_dialogues, list):
-            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
-
-        self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
-        self.d2f_kwargs = d2f_kwargs  # for the key cache
-
-        self.reference_dialogues = reference_dialogues
-        self.use_softmax = use_softmax
-        self.only_system = bool(ai_speaker)
-        self.graph, self.nodes = dialog2graph(reference_dialogues,
-                                              system_speaker_name=ai_speaker,
-                                              **self.d2f_kwargs)
-        self.speakers = self.nodes["_metadata"]["speakers"]
-        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
-        self.knn_models = {
-            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
-                             k=k_neighbors),
-            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                                for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
-                               k=k_neighbors)
-        }
+        super().__init__(
+            reference_dialogues,
+            ai_speaker=ai_speaker,
+            k_neighbors=k_neighbors,
+            use_softmax=use_softmax,
+            name=name if name else "fppl" + ("+sm" if use_softmax else ""),
+            verbose=verbose,
+            **d2f_kwargs
+        )
 
     @scores_cache.cache
     def score(self, dialog: Dialog) -> float:
@@ -174,7 +151,7 @@ class DialogFlowPPL(BaseDialogScore):
         return exp(-sum_log_p / sys_turns)
 
 
-class DialogFlowAppropriateness(DialogFlowPPL):
+class DialogFlowAppropriateness(BaseDialogFlowScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  ai_speaker: str = None,
