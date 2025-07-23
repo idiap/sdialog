@@ -35,8 +35,8 @@ Source = "https://github.com/idiap/sdialog"
 Documentation = "https://sdialog.readthedocs.io"
 
 [tool.setuptools.dynamic]
-version = { attr = "sdialog.__version__" }
-dependencies = { file = ["requirements.txt"] }
+version = {attr = "sdialog.__version__"}
+dependencies = {file = ["requirements.txt"]}
 
 
 [tool.setuptools.package-data]
