@@ -21,8 +21,10 @@ class Position3D:
     y: float
     z: float
 
-    def __init__(self, position: List[float] = [0.0, 0.0, 0.0]):
-        self.from_list
+    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
+        self.x = x
+        self.y = y
+        self.z = z
 
     def __post_init__(self):
         if any(coord < 0 for coord in [self.x, self.y, self.z]):
@@ -181,7 +183,6 @@ class FloorMaterial(Enum):
 @dataclass
 class AudioSource:
     """Represents an object, speaker that makes sounds in the room"""
-
     name: str = None
     position: str = None
     snr: float = 0.0  # dB SPL
@@ -195,15 +196,15 @@ class AudioSource:
 
     @property
     def x(self) -> float:
-        return self.position3d.x
+        return self._position3d.x
 
     @property
     def y(self) -> float:
-        return self.position3d.y
+        return self._position3d.y
 
     @property
     def z(self) -> float:
-        return self.position3d.z
+        return self._position3d.z
 
     def distance_to(self, other_position: Tuple[float, float, float]) -> float:
         return (
@@ -211,9 +212,9 @@ class AudioSource:
         ) ** 0.5
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SoundSource":
+    def from_dict(cls, data: Dict[str, Any]) -> "AudioSource":
         """
-        Create SoundSource from dictionary data.
+        Create AudioSource from dictionary data.
         """
         if "name" not in data:
             raise ValueError("Missing required field 'name'")
@@ -226,26 +227,17 @@ class AudioSource:
             position=data["position"],
             snr=data.get("snr", 0.0),
             directivity=data.get("directivity", "omnidirectional"),
-            source_file=data.get("source_file", ""),
-            _is_primary=data.get("is_primary", is_primary),  # Allow override
+            source_file=data.get("source_file", "")
         )
 
     @staticmethod
     def _determine_primary_status(name: str) -> bool:
         """Determine if a source is primary based on its name."""
         primary_names = [
-            "doctor",
-            "physician",
-            "main_speaker",
-            "speaker_a",
-            "primary",
-            "médecin",
-            "medecin",
-            "docteur",
-            "lekarz",
-            "doktor",
-            "lékař",
-        ]
+                "doctor", "physician", "main_speaker", "speaker_a","primary",
+                "médecin", "medecin", "docteur",
+                "lekarz", "doktor", "lékař",
+            ]
         return name.lower() in primary_names
 
 

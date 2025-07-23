@@ -28,6 +28,16 @@ ROOM_ASPECT_RATIOS = {
     32: (2.8, 1.0),    # 9.49 x 3.37m (long rectangular)
 }
 
+def calculate_room_dimensions(floor_area: float) -> Dimensions3D:
+    """Calculate room dimensions from floor area"""
+    if floor_area not in ROOM_ASPECT_RATIOS:
+        raise ValueError(f"Unsupported room size: {floor_area}m²")
+
+    w_ratio, l_ratio = ROOM_ASPECT_RATIOS[floor_area]
+    length = math.sqrt(floor_area / (w_ratio / l_ratio))
+    width = length * (w_ratio / l_ratio)
+
+    return Dimensions3D(width=width, length=length, height=3.0)
 
 class RoomGenerator:
     """
@@ -37,16 +47,6 @@ class RoomGenerator:
     def __init__(self):
         self.generated_rooms = {}
 
-    def calculate_room_dimensions(self, floor_area: float) -> Dimensions3D:
-        """Calculate room dimensions from floor area"""
-        if floor_area not in ROOM_ASPECT_RATIOS:
-            raise ValueError(f"Unsupported room size: {floor_area}m²")
-
-        w_ratio, l_ratio = ROOM_ASPECT_RATIOS[floor_area]
-        length = math.sqrt(floor_area / (w_ratio / l_ratio))
-        width = length * (w_ratio / l_ratio)
-
-        return Dimensions3D(width=width, length=length, height=3.0)
 
     def generate(self, room_type: RoomRole) -> Room:
         """
@@ -58,13 +58,13 @@ class RoomGenerator:
                 role=RoomRole.OFFICE,
                 name="RoomRole.OFFICE" + " room",
                 description="office",
-                dimensions=self.calculate_room_dimensions(ROOM_SIZES[4]),
+                dimensions=calculate_room_dimensions(ROOM_SIZES[4]),
                 rt60=0.3
             )
         return Room(role=RoomRole.CONSULTATION,
                     name="RoomRole.CONSULTATION" + " room",
                     description="consultation room",
-                    dimensions=self.calculate_room_dimensions(ROOM_SIZES[3]),
+                    dimensions=calculate_room_dimensions(ROOM_SIZES[3]),
                     rt60=0.5)
 
 
