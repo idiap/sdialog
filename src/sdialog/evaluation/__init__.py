@@ -481,7 +481,7 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         return float(dot / (norm_ref * norm_cand))
 
 
-class KDEDivergenceEvaluator(BaseDatasetScoreEvaluator):
+class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
