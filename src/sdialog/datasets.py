@@ -486,6 +486,9 @@ The actual DOT for the current tasks are:
 
         graphs, responses = STAR.get_dialog_graphs_and_responses(id)
         response_action_orchestrator = SimpleResponseOrchestrator(responses[0], graph=graphs[0])
-        instr_list_orchestrator = InstructionListOrchestrator(STAR.get_dialog_user_instructions(id), persistent=True)
+        instr_list_orchestrator = InstructionListOrchestrator(
+            STAR.get_dialog_user_instructions(id),
+            persistent=True
+        )
 
         return system | response_action_orchestrator, user | instr_list_orchestrator
