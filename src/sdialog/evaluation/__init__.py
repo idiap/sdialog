@@ -325,39 +325,6 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                          **llm_kwargs)
 
 
-class SimilarityScore(BaseMetric, ABC):
-    def compute(self, dialog_a: Dialog, dialog_b: Dialog) -> float:
-        """
-        Compute the similarity score between two dialogs.
-
-        :param dialog_a: The first dialog.
-        :param dialog_b: The second dialog.
-        :return: A float representing the similarity score.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class SentenceTransformerSimilarity(SimilarityScore):
-    def __init__(self, model_name: str = "sentence-transformers/LaBSE"):
-        """
-        Initialize the SentenceEmbeddingSimilarity with a model name.
-
-        :param model_name: The name of the sentence embedding model to use.
-        """
-        self.model_name = model_name
-
-        from sentence_transformers import SentenceTransformer
-        self.model = SentenceTransformer(model_name)
-
-    @abstractmethod
-    def compute(self, dialog_a: Dialog, dialog_b: Dialog) -> float:
-        """
-        Compute the similarity score between two dialogs using sentence embeddings.
-        """
-        embs = self.model.encode([dialog_a, dialog_b])
-        return self.model.similarity(embs[0], embs[1])
-
-
 class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
     """
     Dialog embedder using SentenceTransformer.
