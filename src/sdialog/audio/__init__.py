@@ -125,6 +125,7 @@ def save_utterances_audios(dialog: AudioDialog, dir_audio: str, sampling_rate: i
             sampling_rate
         )
 
+
     return dialog
 
 
@@ -245,4 +246,16 @@ def generate_audio_room_accoustic(dialog: AudioDialog) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
+    # We need to have a list of sources that are going to be put into room space
+    #
+    # from room_acoustics_simulator import RoomAcousticsSimulator
+    # RoomAcousticsSimulator room_acoustics(dialog.room)
+    # sources = dialog._audio_source #:List[AudioSource]
+    # room_acoustics.add_sources(sources)
+    # room_acoustics.add_microphone( .. )
+    # audio = room_acoustics.simulate()
+    # audio_output_filepath = os.join('audio_dir_path', 'audiopipeline_step3.wav')
+    # dialog._audio_filepath = audio_output_filepath
+    # sf.wavwrite(audio_output_filepath, audio, 16000)
+
     return dialog
