@@ -192,7 +192,7 @@ class AudioSource:
     _is_primary: Optional[bool] = False  # Primary speaker (doctor) vs secondary (patient)
 
     def __post_init__(self):
-        is_primary = self._determine_primary_status(self.name)
+        self._is_primary = self._determine_primary_status(self.name)
 
     @property
     def x(self) -> float:
