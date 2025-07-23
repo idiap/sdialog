@@ -41,7 +41,7 @@ class RoomAcousticsSimulator:
             self.room = room
 
         self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
-        # self.mic_position
+        self.mic_position = [0.5, 0.5, 0.5]
 
     def _create_pyroom(self, room: Room, sampling_rate=16000):
         e_absorption, max_order = pra.inverse_sabine(room.rt60, room.dimensions)
@@ -51,6 +51,7 @@ class RoomAcousticsSimulator:
     # room_acoustics.add_microphone( .. )
     def add_microphone(self, mic_position):
         """Add microphone to the room"""
+        self.mic_position = mic_position
         mic_array = pra.MicrophoneArray(
             np.array([mic_position]).T,
             self._pyroom.fs
@@ -58,7 +59,7 @@ class RoomAcousticsSimulator:
         self._pyroom.add_microphone_array(mic_array)
         print(f"Added microphone at position {mic_position}")
 
-    def add_sources(self, audiosources: List[AudioSource]):
+    def _add_sources(self, audiosources: List[AudioSource]):
         for i, asource in enumerate(audiosources):
             self.audiosources.append(asource)
 
@@ -77,8 +78,14 @@ class RoomAcousticsSimulator:
 
             # print(f"✓ Added source '{name}' at position {position} with {len(audio)} samples")
 
-    def simulate(self, sources: List[AudioSource] = []):  # -> np.array:
-        self.add_sources(sources)
+    def simulate(self, sources: List[AudioSource] = [], reset=False):  # -> np.array:
+
+        if reset:
+            # see https://github.com/LCAV/pyroomacoustics/issues/311
+            self.reset()
+            self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
+
+        self._add_sources(sources)
         self._pyroom.simulate()
         mixed_signal = self._pyroom.mic_array.signals[0, :]
 
@@ -90,12 +97,12 @@ class RoomAcousticsSimulator:
         #     print(f"Applied soft compression (ratio: {compression_ratio:.3f}) to prevent clipping")
         # print(f"Simulation complete! Peak level: {np.max(np.abs(mixed_signal)):.3f}")
 
-        mixed_signal = self.apply_snr(mixed_signal, 1)  # scale audio to max 1dB
+        mixed_signal = self.apply_snr(mixed_signal, 1.0)  # scale audio to max 1dB
         return mixed_signal
 
-    # def reset(self):
-    #     del self._pyroom
-    #     self._pyroom = None
+    def reset(self):
+        del self._pyroom
+        self._pyroom = None
 
     # def plot_room_setup(self):
     #     """Visualize the room setup"""
@@ -264,7 +271,7 @@ if __name__ == "__main__":
         print(f"  {pat_pos.value} -> {pos_3d}")
 
     # Example usage:
-    # room_acoustics = RoomAcousticsSimulator(room)
+    room_acoustics = RoomAcousticsSimulator(room)
     # room_acoustics.add_microphone([1.0, 1.0, 1.5])
     # room_acoustics.add_sources(audio_sources)
-    # audio = room_acoustics.simulate()
+    # audio = room_acoustics.simulate(audio_sources)
