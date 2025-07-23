@@ -171,9 +171,13 @@ class SoundSource:
     position: Position3D
     directivity: Optional[str] = "omnidirectional"
     # sound_level: float = 60.0  # dB SPL
-    snr_db: float = 0.0  # dB SPL
-    # fundamental_frequency: Optional[float] = 150.0  # Hz
+    snr: float = 0.0  # dB SPL
+    source_file: str = None
     is_primary: Optional[bool] = True  # Primary speaker (doctor) vs secondary (patient)
+    # fundamental_frequency: Optional[float] = 150.0  # Hz
+    start_time: float = 0.0
+    stop_time: float = 0.0
+
 
     @property
     def x(self) -> float:
@@ -223,7 +227,7 @@ class SoundSource:
             name=data['name'],
             position=position,
             directivity=data.get('directivity', 'omnidirectional'),
-            snr_db=data.get('snr_db', 0.0),
+            snr=data.get('snr', 0.0),
             is_primary=data.get('is_primary', is_primary)  # Allow override
         )
         # fundamental_frequency=fundamental_freq,
