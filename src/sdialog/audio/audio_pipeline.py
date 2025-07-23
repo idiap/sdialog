@@ -103,13 +103,13 @@ class AudioPipeline:
         Run the audio pipeline.
         """
 
-        dialog = generate_utterances_audios(
+        dialog: AudioDialog = generate_utterances_audios(
             dialog,
             voice_database=self.voice_database,
             tts_pipeline=self.tts_pipeline
         )
 
-        dialog = save_utterances_audios(dialog, self.dir_audio)
+        dialog: AudioDialog = save_utterances_audios(dialog, self.dir_audio)
 
         # Combine the audio segments into a single master audio track as a baseline
         dialog.set_combined_audio(
@@ -124,26 +124,25 @@ class AudioPipeline:
 
         # TODO: Test this computation of word alignments
         if do_word_alignments:
-            dialog = generate_word_alignments(dialog)
+            dialog: AudioDialog = generate_word_alignments(dialog)
 
         # TODO: Test this generation of SNR
         if do_snr:
-            dialog = self.enricher.generate_snr(dialog)
+            dialog: AudioDialog = self.enricher.generate_snr(dialog)
 
-        # TODO: Test this generation of room position
         if do_room_position:
-            dialog = self.enricher.generate_room_position(dialog)
+            dialog: AudioDialog = self.enricher.generate_room_position(dialog)
 
         # Randomly sample a static microphone position for the whole dialogue
-        dialog = self.enricher.generate_microphone_position(dialog)
+        dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
         # Send the utterances to dSCAPER
-        dialog = send_utterances_to_dscaper(dialog, self._dscaper)
+        dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)
 
         # Generate the timeline from dSCAPER
-        dialog = generate_dscaper_timeline(dialog, self._dscaper)
+        dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
 
         # Generate the audio room accoustic
-        dialog = generate_audio_room_accoustic(dialog)
+        dialog: AudioDialog = generate_audio_room_accoustic(dialog)
 
         return dialog

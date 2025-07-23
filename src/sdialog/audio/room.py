@@ -147,8 +147,9 @@ class SpeakerSource:
     """Represents a person speaking in the room"""
     name: str
     position: Position3D
+    source_file: str
     voice_level: float = 60.0  # dB SPL
-    fundamental_frequency: float = 150.0  # Hz
+    # fundamental_frequency: float = 150.0  # Hz
     is_primary: bool = True  # Primary speaker (doctor) vs secondary (patient)
 
 

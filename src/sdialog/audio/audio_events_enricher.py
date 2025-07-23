@@ -13,7 +13,9 @@ from typing import List
 from random import choice
 from sdialog import config
 from jinja2 import Template
+from pydantic import BaseModel
 from sdialog.generators import DialogGenerator
+from sdialog.audio.audio_turn import AudioTurn
 from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events import Timeline, AudioEvent
@@ -36,6 +38,10 @@ def _parse_duration_ms(duration_str: str) -> int:
         return int(float(duration_str))  # Assume ms if no unit
     except ValueError:
         return 0
+
+
+class AudioDialogFormat(BaseModel):
+    dialog: List[AudioTurn]
 
 
 class AudioEventsEnricher:
@@ -76,14 +82,11 @@ class AudioEventsEnricher:
         with open(config.config["prompts"]["audio"]["snr"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(dialog))
 
-        dialog_with_snr = DialogGenerator(dialogue_details=prompt).generate()
+        list_audio_turns = DialogGenerator(dialogue_details=prompt, output_format=AudioDialogFormat).generate()
+        for new_turn, turn in zip(list_audio_turns.dialog, dialog.turns):
+            turn.snr = float(new_turn.snr)
 
-        # Extract the SNR from the dialog
-        for turn in dialog_with_snr.turns:
-            snr = re.search(r'snr="(\d+)"', turn.text)
-            turn.snr = int(snr.group(1)) if snr else None
-
-        return dialog_with_snr
+        return dialog
 
     def generate_room_position(self, dialog: AudioDialog) -> AudioDialog:
         """
@@ -93,16 +96,11 @@ class AudioEventsEnricher:
         with open(config.config["prompts"]["audio"]["room_position"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(dialog))
 
-        dialog_with_room_position = DialogGenerator(dialogue_details=prompt).generate()
+        list_audio_turns = DialogGenerator(dialogue_details=prompt, output_format=AudioDialogFormat).generate()
+        for new_turn, turn in zip(list_audio_turns.dialog, dialog.turns):
+            turn.position = new_turn.position
 
-        # Extract the position and microphone position from the dialog
-        for turn in dialog_with_room_position.turns:
-
-            turn.position = re.search(
-                r'position="([^"]+)"',
-                turn.text).group(1) if re.search(r'position="([^"]+)"', turn.text) else None
-
-        return dialog_with_room_position
+        return dialog
 
     def generate_microphone_position(self, dialog: AudioDialog) -> AudioDialog:
         """
