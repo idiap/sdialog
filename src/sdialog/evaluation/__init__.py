@@ -174,6 +174,51 @@ class DialogFlowPPL(BaseDialogScore):
         return exp(-sum_log_p / sys_turns)
 
 
+class DialogFlowAppropriateness(DialogFlowPPL):
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
+                 k_neighbors: int = 64,
+                 use_softmax: bool = True,
+                 name: str = None,
+                 verbose: bool = False,
+                 **d2f_kwargs):
+        super().__init__(
+            reference_dialogues,
+            ai_speaker=ai_speaker,
+            k_neighbors=k_neighbors,
+            use_softmax=use_softmax,
+            name=name if name else "dfa" + ("+sm" if use_softmax else ""),
+            verbose=verbose,
+            **d2f_kwargs
+        )
+
+    @scores_cache.cache
+    def score(self, dialog: Dialog) -> float:
+        sum_log_p = 0
+        sys_turns = 0
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
+            nearest_id, _ = neighbors[0]
+            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
+
+            prob_next_node = self.graph.get_edge_data(prev_node, nearest_id)
+            if (not self.only_system or speaker == "system") and prob_next_node is not None:
+                sum_log_p += log(prob_next_node["weight"] * prob_correct_node)
+                sys_turns += 1
+            prev_node = nearest_id
+
+        return pow(exp(sum_log_p), 1 / sys_turns)
+
+
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback."""
     def __init__(self,
