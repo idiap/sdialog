@@ -16,12 +16,47 @@ class AudioDialog(Dialog):
     timeline: Timeline = None
     total_duration: float = None
     timeline_name: str = None
+
     _room: Room = None
     _combined_audio: np.ndarray = None
     _audio_sources: List[AudioSource] = []
 
+    _audio_step_1_filepath: str = None
+    _audio_step_2_filepath: str = None
+    _audio_step_3_filepath: str = None
+
     def __init__(self):
         super().__init__()
+
+    def set_room(self, room: Room):
+        """
+        Set the room of the dialog.
+        """
+        self._room = room
+
+    def get_room(self) -> Room:
+        """
+        Get the room of the dialog.
+        """
+        return self._room
+
+    def set_audio_sources(self, audio_sources: List[AudioSource]):
+        """
+        Set the audio sources of the dialog.
+        """
+        self._audio_sources = audio_sources
+
+    def add_audio_source(self, audio_source: AudioSource):
+        """
+        Add an audio source to the dialog.
+        """
+        self._audio_sources.append(audio_source)
+
+    def get_audio_sources(self) -> List[AudioSource]:
+        """
+        Get the audio sources of the dialog.
+        """
+        return self._audio_sources
 
     def set_combined_audio(self, audio: np.ndarray):
         """

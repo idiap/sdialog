@@ -3,9 +3,10 @@ import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-from typing import List
 from sdialog import Dialog
 from datasets import load_dataset
+from typing import List, Optional
+from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
 from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
@@ -25,9 +26,9 @@ class AudioPipeline:
             dir_audio: str,
             tts_pipeline: BaseTTS,
             voice_database: BaseVoiceDatabase,
-            dscaper: scaper.Dscaper,
             enricher: AudioEventsEnricher,
-            sampling_rate: int = 24_000):
+            sampling_rate: int = 24_000,
+            dscaper: Optional[scaper.Dscaper] = None):
         """
         Initialize the audio pipeline.
         """
@@ -35,14 +36,17 @@ class AudioPipeline:
         self.dir_audio = dir_audio
         self.tts_pipeline = tts_pipeline
         self.voice_database = voice_database
-        self._dscaper = dscaper
         self.enricher = enricher
         self.sampling_rate = sampling_rate
+        self._dscaper = dscaper
 
     def populate_dscaper(self, datasets: List[str]) -> int:
         """
         Populate the dSCAPER with the audio recordings.
         """
+
+        if self._dscaper is None:
+            raise ValueError("The dSCAPER is not provided to the audio pipeline")
 
         n_audio_files = 0
 
@@ -96,12 +100,16 @@ class AudioPipeline:
     def inference(
             self,
             dialog: Dialog,
+            room: Optional[Room] = None,
             do_word_alignments: bool = False,
             do_snr: bool = False,
             do_room_position: bool = False) -> AudioDialog:
         """
         Run the audio pipeline.
         """
+
+        if room is not None:
+            dialog.set_room(room)
 
         dialog: AudioDialog = generate_utterances_audios(
             dialog,
@@ -136,13 +144,24 @@ class AudioPipeline:
         # Randomly sample a static microphone position for the whole dialogue
         dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
-        # Send the utterances to dSCAPER
-        dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)
+        if self._dscaper is not None:
 
-        # Generate the timeline from dSCAPER
-        dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
+            # Send the utterances to dSCAPER
+            dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)
+
+            # Generate the timeline from dSCAPER
+            dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
+        else:
+            logging.warning(
+                "The dSCAPER is not set, which make the generation of the timeline impossible"
+            )
 
         # Generate the audio room accoustic
-        dialog: AudioDialog = generate_audio_room_accoustic(dialog)
+        if room is not None and self._dscaper is not None:
+            dialog: AudioDialog = generate_audio_room_accoustic(dialog)
+        else:
+            logging.warning(
+                "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
+            )
 
         return dialog

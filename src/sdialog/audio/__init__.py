@@ -15,9 +15,11 @@ import soundfile as sf
 from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.util import remove_audio_tags
+from sdialog.audio.room import AudioSource
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
+from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -201,6 +203,33 @@ def generate_dscaper_timeline(
         DscaperGenerate(seed=0, save_isolated_positions=True, ref_db=-20, reverb=0, save_isolated_events=False),
     )
 
+    # Buil the generate directory path
+    soundscape_positions_path = os.path.join(
+        _dscaper.get_dscaper_base_path(),
+        "timelines",
+        timeline_name,
+        "generate",
+        resp.content["id"],
+        "soundscape_positions"
+    )
+
+    # Get the sounds files
+    sounds_files = [_ for _ in os.listdir(soundscape_positions_path) if _.endswith(".wav")]
+
+    # Build the audio sources for the room simulation
+    for file_name in sounds_files:
+
+        file_path = os.path.join(soundscape_positions_path, file_name)
+
+        dialog.add_audio_source(
+            AudioSource(
+                name=file_name.split(".")[0],
+                position=file_name.split(".")[0],
+                snr=0.0,
+                source_file=file_path
+            )
+        )
+
     # Check if the timeline was generated successfully
     if resp.status == "success":
         logging.info("Successfully generated dscaper timeline.")
@@ -215,16 +244,20 @@ def generate_audio_room_accoustic(dialog: AudioDialog) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
-    # We need to have a list of sources that are going to be put into room space
-    #
-    # from room_acoustics_simulator import RoomAcousticsSimulator
-    # RoomAcousticsSimulator room_acoustics(dialog.room)
-    # sources = dialog._audio_source #:List[AudioSource]
-    # room_acoustics.add_sources(sources)
-    # room_acoustics.add_microphone( .. )
-    # audio = room_acoustics.simulate()
-    # audio_output_filepath = os.join('audio_dir_path', 'audiopipeline_step3.wav')
-    # dialog._audio_filepath = audio_output_filepath
-    # sf.wavwrite(audio_output_filepath, audio, 16000)
+
+    room_acoustics = RoomAcousticsSimulator(dialog.get_room())
+
+    room_acoustics.add_sources(
+        dialog.get_audio_sources()
+    )
+    # room_acoustics.add_microphone()
+    _audio_accoustic = room_acoustics.simulate()
+
+    dialog._audio_step_3_filepath = os.join(
+        dialog.audio_dir_path,
+        f"dialog_{dialog.id}",
+        "audio_pipeline_step3.wav"
+    )
+    sf.wavwrite(dialog._audio_step_3_filepath, _audio_accoustic, 16_000)
 
     return dialog
