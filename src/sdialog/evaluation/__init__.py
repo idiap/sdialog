@@ -15,27 +15,30 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from scipy import linalg
 from tqdm.auto import tqdm
-from jinja2 import Template
+from scipy.stats import norm
 from math import exp, log, sqrt
+from sklearn.manifold import TSNE
 from abc import ABC, abstractmethod
-from typing import Union, List, Dict
 from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
+from sklearn.cluster import MiniBatchKMeans
+from typing import Union, List, Dict, Tuple
 from sentence_transformers import SentenceTransformer
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import CacheDialogScore, KNNModel, softmax, get_llm_model, dict_to_table, upper_camel_to_dash
+from ..util import SentencePairTransformer, KNNModel, softmax
+from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
+from .base import scores_cache, BaseMetric, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
+from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
 
 logger = logging.getLogger(__name__)
-
-scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
 
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -102,160 +105,6 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     yes: Union[bool, List[bool]]
     feedback: Optional[Union[str, List[str]]] = None
-
-
-class BaseMetric(ABC):
-    """
-    Base class for metrics.
-    """
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def compute(self, input: Union[Dialog, List[Dialog]]) -> Union[dict, float]:
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseDialogScore(ABC):
-    def __init__(self, name: Optional[str] = None):
-        """
-        Initialize the dialog score with a name.
-        :param name: Name of the dialog score.
-        """
-        self.name = name
-
-    def __call__(self, dialog: Dialog):
-        """
-        Computes the score for the provided dialog.
-
-        :param dialog: The dialog to score.
-        :return: A float representing the score of the dialog.
-        """
-        return self.score(dialog)
-
-    @abstractmethod
-    def score(self, dialog: Dialog) -> float:
-        """
-        Computes the score for the provided dialog.
-
-        :param dialog: The dialog to score.
-        :return: A float representing the score of the dialog.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseDatasetEvaluator(ABC):
-    """
-    Base class for dataset evaluators.
-    """
-    def __init__(self, dialog_score: BaseDialogScore, name: str = None, verbose: bool = False):
-        self.dialog_score = dialog_score
-        if not name:
-            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
-        else:
-            self.name = name
-        self.datasets_scores = {}
-        self.verbose = verbose
-
-    def __call__(self,
-                 dialogues: Union[str, List[Dialog]],
-                 dataset_name: str = None,
-                 return_dialog_scores: bool = False) -> Union[dict, float]:
-        dataset_name = dataset_name or "candidate"
-        if dataset_name == "candidate":
-            desc = f"Computing {self.name} scores for candidate dataset"
-        else:
-            desc = f"Computing {self.name} scores for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        try:
-            scores = np.array([self.dialog_score(dialogue)
-                               for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
-        except KeyboardInterrupt:
-            logger.warning(
-                f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
-                f"with evaluator '{self.name}' will be saved to disk."
-            )
-            scores_cache.save()  # Save the cache to disk after scoring
-            raise KeyboardInterrupt
-        scores_cache.save()
-
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
-        results = self.eval(scores)
-        return (results, scores) if return_dialog_scores else results
-
-    @abstractmethod
-    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
-        """
-        Plot the scores of the datasets.
-        :param dialog_scores: A dictionary with dataset names as keys and scores as values.
-        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-    def clear_history(self):
-        self.datasets_scores.clear()
-
-    def plot(self,
-             show: bool = True,
-             save_path: str = None):
-        if not self.datasets_scores:
-            return
-
-        # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        self.__plot__(self.datasets_scores, plot=plt)
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
-
-    @abstractmethod
-    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class BaseLLMJudge(ABC):
-    """
-    Base class for LLM judges.
-    """
-    def __init__(self,
-                 model: Union[BaseLanguageModel, str] = None,
-                 prompt_template: str = "",
-                 output_format: Union[dict, BaseModel] = None,
-                 **llm_kwargs):
-        if model is None:
-            model = config["llm"]["model"]
-
-        # Collect LLM parameters from config, only if not None
-        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-        llm_kwargs = {**llm_config_params, **llm_kwargs}
-
-        self.output_format = output_format
-        self.prompt_template = Template(prompt_template)
-
-        self.llm = get_llm_model(model_name=model,
-                                 output_format=self.output_format,
-                                 **llm_kwargs)
-
-        with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
-            self.messages = [SystemMessage(f.read()), HumanMessage("")]
-
-    def __call__(self, prompt: str) -> Union[dict, BaseModel]:
-        self.messages[1].content = prompt
-        return self.llm.invoke(self.messages)
-
-    @abstractmethod
-    def judge(self, dialogs: Union[Dialog, List[Dialog]]) -> dict:
-        """
-        Judge the dialogs using the LLM.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-    def prompt(self, system: bool = False) -> str:
-        """
-        Returns the prompt template used by the LLM judge.
-        """
-        return self.messages[0].content if system else self.messages[1].content
 
 
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
@@ -476,49 +325,143 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                          **llm_kwargs)
 
 
-class SimilarityScore(BaseMetric, ABC):
-    def compute(self, dialog_a: Dialog, dialog_b: Dialog) -> float:
+class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
+    """
+    Dialog embedder using SentenceTransformer.
+    Can embed a dialog as the mean of turn embeddings or as a single embedding of the whole dialog text.
+    """
+    def __init__(self,
+                 model_name: str = "sentence-transformers/LaBSE",
+                 mean: bool = True,
+                 name: str = None,
+                 verbose: bool = False):
         """
-        Compute the similarity score between two dialogs.
-
-        :param dialog_a: The first dialog.
-        :param dialog_b: The second dialog.
-        :return: A float representing the similarity score.
+        :param model_name: SentenceTransformer model name.
+        :param mean: If True, embed as mean of turn embeddings; if False, embed whole dialog as a single string.
+        :param name: Optional name for the embedder.
         """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
-class SentenceTransformerSimilarity(SimilarityScore):
-    def __init__(self, model_name: str = "sentence-transformers/LaBSE"):
-        """
-        Initialize the SentenceEmbeddingSimilarity with a model name.
-
-        :param model_name: The name of the sentence embedding model to use.
-        """
-        self.model_name = model_name
-
-        from sentence_transformers import SentenceTransformer
+        mode_str = "mean-" if mean else ""
+        super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}")
         self.model = SentenceTransformer(model_name)
+        self.mean = mean
+        self.verbose = verbose
 
-    @abstractmethod
-    def compute(self, dialog_a: Dialog, dialog_b: Dialog) -> float:
+    def embed(self, dialog: Dialog) -> np.ndarray:
+        if self.mean:
+            texts = [turn.text for turn in dialog.turns if hasattr(turn, "text")]
+            if not texts:
+                return np.zeros(self.model.get_sentence_embedding_dimension())
+            embs = self.model.encode(texts, show_progress_bar=self.verbose)
+            return np.mean(embs, axis=0)
+        else:
+            dialog_text = "\n".join([turn.text for turn in dialog.turns if hasattr(turn, "text")])
+            if not dialog_text:
+                return np.zeros(self.model.get_sentence_embedding_dimension())
+            emb = self.model.encode([dialog_text], show_progress_bar=self.verbose)[0]
+            return emb
+
+
+class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
+    """
+    Evaluator that computes the centroid of reference dialog embeddings and compares
+    the centroid of candidate dialog embeddings using cosine similarity.
+    """
+    def __init__(self,
+                 dialog_embedder: BaseDialogEmbedder,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
+        name = name or f"centroid-similarity-{dialog_embedder.name}"
+        super().__init__(dialog_embedder, name=name, enable_plotting=enable_plotting, verbose=verbose)
+        # Compute reference centroid
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        reference_embs = np.array([self.dialog_embedder(dialog)
+                                   for dialog in tqdm(reference_dialogues,
+                                                      desc="Computing reference embeddings",
+                                                      leave=verbose)])
+        self.reference_embs = reference_embs if enable_plotting else None
+        self.reference_centroid = np.mean(reference_embs, axis=0)
+
+    def __plot__(self, dialog_embs: Dict[str, np.ndarray]):
         """
-        Compute the similarity score between two dialogs using sentence embeddings.
+        Plot the embeddings of the datasets.
+        :param dialog_embs: A dictionary with dataset names as keys and embeddings as values.
+        :param tsne_model: The t-SNE model used for dimensionality reduction.
         """
-        embs = self.model.encode([dialog_a, dialog_b])
-        return self.model.similarity(embs[0], embs[1])
+        # Concatenate all embeddings and keep track of dataset labels
+        all_embs = [self.reference_centroid.reshape(1, -1)]
+        all_labels = ["centroid-reference"]
+        all_embs.append(self.reference_embs)
+        all_labels.extend(["reference"] * len(self.reference_embs))
+        for dataset_name, embs in dialog_embs.items():
+            all_embs.append(embs)
+            all_labels.extend([dataset_name] * len(embs))
+            all_embs.append(np.mean(embs, axis=0).reshape(1, -1))
+            all_labels.append("centroid-" + dataset_name)
+        all_embs = np.vstack(all_embs)
+        all_labels = np.array(all_labels)
+
+        # Compute t-SNE (2D)
+        logger.info("Computing t-SNE for embeddings...")
+        tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
+        tsne_embs = tsne.fit_transform(all_embs)
+
+        # Plot
+        unique_labels = [label for label in np.unique(all_labels).tolist() if "centroid-" not in label]
+        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
+        for i, label in enumerate(unique_labels):
+            idx = all_labels == label
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                        label=label if label != "reference" else None,
+                        alpha=0.15 if label == "reference" else 0.7,
+                        color="black" if label == "reference" else colors[i % len(colors)])
+        for label in ["reference"] + list(dialog_embs.keys()):
+            idx = all_labels == f"centroid-{label}"
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                        label="Reference centroid" if label == "reference" else None,
+                        linewidths=3 if label == "reference" else 2,
+                        alpha=1,  # if label == "reference" else 0.7,
+                        color="black" if label == "reference" else colors[unique_labels.index(label) % len(colors)],
+                        s=100,
+                        marker="x")
+
+        plt.xlabel("t-SNE 1")
+        plt.ylabel("t-SNE 2")
+        plt.title(f"Dialog embeddings ({self.dialog_embedder.name}) with centroids")
+        plt.legend()
+
+    def eval(self, dialog_embs: List[np.ndarray]) -> float:
+        """
+        Compute the centroid of the given embeddings and return the cosine similarity
+        with the reference centroid.
+        """
+        if isinstance(dialog_embs, list):
+            dialog_embs = np.array(dialog_embs)
+        if dialog_embs.ndim == 1:
+            dialog_embs = dialog_embs.reshape(1, -1)
+        centroid = np.mean(dialog_embs, axis=0)
+        # Cosine similarity
+        dot = np.dot(self.reference_centroid, centroid)
+        norm_ref = np.linalg.norm(self.reference_centroid)
+        norm_cand = np.linalg.norm(centroid)
+        if norm_ref == 0 or norm_cand == 0:
+            return 0.0
+        return float(dot / (norm_ref * norm_cand))
 
 
-class KDEDivergenceEvaluator(BaseDatasetEvaluator):
+class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
                  metric: str = "all",
                  kde_bw: float = None,
                  name: str = None,
+                 enable_plotting: bool = True,
                  verbose: bool = False,
                  **evaluator_kwargs):
-        super().__init__(dialog_score, name=name, **evaluator_kwargs)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
 
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
@@ -526,6 +469,10 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
             else:
                 raise ValueError("Reference dialogues must be provided or "
                                  "the dialog_score must have a reference_dialogues attribute.")
+        elif isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        elif not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
 
         if metric != "all":
             self.name += f"-{metric}"
@@ -539,7 +486,7 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         if "reference" not in dialog_scores and self.reference_scores is not None:
-            pd.Series(self.reference_scores, name="reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
+            pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
             pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
         plot.xlabel(self.dialog_score.name)
@@ -559,7 +506,297 @@ class KDEDivergenceEvaluator(BaseDatasetEvaluator):
         return result
 
 
-class StatsEvaluator(BaseDatasetEvaluator):
+class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 reference_dialogues: Union[str, List[Dialog]] = None,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False,
+                 **evaluator_kwargs):
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
+
+        if reference_dialogues is None:
+            if hasattr(dialog_score, "reference_dialogues"):
+                reference_dialogues = dialog_score.reference_dialogues
+            else:
+                raise ValueError("Reference dialogues must be provided or "
+                                 "the dialog_score must have a reference_dialogues attribute.")
+
+        reference_scores = np.array([self.dialog_score(dialogue)
+                                     for dialogue in tqdm(reference_dialogues,
+                                                          desc=f"Computing reference {self.name} scores",
+                                                          leave=verbose)])
+        self.reference_norm_dist = norm(loc=np.mean(reference_scores), scale=np.std(reference_scores))
+
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        if "reference" not in dialog_scores and self.reference_norm_dist is not None:
+            x = np.linspace(self.reference_norm_dist.ppf(0.001), self.reference_norm_dist.ppf(0.999), 100)
+            plot.plot(x, self.reference_norm_dist.pdf(x), color="grey", lw=3, label="Reference")
+        for dataset_name, scores in dialog_scores.items():
+            x = np.linspace(np.min(scores), np.max(scores), 100)
+            plot.plot(x, norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)), label=dataset_name)
+        plot.xlabel(self.dialog_score.name)
+        plot.legend()
+        plot.title(f"Normal Distributions of {self.dialog_score.name}")
+
+    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        # Compute the Frechet distance between the reference normal distribution and the one from dialog_scores
+        if not isinstance(dialog_scores, np.ndarray):
+            dialog_scores = np.array(dialog_scores)
+        mu_src, sigma_src = self.reference_norm_dist.mean(), self.reference_norm_dist.std()
+        mu_tgt, sigma_tgt = np.mean(dialog_scores), np.std(dialog_scores)
+        # Frechet distance between two 1D Gaussians: sqrt((mu_src-mu_tgt)^2 + (sigma_src-sigma_tgt)^2)
+        return np.sqrt((mu_src - mu_tgt) ** 2 + (sigma_src - sigma_tgt) ** 2)
+
+
+class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
+    """
+    Frechet distance evaluator based on BERT embeddings.
+    See: https://aclanthology.org/2021.findings-acl.193/ where it was introduced
+    """
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
+                 name: str = None,
+                 model_name: str = "roberta-base",
+                 batch_size: int = 128,
+                 device: str = None,
+                 enable_plotting: bool = False,
+                 verbose: bool = False):
+        self.reference_embs = None
+        self.datasets_embs = {}
+        self.enable_plotting = enable_plotting
+        self.verbose = verbose
+        self.ai_speaker = ai_speaker
+        self.name = name or "frechet-bert-distance"
+        self.batch_size = batch_size
+        self.model = SentencePairTransformer(model_name=model_name,
+                                             device=device,
+                                             verbose=verbose)
+
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.reference_mu, self.reference_sigma = self._get_multidim_gaussian_mu_sigma(reference_dialogues)
+
+    def _get_multidim_gaussian_mu_sigma(self,
+                                        dialogs: List[Dialog],
+                                        dataset_name: str = "reference") -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute the mean and covariance matrix of a set of embeddings.
+
+        :param embeddings: A 2D numpy array of shape (n_samples, n_features).
+        :param dataset_name: Name of the dataset for logging.
+        :return: A tuple (mean, covariance_matrix).
+        """
+        utts, utts_next = dialogs_to_utt_pairs(dialogs, self.ai_speaker)
+
+        embs = self.model.encode(utts, utts_next,
+                                 batch_size=self.batch_size,
+                                 progress_bar_desc=f"Computing embeddings for FrechetBERT on {dataset_name}")
+
+        if self.enable_plotting and dataset_name:
+            if dataset_name == "reference":
+                self.reference_embs = embs
+            else:
+                self.datasets_embs[dataset_name] = embs
+
+        mu = np.mean(embs, axis=0)
+        sigma = np.cov(embs, rowvar=False)
+        return mu, sigma
+
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate") -> float:
+        """
+        Compute the Frechet distance (a.k.a. Fréchet Inception Distance, FID) between two multivariate Gaussians.
+        See: https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance#Application_in_machine_learning
+
+        :param mu_src: Mean vector of the source distribution (np.ndarray, shape [d])
+        :param sigma_src: Covariance matrix of the source distribution (np.ndarray, shape [d, d])
+        :param mu_tgt: Mean vector of the target distribution (np.ndarray, shape [d])
+        :param sigma_tgt: Covariance matrix of the target distribution (np.ndarray, shape [d, d])
+        :return: The Frechet distance (float)
+        """
+        mu_src, sigma_src = np.atleast_1d(self.reference_mu), np.atleast_2d(self.reference_sigma)
+        mu_tgt, sigma_tgt = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
+
+        mu_tgt = np.atleast_1d(mu_tgt)
+        sigma_tgt = np.atleast_2d(sigma_tgt)
+
+        diff = mu_src - mu_tgt
+
+        covmean, _ = linalg.sqrtm(sigma_src.dot(sigma_tgt), disp=False)
+        if np.iscomplexobj(covmean):
+            if not np.allclose(np.imag(covmean), 0, atol=1e-6):
+                logger.warning("linalg.sqrtm returned complex values; taking real part of result.")
+            covmean = np.real(covmean)
+
+        tr_covmean = np.trace(covmean)
+        fid = float(diff.dot(diff) + np.trace(sigma_src) + np.trace(sigma_tgt) - 2 * tr_covmean)
+        return max(fid, 0.0)
+
+    def plot(self, show: bool = True, save_path: str = None):
+        """
+        Plot the sentence-pair embeddings of the datasets.
+        """
+        if not self.enable_plotting or not self.datasets_embs:
+            return
+        plt.figure(figsize=(8, 5))
+        # Concatenate all embeddings and keep track of dataset labels
+        all_embs = [self.reference_embs]
+        all_labels = ["reference"] * len(self.reference_embs)
+        for dataset_name, embs in self.datasets_embs.items():
+            all_embs.append(embs)
+            all_labels.extend([dataset_name] * len(embs))
+        all_embs = np.vstack(all_embs)
+        all_labels = np.array(all_labels)
+
+        # Compute t-SNE (2D)
+        logger.info("Computing t-SNE for embeddings...")
+        tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
+        tsne_embs = tsne.fit_transform(all_embs)
+
+        # Plot
+        unique_labels = np.unique(all_labels).tolist()
+        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
+        for i, label in enumerate(unique_labels):
+            idx = all_labels == label
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                        label=label if label != "reference" else "Reference",
+                        alpha=0.15 if label == "reference" else 0.7,
+                        color="black" if label == "reference" else colors[i % len(colors)])
+
+        plt.xlabel("t-SNE 1")
+        plt.ylabel("t-SNE 2")
+        plt.title(f"Sentence-pair embeddings for {self.name}")
+        plt.legend()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
+
+
+class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
+    """
+    Precision-Recall distance evaluator based on BERT embeddings.
+    See: https://aclanthology.org/2021.findings-acl.193/
+    """
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
+                 num_clusters=20,
+                 num_angles=1001,
+                 num_runs=10,
+                 name: str = None,
+                 model_name: str = "roberta-base",
+                 batch_size: int = 128,
+                 device: str = None,
+                 verbose: bool = False):
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.name = name or f"pr-distance-{model_name.split('/')[-1]}"
+        self.verbose = verbose
+        self.ai_speaker = ai_speaker
+        self.num_clusters = num_clusters
+        self.num_angles = num_angles
+        self.num_runs = num_runs
+        self.batch_size = batch_size
+        self.model = SentencePairTransformer(model_name=model_name,
+                                             device=device,
+                                             verbose=verbose)
+        self.reference_embs = self._encode_utterance_pairs(reference_dialogues)
+
+    def _encode_utterance_pairs(self, dialogues: List[Dialog], dataset_name: str = "reference") -> np.ndarray:
+        """
+        Encode utterance pairs from dialogues using the model.
+
+        :param dialogues: List of Dialog objects.
+        :param dataset_name: Name of the dataset for logging.
+        :return: Encoded utterance pairs as a 2D numpy array.
+        """
+        return self.model.encode(*dialogs_to_utt_pairs(dialogues, self.ai_speaker),
+                                 batch_size=self.batch_size,
+                                 progress_bar_desc=f"Computing embeddings for PRD on {dataset_name}")
+
+    def _cluster_histograms(self, target_embs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        cluster_data = np.vstack([target_embs, self.reference_embs])
+        kmeans = MiniBatchKMeans(n_clusters=self.num_clusters, n_init=10)
+        labels = kmeans.fit(cluster_data).labels_
+
+        reference_labels = labels[len(target_embs):]
+        target_labels = labels[:len(target_embs)]
+
+        reference_histogram = np.histogram(reference_labels, bins=self.num_clusters,
+                                           range=[0, self.num_clusters], density=True)[0]
+        target_histogram = np.histogram(target_labels, bins=self.num_clusters,
+                                        range=[0, self.num_clusters], density=True)[0]
+        return reference_histogram, target_histogram
+
+    def _precision_recall_distance(self,
+                                   reference_histogram: np.ndarray,
+                                   target_histogram: np.ndarray,
+                                   epsilon=1e-10) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Computes the Precision-Recall Distributions (PRD) curve between two histograms, as described in
+        "Improved Precision and Recall Metric for Assessing Generative Models" (arXiv:1904.06991).
+        The PRD curve is calculated for a set of num_angles values, linearly spaced between [0, pi/2],
+        providing a trade-off between precision and recall for the two distributions.
+        """
+        if not (epsilon > 0 and epsilon < 0.1):
+            raise ValueError('epsilon must be in (0, 0.1] but is %s.' % str(epsilon))
+        if not (self.num_angles >= 3 and self.num_angles <= 1e6):
+            raise ValueError('num_angles must be in [3, 1e6] but is %d.' % self.num_angles)
+
+        angles = np.linspace(epsilon, np.pi / 2 - epsilon, num=self.num_angles)
+        slopes = np.tan(angles)
+
+        slopes_2d = np.expand_dims(slopes, 1)
+
+        ref_dist_2d = np.expand_dims(reference_histogram, 0)
+        eval_dist_2d = np.expand_dims(target_histogram, 0)
+
+        precision = np.minimum(ref_dist_2d * slopes_2d, eval_dist_2d).sum(axis=1)
+        recall = precision / slopes
+
+        return np.clip(precision, 0, 1), np.clip(recall, 0, 1)
+
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = None) -> Union[dict, float]:
+        target_embs = self._encode_utterance_pairs(dialogues, dataset_name)
+
+        if len(target_embs) != len(self.reference_embs):
+            logger.warning("The total number of utterance pairs in the reference dialogues "
+                           f"({len(self.reference_embs)}) and those of the evaluation dialogues "
+                           f"({len(target_embs)}) are not equal. "
+                           "This may lead to misleading results since unbalanced distributions bias "
+                           "the clustering towards the larger dataset.")
+
+            precisions = []
+            recalls = []
+            for _ in range(self.num_runs):
+                reference_histogram, target_histogram = self._cluster_histograms(target_embs)
+                precision, recall = self._precision_recall_distance(reference_histogram, target_histogram)
+                precisions.append(precision)
+                recalls.append(recall)
+            precision = np.mean(precisions, axis=0).tolist()
+            recall = np.mean(recalls, axis=0).tolist()
+            return max([2 * p * r / (p + r) if (p + r) > 0 else 0
+                        for p, r in zip(precision, recall)])  # max F1 score
+
+
+class StatsEvaluator(BaseDatasetScoreEvaluator):
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Plot box plots for each dataset
         plot.title(f"Boxplot of {self.dialog_score.name} scores")
@@ -578,10 +815,17 @@ class StatsEvaluator(BaseDatasetEvaluator):
         }
 
 
-class FrequencyEvaluator(BaseDatasetEvaluator):
+class FrequencyEvaluator(BaseDatasetScoreEvaluator):
     """
     Evaluator for computing the frequency or percentage of dialogues matching a condition (e.g., refusal responses).
     """
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Bar plot for frequency/percentage
         percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
@@ -602,9 +846,9 @@ class FrequencyEvaluator(BaseDatasetEvaluator):
         return percentage
 
 
-class LinguisticFeaturesDatasetEvaluator(BaseDatasetEvaluator):
-    def __init__(self, features=None, name="linguistic_features"):
-        super().__init__()
+class LinguisticFeaturesDatasetEvaluator(BaseDatasetScoreEvaluator):
+    def __init__(self, features=None, name="linguistic_features", enable_plotting: bool = True):
+        super().__init__(dialog_score=None, name=name, enable_plotting=enable_plotting)
         self.name = name
         self.features = features or [
             "mean_turn_length", "hesitation_rate", "gunning_fog", "flesch_reading_ease"
@@ -910,11 +1154,11 @@ class DatasetComparator:
         Plot the results of the evaluators.
         """
         if not self.evaluators:
-            raise ValueError("No evaluators to plot.")
+            logger.info("No evaluators to plot.")
+            return
 
         for evaluator in self.evaluators:
-            evaluator.plot(show=show,
-                           save_path=os.path.join(save_folder_path,
-                                                  f"{evaluator.name}.png") if save_folder_path else None)
-
-    compare = __call__  # Allow direct call to compare method
+            if hasattr(evaluator, "plot"):
+                evaluator.plot(show=show,
+                               save_path=os.path.join(save_folder_path,
+                                                      f"{evaluator.name}.png") if save_folder_path else None)

@@ -3,18 +3,22 @@ from typing import List
 from sdialog import Dialog
 from sdialog.audio.audio_turn import AudioTurn
 from sdialog.audio.audio_events import Timeline
+from sdialog.audio.room import Room, AudioSource
 
 
 class AudioDialog(Dialog):
     """
     Represents a dialogue with audio turns.
     """
+
     turns: List[AudioTurn] = []
-    _combined_audio: np.ndarray = None
     audio_dir_path: str = None
     timeline: Timeline = None
     total_duration: float = None
     timeline_name: str = None
+    _room: Room = None
+    _combined_audio: np.ndarray = None
+    _audio_sources: List[AudioSource] = []
 
     def __init__(self):
         super().__init__()
