@@ -24,6 +24,7 @@ from abc import ABC, abstractmethod
 from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from typing import Optional, Annotated
+from sklearn.cluster import MiniBatchKMeans
 from typing import Union, List, Dict, Tuple
 from sentence_transformers import SentenceTransformer
 from langchain_core.language_models.base import BaseLanguageModel
@@ -32,7 +33,8 @@ from .. import Dialog
 from ..personas import BasePersona
 from ..config import config
 from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from ..util import SentencePairTransformer, KNNModel, softmax, dict_to_table, upper_camel_to_dash
+from ..util import SentencePairTransformer, KNNModel, softmax
+from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
 from .base import scores_cache, BaseMetric, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
 
@@ -95,35 +97,6 @@ def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     p2_vals = np.clip(p2_vals, eps, None)
 
     return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
-
-
-def frechet_distance(mu_src, sigma_src, mu_tgt, sigma_tgt):
-    """
-    Compute the Frechet distance (a.k.a. Fréchet Inception Distance, FID) between two multivariate Gaussians.
-    See: https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance#Application_in_machine_learning
-
-    :param mu_src: Mean vector of the source distribution (np.ndarray, shape [d])
-    :param sigma_src: Covariance matrix of the source distribution (np.ndarray, shape [d, d])
-    :param mu_tgt: Mean vector of the target distribution (np.ndarray, shape [d])
-    :param sigma_tgt: Covariance matrix of the target distribution (np.ndarray, shape [d, d])
-    :return: The Frechet distance (float)
-    """
-    mu_src = np.atleast_1d(mu_src)
-    mu_tgt = np.atleast_1d(mu_tgt)
-    sigma_src = np.atleast_2d(sigma_src)
-    sigma_tgt = np.atleast_2d(sigma_tgt)
-
-    diff = mu_src - mu_tgt
-
-    covmean, _ = linalg.sqrtm(sigma_src.dot(sigma_tgt), disp=False)
-    if np.iscomplexobj(covmean):
-        if not np.allclose(np.imag(covmean), 0, atol=1e-6):
-            logger.warning("linalg.sqrtm returned complex values; taking real part of result.")
-        covmean = np.real(covmean)
-
-    tr_covmean = np.trace(covmean)
-    fid = float(diff.dot(diff) + np.trace(sigma_src) + np.trace(sigma_tgt) - 2 * tr_covmean)
-    return max(fid, 0.0)
 
 
 class LLMJudgeYesNoOutput(BaseModel):
@@ -617,13 +590,15 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
     """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
                  name: str = None,
                  model_name: str = "roberta-base",
                  batch_size: int = 128,
                  device: str = None,
                  verbose: bool = False):
         self.verbose = verbose
-        self.name = name or f"frechet-bert-{model_name.split('/')[-1]}"
+        self.ai_speaker = ai_speaker
+        self.name = name or "frechet-bert-distance"
         self.batch_size = batch_size
         self.model = SentencePairTransformer(model_name=model_name,
                                              device=device,
@@ -646,12 +621,7 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         :param dataset_name: Name of the dataset for logging.
         :return: A tuple (mean, covariance_matrix).
         """
-        utts = []
-        utts_next = []
-        for dialog in dialogs:
-            turns = [t.text for t in dialog.turns]
-            utts.extend(turns[:-1])
-            utts_next.extend(turns[1:])
+        utts, utts_next = dialogs_to_utt_pairs(dialogs, self.ai_speaker)
 
         embs = self.model.encode(utts, utts_next,
                                  batch_size=self.batch_size,
@@ -661,9 +631,144 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         sigma = np.cov(embs, rowvar=False)
         return mu, sigma
 
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = None) -> float:
+        """
+        Compute the Frechet distance (a.k.a. Fréchet Inception Distance, FID) between two multivariate Gaussians.
+        See: https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance#Application_in_machine_learning
+
+        :param mu_src: Mean vector of the source distribution (np.ndarray, shape [d])
+        :param sigma_src: Covariance matrix of the source distribution (np.ndarray, shape [d, d])
+        :param mu_tgt: Mean vector of the target distribution (np.ndarray, shape [d])
+        :param sigma_tgt: Covariance matrix of the target distribution (np.ndarray, shape [d, d])
+        :return: The Frechet distance (float)
+        """
+        mu_src, sigma_src = np.atleast_1d(self.reference_mu), np.atleast_2d(self.reference_sigma)
+        mu_tgt, sigma_tgt = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
+
+        mu_tgt = np.atleast_1d(mu_tgt)
+        sigma_tgt = np.atleast_2d(sigma_tgt)
+
+        diff = mu_src - mu_tgt
+
+        covmean, _ = linalg.sqrtm(sigma_src.dot(sigma_tgt), disp=False)
+        if np.iscomplexobj(covmean):
+            if not np.allclose(np.imag(covmean), 0, atol=1e-6):
+                logger.warning("linalg.sqrtm returned complex values; taking real part of result.")
+            covmean = np.real(covmean)
+
+        tr_covmean = np.trace(covmean)
+        fid = float(diff.dot(diff) + np.trace(sigma_src) + np.trace(sigma_tgt) - 2 * tr_covmean)
+        return max(fid, 0.0)
+
+
+class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
+    """
+    Precision-Recall distance evaluator based on BERT embeddings.
+    See: https://aclanthology.org/2021.findings-acl.193/
+    """
+    def __init__(self,
+                 reference_dialogues: Union[str, List[Dialog]],
+                 ai_speaker: str = None,
+                 num_clusters=20,
+                 num_angles=1001,
+                 num_runs=10,
+                 name: str = None,
+                 model_name: str = "roberta-base",
+                 batch_size: int = 128,
+                 device: str = None,
+                 verbose: bool = False):
+        if isinstance(reference_dialogues, str):
+            reference_dialogues = Dialog.from_file(reference_dialogues)
+        if not reference_dialogues or not isinstance(reference_dialogues, list):
+            raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
+
+        self.name = name or f"pr-distance-{model_name.split('/')[-1]}"
+        self.verbose = verbose
+        self.ai_speaker = ai_speaker
+        self.num_clusters = num_clusters
+        self.num_angles = num_angles
+        self.num_runs = num_runs
+        self.batch_size = batch_size
+        self.model = SentencePairTransformer(model_name=model_name,
+                                             device=device,
+                                             verbose=verbose)
+        self.reference_embs = self._encode_utterance_pairs(reference_dialogues)
+
+    def _encode_utterance_pairs(self, dialogues: List[Dialog], dataset_name: str = "reference") -> np.ndarray:
+        """
+        Encode utterance pairs from dialogues using the model.
+
+        :param dialogues: List of Dialog objects.
+        :param dataset_name: Name of the dataset for logging.
+        :return: Encoded utterance pairs as a 2D numpy array.
+        """
+        return self.model.encode(*dialogs_to_utt_pairs(dialogues, self.ai_speaker),
+                                 batch_size=self.batch_size,
+                                 progress_bar_desc=f"Computing embeddings for PRD on {dataset_name}")
+
+    def _cluster_histograms(self, target_embs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        cluster_data = np.vstack([target_embs, self.reference_embs])
+        kmeans = MiniBatchKMeans(n_clusters=self.num_clusters, n_init=10)
+        labels = kmeans.fit(cluster_data).labels_
+
+        reference_labels = labels[len(target_embs):]
+        target_labels = labels[:len(target_embs)]
+
+        reference_histogram = np.histogram(reference_labels, bins=self.num_clusters,
+                                           range=[0, self.num_clusters], density=True)[0]
+        target_histogram = np.histogram(target_labels, bins=self.num_clusters,
+                                        range=[0, self.num_clusters], density=True)[0]
+        return reference_histogram, target_histogram
+
+    def _precision_recall_distance(self,
+                                   reference_histogram: np.ndarray,
+                                   target_histogram: np.ndarray,
+                                   epsilon=1e-10) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Computes the Precision-Recall Distributions (PRD) curve between two histograms, as described in
+        "Improved Precision and Recall Metric for Assessing Generative Models" (arXiv:1904.06991).
+        The PRD curve is calculated for a set of num_angles values, linearly spaced between [0, pi/2],
+        providing a trade-off between precision and recall for the two distributions.
+        """
+        if not (epsilon > 0 and epsilon < 0.1):
+            raise ValueError('epsilon must be in (0, 0.1] but is %s.' % str(epsilon))
+        if not (self.num_angles >= 3 and self.num_angles <= 1e6):
+            raise ValueError('num_angles must be in [3, 1e6] but is %d.' % self.num_angles)
+
+        angles = np.linspace(epsilon, np.pi / 2 - epsilon, num=self.num_angles)
+        slopes = np.tan(angles)
+
+        slopes_2d = np.expand_dims(slopes, 1)
+
+        ref_dist_2d = np.expand_dims(reference_histogram, 0)
+        eval_dist_2d = np.expand_dims(target_histogram, 0)
+
+        precision = np.minimum(ref_dist_2d * slopes_2d, eval_dist_2d).sum(axis=1)
+        recall = precision / slopes
+
+        return np.clip(precision, 0, 1), np.clip(recall, 0, 1)
+
     def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = None) -> Union[dict, float]:
-        target_mu, target_sigma = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
-        return frechet_distance(self.reference_mu, self.reference_sigma, target_mu, target_sigma)
+        target_embs = self._encode_utterance_pairs(dialogues, dataset_name)
+
+        if len(target_embs) != len(self.reference_embs):
+            logger.warning("The total number of utterance pairs in the reference dialogues "
+                           f"({len(self.reference_embs)}) and those of the evaluation dialogues "
+                           f"({len(target_embs)}) are not equal. "
+                           "This may lead to misleading results since unbalanced distributions bias "
+                           "the clustering towards the larger dataset.")
+
+            precisions = []
+            recalls = []
+            for _ in range(self.num_runs):
+                reference_histogram, target_histogram = self._cluster_histograms(target_embs)
+                precision, recall = self._precision_recall_distance(reference_histogram, target_histogram)
+                precisions.append(precision)
+                recalls.append(recall)
+            precision = np.mean(precisions, axis=0).tolist()
+            recall = np.mean(recalls, axis=0).tolist()
+            return max([2 * p * r / (p + r) if (p + r) > 0 else 0
+                        for p, r in zip(precision, recall)])  # max F1 score
 
 
 class StatsEvaluator(BaseDatasetScoreEvaluator):

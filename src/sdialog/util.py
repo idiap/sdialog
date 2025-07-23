@@ -21,7 +21,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 from functools import wraps
 from pydantic import BaseModel
-from typing import Union, List
+from typing import Union, List, Tuple
 from sklearn.neighbors import NearestNeighbors
 from transformers import AutoTokenizer, AutoModel
 from langchain_ollama.chat_models import ChatOllama
@@ -46,7 +46,7 @@ class SentencePairTransformer:  # As opposed to SentenceTransformer
 
     def encode(self,
                sent1: Union[str, List[str]],
-               sent2: Union[str, List[str]] = None,
+               sent2: Union[str, List[str]],
                batch_size: int = 128,
                show_progress_bar: bool = True,
                progress_bar_desc: str = "Computing embeddings") -> np.ndarray:
@@ -59,6 +59,7 @@ class SentencePairTransformer:  # As opposed to SentenceTransformer
         :rtype: np.ndarray
         """
         embs = []
+
         self.model.eval()
         with torch.no_grad():
             inputs = self.tokenizer(sent1, sent2, return_tensors='pt', padding=True, truncation=True)
@@ -164,6 +165,51 @@ class CacheDialogScore:
         """
         self._cache = {}
         self.save()
+
+
+def dialogs_to_utt_pairs(dialogs: List[BaseModel], ai_speaker: str = None) -> Tuple[List[str], List[str]]:
+    """
+    Extracts utterances and their subsequent utterances from a list of dialogs.
+
+    :param dialogs: List of dialog objects containing turns.
+    :param ai_speaker: If specified, return pairs human question and AI answer pairs,
+                       useful when we want to study only the AI responses quality.
+    :return: A tuple of two lists: (utterances, next_utterances).
+    """
+    ai_speaker = ai_speaker.lower() if ai_speaker else None
+    utts = []
+    utts_next = []
+    for dialog in dialogs:
+        # if AI speaker is not specified, just return a sliding window of turns
+        if not ai_speaker:
+            turns = [t.text for t in dialog.turns]
+            utts.extend(turns[:-1])
+            utts_next.extend(turns[1:])
+        else:  # If AI speaker is specified, return as human question and AI answer pairs
+            ai_turns = [(ix, t.text)
+                        for ix, t in enumerate(dialog.turns)
+                        if t.speaker.lower() == ai_speaker]
+            if not ai_turns:
+                logger.warning(f"No turns found for AI speaker '{ai_speaker}' in dialog "
+                               f"{dialog._path if hasattr(dialog, '_path') and dialog._path else ''}")
+                continue
+
+            for ix, _ in ai_turns:
+                # Find the previous human turn (if exists)
+                if ix > 0 and dialog.turns[ix - 1].speaker.lower() != ai_speaker:
+                    utts.append(dialog.turns[ix - 1].text)
+                    utts_next.append(dialog.turns[ix].text)
+
+    if not utts or not utts_next:
+        if ai_speaker:
+            raise ValueError("No utterances found in the dialogs. Ensure the provided "
+                             f"AI speaker ('{ai_speaker}') is correctly specified.")
+        raise ValueError("No utterances found in the dialogs. Ensure the dialogs contain valid turns.")
+
+    if len(utts) != len(utts_next):
+        raise ValueError(f"Number of utterances ({len(utts)}) and next utterances ({len(utts_next)}) must be equal.")
+
+    return utts, utts_next
 
 
 def check_valid_model_name(func):
