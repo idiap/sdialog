@@ -227,7 +227,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
 
         # Plot box plots for each dataset
         plt.figure(figsize=(8, 5))
-        self.__plot__(self.datasets_embs, plot=plt)
+        self.__plot__(self.datasets_embs)
         if save_path:
             plt.savefig(save_path, dpi=300)
         if show:

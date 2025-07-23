@@ -417,12 +417,11 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         self.reference_embs = reference_embs if enable_plotting else None
         self.reference_centroid = np.mean(reference_embs, axis=0)
 
-    def __plot__(self, dialog_embs: Dict[str, np.ndarray], plot: Optional[plt.Axes]):
+    def __plot__(self, dialog_embs: Dict[str, np.ndarray]):
         """
         Plot the embeddings of the datasets.
         :param dialog_embs: A dictionary with dataset names as keys and embeddings as values.
         :param tsne_model: The t-SNE model used for dimensionality reduction.
-        :param plot: Optional matplotlib Axes object to plot on. If None, creates a new figure.
         """
         # Concatenate all embeddings and keep track of dataset labels
         all_embs = [self.reference_centroid.reshape(1, -1)]
@@ -438,6 +437,7 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         all_labels = np.array(all_labels)
 
         # Compute t-SNE (2D)
+        logger.info("Computing t-SNE for embeddings...")
         tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
         tsne_embs = tsne.fit_transform(all_embs)
 
@@ -595,7 +595,11 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
                  model_name: str = "roberta-base",
                  batch_size: int = 128,
                  device: str = None,
+                 enable_plotting: bool = False,
                  verbose: bool = False):
+        self.reference_embs = None
+        self.datasets_embs = {}
+        self.enable_plotting = enable_plotting
         self.verbose = verbose
         self.ai_speaker = ai_speaker
         self.name = name or "frechet-bert-distance"
@@ -627,11 +631,17 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
                                  batch_size=self.batch_size,
                                  progress_bar_desc=f"Computing embeddings for FrechetBERT on {dataset_name}")
 
+        if self.enable_plotting and dataset_name:
+            if dataset_name == "reference":
+                self.reference_embs = embs
+            else:
+                self.datasets_embs[dataset_name] = embs
+
         mu = np.mean(embs, axis=0)
         sigma = np.cov(embs, rowvar=False)
         return mu, sigma
 
-    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = None) -> float:
+    def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate") -> float:
         """
         Compute the Frechet distance (a.k.a. Fréchet Inception Distance, FID) between two multivariate Gaussians.
         See: https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance#Application_in_machine_learning
@@ -659,6 +669,47 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         tr_covmean = np.trace(covmean)
         fid = float(diff.dot(diff) + np.trace(sigma_src) + np.trace(sigma_tgt) - 2 * tr_covmean)
         return max(fid, 0.0)
+
+    def plot(self, show: bool = True, save_path: str = None):
+        """
+        Plot the sentence-pair embeddings of the datasets.
+        """
+        if not self.enable_plotting or not self.datasets_embs:
+            return
+        plt.figure(figsize=(8, 5))
+        # Concatenate all embeddings and keep track of dataset labels
+        all_embs = [self.reference_embs]
+        all_labels = ["reference"] * len(self.reference_embs)
+        for dataset_name, embs in self.datasets_embs.items():
+            all_embs.append(embs)
+            all_labels.extend([dataset_name] * len(embs))
+        all_embs = np.vstack(all_embs)
+        all_labels = np.array(all_labels)
+
+        # Compute t-SNE (2D)
+        logger.info("Computing t-SNE for embeddings...")
+        tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
+        tsne_embs = tsne.fit_transform(all_embs)
+
+        # Plot
+        unique_labels = np.unique(all_labels).tolist()
+        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
+        for i, label in enumerate(unique_labels):
+            idx = all_labels == label
+            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                        label=label if label != "reference" else "Reference",
+                        alpha=0.15 if label == "reference" else 0.7,
+                        color="black" if label == "reference" else colors[i % len(colors)])
+
+        plt.xlabel("t-SNE 1")
+        plt.ylabel("t-SNE 2")
+        plt.title(f"Sentence-pair embeddings for {self.name}")
+        plt.legend()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300)
+        if show:
+            plt.show()
 
 
 class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
