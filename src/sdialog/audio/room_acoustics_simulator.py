@@ -7,8 +7,11 @@ import soundfile as sf
 import pyroomacoustics as pra
 from sdialog.audio.room import Room, RoomRole, AudioSource, Position3D
 from sdialog.audio.room import (
-    DoctorPosition, PatientPosition, SoundEventPosition,
-    RecordingDevice, MicrophonePosition
+    DoctorPosition,
+    PatientPosition,
+    SoundEventPosition,
+    RecordingDevice,
+    MicrophonePosition,
 )
 from sdialog.audio.room_generator import calculate_room_dimensions, ROOM_SIZES
 
@@ -122,9 +125,11 @@ class RoomAcousticsSimulator:
 
             position = self.parse_position(asource.position)
             if position is not SoundEventPosition:
-                asource._position3d = self.position_to_room_position(self.room, position)
+                asource._position3d = self.position_to_room_position(
+                    self.room, position
+                )
             else:
-                room_center = [dim/2 for dim in self._pyroom.dimensions]
+                room_center = [dim / 2 for dim in self._pyroom.dimensions]
                 asource._position3d = Position3D(room_center)
 
             audio = None
@@ -208,7 +213,9 @@ class RoomAcousticsSimulator:
         return x
 
     @staticmethod
-    def parse_position(position: str) -> Union[DoctorPosition, PatientPosition, SoundEventPosition]:
+    def parse_position(
+        position: str,
+    ) -> Union[DoctorPosition, PatientPosition, SoundEventPosition]:
         """
         Convert a position string to the appropriate position enum.
         """
@@ -222,9 +229,11 @@ class RoomAcousticsSimulator:
                 return PatientPosition(position)
             except ValueError:
                 raise ValueError(f"Invalid patient position: {position}")
-        elif   position.startswith("soundevent-"):
-             return SoundEventPosition(position)
-        elif position.startswith(SoundEventPosition.BACKGROUND.value): # no_type - background
+        elif position.startswith("soundevent-"):
+            return SoundEventPosition(position)
+        elif position.startswith(
+            SoundEventPosition.BACKGROUND.value
+        ):  # no_type - background
             return SoundEventPosition(position)
         else:
             raise ValueError(

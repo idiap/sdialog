@@ -114,18 +114,18 @@ class RoomRole(Enum):
     # def __str__(self):
     #     return self.value
 
-class SoundEventPosition(Enum):
-    BACKGROUND = "no_type" # background -
-    NOT_DEFINED = "soundevent-not_defined"
-    DEFINED = "soundevent-defined" # [0.0 0.1 0.4]
 
+class SoundEventPosition(Enum):
+    BACKGROUND = "no_type"  # background -
+    NOT_DEFINED = "soundevent-not_defined"
+    DEFINED = "soundevent-defined"  # [0.0 0.1 0.4]
     # NEXT_TO_DOCTOR
     # NEXT_TO PATIENT
-    # OMNIDIRECTIONAL = "omnidirectional"
 
 
 class DoctorPosition(Enum):
     """Doctor placement locations in examination room"""
+
     AT_DESK_SITTING = "doctor-at_desk_sitting"
     AT_DESK_SIDE_STANDING = "doctor-at_desk_side_standing"
     NEXT_TO_BENCH_STANDING = "doctor-next_to_bench_standing"
@@ -204,7 +204,9 @@ class AudioSource:
     source_file: str = None  # audio file e.g wav
     directivity: Optional[str] = "omnidirectional"
     _position3d: Position3D = None
-    _is_primary: Optional[bool] = False  # Primary speaker (doctor) vs secondary (patient)
+    _is_primary: Optional[bool] = (
+        False  # Primary speaker (doctor) vs secondary (patient)
+    )
 
     def __post_init__(self):
         self._is_primary = self._determine_primary_status(self.name)
