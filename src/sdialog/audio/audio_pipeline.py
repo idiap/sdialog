@@ -8,6 +8,7 @@ from datasets import load_dataset
 from typing import List, Optional
 from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
+from sdialog.audio.room import MicrophonePosition
 from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
@@ -103,7 +104,8 @@ class AudioPipeline:
             room: Optional[Room] = None,
             do_word_alignments: bool = False,
             do_snr: bool = False,
-            do_room_position: bool = False) -> AudioDialog:
+            do_room_position: bool = False,
+            microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED) -> AudioDialog:
         """
         Run the audio pipeline.
         """
@@ -138,11 +140,12 @@ class AudioPipeline:
         if do_snr:
             dialog: AudioDialog = self.enricher.generate_snr(dialog)
 
+        # Generate the position of the speakers in the room
         if do_room_position:
             dialog: AudioDialog = self.enricher.generate_room_position(dialog)
 
-        # Randomly sample a static microphone position for the whole dialogue
-        dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
+        # # Randomly sample a static microphone position for the whole dialogue
+        # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
         if self._dscaper is not None:
 
@@ -158,7 +161,7 @@ class AudioPipeline:
 
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None:
-            dialog: AudioDialog = generate_audio_room_accoustic(dialog)
+            dialog: AudioDialog = generate_audio_room_accoustic(dialog, microphone_position)
         else:
             logging.warning(
                 "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"

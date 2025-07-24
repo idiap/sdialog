@@ -37,7 +37,20 @@ class BaseVoiceDatabase:
         """
         Random sampling of voice from the database.
         """
+
+        # If the voice is not in the database, find the closest age for this gender
+        if (genre, age) not in self._data:
+
+            # Get the list of ages for this gender
+            _ages = [age for (genre, age) in self._data.keys() if genre == genre]
+
+            # Get the closest age for this gender
+            age = min(_ages, key=lambda x: abs(x - age))
+
+        # Get the voices from the database for this gender and age
         _subset = self._data[(genre, age)]
+
+        # Randomly sample a voice from the database for this gender and age
         return random.choice(_subset)
 
 
@@ -79,3 +92,40 @@ class DummyVoiceDatabase(BaseVoiceDatabase):
             ] for age in range(0, 150, 1)
         }
         self._data = {**males_voices, **females_voices}
+
+
+class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
+    """
+    Huggingface voice database.
+    """
+
+    def __init__(self):
+        BaseVoiceDatabase.__init__(self)
+
+    def get_data(self) -> dict:
+        """
+        Get the data of the voice database.
+        """
+        return self._data
+
+    def _gender_to_gender(self, gender: str) -> str:
+        """
+        Convert the gender to the gender.
+        """
+        return "male" if gender == "M" else "female"
+
+    def populate(self, dataset_name: str = "sdialog/voices-libritts", subset: str = "train") -> dict:
+        """
+        Populate the voice database.
+        """
+        from datasets import load_dataset
+        dataset = load_dataset(dataset_name)[subset]
+
+        self._data = {
+            (self._gender_to_gender(d["gender"]), d["age"]): [
+                {
+                    "identifier": d["speaker_id"],
+                    "path": d["path"]
+                }
+            ] for d in dataset
+        }

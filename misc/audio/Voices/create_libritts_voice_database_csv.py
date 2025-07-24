@@ -140,7 +140,7 @@ def create_voice_database(libritts_path: str, output_dir: str, duration_s: int =
 
                 audio, sr = sf.read(audio_file, dtype='float32')
                 concatenated_audio.append(audio)
-                
+
                 utterance_duration_s = len(audio) / sr
                 used_utterances_info.append({
                     "path": audio_file,
@@ -173,6 +173,7 @@ def create_voice_database(libritts_path: str, output_dir: str, duration_s: int =
             "gender": info['GENDER'],
             "name": info['NAME'],
             "subset": subset,
+            "age": -1,
             "output_filename": output_filename,
             "total_duration_s": final_duration_s,
             "used_utterances": used_utterances_info

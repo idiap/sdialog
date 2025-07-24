@@ -116,24 +116,24 @@ class RoomRole(Enum):
 class DoctorPosition(Enum):
     """Doctor placement locations in examination room"""
 
-    AT_DESK_SITTING = "doctor:at_desk_sitting"
-    AT_DESK_SIDE_STANDING = "doctor:at_desk_side_standing"
-    NEXT_TO_BENCH_STANDING = "doctor:next_to_bench_standing"
-    NEXT_TO_SINK_FRONT = "doctor:next_to_sink_front"
-    NEXT_TO_SINK_BACK = "doctor:next_to_sink_back"
-    NEXT_TO_CUPBOARD_FRONT = "doctor:next_to_cupboard_front"
-    NEXT_TO_CUPBOARD_BACK = "doctor:next_to_cupboard_back"
-    NEXT_TO_DOOR_STANDING = "doctor:next_to_door_standing"
+    AT_DESK_SITTING = "doctor-at_desk_sitting"
+    AT_DESK_SIDE_STANDING = "doctor-at_desk_side_standing"
+    NEXT_TO_BENCH_STANDING = "doctor-next_to_bench_standing"
+    NEXT_TO_SINK_FRONT = "doctor-next_to_sink_front"
+    NEXT_TO_SINK_BACK = "doctor-next_to_sink_back"
+    NEXT_TO_CUPBOARD_FRONT = "doctor-next_to_cupboard_front"
+    NEXT_TO_CUPBOARD_BACK = "doctor-next_to_cupboard_back"
+    NEXT_TO_DOOR_STANDING = "doctor-next_to_door_standing"
 
 
 class PatientPosition(Enum):
     """Patient placement locations in examination room"""
 
-    AT_DOOR_STANDING = "patient:at_door_standing"
-    NEXT_TO_DESK_SITTING = "patient:next_to_desk_sitting"
-    NEXT_TO_DESK_STANDING = "patient:next_to_desk_standing"
-    SITTING_ON_BENCH = "patient:sitting_on_bench"
-    CENTER_ROOM_STANDING = "patient:center_room_standing"
+    AT_DOOR_STANDING = "patient-at_door_standing"
+    NEXT_TO_DESK_SITTING = "patient-next_to_desk_sitting"
+    NEXT_TO_DESK_STANDING = "patient-next_to_desk_standing"
+    SITTING_ON_BENCH = "patient-sitting_on_bench"
+    CENTER_ROOM_STANDING = "patient-center_room_standing"
 
 
 class MicrophonePosition(Enum):

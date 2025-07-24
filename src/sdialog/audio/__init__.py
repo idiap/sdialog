@@ -15,10 +15,10 @@ import soundfile as sf
 from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.util import remove_audio_tags
-from sdialog.audio.room import AudioSource
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
+from sdialog.audio.room import AudioSource, MicrophonePosition
 from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
 
@@ -160,7 +160,9 @@ def generate_dscaper_timeline(
 
     # Add the background to the timeline
     background_metadata = DscaperBackground(
-        library="background", label=["const", "ac_noise"], source_file=["choose", "[]"]
+        library="background",
+        label=["const", "ac_noise"],
+        source_file=["choose", "[]"]
     )
     _dscaper.add_background(timeline_name, background_metadata)
 
@@ -168,11 +170,11 @@ def generate_dscaper_timeline(
     # TODO: Add the foreground to the timeline dynamically
     foreground_metadata = DscaperEvent(
         library="foreground",
-        label=["const", "white_noise"],
+        label=["const", "white_noise"],  # Can be a keyboard
         source_file=["choose", "[]"],
         event_time=["const", "0"],
         event_duration=["const", "0.1"],
-        position="at_desk_sitting",
+        position="doctor-at_desk_sitting",
         speaker="foreground",
         text="foreground",
     )
@@ -182,7 +184,7 @@ def generate_dscaper_timeline(
     current_time = 0.0
     for i, turn in enumerate(dialog.turns):
         # TODO: Remove this hardcoded default position
-        default_position = "at_desk_sitting" if turn.speaker == "DOCTOR" else "next_to_desk_sitting"
+        default_position = "doctor-at_desk_sitting" if turn.speaker == "DOCTOR" else "patient-next_to_desk_sitting"
         _event_metadata = DscaperEvent(
             library=timeline_name,
             label=["const", turn.speaker],
@@ -191,7 +193,8 @@ def generate_dscaper_timeline(
             event_duration=["const", str(f"{turn.audio_duration:.1f}")],
             speaker=turn.speaker,
             text=turn.text,
-            position=turn.position if turn.position else default_position,
+            position=default_position,
+            # if turn.position is not None, use it, otherwise use the default position
             # TODO: Add the microphone position
         )
         _dscaper.add_event(timeline_name, _event_metadata)
@@ -200,7 +203,13 @@ def generate_dscaper_timeline(
     # Generate the timeline
     resp = _dscaper.generate_timeline(
         timeline_name,
-        DscaperGenerate(seed=0, save_isolated_positions=True, ref_db=-20, reverb=0, save_isolated_events=False),
+        DscaperGenerate(
+            seed=0,
+            save_isolated_positions=True,
+            ref_db=-20,
+            reverb=0,
+            save_isolated_events=False
+        ),
     )
 
     # Buil the generate directory path
@@ -240,19 +249,25 @@ def generate_dscaper_timeline(
 
 
 # TODO: Implement this function
-def generate_audio_room_accoustic(dialog: AudioDialog) -> AudioDialog:
+def generate_audio_room_accoustic(dialog: AudioDialog, microphone_position: MicrophonePosition) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
 
-    room_acoustics = RoomAcousticsSimulator(dialog.get_room())
+    # Create the room acoustics simulator
+    room_acoustics = RoomAcousticsSimulator(
+        dialog.get_room()
+    )
 
-    room_acoustics.add_sources(
+    # Add the microphone to the room acoustics simulator
+    room_acoustics.set_microphone_position(microphone_position)
+
+    # Simulate the audio
+    _audio_accoustic = room_acoustics.simulate(
         dialog.get_audio_sources()
     )
-    # room_acoustics.add_microphone()
-    _audio_accoustic = room_acoustics.simulate()
 
+    # Save the audio
     dialog._audio_step_3_filepath = os.join(
         dialog.audio_dir_path,
         f"dialog_{dialog.id}",

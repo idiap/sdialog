@@ -210,19 +210,19 @@ class RoomAcousticsSimulator:
         """
         Convert a position string to the appropriate position enum.
         """
-        if position.startswith("doctor:"):
+        if position.startswith("doctor-"):
             try:
                 return DoctorPosition(position)
             except ValueError:
                 raise ValueError(f"Invalid doctor position: {position}")
-        elif position.startswith("patient:"):
+        elif position.startswith("patient-"):
             try:
                 return PatientPosition(position)
             except ValueError:
                 raise ValueError(f"Invalid patient position: {position}")
         else:
             raise ValueError(
-                f"Position must start with 'doctor:' or 'patient:', got: {position}"
+                f"Position must start with 'doctor-' or 'patient-', got: {position}"
             )
 
     @staticmethod
@@ -232,7 +232,7 @@ class RoomAcousticsSimulator:
         """
         Convert semantic position enums to actual 3D coordinates within the room.
 
-        This function maps abstract position descriptions (like "doctor:at_desk_sitting")
+        This function maps abstract position descriptions (like "doctor-at_desk_sitting")
         to concrete 3D coordinates that can be used for acoustic simulation.
 
         Args:
@@ -456,21 +456,21 @@ class RoomAcousticsSimulator:
         test_sources = [
             {
                 "name": "doctor",
-                "position": "doctor:at_desk_sitting",
+                "position": "doctor-at_desk_sitting",
                 "frequency": 440.0,  # A4 note
                 "amplitude": 0.3,
                 "snr": -6.0,
             },
             {
                 "name": "patient",
-                "position": "patient:next_to_desk_sitting",
+                "position": "patient-next_to_desk_sitting",
                 "frequency": 330.0,  # E4 note
                 "amplitude": 0.25,
                 "snr": -12.0,
             },
             {
                 "name": "background_noise",
-                "position": "patient:center_room_standing",
+                "position": "patient-center_room_standing",
                 "frequency": None,  # White noise
                 "amplitude": 0.1,
                 "snr": -20.0,
