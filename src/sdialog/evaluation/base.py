@@ -5,11 +5,12 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 
+from math import log
 from tqdm.auto import tqdm
 from jinja2 import Template
-from typing import Optional
 from pydantic import BaseModel
 from sklearn.manifold import TSNE
+from typing import Optional, Tuple
 from abc import ABC, abstractmethod
 from typing import Union, List, Dict
 from sentence_transformers import SentenceTransformer
@@ -17,9 +18,9 @@ from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
 from ..config import config
-from .dialog2flow import dialog2graph
+from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
 from langchain_core.messages import HumanMessage, SystemMessage
-from ..util import CacheDialogScore, KNNModel, get_llm_model, upper_camel_to_dash
+from ..util import CacheDialogScore, KNNModel, get_llm_model, upper_camel_to_dash, softmax
 
 
 scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
@@ -142,6 +143,30 @@ class BaseDialogFlowScore(BaseDialogScore):
                                 for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
                                k=k_neighbors)
         }
+
+    def compute_dialog_log_likelihood(self, dialog: Dialog) -> Tuple[float, int]:
+        sum_log_p = 0
+        n_turns = 0
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
+            current_node, _ = neighbors[0]
+            prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
+
+            prob_current_node = self.graph.get_edge_data(prev_node, current_node)
+            if (not self.only_system or speaker == "system") and prob_current_node is not None:
+                sum_log_p += log(prob_current_node["weight"] * prob_correct_node)
+                n_turns += 1
+            prev_node = current_node
+
+        return sum_log_p, n_turns
 
     @abstractmethod
     def score(self, dialog: Dialog) -> float:
