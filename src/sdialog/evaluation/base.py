@@ -23,7 +23,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..util import CacheDialogScore, KNNModel, get_llm_model, upper_camel_to_dash, softmax
 
 
-scores_cache = CacheDialogScore(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
+CacheDialogScore.init(config["cache"]["path"], enable_cache=config["cache"]["enabled"])
 logger = logging.getLogger(__name__)
 
 
@@ -225,9 +225,9 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                 f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
                 f"with evaluator '{self.name}' will be saved to disk."
             )
-            scores_cache.save()  # Save the cache to disk after scoring
+            CacheDialogScore.save()  # Save the cache to disk after scoring
             raise KeyboardInterrupt
-        scores_cache.save()
+        CacheDialogScore.save()
 
         self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         results = self.eval(scores)

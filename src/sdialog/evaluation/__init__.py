@@ -34,7 +34,7 @@ from ..personas import BasePersona
 from ..util import SentencePairTransformer
 from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
-from .base import scores_cache, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
+from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ class DialogFlowPPL(BaseDialogFlowScore):
             **d2f_kwargs
         )
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
         sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
         return exp(-sum_log_p / n_turns)
@@ -149,7 +149,7 @@ class DialogFlowAppropriateness(BaseDialogFlowScore):
             **d2f_kwargs
         )
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
         sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
         return pow(exp(sum_log_p), 1 / n_turns)
@@ -183,7 +183,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
         return output
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> int:
         """
         Computes the score for the provided dialog, 1 if dialogues is judged as real, 0 otherwise.
@@ -253,7 +253,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
         return output
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> Union[float, int]:
         """
         Computes the score for the provided dialog.
