@@ -7,10 +7,8 @@ import soundfile as sf
 import pyroomacoustics as pra
 from sdialog.audio.room import Room, RoomRole, AudioSource, Position3D
 from sdialog.audio.room import (
-    DoctorPosition,
-    PatientPosition,
-    RecordingDevice,
-    MicrophonePosition,
+    DoctorPosition, PatientPosition, SoundEventPosition,
+    RecordingDevice, MicrophonePosition
 )
 from sdialog.audio.room_generator import calculate_room_dimensions, ROOM_SIZES
 
@@ -123,7 +121,11 @@ class RoomAcousticsSimulator:
             self.audiosources.append(asource)
 
             position = self.parse_position(asource.position)
-            asource._position3d = self.position_to_room_position(self.room, position)
+            if position is not SoundEventPosition:
+                asource._position3d = self.position_to_room_position(self.room, position)
+            else:
+                room_center = [dim/2 for dim in self._pyroom.dimensions]
+                asource._position3d = Position3D(room_center)
 
             audio = None
             if hasattr(asource, "_test_audio") and asource._test_audio is not None:
@@ -168,7 +170,7 @@ class RoomAcousticsSimulator:
         #     print(f"Applied soft compression (ratio: {compression_ratio:.3f}) to prevent clipping")
         # print(f"Simulation complete! Peak level: {np.max(np.abs(mixed_signal)):.3f}")
 
-        mixed_signal = self.apply_snr(mixed_signal, 0.0)  # scale audio to max 1dB
+        mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max 1dB
         return mixed_signal
 
     def reset(self):
@@ -206,23 +208,27 @@ class RoomAcousticsSimulator:
         return x
 
     @staticmethod
-    def parse_position(position: str) -> Union[DoctorPosition, PatientPosition]:
+    def parse_position(position: str) -> Union[DoctorPosition, PatientPosition, SoundEventPosition]:
         """
         Convert a position string to the appropriate position enum.
         """
-        if position.startswith("doctor:"):
+        if position.startswith("doctor-"):
             try:
                 return DoctorPosition(position)
             except ValueError:
                 raise ValueError(f"Invalid doctor position: {position}")
-        elif position.startswith("patient:"):
+        elif position.startswith("patient-"):
             try:
                 return PatientPosition(position)
             except ValueError:
                 raise ValueError(f"Invalid patient position: {position}")
+        elif   position.startswith("soundevent-"):
+             return SoundEventPosition(position)
+        elif position.startswith(SoundEventPosition.BACKGROUND.value): # no_type - background
+            return SoundEventPosition(position)
         else:
             raise ValueError(
-                f"Position must start with 'doctor:' or 'patient:', got: {position}"
+                f"Position must start with 'doctor-' or 'patient-', got: {position}"
             )
 
     @staticmethod
@@ -456,21 +462,21 @@ class RoomAcousticsSimulator:
         test_sources = [
             {
                 "name": "doctor",
-                "position": "doctor:at_desk_sitting",
+                "position": DoctorPosition.AT_DESK_SITTING.value,
                 "frequency": 440.0,  # A4 note
                 "amplitude": 0.3,
                 "snr": -6.0,
             },
             {
                 "name": "patient",
-                "position": "patient:next_to_desk_sitting",
+                "position": PatientPosition.NEXT_TO_DESK_SITTING.value,
                 "frequency": 330.0,  # E4 note
                 "amplitude": 0.25,
                 "snr": -12.0,
             },
             {
                 "name": "background_noise",
-                "position": "patient:center_room_standing",
+                "position": "no_type",
                 "frequency": None,  # White noise
                 "amplitude": 0.1,
                 "snr": -20.0,
