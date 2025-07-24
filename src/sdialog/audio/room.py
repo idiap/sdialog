@@ -12,6 +12,8 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Union, List, Any
 
+from pyroomacoustics.directivities.analytic import Omnidirectional
+
 
 @dataclass
 class Position3D:
@@ -111,6 +113,14 @@ class RoomRole(Enum):
 
     # def __str__(self):
     #     return self.value
+
+class SoundEventPosition(Enum):
+    DEFINED = "defined" # [0.0 0.1 0.4]
+    NOT_DEFINED = "not_defined"
+    NO_TYPE = "no_type" # background
+    # NEXT_TO_DOCTOR
+    # NEXT_TO PATIENT
+    # OMNIDIRECTIONAL = "omnidirectional"
 
 
 class DoctorPosition(Enum):
