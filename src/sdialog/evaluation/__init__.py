@@ -31,7 +31,6 @@ from langchain_core.language_models.base import BaseLanguageModel
 from .. import Dialog
 from ..config import config
 from ..personas import BasePersona
-from .dialog2flow import DEFAULT_TOKEN_START
 from ..util import SentencePairTransformer
 from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
