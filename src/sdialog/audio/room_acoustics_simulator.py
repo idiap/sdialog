@@ -38,7 +38,7 @@ class RoomAcousticsSimulator:
          >>> audio = room_acoustics.simulate(audio_sources)
     """
 
-    def __init__(self, room: Optional[Room] = None, sampling_rate=16000):
+    def __init__(self, room: Optional[Room] = None, sampling_rate=44_100):
         self.sampling_rate = sampling_rate
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
@@ -67,7 +67,7 @@ class RoomAcousticsSimulator:
         )
         self.add_microphone(self.mic_position.to_list())
 
-    def _create_pyroom(self, room: Room, sampling_rate=16000):
+    def _create_pyroom(self, room: Room, sampling_rate=44_100):
         e_absorption, max_order = pra.inverse_sabine(room.rt60, room.dimensions)
         # max_order = 17  # Number of reflections
         return pra.ShoeBox(
@@ -446,7 +446,7 @@ class RoomAcousticsSimulator:
 
     @staticmethod
     def generate_test_audio_sources(
-        sampling_rate=16000, duration=2.0, save_files=True
+        sampling_rate=44_100, duration=2.0, save_files=True
     ) -> List[AudioSource]:
         """
         Generate synthetic audio sources for testing the room acoustics simulator.

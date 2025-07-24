@@ -127,7 +127,7 @@ class AudioPipeline:
         )
         # save the combined audio to exported_audios folder
         sf.write(
-            f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios/combined_audio.wav",
+            f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios/audio_pipeline_step1.wav",
             dialog.get_combined_audio(),
             self.sampling_rate
         )

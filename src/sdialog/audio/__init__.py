@@ -8,6 +8,7 @@ This module provides functionality to generate audio from text utterances in a d
 import os
 import torch
 import scaper
+import shutil
 import logging
 import whisper
 import numpy as np
@@ -212,7 +213,7 @@ def generate_dscaper_timeline(
         ),
     )
 
-    # Buil the generate directory path
+    # Build the generate directory path
     soundscape_positions_path = os.path.join(
         _dscaper.get_dscaper_base_path(),
         "timelines",
@@ -221,6 +222,18 @@ def generate_dscaper_timeline(
         resp.content["id"],
         "soundscape_positions"
     )
+
+    # Build the path to the audio output
+    audio_output_path = os.path.join(
+        _dscaper.get_dscaper_base_path(),
+        "timelines",
+        timeline_name,
+        "generate",
+        resp.content["id"],
+        "soundscape.wav"
+    )
+    # Copy the audio output to the dialog audio directory
+    shutil.copy(audio_output_path, os.path.join(dialog.audio_dir_path, "exported_audios", "audio_pipeline_step2.wav"))
 
     # Get the sounds files
     sounds_files = [_ for _ in os.listdir(soundscape_positions_path) if _.endswith(".wav")]
@@ -248,8 +261,9 @@ def generate_dscaper_timeline(
     return dialog
 
 
-# TODO: Implement this function
-def generate_audio_room_accoustic(dialog: AudioDialog, microphone_position: MicrophonePosition) -> AudioDialog:
+def generate_audio_room_accoustic(
+        dialog: AudioDialog,
+        microphone_position: MicrophonePosition) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
@@ -268,11 +282,16 @@ def generate_audio_room_accoustic(dialog: AudioDialog, microphone_position: Micr
     )
 
     # Save the audio
-    dialog._audio_step_3_filepath = os.join(
+    dialog._audio_step_3_filepath = os.path.join(
         dialog.audio_dir_path,
         f"dialog_{dialog.id}",
+        "exported_audios",
         "audio_pipeline_step3.wav"
     )
-    sf.wavwrite(dialog._audio_step_3_filepath, _audio_accoustic, 16_000)
+    sf.write(
+        dialog._audio_step_3_filepath,
+        _audio_accoustic,
+        44_100
+    )
 
     return dialog
