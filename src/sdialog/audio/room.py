@@ -12,6 +12,8 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Union, List, Any
 
+# from pyroomacoustics.directivities.analytic import Omnidirectional
+
 
 @dataclass
 class Position3D:
@@ -113,6 +115,14 @@ class RoomRole(Enum):
     #     return self.value
 
 
+class SoundEventPosition(Enum):
+    BACKGROUND = "no_type"  # background -
+    NOT_DEFINED = "soundevent-not_defined"
+    DEFINED = "soundevent-defined"  # [0.0 0.1 0.4]
+    # NEXT_TO_DOCTOR
+    # NEXT_TO PATIENT
+
+
 class DoctorPosition(Enum):
     """Doctor placement locations in examination room"""
 
@@ -194,7 +204,9 @@ class AudioSource:
     source_file: str = None  # audio file e.g wav
     directivity: Optional[str] = "omnidirectional"
     _position3d: Position3D = None
-    _is_primary: Optional[bool] = False  # Primary speaker (doctor) vs secondary (patient)
+    _is_primary: Optional[bool] = (
+        False  # Primary speaker (doctor) vs secondary (patient)
+    )
 
     def __post_init__(self):
         self._is_primary = self._determine_primary_status(self.name)
