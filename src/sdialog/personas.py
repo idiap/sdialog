@@ -657,6 +657,8 @@ class Agent:
             response = AIMessage(content=response)
         else:
             current_memory = self.memory_dump()
+            if self.inspectors:
+                self.utterance_hook.new_utterance_event(current_memory)
             if (is_huggingface_model_name(self.model_uri) or is_aws_model_name(self.model_uri)) and \
                (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
                 # Ensure that the last message is a HumanMessage to avoid
@@ -673,9 +675,6 @@ class Agent:
                 )
             else:
                 response = self.llm.invoke(self.memory)
-
-        if self.inspectors:
-            self.utterance_hook.new_utterance_event(current_memory)
 
         if self.postprocess_fn:
             response.content = self.postprocess_fn(response.content)

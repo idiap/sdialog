@@ -203,7 +203,7 @@ class RepresentationHook(BaseHook):
 
     def _hook(self, module, input, output):
         """Hook to extract and store model representation from the output."""
-        utterance_index = len(self.utterance_list)
+        utterance_index = len(self.utterance_list) - 1
 
         # Extract the main tensor from output if it's a tuple or list
         output_tensor = output[0] if isinstance(output, (tuple, list)) else output
