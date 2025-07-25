@@ -1,3 +1,4 @@
+import os
 import scaper
 import logging
 import numpy as np
@@ -8,11 +9,12 @@ from datasets import load_dataset
 from typing import List, Optional
 from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
+from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.audio.room import MicrophonePosition
 from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.voice_database import BaseVoiceDatabase
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
+from sdialog.audio.voice_database import BaseVoiceDatabase, DummyVoiceDatabase
 from sdialog.audio import generate_utterances_audios, save_utterances_audios, send_utterances_to_dscaper
 from sdialog.audio import generate_dscaper_timeline, generate_audio_room_accoustic, generate_word_alignments
 
@@ -24,22 +26,30 @@ class AudioPipeline:
 
     def __init__(
             self,
-            dir_audio: str,
-            tts_pipeline: BaseTTS,
-            voice_database: BaseVoiceDatabase,
-            enricher: AudioEventsEnricher,
-            sampling_rate: int = 24_000,
+            dir_audio: Optional[str] = "./outputs",
+            tts_pipeline: Optional[BaseTTS] = None,
+            voice_database: Optional[BaseVoiceDatabase] = None,
+            enricher: Optional[AudioEventsEnricher] = None,
+            sampling_rate: Optional[int] = 24_000,
             dscaper: Optional[scaper.Dscaper] = None):
         """
         Initialize the audio pipeline.
         """
 
         self.dir_audio = dir_audio
+
         self.tts_pipeline = tts_pipeline
+        if self.tts_pipeline is None:
+            self.tts_pipeline = KokoroTTS()
+
         self.voice_database = voice_database
+        if self.voice_database is None:
+            self.voice_database = DummyVoiceDatabase()
+
         self.enricher = enricher
-        self.sampling_rate = sampling_rate
         self._dscaper = dscaper
+
+        self.sampling_rate = sampling_rate
 
     def populate_dscaper(self, datasets: List[str]) -> int:
         """
@@ -102,9 +112,9 @@ class AudioPipeline:
             self,
             dialog: Dialog,
             room: Optional[Room] = None,
-            do_word_alignments: bool = False,
-            do_snr: bool = False,
-            do_room_position: bool = False,
+            do_word_alignments: Optional[bool] = False,
+            do_snr: Optional[bool] = False,
+            do_room_position: Optional[bool] = False,
             microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED) -> AudioDialog:
         """
         Run the audio pipeline.
@@ -125,9 +135,15 @@ class AudioPipeline:
         dialog.set_combined_audio(
             self.master_audio(dialog)
         )
-        # save the combined audio to exported_audios folder
+        dialog.audio_step_1_filepath = os.path.join(
+            dialog.audio_dir_path,
+            f"dialog_{dialog.id}",
+            "exported_audios",
+            "audio_pipeline_step1.wav"
+        )
+        # Save the combined audio to exported_audios folder
         sf.write(
-            f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios/audio_pipeline_step1.wav",
+            dialog.audio_step_1_filepath,
             dialog.get_combined_audio(),
             self.sampling_rate
         )

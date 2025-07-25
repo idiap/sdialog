@@ -233,7 +233,12 @@ def generate_dscaper_timeline(
         "soundscape.wav"
     )
     # Copy the audio output to the dialog audio directory
-    dialog.audio_step_2_filepath = os.path.join(dialog.audio_dir_path, f"dialog_{dialog.id}", "exported_audios", "audio_pipeline_step2.wav")
+    dialog.audio_step_2_filepath = os.path.join(
+        dialog.audio_dir_path,
+        f"dialog_{dialog.id}",
+        "exported_audios",
+        "audio_pipeline_step2.wav"
+    )
     shutil.copy(audio_output_path, dialog.audio_step_2_filepath)
 
     # Get the sounds files
@@ -283,14 +288,14 @@ def generate_audio_room_accoustic(
     )
 
     # Save the audio
-    dialog._audio_step_3_filepath = os.path.join(
+    dialog.audio_step_3_filepath = os.path.join(
         dialog.audio_dir_path,
         f"dialog_{dialog.id}",
         "exported_audios",
         "audio_pipeline_step3.wav"
     )
     sf.write(
-        dialog._audio_step_3_filepath,
+        dialog.audio_step_3_filepath,
         _audio_accoustic,
         44_100
     )
