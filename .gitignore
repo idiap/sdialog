@@ -11,3 +11,5 @@ dscaper_data/
 *.mp4
 *.flac
 *.ogg
+misc/audio/Generation/dscaper
+misc/audio/Voices/embeddings/xvectors.pkl

@@ -21,12 +21,24 @@ class AudioDialog(Dialog):
     _combined_audio: np.ndarray = None
     _audio_sources: List[AudioSource] = []
 
-    _audio_step_1_filepath: str = None
-    _audio_step_2_filepath: str = None
-    _audio_step_3_filepath: str = None
+    audio_step_1_filepath: str = None
+    audio_step_2_filepath: str = None
+    audio_step_3_filepath: str = None
 
     def __init__(self):
         super().__init__()
+
+    def get_last_audio_filepath(self) -> str:
+        """
+        Get the last audio filepath of the dialog.
+        """
+        if self.audio_step_3_filepath:
+            return self.audio_step_3_filepath
+        if self.audio_step_2_filepath:
+            return self.audio_step_2_filepath
+        if self.audio_step_1_filepath:
+            return self.audio_step_1_filepath
+        return None
 
     def set_room(self, room: Room):
         """
