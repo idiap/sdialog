@@ -15,8 +15,12 @@ from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
 from sdialog.audio.voice_database import BaseVoiceDatabase, DummyVoiceDatabase
-from sdialog.audio import generate_utterances_audios, save_utterances_audios, send_utterances_to_dscaper
-from sdialog.audio import generate_dscaper_timeline, generate_audio_room_accoustic, generate_word_alignments
+from sdialog.audio import (
+    generate_utterances_audios,
+    save_utterances_audios,
+    generate_audio_room_accoustic,
+    generate_word_alignments
+)
 
 
 class AudioPipeline:
@@ -49,7 +53,7 @@ class AudioPipeline:
         self.enricher = enricher
         self._dscaper = dscaper
 
-        self.sampling_rate = sampling_rate
+        self.sampling_rate = sampling_rate  # Need to be set to the same as the TTS model
 
     def populate_dscaper(self, datasets: List[str]) -> int:
         """
@@ -164,6 +168,11 @@ class AudioPipeline:
         # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
         if self._dscaper is not None:
+
+            from sdialog.audio.audio_scaper_utils import (
+                send_utterances_to_dscaper,
+                generate_dscaper_timeline
+            )
 
             # Send the utterances to dSCAPER
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)

@@ -45,7 +45,34 @@ class KokoroTTS(BaseTTS):
 
         gs, ps, audio = next(iter(generator))
 
-        return audio
+        return (audio, -1)
+
+
+class IndexTTS(BaseTTS):
+    """
+    IndexTTS is a TTS engine that uses the IndexTTS model.
+    """
+
+    def __init__(
+            self,
+            model_dir="model",
+            cfg_path="model/config.yaml",
+            device="cpu"):
+        """
+        Initializes the IndexTTS model.
+        """
+        from indextts.infer import IndexTTS
+
+        self.pipeline = IndexTTS(model_dir=model_dir, cfg_path=cfg_path, device=device)
+
+    def generate(self, text: str, voice: str) -> np.ndarray:
+        """
+        Generate audio from text using the IndexTTS model.
+        """
+
+        sampling_rate, wav_data = self.pipeline.infer(voice, text, output_path=None)
+
+        return (wav_data, sampling_rate)
 
 
 # TODO: Test this model
@@ -54,13 +81,12 @@ class ChatterboxTTS(BaseTTS):
     Chatterbox is a TTS engine that uses the Chatterbox model.
     """
 
-    def __init__(self):
+    def __init__(self, device="cuda" if torch.cuda.is_available() else "cpu"):
         """
         Initializes the Chatterbox model.
         """
         from chatterbox.tts import ChatterboxTTS as ChatterboxTTSModel
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipeline = ChatterboxTTSModel.from_pretrained(device=device)
 
     def generate(self, text: str, voice: str) -> np.ndarray:
@@ -70,7 +96,7 @@ class ChatterboxTTS(BaseTTS):
 
         wav = self.pipeline.generate(text, audio_prompt_path=voice)
 
-        return wav.cpu().numpy().squeeze()
+        return (wav.cpu().numpy().squeeze(), -1)
 
 
 class XttsTTS(BaseTTS):
@@ -78,16 +104,20 @@ class XttsTTS(BaseTTS):
     XTTS is a TTS engine that uses the XTTSv2 model from Coqui-TTS.
     """
 
-    def __init__(self):
+    def __init__(
+            self,
+            model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+            device=torch.cuda.is_available(),
+            progress_bar=True):
         """
         Initializes the XTTS model.
         """
         from TTS.api import TTS as XTTSModel
 
         self.pipeline = XTTSModel(
-            model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-            progress_bar=True,
-            gpu=torch.cuda.is_available(),
+            model_name=model_name,
+            progress_bar=progress_bar,
+            gpu=device,
         )
 
     def generate(self, text: str, voice: str) -> np.ndarray:
@@ -97,4 +127,4 @@ class XttsTTS(BaseTTS):
 
         audio = self.pipeline.tts(text=text, speaker_wav=voice, language="en")
 
-        return np.array(audio)
+        return (np.array(audio), -1)

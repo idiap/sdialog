@@ -19,6 +19,12 @@ class BaseVoiceDatabase:
         self._data = {}
         self.populate()
 
+    def get_data(self) -> dict:
+        """
+        Get the data of the voice database.
+        """
+        return self._data
+
     def populate(self) -> dict:
         """
         Populate the voice database.
@@ -62,12 +68,6 @@ class DummyVoiceDatabase(BaseVoiceDatabase):
     def __init__(self):
         BaseVoiceDatabase.__init__(self)
 
-    def get_data(self) -> dict:
-        """
-        Get the data of the voice database.
-        """
-        return self._data
-
     def populate(self) -> dict:
         """
         Populate the voice database.
@@ -104,16 +104,9 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
             dataset_name: str = "sdialog/voices-libritts",
             subset: str = "train"):
 
-        BaseVoiceDatabase.__init__(self)
-
         self.dataset_name = dataset_name
         self.subset = subset
-
-    def get_data(self) -> dict:
-        """
-        Get the data of the voice database.
-        """
-        return self._data
+        BaseVoiceDatabase.__init__(self)
 
     def _gender_to_gender(self, gender: str) -> str:
         """
@@ -132,7 +125,7 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
             (self._gender_to_gender(d["gender"]), d["age"]): [
                 {
                     "identifier": d["speaker_id"],
-                    "path": d["path"]
+                    "path": d["audio"]["path"]
                 }
             ] for d in dataset
         }

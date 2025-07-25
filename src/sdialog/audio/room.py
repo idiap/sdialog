@@ -1,13 +1,11 @@
 """
 This module provides classes for the room specification.
 """
-
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import time
 import numpy as np
-
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Union, List, Any
@@ -17,7 +15,9 @@ from typing import Dict, Optional, Tuple, Union, List, Any
 
 @dataclass
 class Position3D:
-    """3D position coordinates in meters"""
+    """
+    3D position coordinates in meters
+    """
 
     x: float
     y: float
@@ -50,7 +50,9 @@ class Position3D:
 
 @dataclass
 class Dimensions3D:
-    """3D dimensions in meters"""
+    """
+    3D dimensions in meters
+    """
 
     width: float  # x-axis
     length: float  # y-axis
@@ -87,7 +89,9 @@ class Dimensions3D:
     def from_volume(
         cls, volume: float, aspect_ratio: Tuple[float, float, float] = (1.5, 1.0, 0.3)
     ):
-        """Generate dimensions from volume using aspect ratio (width:length:height)"""
+        """
+        Generate dimensions from volume using aspect ratio (width:length:height)
+        """
         if volume <= 0:
             raise ValueError("Volume must be positive")
 
@@ -100,7 +104,9 @@ class Dimensions3D:
 
 
 class RoomRole(Enum):
-    """Defines the functional role of the room and dimentions that comes with it."""
+    """
+    Defines the functional role of the room and dimentions that comes with it.
+    """
 
     CONSULTATION = "consultation"
     EXAMINATION = "examination"
@@ -124,7 +130,9 @@ class SoundEventPosition(Enum):
 
 
 class DoctorPosition(Enum):
-    """Doctor placement locations in examination room"""
+    """
+    Doctor placement locations in examination room
+    """
 
     AT_DESK_SITTING = "doctor-at_desk_sitting"
     AT_DESK_SIDE_STANDING = "doctor-at_desk_side_standing"
@@ -137,7 +145,9 @@ class DoctorPosition(Enum):
 
 
 class PatientPosition(Enum):
-    """Patient placement locations in examination room"""
+    """
+    Patient placement locations in examination room
+    """
 
     AT_DOOR_STANDING = "patient-at_door_standing"
     NEXT_TO_DESK_SITTING = "patient-next_to_desk_sitting"
@@ -147,7 +157,9 @@ class PatientPosition(Enum):
 
 
 class MicrophonePosition(Enum):
-    """Different microphone placement options"""
+    """
+    Different microphone placement options
+    """
 
     TABLE_SMARTPHONE = "table_smartphone"
     MONITOR = "monitor"
@@ -157,7 +169,9 @@ class MicrophonePosition(Enum):
 
 
 class RecordingDevice(Enum):
-    """Types of recording devices with their characteristics"""
+    """
+    Types of recording devices with their characteristics
+    """
 
     SMARTPHONE = "smartphone"
     WEBCAM = "webcam"
@@ -169,7 +183,9 @@ class RecordingDevice(Enum):
 
 
 class WallMaterial(Enum):
-    """Common wall materials with typical absorption coefficients"""
+    """
+    Common wall materials with typical absorption coefficients
+    """
 
     DRYWALL = "drywall"
     CONCRETE = "concrete"
@@ -181,7 +197,9 @@ class WallMaterial(Enum):
 
 
 class FloorMaterial(Enum):
-    """Floor materials affecting acoustics"""
+    """
+    Floor materials affecting acoustics
+    """
 
     CARPET = "carpet"
     VINYL = "vinyl"
@@ -196,7 +214,9 @@ class FloorMaterial(Enum):
 
 @dataclass
 class AudioSource:
-    """Represents an object, speaker that makes sounds in the room"""
+    """
+    Represents an object, speaker that makes sounds in the room
+    """
 
     name: str = None
     position: str = None
@@ -251,7 +271,9 @@ class AudioSource:
 
     @staticmethod
     def _determine_primary_status(name: str) -> bool:
-        """Determine if a source is primary based on its name."""
+        """
+        Determine if a source is primary based on its name.
+        """
         primary_names = [
             "doctor",
             "physician",
@@ -315,7 +337,9 @@ class Room:
 
 @dataclass
 class RoomLayout:
-    """Defines the standard layout of furniture in examination room"""
+    """
+    Defines the standard layout of furniture in examination room
+    """
 
     door_position: Position3D
     desk_position: Position3D
@@ -327,7 +351,9 @@ class RoomLayout:
 
 @dataclass
 class MaterialProperties:
-    """Acoustic properties of materials"""
+    """
+    Acoustic properties of materials
+    """
 
     material_type: Union[WallMaterial, FloorMaterial, str]
     absorption_coefficients: Dict[int, float] = field(
@@ -452,7 +478,9 @@ class MaterialProperties:
 
 
 class FurnitureType(Enum):
-    """Types of furniture commonly found in medical rooms"""
+    """
+    Types of furniture commonly found in medical rooms
+    """
 
     DESK = "desk"
     MONITOR = "monitor"
@@ -469,7 +497,9 @@ class FurnitureType(Enum):
 
 @dataclass
 class Furniture:
-    """Furniture object in the room"""
+    """
+    Furniture object in the room
+    """
 
     name: str
     furniture_type: FurnitureType
@@ -485,7 +515,9 @@ class Furniture:
 
 @dataclass
 class RecordingDeviceSpec:
-    """Recording device specifications"""
+    """
+    Recording device specifications
+    """
 
     device_type: RecordingDevice = None
     sensitivity: float = -40.0  # dBV/Pa

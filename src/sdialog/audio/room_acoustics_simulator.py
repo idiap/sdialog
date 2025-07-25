@@ -1,10 +1,15 @@
+"""
+This module provides a class for simulating room acoustics.
+"""
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>
+# SPDX-License-Identifier: MIT
 import os
 from typing import List, Optional, Union
 import numpy as np
 
 # import matplotlib.pyplot as plt
 import soundfile as sf
-import pyroomacoustics as pra
 from sdialog.audio.room import Room, RoomRole, AudioSource, Position3D
 from sdialog.audio.room import (
     DoctorPosition,
@@ -68,6 +73,7 @@ class RoomAcousticsSimulator:
         self.add_microphone(self.mic_position.to_list())
 
     def _create_pyroom(self, room: Room, sampling_rate=44_100):
+        import pyroomacoustics as pra
         e_absorption, max_order = pra.inverse_sabine(room.rt60, room.dimensions)
         # max_order = 17  # Number of reflections
         return pra.ShoeBox(
@@ -91,6 +97,8 @@ class RoomAcousticsSimulator:
         Args:
             mic_pos: Can be MicrophonePosition enum, list [x,y,z], or Position3D object
         """
+        import pyroomacoustics as pra
+
         if isinstance(mic_pos, MicrophonePosition):
             position_3d = self.microphone_position_to_room_position(self.room, mic_pos)
         elif isinstance(mic_pos, list):
