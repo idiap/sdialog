@@ -31,15 +31,27 @@ class BaseVoiceDatabase:
         """
         self._data = {}
 
-    def add_voice(self, genre: str, age: int, identifier: str, path: str):
+    def add_voice(
+            self,
+            genre: str,
+            age: int,
+            identifier: str,
+            path: str):
         """
         Add a voice to the database.
         """
         if (genre, age) not in self._data:
             self._data[(genre, age)] = []
-        self._data[(genre, age)].append({"identifier": identifier, "path": path})
 
-    def get_voice(self, genre: str, age: int) -> dict:
+        self._data[(genre, age)].append({
+            "identifier": identifier,
+            "voice": path
+        })
+
+    def get_voice(
+            self,
+            genre: str,
+            age: int) -> dict:
         """
         Random sampling of voice from the database.
         """
@@ -48,7 +60,7 @@ class BaseVoiceDatabase:
         if (genre, age) not in self._data:
 
             # Get the list of ages for this gender
-            _ages = [age for (genre, age) in self._data.keys() if genre == genre]
+            _ages = [_age for (_genre, _age) in self._data.keys() if _genre == genre]
 
             # Get the closest age for this gender
             age = min(_ages, key=lambda x: abs(x - age))
@@ -60,9 +72,9 @@ class BaseVoiceDatabase:
         return random.choice(_subset)
 
 
-class DummyVoiceDatabase(BaseVoiceDatabase):
+class DummyKokoroVoiceDatabase(BaseVoiceDatabase):
     """
-    Dummy voice database.
+    Dummy voice database for Kokoro.
     """
 
     def __init__(self):
@@ -70,7 +82,7 @@ class DummyVoiceDatabase(BaseVoiceDatabase):
 
     def populate(self) -> dict:
         """
-        Populate the voice database.
+        Populate the voice database with the voices from Kokoro.
         """
         self._womans = [
             "af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica",
@@ -83,15 +95,24 @@ class DummyVoiceDatabase(BaseVoiceDatabase):
 
         males_voices = {
             ("male", age): [
-                {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._mans
+                {
+                    "identifier": voice_name,
+                    "voice": voice_name
+                } for voice_name in self._mans
             ] for age in range(0, 150, 1)
         }
         females_voices = {
             ("female", age): [
-                {"identifier": voice_name, "path": f"{voice_name}.wav"} for voice_name in self._womans
+                {
+                    "identifier": voice_name,
+                    "voice": voice_name
+                } for voice_name in self._womans
             ] for age in range(0, 150, 1)
         }
-        self._data = {**males_voices, **females_voices}
+        self._data = {
+            **males_voices,
+            **females_voices
+        }
 
 
 class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
@@ -108,11 +129,24 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         self.subset = subset
         BaseVoiceDatabase.__init__(self)
 
-    def _gender_to_gender(self, gender: str) -> str:
+    def _gender_to_gender(
+            self,
+            gender: str) -> str:
         """
         Convert the gender to the gender.
         """
-        return "male" if gender == "M" else "female"
+        gender = gender.lower()
+
+        if gender == "m":
+            return "male"
+
+        if gender == "f":
+            return "female"
+
+        if gender not in ["male", "female"]:
+            raise ValueError(f"Invalid gender: {gender}")
+
+        return gender
 
     def populate(self) -> dict:
         """
@@ -125,7 +159,7 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
             (self._gender_to_gender(d["gender"]), d["age"]): [
                 {
                     "identifier": d["speaker_id"],
-                    "path": d["audio"]["path"]
+                    "voice": d["audio"]["path"]
                 }
             ] for d in dataset
         }

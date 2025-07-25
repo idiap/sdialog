@@ -65,6 +65,9 @@ class Dimensions3D:
     def __str__(self):
         return f"dim: [{self.width}, {self.length}, {self.height}]"
 
+    def to_list(self):
+        return [self.width, self.length, self.height]
+
     @property
     def volume(self) -> float:
         return self.width * self.length * self.height
@@ -327,6 +330,23 @@ class Room:
         self.mic_type = mic_type
         self.mic_position = mic_position
         self.furnitures = furnitures
+
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Get the information about the room in a format that can be serialized.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "role": self.role.value,
+            "dimensions": self.dimensions.to_list(),
+            "walls_material": None,  # TODO: Add walls material in the serialization
+            "rt60": self.rt60,
+            "mic_type": self.mic_type.value,
+            "mic_position": self.mic_position.value,
+            "furnitures": self.furnitures
+        }
 
     def __str__(self):
         return (

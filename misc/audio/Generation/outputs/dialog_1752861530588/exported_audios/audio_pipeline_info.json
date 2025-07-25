@@ -1,0 +1,14 @@
+{
+    "dialog_id": 1752861530588,
+    "tts_pipeline": "KokoroTTS",
+    "voice_database": "DummyKokoroVoiceDatabase",
+    "enricher": "NoneType",
+    "dscaper": null,
+    "room": null,
+    "microphone_position": "ceiling_centered",
+    "do_word_alignments": false,
+    "do_snr": false,
+    "do_room_position": false,
+    "sampling_rate": 24000,
+    "dir_audio": "./outputs"
+}

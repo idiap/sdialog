@@ -21,7 +21,9 @@ from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def _get_persona_voice(dialog: Dialog, turn: Turn) -> BasePersona:
+def _get_persona_voice(
+        dialog: Dialog,
+        turn: Turn) -> BasePersona:
     """
     Gets a persona from a dialog.
     """
@@ -42,22 +44,31 @@ def generate_utterances_audios(
     :rtype: AudioDialog
     """
 
+    # Match the voice to the persona of the dialog
     dialog = match_voice_to_persona(dialog, voice_database=voice_database)
 
     for turn in dialog.turns:
-        turn_voice = _get_persona_voice(dialog, turn)["identifier"]
+
+        # Get the voice of the turn
+        turn_voice = _get_persona_voice(dialog, turn)["voice"]
+
+        # Generate the utterance audio
         utterance_audio, sampling_rate = generate_utterance(
-            remove_audio_tags(turn.text),
-            turn_voice,
+            text=remove_audio_tags(turn.text),
+            voice=turn_voice,
             tts_pipeline=tts_pipeline
         )
+
+        # Set the utterance audio and voice to the turn
         turn.set_audio(utterance_audio, sampling_rate)
         turn.voice = turn_voice
 
     return dialog
 
 
-def match_voice_to_persona(dialog: AudioDialog, voice_database: BaseVoiceDatabase) -> AudioDialog:
+def match_voice_to_persona(
+        dialog: AudioDialog,
+        voice_database: BaseVoiceDatabase) -> AudioDialog:
     """
     Matches a voice to a persona.
     """
@@ -66,7 +77,10 @@ def match_voice_to_persona(dialog: AudioDialog, voice_database: BaseVoiceDatabas
     return dialog
 
 
-def generate_utterance(text: str, voice: str, tts_pipeline: BaseTTS) -> np.ndarray:
+def generate_utterance(
+        text: str,
+        voice: str,
+        tts_pipeline: BaseTTS) -> np.ndarray:
     """
     Generates an audio recording of a text utterance based on the speaker persona.
 
@@ -80,7 +94,9 @@ def generate_utterance(text: str, voice: str, tts_pipeline: BaseTTS) -> np.ndarr
     return tts_pipeline.generate(text, voice=voice)
 
 
-def generate_word_alignments(dialog: AudioDialog, whisper_model_name: str = "large-v3") -> AudioDialog:
+def generate_word_alignments(
+        dialog: AudioDialog,
+        whisper_model_name: str = "large-v3") -> AudioDialog:
     """
     Generates word alignments for each utterance in a Dialog object.
     """
@@ -96,7 +112,10 @@ def generate_word_alignments(dialog: AudioDialog, whisper_model_name: str = "lar
     return dialog
 
 
-def save_utterances_audios(dialog: AudioDialog, dir_audio: str, sampling_rate: int = 24_000) -> AudioDialog:
+def save_utterances_audios(
+        dialog: AudioDialog,
+        dir_audio: str,
+        sampling_rate: int = 24_000) -> AudioDialog:
     """
     Save the utterances audios to the given path.
     """

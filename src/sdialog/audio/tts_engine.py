@@ -57,7 +57,7 @@ class IndexTTS(BaseTTS):
             self,
             model_dir="model",
             cfg_path="model/config.yaml",
-            device="cpu"):
+            device="cuda" if torch.cuda.is_available() else "cpu"):
         """
         Initializes the IndexTTS model.
         """

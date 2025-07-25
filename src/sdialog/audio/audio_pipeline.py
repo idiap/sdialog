@@ -1,20 +1,21 @@
 import os
-import scaper
+import json
 import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-from sdialog import Dialog
-from datasets import load_dataset
+
 from typing import List, Optional
+from datasets import load_dataset
+
+from sdialog import Dialog
 from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.audio.room import MicrophonePosition
-from scaper.dscaper_datatypes import DscaperAudio
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
-from sdialog.audio.voice_database import BaseVoiceDatabase, DummyVoiceDatabase
+from sdialog.audio.voice_database import BaseVoiceDatabase, DummyKokoroVoiceDatabase
 from sdialog.audio import (
     generate_utterances_audios,
     save_utterances_audios,
@@ -35,7 +36,7 @@ class AudioPipeline:
             voice_database: Optional[BaseVoiceDatabase] = None,
             enricher: Optional[AudioEventsEnricher] = None,
             sampling_rate: Optional[int] = 24_000,
-            dscaper: Optional[scaper.Dscaper] = None):
+            dscaper=None):
         """
         Initialize the audio pipeline.
         """
@@ -48,20 +49,27 @@ class AudioPipeline:
 
         self.voice_database = voice_database
         if self.voice_database is None:
-            self.voice_database = DummyVoiceDatabase()
+            self.voice_database = DummyKokoroVoiceDatabase()
 
         self.enricher = enricher
         self._dscaper = dscaper
 
         self.sampling_rate = sampling_rate  # Need to be set to the same as the TTS model
 
-    def populate_dscaper(self, datasets: List[str]) -> int:
+    def populate_dscaper(
+            self,
+            datasets: List[str]) -> int:
         """
         Populate the dSCAPER with the audio recordings.
         """
 
         if self._dscaper is None:
             raise ValueError("The dSCAPER is not provided to the audio pipeline")
+        else:
+            from scaper import Dscaper
+            from scaper.dscaper_datatypes import DscaperAudio
+            if not isinstance(self._dscaper, Dscaper):
+                raise ValueError("The dSCAPER is not a Dscaper instance")
 
         n_audio_files = 0
 
@@ -95,13 +103,17 @@ class AudioPipeline:
 
         return n_audio_files
 
-    def master_audio(self, dialog: AudioDialog) -> np.ndarray:
+    def master_audio(
+            self,
+            dialog: AudioDialog) -> np.ndarray:
         """
         Combines multiple audio segments into a single master audio track.
         """
         return np.concatenate([turn.get_audio() for turn in dialog.turns])
 
-    def enrich(self, dialog: AudioDialog) -> AudioDialog:
+    def enrich(
+            self,
+            dialog: AudioDialog) -> AudioDialog:
         """
         Enrich with audio events, SNR and room position.
         """
@@ -169,6 +181,11 @@ class AudioPipeline:
 
         if self._dscaper is not None:
 
+            from scaper import Dscaper
+
+            if not isinstance(self._dscaper, Dscaper):
+                raise ValueError("The dSCAPER is not a Dscaper instance")
+
             from sdialog.audio.audio_scaper_utils import (
                 send_utterances_to_dscaper,
                 generate_dscaper_timeline
@@ -191,5 +208,29 @@ class AudioPipeline:
             logging.warning(
                 "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
             )
+
+        # Save information about the audio pipeline
+        audio_pipeline_info = {
+            "dialog_id": dialog.id,
+            "tts_pipeline": self.tts_pipeline.__class__.__name__,
+            "voice_database": self.voice_database.__class__.__name__,
+            "enricher": self.enricher.__class__.__name__,
+            "dscaper": self._dscaper.__class__.__name__ if self._dscaper is not None else None,
+            "room": room.get_info() if room is not None else None,
+            "microphone_position": microphone_position.value if microphone_position is not None else None,
+            "do_word_alignments": do_word_alignments,
+            "do_snr": do_snr,
+            "do_room_position": do_room_position,
+            "sampling_rate": self.sampling_rate,
+            "dir_audio": self.dir_audio,
+        }
+        # Save the audio pipeline info to a json file
+        with open(os.path.join(
+            dialog.audio_dir_path,
+            f"dialog_{dialog.id}",
+            "exported_audios",
+            "audio_pipeline_info.json"
+        ), "w") as f:
+            json.dump(audio_pipeline_info, f, indent=4)
 
         return dialog

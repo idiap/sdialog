@@ -9,7 +9,7 @@ class AudioUtils:
     whisper_model = {}
 
     @staticmethod
-    def get_whisper_model(device: str = "cuda" if torch.cuda.is_available() else "cpu", model_name: str = "large-v3"):
+    def get_whisper_model(model_name: str = "large-v3", device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         """
         Get the whisper model.
         """
