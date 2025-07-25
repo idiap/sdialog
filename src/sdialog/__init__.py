@@ -23,8 +23,9 @@ import logging
 import importlib
 import subprocess
 
-from print_color import print as cprint
+from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
+from print_color import print as cprint
 from typing import List, Union, Optional, Any
 
 from .util import make_serializable, get_timestamp, remove_newlines, get_universal_id
@@ -187,16 +188,21 @@ class Dialog(BaseModel):
 
         return cloned
 
-    def description(self, turn_template: str = "{speaker}: {text}"):
+    def description(self, turn_template: str = None):
         """
         Returns a human-readable string representation of the dialogue.
 
-        :param turn_template: Template for formatting each turn.
+        :param turn_template: Template for formatting each turn (default "{speaker}: {text}").
         :type turn_template: str
         :return: The formatted dialogue.
         :rtype: str
         """
-        return "\n".join(turn_template.format(speaker=turn.speaker, text=turn.text.replace("\n", " "))
+        if turn_template is None:
+            return "\n".join(f"{turn.speaker}: {turn.text}" if turn.speaker else turn.text
+                             for turn in self.turns)
+
+        return "\n".join(turn_template.format(speaker="" if turn.speaker is None else turn.speaker,
+                                              text=turn.text.replace("\n", " "))
                          for turn in self.turns)
 
     def json(self, string: bool = False, indent: int = 2):
@@ -303,7 +309,7 @@ class Dialog(BaseModel):
                                         txt_template=txt_template,
                                         csv_speaker_col=csv_speaker_col,
                                         csv_text_col=csv_text_col)
-                       for filename in filenames]
+                       for filename in tqdm(filenames, desc="Loading dialogues from directory", leave=False)]
             # Make sure the ID is always the same, for the same file (as long as no more files are added)
             for ix, dialog in enumerate(dialogs):
                 dialog.id = ix + 1
@@ -362,7 +368,10 @@ class Dialog(BaseModel):
             return dialog
 
     @staticmethod
-    def from_str(dialog_text: str, template: str = "{speaker}: {text}", default_speakers: List[str] = None) -> "Dialog":
+    def from_str(dialog_text: str,
+                 template: str = "{speaker}: {text}",
+                 default_speakers: List[str] = None,
+                 id: Union[str, int] = None) -> "Dialog":
         """
         Creates a Dialog object from a string representation of a dialogue.
 
@@ -374,6 +383,8 @@ class Dialog(BaseModel):
                                  The speakers will be assigned in order of appearance, in alternating turns.
                                  Default is None (speaker field will be empty in each turn).
         :type default_speakers: List[str]
+        :param id: Optional ID for the dialogue. If not provided, a universal ID will be generated.
+        :type id: Union[str, int]
         :return: The created Dialog object.
         :rtype: Dialog
         """
@@ -407,7 +418,10 @@ class Dialog(BaseModel):
                                  "matches the dialogue format.")
 
             turns.append((speaker, text))
-        return Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+        dialog = Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+        if id is not None:
+            dialog.id = id
+        return dialog
 
     @staticmethod
     def from_dict(data: dict):
