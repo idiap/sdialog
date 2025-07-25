@@ -99,8 +99,15 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
     Huggingface voice database.
     """
 
-    def __init__(self):
+    def __init__(
+            self,
+            dataset_name: str = "sdialog/voices-libritts",
+            subset: str = "train"):
+
         BaseVoiceDatabase.__init__(self)
+
+        self.dataset_name = dataset_name
+        self.subset = subset
 
     def get_data(self) -> dict:
         """
@@ -114,12 +121,12 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         """
         return "male" if gender == "M" else "female"
 
-    def populate(self, dataset_name: str = "sdialog/voices-libritts", subset: str = "train") -> dict:
+    def populate(self) -> dict:
         """
         Populate the voice database.
         """
         from datasets import load_dataset
-        dataset = load_dataset(dataset_name)[subset]
+        dataset = load_dataset(self.dataset_name)[self.subset]
 
         self._data = {
             (self._gender_to_gender(d["gender"]), d["age"]): [
