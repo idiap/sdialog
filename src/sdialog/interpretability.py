@@ -140,7 +140,7 @@ class UtteranceTokenHook(BaseHook):
 
     def new_utterance_event(self, memory):
         self.utterance_list.append({'mem': memory, 'output_tokens': []})
-        self.process_current_utterance_ids()
+        self.current_utterance_ids = None
 
     def _hook(self, module, input, output):
         input_ids = input[0].detach().cpu()
@@ -153,13 +153,8 @@ class UtteranceTokenHook(BaseHook):
                 self.current_utterance_ids = input_ids
             else:
                 self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids], dim=1)
-        else:
-            # Detected system prompt (input_ids.shape[-1] != 1), do not accumulate
-            # Optionally process/reset current utterance if needed
-            if self.current_utterance_ids is not None:
-                self.current_utterance_ids = None
 
-    def process_current_utterance_ids(self):
+    def end_utterance_event(self):
         tokenizer = self.hook_state.get('tokenizer')
 
         token_list = self.current_utterance_ids.squeeze(0).tolist()
