@@ -522,16 +522,16 @@ class Agent:
 
     def __init__(self,
                  persona: BasePersona,
-                 name: str = None,
+                 name: Optional[str] = None,
                  model: Union[str, BaseLanguageModel] = None,
-                 example_dialogs: List['Dialog'] = None,
+                 example_dialogs: Optional[List['Dialog']] = None,
                  dialogue_details: str = "",
-                 response_details: str = "",
-                 system_prompt: str = None,
+                 response_details: str = "Unless necessary, responses SHOULD NOT be longer than one utterances.",
+                 system_prompt: Optional[str] = None,
                  can_finish: bool = True,
-                 orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]] = None,
-                 inspectors: Union['Inspector', List['Inspector']] = None,
-                 scenario: Union[dict, str] = None,
+                 orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
+                 inspectors: Optional[Union['Inspector', List['Inspector']]] = None,
+                 scenario: Optional[Union[dict, str]] = None,
                  postprocess_fn: Optional[callable] = None,
                  **llm_kwargs):
         """
@@ -539,28 +539,28 @@ class Agent:
 
         :param persona: The persona to role-play.
         :type persona: BasePersona
-        :param name: Name of the agent.
-        :type name: str
-        :param model: The LLM or model name to use.
-        :type model: Union[str, BaseLanguageModel]
+        :param name: Name of the agent (defaults to persona.name if not provided).
+        :type name: Optional[str]
+        :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
+        :type model: Union[str, BaseLanguageModel], optional
         :param example_dialogs: List of example dialogues as a reference for the agent.
-        :type example_dialogs: List[Dialog]
+        :type example_dialogs: Optional[List[Dialog]]
         :param dialogue_details: Additional details about the dialogue.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
-        :param system_prompt: Custom system prompt (optional).
-        :type system_prompt: str
+        :param system_prompt: Custom system prompt (optional, otherwise loaded from config).
+        :type system_prompt: Optional[str]
         :param can_finish: If True, agent can end the conversation.
         :type can_finish: bool
         :param orchestrators: Orchestrators for agent behavior.
-        :type orchestrators: Union[BaseOrchestrator, List[BaseOrchestrator]]
+        :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
         :param inspectors: Inspector(s) to add to the agent.
-        :type inspectors: Union[Inspector, List[Inspector]]
+        :type inspectors: Optional[Union[Inspector, List[Inspector]]]
         :param scenario: Scenario metadata.
-        :type scenario: Union[dict, str]
+        :type scenario: Optional[Union[dict, str]]
         :param postprocess_fn: Optional function to postprocess each utterance (input string, output string).
-        :type postprocess_fn: callable, optional
+        :type postprocess_fn: Optional[callable]
         :param **llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
@@ -568,7 +568,7 @@ class Agent:
             model = config["llm"]["model"]
         self.model_uri = model
 
-        if postprocess_fn and not callable(postprocess_fn):
+        if postprocess_fn is not None and not callable(postprocess_fn):
             raise ValueError("postprocess_fn must be a callable function that takes a string and outputs a string.")
 
         if not system_prompt:
@@ -589,7 +589,7 @@ class Agent:
 
         self.memory = [SystemMessage(system_prompt)]
 
-        self.name = name if name else (persona.name if hasattr(persona, "name") else None)
+        self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
         self.model_name = str(self.llm)
         self.first_utterances = None
@@ -602,7 +602,7 @@ class Agent:
         self.postprocess_fn = postprocess_fn
 
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
-                     f"with prompt in '{config['prompts']['persona_agent']}'.")
+                     f"using prompt from '{config['prompts']['persona_agent']}'.")
         logger.debug("Prompt: " + self.prompt())
 
     @property
@@ -847,7 +847,12 @@ class Agent:
         :param persist: If True, instruction persists across turns.
         :type persist: bool
         """
-        self.memory.append(SystemMessage(instruction, response_metadata={"persist": persist}))
+        if isinstance(self.memory[-1], HumanMessage):
+            # If the last message is a HumanMessage, insert the SystemMessage before it
+            # (so the last message is still HumanMessage)
+            self.memory.insert(-1, SystemMessage(instruction, response_metadata={"persist": persist}))
+        else:
+            self.memory.append(SystemMessage(instruction, response_metadata={"persist": persist}))
 
     def set_first_utterances(self, utterances: Union[str, List[str]]):
         """
