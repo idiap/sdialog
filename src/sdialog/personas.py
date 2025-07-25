@@ -660,13 +660,17 @@ class Agent:
             if (is_huggingface_model_name(self.model_uri) or is_aws_model_name(self.model_uri)) and \
                (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
                 # Ensure that the last message is a HumanMessage to avoid
-                # "Last message must be a HumanMessage!" (huggingface)
-                # Or "A conversation must start with a user message" (aws)
+                # "A conversation must start with a user message" (aws)
+                # or "Last message must be a HumanMessage!" (huggingface)
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
                 # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
                 response = self.llm.invoke(self.memory + [HumanMessage(
                     content="" if is_huggingface_model_name(self.model_uri) else ".")
                 ])
+                logger.warning(
+                    "For HuggingFace or AWS LLMs, the last message in the conversation history must be a HumanMessage. "
+                    "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
+                )
             else:
                 response = self.llm.invoke(self.memory)
 
