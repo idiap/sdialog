@@ -501,13 +501,6 @@ def camel_or_snake_to_words(varname: str) -> str:
     return ' '.join(s.split())
 
 
-def remove_audio_tags(text: str) -> str:
-    """
-    Remove all the tags that use those formatting: <>, {}, (), []
-    """
-    return re.sub(r'<[^>]*>', '', text)
-
-
 def dict_to_table(data: dict,
                   sort_by: str = None,
                   sort_ascending: bool = True,

@@ -4,8 +4,8 @@ This module provides a voice database.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
+import os
 import random
-
 
 class BaseVoiceDatabase:
     """
@@ -55,6 +55,7 @@ class BaseVoiceDatabase:
         """
         Random sampling of voice from the database.
         """
+        genre = genre.lower()
 
         # If the voice is not in the database, find the closest age for this gender
         if (genre, age) not in self._data:
@@ -152,8 +153,12 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         """
         Populate the voice database.
         """
-        from datasets import load_dataset
-        dataset = load_dataset(self.dataset_name)[self.subset]
+        from datasets import load_dataset, load_from_disk
+
+        if os.path.exists(self.dataset_name):
+            dataset = load_from_disk(self.dataset_name)[self.subset]
+        else:
+            dataset = load_dataset(self.dataset_name)[self.subset]
 
         self._data = {
             (self._gender_to_gender(d["gender"]), d["age"]): [

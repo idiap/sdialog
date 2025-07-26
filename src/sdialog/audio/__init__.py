@@ -11,8 +11,8 @@ import numpy as np
 import soundfile as sf
 from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
-from sdialog.util import remove_audio_tags
 from sdialog.audio.tts_engine import BaseTTS
+from sdialog.audio.audio_utils import AudioUtils
 from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
@@ -54,7 +54,7 @@ def generate_utterances_audios(
 
         # Generate the utterance audio
         utterance_audio, sampling_rate = generate_utterance(
-            text=remove_audio_tags(turn.text),
+            text=AudioUtils.remove_audio_tags(turn.text),
             voice=turn_voice,
             tts_pipeline=tts_pipeline
         )

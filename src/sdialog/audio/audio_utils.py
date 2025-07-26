@@ -1,3 +1,4 @@
+import re
 import torch
 
 
@@ -19,3 +20,10 @@ class AudioUtils:
             AudioUtils.whisper_model[model_name] = whisper.load_model(model_name, device=device)
 
         return AudioUtils.whisper_model[model_name]
+
+    @staticmethod
+    def remove_audio_tags(text: str) -> str:
+        """
+        Remove all the tags that use those formatting: <>, {}, (), []
+        """
+        return re.sub(r'<[^>]*>', '', text).replace("*", "")
