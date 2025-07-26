@@ -139,30 +139,35 @@ class AudioPipeline:
         if room is not None:
             dialog.set_room(room)
 
-        dialog: AudioDialog = generate_utterances_audios(
-            dialog,
-            voice_database=self.voice_database,
-            tts_pipeline=self.tts_pipeline
-        )
-
-        dialog: AudioDialog = save_utterances_audios(dialog, self.dir_audio)
-
-        # Combine the audio segments into a single master audio track as a baseline
-        dialog.set_combined_audio(
-            self.master_audio(dialog)
-        )
+        dialog.audio_dir_path = self.dir_audio
         dialog.audio_step_1_filepath = os.path.join(
             dialog.audio_dir_path,
             f"dialog_{dialog.id}",
             "exported_audios",
             "audio_pipeline_step1.wav"
         )
-        # Save the combined audio to exported_audios folder
-        sf.write(
-            dialog.audio_step_1_filepath,
-            dialog.get_combined_audio(),
-            self.sampling_rate
-        )
+        print(dialog.audio_step_1_filepath)
+
+        if not os.path.exists(dialog.audio_step_1_filepath):
+
+            dialog: AudioDialog = generate_utterances_audios(
+                dialog,
+                voice_database=self.voice_database,
+                tts_pipeline=self.tts_pipeline
+            )
+
+            dialog: AudioDialog = save_utterances_audios(dialog, self.dir_audio)
+
+            # Combine the audio segments into a single master audio track as a baseline
+            dialog.set_combined_audio(
+                self.master_audio(dialog)
+            )
+            # Save the combined audio to exported_audios folder
+            sf.write(
+                dialog.audio_step_1_filepath,
+                dialog.get_combined_audio(),
+                self.sampling_rate
+            )
 
         # TODO: Test this computation of word alignments
         if do_word_alignments:

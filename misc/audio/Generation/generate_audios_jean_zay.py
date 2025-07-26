@@ -1,14 +1,33 @@
+# module purge
+
+# module load arch/h100
+# module load cuda/12.4.1
+# module load ffmpeg/6.1.1
+
+# module load miniforge
+
+# conda activate jsalt10
+
 import os
 from tqdm import tqdm
+import argparse
+import numpy as np
 
 import sdialog
 from sdialog import Dialog
 from sdialog.audio.tts_engine import IndexTTS
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_pipeline import AudioPipeline
-from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
+from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase
+
+# python generate_audios_jean_zay.py --nbr_worker=30 --worker_id=0
 
 sdialog.config.set_llm("aws:anthropic.claude-3-5-sonnet-20240620-v1:0", region_name="us-east-1")
+
+parser = argparse.ArgumentParser(description="Generate audios in parallel.")
+parser.add_argument("--nbr_worker", type=int, default=1, help="Total number of workers.")
+parser.add_argument("--worker_id", type=int, default=0, help="ID of this worker (0-based).")
+args = parser.parse_args()
 
 os.makedirs("./outputs", exist_ok=True)
 
@@ -22,7 +41,7 @@ path_dir = "./200-dialogues-V0"
 # voices_libritts = HuggingfaceVoiceDatabase("sdialog/voices-libritts")
 # voices_libritts.get_voice(genre="male", age=20)
 
-dummy_voice_database = HuggingfaceVoiceDatabase("./data/voices-jsalt")
+dummy_voice_database = DummyIndexTtsVoiceDatabase()
 dummy_voice_database.get_voice(genre="male", age=20)
 
 # from sdialog.audio.tts_engine import KokoroTTS
@@ -39,7 +58,22 @@ audio_pipeline = AudioPipeline(
     dir_audio="./outputs",
 )
 
-for dialog_path in tqdm(os.listdir(path_dir)):
+paths = [_ for _ in os.listdir(path_dir) if ".json" in _]
+paths.sort()
+
+# Split paths for the current worker
+if args.nbr_worker > 1:
+    if args.worker_id >= args.nbr_worker:
+        raise ValueError("worker_id must be less than nbr_worker")
+
+    path_splits = np.array_split(paths, args.nbr_worker)
+    paths_to_process = path_splits[args.worker_id]
+    print(f"Worker {args.worker_id}/{args.nbr_worker} processing {len(paths_to_process)} of {len(paths)} dialogs.")
+else:
+    paths_to_process = paths
+
+
+for dialog_path in tqdm(paths_to_process):
 
     full_path = os.path.join(path_dir, dialog_path)
 
@@ -50,15 +84,15 @@ for dialog_path in tqdm(os.listdir(path_dir)):
     original_dialog.print()
 
     dialog: AudioDialog = AudioDialog.from_dialog(original_dialog)
-    # audio_pipeline = AudioPipeline() # Default values are used
+    # audio_pipeline = AudioPipeline()  # Default values are used
 
-    dialog: AudioDialog = audio_pipeline.inference(dialog) # Generate the audio for the dialog
-    print(dialog.audio_step_1_filepath) # Path to the audio of the first stage of the audio pipeline
+    dialog: AudioDialog = audio_pipeline.inference(dialog)  # Generate the audio for the dialog
+    print(dialog.audio_step_1_filepath)  # Path to the audio of the first stage of the audio pipeline
 
     continue
 
     import scaper
-    DATA_PATH = "./dscaper_data" # Path where the sound events, utterances and timelines database will be saved
+    DATA_PATH = "./dscaper_data"  # Path where the sound events, utterances and timelines database will be saved
     os.makedirs(DATA_PATH, exist_ok=True)
 
     # %%
@@ -69,7 +103,7 @@ for dialog_path in tqdm(os.listdir(path_dir)):
 
     # %%
     # Populate the sound events database
-    audio_pipeline.populate_dscaper(["sdialog/background","sdialog/foreground"])
+    audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
 
     # %%
     dialog: AudioDialog = audio_pipeline.inference(dialog)
@@ -80,7 +114,7 @@ for dialog_path in tqdm(os.listdir(path_dir)):
     # ## Step 3 : Room Accoustics
 
     # %%
-    audio_pipeline = AudioPipeline(dscaper=dsc) # The audio pipeline doesn't change
+    audio_pipeline = AudioPipeline(dscaper=dsc)  # The audio pipeline doesn't change
 
     # %%
     from sdialog.audio.room import MicrophonePosition
@@ -93,7 +127,7 @@ for dialog_path in tqdm(os.listdir(path_dir)):
     # %%
     dialog: AudioDialog = audio_pipeline.inference(
         dialog,
-        room=room, # Need to provide a room object to trigger the 3rd step of the audio pipeline
+        room=room,  # Need to provide a room object to trigger the 3rd step of the audio pipeline
         # microphone_position=MicrophonePosition.MONITOR # Default is MicrophonePosition.CEILING_CENTERED
     )
     print(dialog.audio_step_1_filepath)

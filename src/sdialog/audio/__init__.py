@@ -8,6 +8,7 @@ This module provides functionality to generate audio from text utterances in a d
 import os
 import torch
 import numpy as np
+from tqdm import tqdm
 import soundfile as sf
 from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
@@ -47,7 +48,7 @@ def generate_utterances_audios(
     # Match the voice to the persona of the dialog
     dialog = match_voice_to_persona(dialog, voice_database=voice_database)
 
-    for turn in dialog.turns:
+    for turn in tqdm(dialog.turns, desc="Generating utterances audios"):
 
         # Get the voice of the turn
         turn_voice = _get_persona_voice(dialog, turn)["voice"]

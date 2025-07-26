@@ -168,3 +168,104 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                 }
             ] for d in dataset
         }
+
+
+class JsaltDummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
+    """
+    JSALT DummyIndexTts voice database.
+    """
+
+    def __init__(self):
+        BaseVoiceDatabase.__init__(self)
+
+    def _gender_to_gender(
+            self,
+            gender: str) -> str:
+        """
+        Convert the gender to the gender.
+        """
+        gender = gender.lower()
+
+        if gender == "m":
+            return "male"
+
+        if gender == "f":
+            return "female"
+
+        if gender not in ["male", "female"]:
+            raise ValueError(f"Invalid gender: {gender}")
+
+        return gender
+
+    def populate(self) -> dict:
+        """
+        Populate the voice database.
+        """
+        dataset = [
+            {"speaker_id": 1, "age": 28, "gender": "M", "name": "Sergio Burdisso"},
+            {"speaker_id": 2, "age": 26, "gender": "M", "name": "Yanis Labrak"},
+            {"speaker_id": 3, "age": 21, "gender": "F", "name": "Isabella Gidi"},
+            {"speaker_id": 4, "age": 21, "gender": "F", "name": "Isabella Gidi Texan"}
+        ]
+
+        sergio_voice = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/sergio-sample.wav"
+        isabella_normal = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/isabella.wav"
+        isabella_texan = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/isabella-texan.wav"
+
+        for d in dataset:
+            _gender = self._gender_to_gender(d["gender"])
+            voice_attributed = sergio_voice if _gender == "m" else random.choice([isabella_normal, isabella_texan])
+            self._data[(_gender, d["age"])] = [
+                {
+                    "identifier": d["speaker_id"],
+                    "voice": voice_attributed
+                }
+            ]
+
+
+class DummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
+    """
+    DummyIndexTts voice database.
+    Downloaded from git clone https://huggingface.co/datasets/sdialog/voices-libritts
+    """
+
+    def __init__(self):
+        BaseVoiceDatabase.__init__(self)
+
+    def _gender_to_gender(
+            self,
+            gender: str) -> str:
+        """
+        Convert the gender to the gender.
+        """
+        gender = gender.lower()
+
+        if gender == "m":
+            return "male"
+
+        if gender == "f":
+            return "female"
+
+        if gender not in ["male", "female"]:
+            raise ValueError(f"Invalid gender: {gender}")
+
+        return gender
+
+    def populate(self) -> dict:
+        """
+        Populate the voice database.
+        """
+        import pandas as pd
+
+        dir_path = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/voices-libritts"
+
+        df = pd.read_csv(os.path.join(dir_path, "metadata.csv"))
+
+        for index, row in df.iterrows():
+            _gender = self._gender_to_gender(row["gender"])
+            self._data[(_gender, row["age"])] = [
+                {
+                    "identifier": row["speaker_id"],
+                    "voice": os.path.join(dir_path, row["file_name"])
+                }
+            ]
