@@ -198,7 +198,7 @@ class Dialog(BaseModel):
         :rtype: str
         """
         if turn_template is None:
-            return "\n".join(f"{turn.speaker}: {turn.text.replace('\n', ' ')}" if turn.speaker else turn.text
+            return "\n".join(f"{turn.speaker}: " + turn.text.replace('\n', ' ') if turn.speaker else turn.text
                              for turn in self.turns)
 
         return "\n".join(turn_template.format(speaker="" if turn.speaker is None else turn.speaker,
