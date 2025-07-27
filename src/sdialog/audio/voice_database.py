@@ -62,6 +62,10 @@ class BaseVoiceDatabase:
 
             # Get the list of ages for this gender
             _ages = [_age for (_genre, _age) in self._data.keys() if _genre == genre]
+            # add shuffle the list
+            random.shuffle(_ages)
+            random.shuffle(_ages)
+            random.shuffle(_ages)
 
             # Get the closest age for this gender
             age = min(_ages, key=lambda x: abs(x - age))
@@ -229,7 +233,8 @@ class DummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
     Downloaded from git clone https://huggingface.co/datasets/sdialog/voices-libritts
     """
 
-    def __init__(self):
+    def __init__(self, path_dir):
+        self.path_dir = path_dir
         BaseVoiceDatabase.__init__(self)
 
     def _gender_to_gender(
@@ -257,15 +262,19 @@ class DummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
         """
         import pandas as pd
 
-        dir_path = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/voices-libritts"
-
-        df = pd.read_csv(os.path.join(dir_path, "metadata.csv"))
+        df = pd.read_csv(os.path.join(self.path_dir, "metadata.csv"))
+        print(df)
 
         for index, row in df.iterrows():
+
             _gender = self._gender_to_gender(row["gender"])
-            self._data[(_gender, row["age"])] = [
+
+            if (_gender, row["age"]) not in self._data:
+                self._data[(_gender, row["age"])] = []
+
+            self._data[(_gender, row["age"])].append(
                 {
                     "identifier": row["speaker_id"],
-                    "voice": os.path.join(dir_path, row["file_name"])
+                    "voice": os.path.join(self.path_dir, row["file_name"])
                 }
-            ]
+            )

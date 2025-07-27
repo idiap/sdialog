@@ -6,7 +6,7 @@ from tqdm import tqdm
 import soundfile as sf
 
 from typing import List, Optional
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 
 from sdialog import Dialog
 from sdialog.audio.room import Room
@@ -58,7 +58,8 @@ class AudioPipeline:
 
     def populate_dscaper(
             self,
-            datasets: List[str]) -> int:
+            datasets: List[str],
+            split: str = "train") -> int:
         """
         Populate the dSCAPER with the audio recordings.
         """
@@ -77,7 +78,7 @@ class AudioPipeline:
         for dataset_name in datasets:
 
             # Load huggingface dataset
-            dataset = load_dataset(dataset_name, split="train")
+            dataset = load_dataset(dataset_name, split=split)
 
             for data in tqdm(dataset, desc=f"Populating dSCAPER with {dataset_name} dataset..."):
 
@@ -150,6 +151,8 @@ class AudioPipeline:
 
         if not os.path.exists(dialog.audio_step_1_filepath):
 
+            print(f"Generating utterances audios from dialogue {dialog.id}")
+
             dialog: AudioDialog = generate_utterances_audios(
                 dialog,
                 voice_database=self.voice_database,
@@ -162,12 +165,42 @@ class AudioPipeline:
             dialog.set_combined_audio(
                 self.master_audio(dialog)
             )
+
             # Save the combined audio to exported_audios folder
             sf.write(
                 dialog.audio_step_1_filepath,
                 dialog.get_combined_audio(),
                 self.sampling_rate
             )
+
+        else:
+
+            print(f"Loading utterances and combined audio from dialogue {dialog.id}")
+
+            # Load combined audio from the exported_audios folder
+            dialog.set_combined_audio(
+                sf.read(dialog.audio_step_1_filepath)[0]  # WARNING: watchout for the sampling rate
+            )
+
+            # Load utterances to the dialog turns
+            path_utterances = os.path.join(dialog.audio_dir_path, f"dialog_{dialog.id}", "utterances")
+
+            for utterance_audio in os.listdir(path_utterances):
+
+                utterance_id = utterance_audio.split("_")[0]
+
+                # WARNING: watchout for the sampling rate
+                audio_utterance, sampling_rate_utterance = sf.read(os.path.join(
+                    path_utterances,
+                    utterance_audio
+                ))
+
+                dialog.turns[int(utterance_id)].set_audio(
+                    audio_utterance,
+                    sampling_rate_utterance
+                )
+
+            print(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
 
         # TODO: Test this computation of word alignments
         if do_word_alignments:
@@ -197,10 +230,14 @@ class AudioPipeline:
             )
 
             # Send the utterances to dSCAPER
+            print(f"Sending utterances to dSCAPER for dialogue {dialog.id}")
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)
 
             # Generate the timeline from dSCAPER
+            print(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
             dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
+            print(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
+
         else:
             logging.warning(
                 "The dSCAPER is not set, which make the generation of the timeline impossible"
@@ -208,7 +245,9 @@ class AudioPipeline:
 
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None:
+            print(f"Generating room accoustic for dialogue {dialog.id}")
             dialog: AudioDialog = generate_audio_room_accoustic(dialog, microphone_position)
+            print(f"Room accoustic generated for dialogue {dialog.id}!")
         else:
             logging.warning(
                 "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
@@ -228,6 +267,7 @@ class AudioPipeline:
             "do_room_position": do_room_position,
             "sampling_rate": self.sampling_rate,
             "dir_audio": self.dir_audio,
+            "personas": dialog.personas,
         }
         # Save the audio pipeline info to a json file
         with open(os.path.join(
