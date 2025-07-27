@@ -111,48 +111,70 @@ class DialogFlowPPL(BaseDialogFlowScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_known_edges: bool = True,
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
+        self.use_only_known_edges = use_only_known_edges
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
-            name=name if name else "fppl" + ("+sm" if use_softmax else ""),
+            name=name if name else "dfppl" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else ""),
             verbose=verbose,
             **d2f_kwargs
         )
 
     @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
-        sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
-        return exp(-sum_log_p / n_turns)
+        sum_log_p_known, n_turns_known, sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
+        if n_turns <= 1:
+            dialog_path = getattr(dialog, "_path", None)
+            if dialog_path:
+                logger.warning(f"Dialog at '{dialog_path}' has no valid turns or texts.")
+            else:
+                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no valid turns or texts.")
+        if self.use_only_known_edges:
+            return exp(-sum_log_p_known / n_turns_known)
+        else:
+            return exp(-sum_log_p / n_turns)
 
 
-class DialogFlowAppropriateness(BaseDialogFlowScore):
+class DialogFlowScore(BaseDialogFlowScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_known_edges: bool = True,
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
+        self.use_only_known_edges = use_only_known_edges
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
-            name=name if name else "dfa" + ("+sm" if use_softmax else ""),
+            name=name if name else "dfs" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else ""),
             verbose=verbose,
             **d2f_kwargs
         )
 
     @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
-        sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
-        return pow(exp(sum_log_p), 1 / n_turns)
+        sum_log_p_known, n_turns_known, sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
+        if n_turns <= 1:
+            dialog_path = getattr(dialog, '_path', None)
+            if dialog_path:
+                logger.warning(f"Dialog at '{dialog_path}' has no valid turns or texts;")
+            else:
+                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no valid turns or texts;")
+        if self.use_only_known_edges:
+            return pow(exp(sum_log_p_known), 1 / n_turns_known)
+        else:
+            return pow(exp(sum_log_p), 1 / n_turns)
 
 
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
@@ -1100,7 +1122,7 @@ class DatasetComparator:
         self,
         candidates: Union[str, List[Dialog], List[str], List[List[Dialog]], Dict[str, str], Dict[str, List[Dialog]]],
         digits: int = 2,
-        output: str = "table",
+        output: Union[str, type] = "markdown",
     ) -> dict:
         if not candidates:
             raise ValueError("No candidates provided for comparison.")
@@ -1123,7 +1145,7 @@ class DatasetComparator:
                 else:
                     results[dataset_name][evaluator_name] = score
 
-        if output == "dict":
+        if output == "dict" or output is dict:
             return results
         elif output in ["markdown", "table"]:
             dict_to_table(results, markdown=output == "markdown", format=f".{digits}f")  # sort_by="evaluator_name"

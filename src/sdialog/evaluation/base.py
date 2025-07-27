@@ -129,6 +129,7 @@ class BaseDialogFlowScore(BaseDialogScore):
 
         self.reference_dialogues = reference_dialogues
         self.use_softmax = use_softmax
+        self.k_neighbors = k_neighbors
         self.only_system = bool(ai_speaker)
         self.graph, self.nodes = dialog2graph(reference_dialogues,
                                               system_speaker_name=ai_speaker,
@@ -145,8 +146,8 @@ class BaseDialogFlowScore(BaseDialogScore):
         }
 
     def compute_dialog_log_likelihood(self, dialog: Dialog) -> Tuple[float, int]:
-        sum_log_p = 0
-        n_turns = 0
+        sum_log_p, sum_log_p_known = 0, 0
+        n_turns, n_turns_known = 1, 1  # start with 1 to account for the first turn and avoid division by zero
         prev_node = DEFAULT_TOKEN_START
         for turn in dialog.turns:
             speaker = turn.speaker.lower()
@@ -161,12 +162,18 @@ class BaseDialogFlowScore(BaseDialogScore):
             prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
 
             prob_current_node = self.graph.get_edge_data(prev_node, current_node)
-            if (not self.only_system or speaker == "system") and prob_current_node is not None:
-                sum_log_p += log(prob_current_node["weight"] * prob_correct_node)
+            if (not self.only_system or speaker == "system"):
+                if prob_current_node is not None:
+                    log_p = log(prob_current_node["weight"] * prob_correct_node)
+                    sum_log_p += log_p
+                    sum_log_p_known += log_p
+                    n_turns_known += 1
+                else:
+                    sum_log_p += log(1 / len(self.graph.nodes))  # Uniform distribution if no edge exists
                 n_turns += 1
             prev_node = current_node
 
-        return sum_log_p, n_turns
+        return sum_log_p_known, n_turns_known, sum_log_p, n_turns
 
     @abstractmethod
     def score(self, dialog: Dialog) -> float:
