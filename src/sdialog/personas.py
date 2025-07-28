@@ -600,6 +600,7 @@ class Agent:
         self.inspectors = None
         self.add_inspectors(inspectors)
         self.postprocess_fn = postprocess_fn
+        self.utterance_hook = None
 
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
                      f"using prompt from '{config['prompts']['persona_agent']}'.")
@@ -715,7 +716,6 @@ class Agent:
         :rtype: PersonaAgent
         """
         if isinstance(other, Inspector):
-            self.set_utterance_hook()
             self.add_inspectors(other)
             other.add_agent(agent=self)
         else:
@@ -838,7 +838,8 @@ class Agent:
 
     def set_utterance_hook(self):
         # Register UtteranceTokenHook and expose utterance_list
-        self.utterance_hook = UtteranceTokenHook(agent=self)
+        if self.utterance_hook is None:
+            self.utterance_hook = UtteranceTokenHook(agent=self)
         model_obj = self.llm.llm.pipeline.model
         self.utterance_hook.register(model_obj)
         # Automatically set the tokenizer in the hook
