@@ -145,6 +145,30 @@ class BaseDialogFlowScore(BaseDialogScore):
                                k=k_neighbors)
         }
 
+    def get_node_sequence(self, dialog: Dialog, probs: bool = False) -> List[str]:
+        node_sequence = []
+        prob_sequence = []
+        prev_node = DEFAULT_TOKEN_START
+        for turn in dialog.turns:
+            speaker = turn.speaker.lower()
+            if speaker in self.speakers:
+                speaker = self.speakers[speaker]
+            else:
+                raise ValueError(f"WARNING: speaker '{turn.speaker}' not found in the graph metadata, expected one of "
+                                 f"{list(self.speakers.keys())}")
+            utt_emb = self.encoder.encode(turn.text, show_progress_bar=False)
+            neighbors = self.knn_models[speaker](utt_emb, k=None if self.use_softmax else 1)
+            current_node, _ = neighbors[0]
+            node_sequence.append(current_node)
+
+            if probs:
+                prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
+                prob_current_node = self.graph.get_edge_data(prev_node, current_node)
+                prob_sequence.append(prob_current_node["weight"] * prob_correct_node
+                                     if prob_current_node is not None else None)
+                prev_node = current_node
+        return (node_sequence, prob_sequence) if probs else node_sequence
+
     def compute_dialog_log_likelihood(self, dialog: Dialog) -> Tuple[float, int]:
         sum_log_p, sum_log_p_known = 0, 0
         n_turns, n_turns_known = 1, 1  # start with 1 to account for the first turn and avoid division by zero
