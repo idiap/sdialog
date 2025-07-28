@@ -780,10 +780,9 @@ class Agent:
             raise TypeError("inspectors must be an Inspector or a list of Inspectors")
 
         self.inspectors.extend(inspectors)
-
+        self.set_utterance_hook()
         for inspector in inspectors:
             inspector.add_agent(self)
-        self.set_utterance_hook()
 
     def clear_orchestrators(self):
         """
