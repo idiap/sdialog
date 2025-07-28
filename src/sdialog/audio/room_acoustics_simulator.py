@@ -155,6 +155,9 @@ class RoomAcousticsSimulator:
                 continue
 
             if audio is not None:
+                print(f"Sound source {asource.name} Peak level: {np.max(np.abs(audio)):.3f}")
+                audio = self.apply_snr(audio, asource.snr)
+                print(f"Sound source {asource.name} Peak level after: {np.max(np.abs(audio)):.3f}")
                 self._pyroom.add_source(asource._position3d.to_list(), signal=audio)
 
     def simulate(self, sources: List[AudioSource] = [], reset=False):  # -> np.array:
@@ -164,7 +167,7 @@ class RoomAcousticsSimulator:
             self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
 
         self._add_sources(sources)
-        self._pyroom.simulate()
+        self._pyroom.simulate()  # snr=
         mixed_signal = self._pyroom.mic_array.signals[0, :]
 
         # peak_level = np.max(np.abs(mixed_signal))
@@ -175,7 +178,7 @@ class RoomAcousticsSimulator:
         #     print(f"Applied soft compression (ratio: {compression_ratio:.3f}) to prevent clipping")
         # print(f"Simulation complete! Peak level: {np.max(np.abs(mixed_signal)):.3f}")
 
-        mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max 1dB
+        mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max -0.3dB
         return mixed_signal
 
     def reset(self):
