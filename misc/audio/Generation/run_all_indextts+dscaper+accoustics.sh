@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=SDialogIndexTTS
+#SBATCH --job-name=SDialogIndexTTS+dScaper+RoomAccoustics
 #SBATCH -C h100
 #SBATCH --ntasks=1                   # nombre total de tache MPI (= nombre total de GPU)
 #SBATCH --ntasks-per-node=1          # nombre de tache MPI par noeud (= nombre de GPU par noeud)
@@ -33,4 +33,4 @@ export NCCL_ASYNC_ERROR_HANDLING=1
 
 INDEX=${SLURM_ARRAY_TASK_ID}
 
-srun -l python generate_audios_jean_zay.py --worker_id="${INDEX}" --nbr_worker=30
+srun -l python generate_audios_jean_zay+dscaper+accoustics.py --worker_id="${INDEX}" --nbr_worker=30

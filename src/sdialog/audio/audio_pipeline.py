@@ -185,20 +185,26 @@ class AudioPipeline:
             # Load utterances to the dialog turns
             path_utterances = os.path.join(dialog.audio_dir_path, f"dialog_{dialog.id}", "utterances")
 
+            audio_start_time = 0
+
             for utterance_audio in os.listdir(path_utterances):
 
                 utterance_id = utterance_audio.split("_")[0]
 
                 # WARNING: watchout for the sampling rate
-                audio_utterance, sampling_rate_utterance = sf.read(os.path.join(
+                audio_utterance_filepath = os.path.join(
                     path_utterances,
                     utterance_audio
-                ))
-
-                dialog.turns[int(utterance_id)].set_audio(
-                    audio_utterance,
-                    sampling_rate_utterance
                 )
+
+                # Populate the turn audio fields from the audio path
+                _turn = dialog.turns[int(utterance_id)]
+                _turn.audio_path = audio_utterance_filepath
+                _audio, _sampling_rate = sf.read(audio_utterance_filepath)
+                _turn.set_audio(_audio, _sampling_rate)
+                _turn.audio_duration = _audio.shape[0] / _sampling_rate
+                _turn.audio_start_time = audio_start_time
+                audio_start_time += _turn.audio_duration
 
             print(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
 
