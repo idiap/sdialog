@@ -807,7 +807,6 @@ class Agent:
             raise RuntimeError("Model not found or not a HuggingFace pipeline.")
 
         # Always re-initialize cache and hooks
-        self.representation_cache = defaultdict(lambda: defaultdict(list))
         self.rep_hooks = []
 
         # Register new hooks
@@ -831,7 +830,8 @@ class Agent:
             hook.reset()
             hook.remove()
         self.rep_hooks = []
-        self.representation_cache = defaultdict(lambda: defaultdict(list))
+        if self.utterance_hook is not None:
+            self.utterance_hook.reset()
         self.set_utterance_hook()
 
     def set_utterance_hook(self):

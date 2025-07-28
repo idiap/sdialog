@@ -655,7 +655,7 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         self.enable_plotting = enable_plotting
         self.verbose = verbose
         self.ai_speaker = ai_speaker
-        self.name = name or "frechet-bert-distance"
+        self.name = name or "frechet-bert-distance" + ("-ai" if ai_speaker else "")
         self.batch_size = batch_size
         self.model = SentencePairTransformer(model_name=model_name,
                                              device=device,
@@ -786,7 +786,7 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
         if not reference_dialogues or not isinstance(reference_dialogues, list):
             raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
 
-        self.name = name or f"pr-distance-{model_name.split('/')[-1]}"
+        self.name = name or f"pr-distance-{model_name.split('/')[-1]}" + ("-ai" if ai_speaker else "")
         self.verbose = verbose
         self.ai_speaker = ai_speaker
         self.num_clusters = num_clusters

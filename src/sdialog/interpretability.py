@@ -141,8 +141,8 @@ class UtteranceTokenHook(BaseHook):
 
     def reset(self):
         self.utterance_list.clear()
-        self.utterance_hook.representation_cache.clear()
-        self.utterance_hook.representation_cache.update(defaultdict(lambda: defaultdict(list)))
+        self.representation_cache.clear()
+        self.representation_cache.update(defaultdict(lambda: defaultdict(list)))
         self.current_utterance_ids = None  # Now a tensor
 
     def new_utterance_event(self, memory):
