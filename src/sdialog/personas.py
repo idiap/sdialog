@@ -717,7 +717,6 @@ class Agent:
         """
         if isinstance(other, Inspector):
             self.add_inspectors(other)
-            other.add_agent(agent=self)
         else:
             self.add_orchestrators(other)
         return self
@@ -780,10 +779,9 @@ class Agent:
             raise TypeError("inspectors must be an Inspector or a list of Inspectors")
 
         self.inspectors.extend(inspectors)
-
+        self.set_utterance_hook()
         for inspector in inspectors:
             inspector.add_agent(self)
-        self.set_utterance_hook()
 
     def clear_orchestrators(self):
         """
