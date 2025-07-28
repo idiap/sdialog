@@ -30,6 +30,7 @@ import numpy as np
 
 from abc import ABC
 from functools import partial
+from collections import defaultdict
 from langchain_core.messages import SystemMessage
 
 
@@ -137,6 +138,12 @@ class UtteranceTokenHook(BaseHook):
         }
         self.representation_cache = {}
         self.agent = agent
+
+    def reset(self):
+        self.utterance_list.clear()
+        self.utterance_hook.representation_cache.clear()
+        self.utterance_hook.representation_cache.update(defaultdict(lambda: defaultdict(list)))
+        self.current_utterance_ids = None  # Now a tensor
 
     def new_utterance_event(self, memory):
         self.utterance_list.append({'mem': memory, 'output_tokens': []})

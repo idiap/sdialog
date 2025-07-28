@@ -927,7 +927,8 @@ class Agent:
             for orchestrator in self.orchestrators:
                 orchestrator.reset()
 
-        self._reset_interpretability_state()
+        if self.utterance_hook is not None:
+            self.utterance_hook.reset()
 
         if isinstance(self.llm, ChatOllama):
             # hack to avoid seed bug in prompt cache in Ollama
@@ -941,17 +942,6 @@ class Agent:
                 torch.manual_seed(13)
             else:
                 torch.manual_seed(seed)
-
-    def _reset_interpretability_state(self):
-        """
-        Clears the interpretability state: utterance_list and representation_cache, if present.
-        Does not reset or remove hooks.
-        """
-        if hasattr(self, 'utterance_hook') and self.utterance_hook is not None:
-            self.utterance_hook.utterance_list.clear()
-        if hasattr(self, 'representation_cache') and self.representation_cache is not None:
-            self.representation_cache.clear()
-            self.representation_cache.update(defaultdict(lambda: defaultdict(list)))
 
     def dialog_with(self,
                     agent: "PersonaAgent",
