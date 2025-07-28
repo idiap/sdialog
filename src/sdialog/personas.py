@@ -601,6 +601,7 @@ class Agent:
         self.add_inspectors(inspectors)
         self.postprocess_fn = postprocess_fn
         self.utterance_hook = None
+        self.representation_cache = defaultdict(lambda: defaultdict(list))
 
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
                      f"using prompt from '{config['prompts']['persona_agent']}'.")

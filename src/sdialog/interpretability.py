@@ -129,20 +129,19 @@ class UtteranceTokenHook(BaseHook):
     """
     A BaseHook for the utterance_token_hook, always used on the embedding layer.
     """
-    def __init__(self, agent, number_tokens_to_skip=0):
+    def __init__(self, agent):
         super().__init__('model.embed_tokens', self._hook, agent=agent)
         self.utterance_list = []
         self.current_utterance_ids = None  # Now a tensor
         self.hook_state = {
             'tokenizer': None,
         }
-        self.representation_cache = {}
         self.agent = agent
 
     def reset(self):
         self.utterance_list.clear()
-        self.representation_cache.clear()
-        self.representation_cache.update(defaultdict(lambda: defaultdict(list)))
+        self.agent.representation_cache.clear()
+        self.agent.representation_cache.update(defaultdict(lambda: defaultdict(list)))
         self.current_utterance_ids = None  # Now a tensor
 
     def new_utterance_event(self, memory):
