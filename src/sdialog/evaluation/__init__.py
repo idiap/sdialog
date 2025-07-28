@@ -54,6 +54,9 @@ def cs_divergence(p1, p2, resolution=100, bw_method=1):
     :return: Cauchy-Schwarz divergence (0 means identical distributions)
     :rtype: float
     """
+    if len(p1) == 0 or len(p2) == 0:
+        logger.error("Both input distributions must have at least one sample. Returning None")
+        return None
     p1 = np.asarray(p1)
     p2 = np.asarray(p2)
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
@@ -84,6 +87,9 @@ def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     :return: KL divergence KL(p1 || p2)
     :rtype: float
     """
+    if len(p1) == 0 or len(p2) == 0:
+        logger.error("Both input distributions must have at least one sample. Returning None")
+        return None
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
     p1_kernel = gaussian_kde(p1, bw_method=bw_method)
     p2_kernel = gaussian_kde(p2, bw_method=bw_method)
@@ -563,7 +569,10 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
         if "reference" not in dialog_scores and self.reference_scores is not None:
             pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
-            pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+            try:
+                pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+            except ValueError as e:
+                logger.error(f"Error plotting KDE for {dataset_name}: {e}")
         plot.xlabel(self.dialog_score.name)
         plot.legend()
         plot.title(f"KDE of {self.dialog_score.name} distributions")
