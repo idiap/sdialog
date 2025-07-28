@@ -817,8 +817,8 @@ class Agent:
             hook = RepresentationHook(
                 layer_key=layer_name,
                 cache_key=cache_key,
-                representation_cache=self.representation_cache,
-                utterance_list=self.utterance_list,
+                agent=self,
+                utterance_hook=self.utterance_hook,
                 steering_function=steering_function,  # pass the function here,
                 steering_interval=steering_interval
             )

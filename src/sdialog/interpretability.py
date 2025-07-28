@@ -178,7 +178,7 @@ class RepresentationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     """
 
-    def __init__(self, layer_key, cache_key, representation_cache, utterance_list,
+    def __init__(self, layer_key, cache_key, agent, utterance_hook,
                  steering_function=None, steering_interval=(0, -1)):
         """
         Args:
@@ -193,18 +193,18 @@ class RepresentationHook(BaseHook):
         """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
-        self.representation_cache = representation_cache
-        self.utterance_list = utterance_list
+        self.agent = agent
+        self.utterance_hook = utterance_hook
         self.steering_function = steering_function  # Store the optional function
         self.steering_interval = steering_interval
         self._token_counter_steering = 0
 
         # Initialize the nested cache
-        _ = self.representation_cache[len(self.utterance_list)][self.cache_key]  # This will initialize to []
+        _ = self.agent.representation_cache[len(self.utterance_hook.utterance_list)][self.cache_key]
 
     def _hook(self, module, input, output):
         """Hook to extract and store model representation from the output."""
-        utterance_index = len(self.utterance_list) - 1
+        utterance_index = len(self.utterance_hook.utterance_list) - 1
 
         # Extract the main tensor from output if it's a tuple or list
         output_tensor = output[0] if isinstance(output, (tuple, list)) else output
@@ -224,7 +224,7 @@ class RepresentationHook(BaseHook):
                     and (max_token == -1 or self._token_counter_steering < max_token)
                 )
 
-                self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+                self.agent.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
 
                 if steer_this_token:
                     # Now apply the steering function, if it exists
