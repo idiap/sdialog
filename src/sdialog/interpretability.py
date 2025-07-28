@@ -229,7 +229,9 @@ class RepresentationHook(BaseHook):
                 and (max_token == -1 or self._token_counter_steering < max_token)
             )
 
-            self.agent.representation_cache[utterance_index][self.cache_key].append(output_tensor[:,-1,:].detach().cpu())
+            self.agent.representation_cache[utterance_index][self.cache_key].append(
+                output_tensor[:, -1, :].detach().cpu()
+            )
 
             if steer_this_token:
                 # Now apply the steering function, if it exists
