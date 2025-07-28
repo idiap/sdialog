@@ -179,7 +179,7 @@ class RepresentationHook(BaseHook):
     """
 
     def __init__(self, layer_key, cache_key, representation_cache, utterance_list,
-                 steering_function=None, number_tokens_to_skip=0):
+                 steering_function=None, steering_interval=(0, -1)):
         """
         Args:
             layer_key: The key identifying the layer to hook into.
@@ -187,15 +187,16 @@ class RepresentationHook(BaseHook):
             representation_cache: A nested dictionary or structure to store representations.
             utterance_list: List used to track current utterance index.
             steering_function: Optional function to apply to output_tensor before caching.
-            number_tokens_to_skip: Number of tokens to skip before applying steering function
-                                   (e.g. to ignore generated message template).
+            steering_interval: Tuple `(min_token, max_token)` to apply steering.
+                                   `min_token` tokens are skipped. Steering stops at `max_token`.
+                                   A `max_token` of -1 means no upper limit.
         """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.representation_cache = representation_cache
         self.utterance_list = utterance_list
         self.steering_function = steering_function  # Store the optional function
-        self.number_tokens_to_skip = number_tokens_to_skip
+        self.steering_interval = steering_interval
         self._token_counter_steering = 0
 
         # Initialize the nested cache
@@ -217,10 +218,15 @@ class RepresentationHook(BaseHook):
             if output_tensor.shape[1] > 1:
                 self._token_counter_steering = 0  # Reset counter if more than one token
             elif output_tensor.shape[1] == 1:
-                if self._token_counter_steering < self.number_tokens_to_skip:
-                    self._token_counter_steering += 1
-                else:
-                    self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+                min_token, max_token = self.steering_interval
+                steer_this_token = (
+                    self._token_counter_steering >= min_token and
+                    (max_token == -1 or self._token_counter_steering < max_token)
+                )
+
+                self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+
+                if steer_this_token:
                     # Now apply the steering function, if it exists
                     if self.steering_function is not None:
                         if type(self.steering_function) is list:
@@ -228,6 +234,8 @@ class RepresentationHook(BaseHook):
                                 output_tensor = func(output_tensor)
                         elif callable(self.steering_function):
                             output_tensor = self.steering_function(output_tensor)
+
+                self._token_counter_steering += 1
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
@@ -238,7 +246,7 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
-    def __init__(self, to_watch=None, agent=None, steering_function=None, number_tokens_to_skip=0):
+    def __init__(self, to_watch=None, agent=None, steering_function=None, steering_interval=(0, -1)):
         """
         Inspector for managing hooks and extracting representations from a model.
 
@@ -246,18 +254,19 @@ class Inspector:
             to_watch: Dict mapping model layer names to cache keys.
             agent: The agent containing the model and hooks.
             steering_function: Optional function to apply on output tensors in hooks.
-            number_tokens_to_skip: Number of tokens to skip before applying steering function
-                                   (e.g. to ignore generated message template).
+            steering_interval: Tuple `(min_token, max_token)` to control steering.
+                                   `min_token` tokens are skipped. Steering stops at `max_token`.
+                                   A `max_token` of -1 means no upper limit.
         """
         self.to_watch = to_watch if to_watch is not None else {}
         self.agent = agent
         self.steering_function = steering_function
         self._steering_strength = None
-        self.number_tokens_to_skip = number_tokens_to_skip
+        self.steering_interval = steering_interval
 
         if self.agent is not None and self.to_watch:
             self.agent.add_hooks(self.to_watch, steering_function=self.steering_function,
-                                 number_tokens_to_skip=self.number_tokens_to_skip)
+                                 steering_interval=self.steering_interval)
 
     def __len__(self):
         return len(self.agent.utterance_list)
@@ -318,7 +327,9 @@ class Inspector:
     def add_agent(self, agent):
         self.agent = agent
         if self.to_watch:
-            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
+            self.agent.add_hooks(self.to_watch,
+                                 steering_function=self.steering_function,
+                                 steering_interval=self.steering_interval)
 
     def add_steering_function(self, steering_function):
         """

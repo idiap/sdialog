@@ -791,7 +791,7 @@ class Agent:
         """
         self.orchestrators = None
 
-    def add_hooks(self, layer_name_to_key, steering_function=None, number_tokens_to_skip: int = 0):
+    def add_hooks(self, layer_name_to_key, steering_function=None, steering_interval=(0, -1)):
         """
         Registers RepresentationHooks for each layer in the given mapping.
         Skips already registered layers. Adds new keys to the shared representation_cache.
@@ -799,8 +799,9 @@ class Agent:
         Args:
             layer_name_to_key: Dict mapping layer names to cache keys.
             steering_function: Optional function to apply to the output tensor before caching.
-            number_tokens_to_skip: Number of tokens to skip before applying steering function
-                                   (e.g. to ignore generated message template).
+            steering_interval: Tuple `(min_token, max_token)` to control steering.
+                                   `min_token` tokens are skipped. Steering stops at `max_token`.
+                                   A `max_token` of -1 means no upper limit.
         """
         # Get the model (assume HuggingFace pipeline)
         model = self.llm.llm.pipeline.model if hasattr(self.llm, 'llm') and hasattr(self.llm.llm, 'pipeline') else None
@@ -819,7 +820,7 @@ class Agent:
                 representation_cache=self.representation_cache,
                 utterance_list=self.utterance_list,
                 steering_function=steering_function,  # pass the function here,
-                number_tokens_to_skip=number_tokens_to_skip
+                steering_interval=steering_interval
             )
             hook.register(model)
             self.rep_hooks.append(hook)
