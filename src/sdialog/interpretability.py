@@ -220,8 +220,8 @@ class RepresentationHook(BaseHook):
             elif output_tensor.shape[1] == 1:
                 min_token, max_token = self.steering_interval
                 steer_this_token = (
-                    self._token_counter_steering >= min_token and
-                    (max_token == -1 or self._token_counter_steering < max_token)
+                    self._token_counter_steering >= min_token
+                    and (max_token == -1 or self._token_counter_steering < max_token)
                 )
 
                 self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
