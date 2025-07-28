@@ -249,8 +249,9 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             desc = f"Computing {self.name} scores for dataset "
             desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
         try:
-            scores = np.array([self.dialog_score(dialogue)
-                               for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+            scores = [self.dialog_score(dialogue)
+                      for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)]
+            scores = np.array([s for s in scores if s is not None])  # Filter out None scores
         except KeyboardInterrupt:
             logger.warning(
                 f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "

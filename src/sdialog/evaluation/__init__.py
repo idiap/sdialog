@@ -138,10 +138,11 @@ class DialogFlowPPL(BaseDialogFlowScore):
         if n_turns <= 1:
             dialog_path = getattr(dialog, "_path", None)
             if dialog_path:
-                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns.")
+                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns. Skipping.")
             else:
                 logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no known transitions "
-                               "or valid turns.")
+                               "or valid turns. Skipping.")
+            return None
         if self.use_only_known_edges:
             return exp(-sum_log_p_known / n_turns_known)
         else:
@@ -178,10 +179,11 @@ class DialogFlowScore(BaseDialogFlowScore):
         if n_turns <= 1:
             dialog_path = getattr(dialog, '_path', None)
             if dialog_path:
-                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns.")
+                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns. Skipping.")
             else:
                 logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no known transitions "
-                               "or valid turns.")
+                               "or valid turns. Skipping.")
+            return None
         if self.use_only_known_edges:
             return pow(exp(sum_log_p_known), 1 / n_turns_known)
         else:
@@ -563,7 +565,7 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                                  for dialogue in tqdm(reference_dialogues,
                                                       desc=f"Computing reference {self.name} scores",
                                                       leave=verbose)]
-        self.reference_scores = np.array(self.reference_scores)
+        self.reference_scores = np.array([s for s in self.reference_scores if s is not None])
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         if "reference" not in dialog_scores and self.reference_scores is not None:
