@@ -128,7 +128,7 @@ class UtteranceTokenHook(BaseHook):
     """
     A BaseHook for the utterance_token_hook, always used on the embedding layer.
     """
-    def __init__(self, agent):
+    def __init__(self, agent, number_tokens_to_skip=0):
         super().__init__('model.embed_tokens', self._hook, agent=agent)
         self.utterance_list = []
         self.current_utterance_ids = None  # Now a tensor
@@ -158,7 +158,7 @@ class UtteranceTokenHook(BaseHook):
         tokenizer = self.hook_state.get('tokenizer')
 
         token_list = self.current_utterance_ids.squeeze(0).tolist()
-        text = tokenizer.decode(token_list, skip_special_tokens=True)
+        text = tokenizer.decode(token_list, skip_special_tokens=False)
         tokens = tokenizer.convert_ids_to_tokens(token_list)
 
         # No longer create an InspectionUnit here; just store the tokens list
@@ -178,7 +178,8 @@ class RepresentationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     """
 
-    def __init__(self, layer_key, cache_key, representation_cache, utterance_list, steering_function=None):
+    def __init__(self, layer_key, cache_key, representation_cache, utterance_list,
+                 steering_function=None, number_tokens_to_skip=0):
         """
         Args:
             layer_key: The key identifying the layer to hook into.
@@ -186,12 +187,16 @@ class RepresentationHook(BaseHook):
             representation_cache: A nested dictionary or structure to store representations.
             utterance_list: List used to track current utterance index.
             steering_function: Optional function to apply to output_tensor before caching.
+            number_tokens_to_skip: Number of tokens to skip before applying steering function
+                                   (e.g. to ignore generated message template).
         """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.representation_cache = representation_cache
         self.utterance_list = utterance_list
         self.steering_function = steering_function  # Store the optional function
+        self.number_tokens_to_skip = number_tokens_to_skip
+        self._token_counter_steering = 0
 
         # Initialize the nested cache
         _ = self.representation_cache[len(self.utterance_list)][self.cache_key]  # This will initialize to []
@@ -208,15 +213,21 @@ class RepresentationHook(BaseHook):
             raise TypeError(f"Expected output to be a Tensor, got {type(output_tensor)}")
 
         # Store representation only if the second dimension is 1
-        if output_tensor.ndim >= 2 and output_tensor.shape[1] == 1:
-            self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
-            # Now apply the steering function, if it exists
-            if self.steering_function is not None:
-                if type(self.steering_function) is list:
-                    for func in self.steering_function:
-                        output_tensor = func(output_tensor)
-                elif callable(self.steering_function):
-                    output_tensor = self.steering_function(output_tensor)
+        if output_tensor.ndim >= 2:
+            if output_tensor.shape[1] > 1:
+                self._token_counter_steering = 0  # Reset counter if more than one token
+            elif output_tensor.shape[1] == 1:
+                if self._token_counter_steering < self.number_tokens_to_skip:
+                    self._token_counter_steering += 1
+                else:
+                    self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+                    # Now apply the steering function, if it exists
+                    if self.steering_function is not None:
+                        if type(self.steering_function) is list:
+                            for func in self.steering_function:
+                                output_tensor = func(output_tensor)
+                        elif callable(self.steering_function):
+                            output_tensor = self.steering_function(output_tensor)
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
@@ -227,7 +238,7 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
-    def __init__(self, to_watch=None, agent=None, steering_function=None):
+    def __init__(self, to_watch=None, agent=None, steering_function=None, number_tokens_to_skip=0):
         """
         Inspector for managing hooks and extracting representations from a model.
 
@@ -235,14 +246,18 @@ class Inspector:
             to_watch: Dict mapping model layer names to cache keys.
             agent: The agent containing the model and hooks.
             steering_function: Optional function to apply on output tensors in hooks.
+            number_tokens_to_skip: Number of tokens to skip before applying steering function
+                                   (e.g. to ignore generated message template).
         """
         self.to_watch = to_watch if to_watch is not None else {}
         self.agent = agent
         self.steering_function = steering_function
         self._steering_strength = None
+        self.number_tokens_to_skip = number_tokens_to_skip
 
         if self.agent is not None and self.to_watch:
-            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
+            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function,
+                                 number_tokens_to_skip=self.number_tokens_to_skip)
 
     def __len__(self):
         return len(self.agent.utterance_list)
