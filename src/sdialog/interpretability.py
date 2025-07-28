@@ -217,25 +217,24 @@ class RepresentationHook(BaseHook):
         if output_tensor.ndim >= 2:
             if output_tensor.shape[1] > 1:
                 self._token_counter_steering = 0  # Reset counter if more than one token
-            elif output_tensor.shape[1] == 1:
-                min_token, max_token = self.steering_interval
-                steer_this_token = (
-                    self._token_counter_steering >= min_token
-                    and (max_token == -1 or self._token_counter_steering < max_token)
-                )
+            min_token, max_token = self.steering_interval
+            steer_this_token = (
+                self._token_counter_steering >= min_token
+                and (max_token == -1 or self._token_counter_steering < max_token)
+            )
 
-                self.agent.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+            self.agent.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
 
-                if steer_this_token:
-                    # Now apply the steering function, if it exists
-                    if self.steering_function is not None:
-                        if type(self.steering_function) is list:
-                            for func in self.steering_function:
-                                output_tensor = func(output_tensor)
-                        elif callable(self.steering_function):
-                            output_tensor = self.steering_function(output_tensor)
+            if steer_this_token:
+                # Now apply the steering function, if it exists
+                if self.steering_function is not None:
+                    if type(self.steering_function) is list:
+                        for func in self.steering_function:
+                            output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
+                    elif callable(self.steering_function):
+                        output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
 
-                self._token_counter_steering += 1
+            self._token_counter_steering += 1
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
