@@ -153,17 +153,17 @@ class UtteranceTokenHook(BaseHook):
         self.register_representations(input_ids)
 
     def register_representations(self, input_ids):
-        if input_ids.shape[-1] == 1:
-            # Accumulate token IDs as a tensor (generated tokens only)
-            if self.current_utterance_ids is None:
-                self.current_utterance_ids = input_ids
-            else:
-                self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids], dim=1)
+        # Accumulate token IDs as a tensor (generated tokens only)
+        if self.current_utterance_ids is None:
+            self.current_utterance_ids = input_ids[..., -1]
+        else:
+            self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids[..., -1]], dim=-1)
 
     def end_utterance_event(self):
         tokenizer = self.hook_state.get('tokenizer')
 
-        token_list = self.current_utterance_ids.squeeze(0).tolist()
+        token_list = self.current_utterance_ids.squeeze()
+        token_list = token_list.tolist()
         text = tokenizer.decode(token_list, skip_special_tokens=False)
         tokens = tokenizer.convert_ids_to_tokens(token_list)
 
@@ -229,7 +229,9 @@ class RepresentationHook(BaseHook):
                 and (max_token == -1 or self._token_counter_steering < max_token)
             )
 
-            self.agent.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
+            self.agent.representation_cache[utterance_index][self.cache_key].append(
+                output_tensor[:, -1, :].detach().cpu()
+            )
 
             if steer_this_token:
                 # Now apply the steering function, if it exists
