@@ -78,6 +78,20 @@ class STAR:
             return responses if as_dict else json.dumps(responses, indent=2)
 
     @staticmethod
+    def get_task_names():
+        """
+        Lists all task names available in the STAR dataset.
+
+        :return: List of task names.
+        :rtype: List[str]
+        """
+        return [
+            task_name
+            for task_name in os.listdir(os.path.join(STAR._path, "tasks"))
+            if os.path.isdir(os.path.join(STAR._path, "tasks", task_name))
+        ]
+
+    @staticmethod
     def get_dialog(id):
         """
         Loads a dialogue by ID.

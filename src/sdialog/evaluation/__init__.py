@@ -132,9 +132,10 @@ class DialogFlowPPL(BaseDialogFlowScore):
         if n_turns <= 1:
             dialog_path = getattr(dialog, "_path", None)
             if dialog_path:
-                logger.warning(f"Dialog at '{dialog_path}' has no valid turns or texts.")
+                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns.")
             else:
-                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no valid turns or texts.")
+                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no known transitions "
+                               "or valid turns.")
         if self.use_only_known_edges:
             return exp(-sum_log_p_known / n_turns_known)
         else:
@@ -152,12 +153,15 @@ class DialogFlowScore(BaseDialogFlowScore):
                  verbose: bool = False,
                  **d2f_kwargs):
         self.use_only_known_edges = use_only_known_edges
+        if name is None:
+            name = "dfs" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else "")
+            name += "-known" if use_only_known_edges else "-all"
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
-            name=name if name else "dfs" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else ""),
+            name=name,
             verbose=verbose,
             **d2f_kwargs
         )
@@ -168,9 +172,10 @@ class DialogFlowScore(BaseDialogFlowScore):
         if n_turns <= 1:
             dialog_path = getattr(dialog, '_path', None)
             if dialog_path:
-                logger.warning(f"Dialog at '{dialog_path}' has no valid turns or texts;")
+                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns.")
             else:
-                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no valid turns or texts;")
+                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no known transitions "
+                               "or valid turns.")
         if self.use_only_known_edges:
             return pow(exp(sum_log_p_known), 1 / n_turns_known)
         else:
@@ -1132,7 +1137,7 @@ class DatasetComparator:
 
         results = {}
         dataset_iterator = candidates.items() if isinstance(candidates, dict) else enumerate(candidates)
-        for dataset_name, dataset in dataset_iterator:
+        for dataset_name, dataset in tqdm(dataset_iterator, desc="Evaluating datasets", leave=False):
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
