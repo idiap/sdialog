@@ -717,7 +717,6 @@ class Agent:
         """
         if isinstance(other, Inspector):
             self.add_inspectors(other)
-            # other.add_agent(agent=self)
         else:
             self.add_orchestrators(other)
         return self
