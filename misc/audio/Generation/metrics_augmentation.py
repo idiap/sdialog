@@ -237,7 +237,6 @@ for dir_dialog in os.listdir(DIR_PATH)[0:3]:
         nisqa_3 = calculate_nisqa_in_chunks(audio_3, nisqa, sample_rate)
         print(f"NISQA 3: {nisqa_3}")
 
-    print("-"*50)
     _result = {
         "stoi|2-1": stoi_2_1.item() if stoi_2_1 is not None else None,
         "stoi|3-1": stoi_3_1.item() if stoi_3_1 is not None else None,

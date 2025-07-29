@@ -22,7 +22,7 @@ from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_pipeline import AudioPipeline
 from sdialog.audio.room_generator import RoomGenerator, RoomRole
-from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase, HuggingfaceVoiceDatabase
+from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase
 
 # python generate_audios_jean_zay+dscaper+accoustics.py --nbr_worker=30 --worker_id=0
 
@@ -80,8 +80,10 @@ for current_room, current_room_name in rooms_configs:
         )
 
         audio_pipeline.populate_dscaper([
-            "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/" +
-            f"sdialog/misc/audio/Generation/hf_dscaper/{sound_bank_name}"
+            (
+                "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/"
+                f"sdialog/misc/audio/Generation/hf_dscaper/{sound_bank_name}"
+            )
             for sound_bank_name in ["foreground", "background"]
         ])
         # audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
