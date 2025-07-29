@@ -13,10 +13,12 @@ Attributes:
 # SPDX-License-Identifier: MIT
 import os
 import yaml
+import logging
 
 from ..util import CacheDialogScore, ollama_check_and_pull_model, is_ollama_model_name
 
 PROMPT_YAML_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
+logger = logging.getLogger(__name__)
 
 with open(PROMPT_YAML_PATH, encoding="utf-8") as f:
     config = yaml.safe_load(f)
@@ -30,7 +32,7 @@ def _make_cfg_absolute_path(cfg):
             cfg[k] = os.path.join(os.path.dirname(__file__), v)
 
 
-def set_llm(llm_name, **llm_kwargs):
+def llm(llm_name, **llm_kwargs):
     """
     Update the LLM model setting in the config.
 
@@ -57,7 +59,7 @@ def set_llm_params(**params):
     config["llm"].update(params)
 
 
-def set_cache_enabled(enable):
+def cache(enable):
     """
     Enable or disable caching.
 
@@ -66,6 +68,16 @@ def set_cache_enabled(enable):
     """
     config["cache"]["enabled"] = enable
     CacheDialogScore.set_enable_cache(enable)
+
+    if enable:
+        logger.info("Caching enabled. Cache path: %s", config["cache"]["path"])
+        logger.warning(
+            "Caution: Caching may cause outdated results if external or implicit variables affecting score computation "
+            "are changed. For example, if you use LLMJudge-based scores without specifying the model (relying on the "
+            "global default), the cache will return previous results even if the default model changes. "
+            "To avoid inconsistencies, ensure all relevant parameters are explicitly set when caching is enabled.\n"
+            "Use with caution! ;)"
+        )
 
 
 def set_cache_path(path):
@@ -135,3 +147,6 @@ def set_persona_agent_prompt(path):
 
 # Make sure all default prompt paths are absolute
 _make_cfg_absolute_path(config["prompts"])
+
+set_cache_enabled = cache  # Alias
+set_llm = llm  # Alias

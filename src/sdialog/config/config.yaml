@@ -25,5 +25,5 @@ llm:
   presence_penalty: null
 
 cache:
-  enabled: true
+  enabled: false
   path: ~/.sdialog/

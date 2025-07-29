@@ -113,10 +113,12 @@ class BaseDialogFlowScore(BaseDialogScore):
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
-        super().__init__(name=name if name else "fppl" + ("+sm" if use_softmax else ""), ai_speaker=ai_speaker)
+        super().__init__(name=name if name else "dfs" + ("" if use_softmax else "-hard"), ai_speaker=ai_speaker)
 
         d2f_kwargs = {"node_llm_labels_enabled": False,
                       "out_png": False,
+                      "edges_prune_threshold": 0.001,
+                      "nodes_prune_threshold": 0.001,
                       #  "node_embedding_model": embedding_model,
                       "verbose": verbose,
                       **d2f_kwargs}

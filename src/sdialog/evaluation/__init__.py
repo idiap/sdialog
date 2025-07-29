@@ -117,17 +117,20 @@ class DialogFlowPPL(BaseDialogFlowScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
-                 use_only_known_edges: bool = True,
+                 use_only_known_edges: bool = False,
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
         self.use_only_known_edges = use_only_known_edges
+        if name is None:
+            name = "dfppl" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else "")
+            name += "-only-known" if use_only_known_edges else ""
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
-            name=name if name else "dfppl" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else ""),
+            name=name,
             verbose=verbose,
             **d2f_kwargs
         )
@@ -155,7 +158,7 @@ class DialogFlowScore(BaseDialogFlowScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
-                 use_only_known_edges: bool = True,
+                 use_only_known_edges: bool = False,
                  name: str = None,
                  verbose: bool = False,
                  graph=None,
@@ -164,7 +167,7 @@ class DialogFlowScore(BaseDialogFlowScore):
         self.use_only_known_edges = use_only_known_edges
         if name is None:
             name = "dfs" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else "")
-            name += "-known" if use_only_known_edges else "-all"
+            name += "-only-known" if use_only_known_edges else ""
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
