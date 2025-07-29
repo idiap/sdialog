@@ -91,7 +91,7 @@ for dialog_path in tqdm(paths_to_process):
     dialog: AudioDialog = AudioDialog.from_dialog(original_dialog)
     # audio_pipeline = AudioPipeline()  # Default values are used
 
-    room = RoomGenerator().generate(RoomRole.CONSULTATION)
+    room = RoomGenerator().generate(RoomRole.CONSULTATION, room_size=9.5)
     print(room)
 
     dialog: AudioDialog = audio_pipeline.inference(dialog, room=room)  # Generate the audio for the dialog

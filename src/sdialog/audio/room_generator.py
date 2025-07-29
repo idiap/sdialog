@@ -49,7 +49,7 @@ class RoomGenerator:
     def __init__(self):
         self.generated_rooms = {}
 
-    def generate(self, room_type: RoomRole) -> Room:
+    def generate(self, room_type: RoomRole, room_size: float = ROOM_SIZES[3]) -> Room:
         """
         Generate a room based on predefined setups.
         """
@@ -66,7 +66,7 @@ class RoomGenerator:
             role=RoomRole.CONSULTATION,
             name="RoomRole.CONSULTATION" + " room",
             description="consultation room",
-            dimensions=calculate_room_dimensions(ROOM_SIZES[3]),
+            dimensions=calculate_room_dimensions(room_size),
             rt60=0.5,
         )
 

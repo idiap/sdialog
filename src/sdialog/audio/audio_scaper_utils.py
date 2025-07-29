@@ -143,11 +143,13 @@ def generate_dscaper_timeline(
 
         file_path = os.path.join(soundscape_positions_path, file_name)
 
+        position_name = file_name.split(".")[0]
+
         dialog.add_audio_source(
             AudioSource(
-                name=file_name.split(".")[0],
-                position=file_name.split(".")[0],
-                snr=0.0,
+                name=position_name,
+                position=position_name,
+                snr=-15.0 if position_name == "no_type" else 0.0,
                 source_file=file_path
             )
         )

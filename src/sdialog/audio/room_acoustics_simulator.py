@@ -163,6 +163,7 @@ class RoomAcousticsSimulator:
                 continue
 
             if audio is not None:
+                audio = self.apply_snr(audio, asource.snr)
                 self._pyroom.add_source(asource._position3d.to_list(), signal=audio)
 
     def simulate(self, sources: List[AudioSource] = [], reset=False):  # -> np.array:
