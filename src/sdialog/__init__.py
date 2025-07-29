@@ -23,8 +23,9 @@ import logging
 import importlib
 import subprocess
 
-from print_color import print as cprint
+from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
+from print_color import print as cprint
 from typing import List, Union, Optional, Any
 
 from .util import make_serializable, get_timestamp, remove_newlines, get_universal_id
@@ -187,16 +188,21 @@ class Dialog(BaseModel):
 
         return cloned
 
-    def description(self, turn_template: str = "{speaker}: {text}"):
+    def description(self, turn_template: str = None):
         """
         Returns a human-readable string representation of the dialogue.
 
-        :param turn_template: Template for formatting each turn.
+        :param turn_template: Template for formatting each turn (default "{speaker}: {text}").
         :type turn_template: str
         :return: The formatted dialogue.
         :rtype: str
         """
-        return "\n".join(turn_template.format(speaker=turn.speaker, text=turn.text.replace("\n", " "))
+        if turn_template is None:
+            return "\n".join(f"{turn.speaker}: " + turn.text.replace('\n', ' ') if turn.speaker else turn.text
+                             for turn in self.turns)
+
+        return "\n".join(turn_template.format(speaker="" if turn.speaker is None else turn.speaker,
+                                              text=turn.text.replace("\n", " "))
                          for turn in self.turns)
 
     def json(self, string: bool = False, indent: int = 2):
@@ -272,7 +278,7 @@ class Dialog(BaseModel):
     @staticmethod
     def from_file(path: str,
                   type: str = "auto",
-                  txt_turn_template: str = "{speaker}: {text}",
+                  txt_template: str = "{speaker}: {text}",
                   csv_speaker_col: Union[int, str] = "speaker",
                   csv_text_col: Union[int, str] = "text") -> Union["Dialog", List["Dialog"]]:
         """
@@ -300,16 +306,16 @@ class Dialog(BaseModel):
                                 if ((type == "auto" and filename.endswith((".txt", ".csv", ".tsv")))
                                     or (type != "json" and filename.endswith(type)))])
             dialogs = [Dialog.from_file(os.path.join(path, filename), type=type,
-                                        txt_turn_template=txt_turn_template,
+                                        txt_template=txt_template,
                                         csv_speaker_col=csv_speaker_col,
                                         csv_text_col=csv_text_col)
-                       for filename in filenames]
+                       for filename in tqdm(filenames, desc="Loading dialogues from directory", leave=False)]
             # Make sure the ID is always the same, for the same file (as long as no more files are added)
             for ix, dialog in enumerate(dialogs):
                 dialog.id = ix + 1
             # Adding json files too, assuming they have an id already
             dialogs.extend([Dialog.from_file(os.path.join(path, filename), type=type,
-                                             txt_turn_template=txt_turn_template,
+                                             txt_template=txt_template,
                                              csv_speaker_col=csv_speaker_col,
                                              csv_text_col=csv_text_col)
                             for filename in os.listdir(path)
@@ -348,34 +354,74 @@ class Dialog(BaseModel):
                         continue
                     turns.append((speaker.strip(), text.strip()))
             elif type == "txt":
-                lines = reader.read().split("\n")
-
-                for ix, line in enumerate(lines):
-                    line = line.strip()
-                    if not line:
-                        continue
-
-                    # Use the txt_turn_template to extract speaker and text
-                    # Build a regex from the template
-                    regex = re.escape(txt_turn_template)
-                    regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
-                    regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
-                    m = re.match(regex, line)
-                    if m:
-                        speaker = m.group('speaker').strip()
-                        text = m.group('text').strip()
-                    else:
-                        raise ValueError(f"File '{path}': Line {ix + 1} '{line}' does not match the expected "
-                                         f"format: {txt_turn_template}. Make sure the template "
-                                         "matches the dialogue format.")
-
-                    turns.append((speaker, text))
+                try:
+                    dialog = Dialog.from_str(reader.read(), template=txt_template)
+                    dialog._path = path
+                    return dialog
+                except ValueError as e:
+                    raise ValueError(f"File '{path}': {str(e)}")
             else:
                 raise ValueError(f"Unknown file type '{type}'. Supported types: 'json', 'txt', 'csv', 'tsv'.")
 
             dialog = Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
             dialog._path = path
             return dialog
+
+    @staticmethod
+    def from_str(dialog_text: str,
+                 template: str = "{speaker}: {text}",
+                 default_speakers: List[str] = None,
+                 id: Union[str, int] = None) -> "Dialog":
+        """
+        Creates a Dialog object from a string representation of a dialogue.
+
+        :param dialog_text: The dialogue text, with each turn on a new line.
+        :type dialog_text: str
+        :param template: The template for parsing each turn. Default is "{speaker}: {text}".
+        :type template: str
+        :param default_speakers: Optional list of default speakers to use if no present in the text or template.
+                                 The speakers will be assigned in order of appearance, in alternating turns.
+                                 Default is None (speaker field will be empty in each turn).
+        :type default_speakers: List[str]
+        :param id: Optional ID for the dialogue. If not provided, a universal ID will be generated.
+        :type id: Union[str, int]
+        :return: The created Dialog object.
+        :rtype: Dialog
+        """
+        if default_speakers is not None and not isinstance(default_speakers, list):
+            raise ValueError("default_speakers must be a list of strings.")
+
+        turns = []
+        default_speaker_ix = 0
+        lines = dialog_text.split("\n")
+        for ix, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Use the template to extract speaker and text for each turn
+            # Build a regex from the template
+            regex = re.escape(template)
+            regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
+            regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
+            m = re.match(regex, line)
+            if m:
+                try:
+                    speaker = m.group('speaker').strip()
+                except IndexError:
+                    speaker = default_speakers[default_speaker_ix % len(default_speakers)] if default_speakers else None
+                    default_speaker_ix += 1
+                text = m.group('text').strip()
+            else:
+                raise ValueError(f"Line {ix + 1} '{line}' does not match the expected "
+                                 f"format: {template}. Make sure the template "
+                                 "matches the dialogue format.")
+
+            turns.append((speaker, text))
+        dialog = Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+        if id is not None:
+            dialog.id = id
+        return dialog
 
     @staticmethod
     def from_dict(data: dict):

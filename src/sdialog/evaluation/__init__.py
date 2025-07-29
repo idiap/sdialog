@@ -34,7 +34,7 @@ from ..personas import BasePersona
 from ..util import SentencePairTransformer
 from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
-from .base import scores_cache, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
+from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,9 @@ def cs_divergence(p1, p2, resolution=100, bw_method=1):
     :return: Cauchy-Schwarz divergence (0 means identical distributions)
     :rtype: float
     """
+    if len(p1) == 0 or len(p2) == 0:
+        logger.error("Both input distributions must have at least one sample. Returning None")
+        return None
     p1 = np.asarray(p1)
     p2 = np.asarray(p2)
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
@@ -84,6 +87,9 @@ def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     :return: KL divergence KL(p1 || p2)
     :rtype: float
     """
+    if len(p1) == 0 or len(p2) == 0:
+        logger.error("Both input distributions must have at least one sample. Returning None")
+        return None
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
     p1_kernel = gaussian_kde(p1, bw_method=bw_method)
     p2_kernel = gaussian_kde(p2, bw_method=bw_method)
@@ -111,48 +117,77 @@ class DialogFlowPPL(BaseDialogFlowScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_known_edges: bool = True,
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
+        self.use_only_known_edges = use_only_known_edges
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
-            name=name if name else "fppl" + ("+sm" if use_softmax else ""),
+            name=name if name else "dfppl" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else ""),
             verbose=verbose,
             **d2f_kwargs
         )
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
-        sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
-        return exp(-sum_log_p / n_turns)
+        sum_log_p_known, n_turns_known, sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
+        if n_turns <= 1:
+            dialog_path = getattr(dialog, "_path", None)
+            if dialog_path:
+                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns. Skipping.")
+            else:
+                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no known transitions "
+                               "or valid turns. Skipping.")
+            return None
+        if self.use_only_known_edges:
+            return exp(-sum_log_p_known / n_turns_known)
+        else:
+            return exp(-sum_log_p / n_turns)
 
 
-class DialogFlowAppropriateness(BaseDialogFlowScore):
+class DialogFlowScore(BaseDialogFlowScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_known_edges: bool = True,
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
+        self.use_only_known_edges = use_only_known_edges
+        if name is None:
+            name = "dfs" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else "")
+            name += "-known" if use_only_known_edges else "-all"
         super().__init__(
             reference_dialogues,
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
-            name=name if name else "dfa" + ("+sm" if use_softmax else ""),
+            name=name,
             verbose=verbose,
             **d2f_kwargs
         )
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
-        sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
-        return pow(exp(sum_log_p), 1 / n_turns)
+        sum_log_p_known, n_turns_known, sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
+        if n_turns <= 1:
+            dialog_path = getattr(dialog, '_path', None)
+            if dialog_path:
+                logger.warning(f"Dialog at '{dialog_path}' has no known transitions or valid turns. Skipping.")
+            else:
+                logger.warning(f"Dialog (id={getattr(dialog, 'id', 'unknown')}) has no known transitions "
+                               "or valid turns. Skipping.")
+            return None
+        if self.use_only_known_edges:
+            return pow(exp(sum_log_p_known), 1 / n_turns_known)
+        else:
+            return pow(exp(sum_log_p), 1 / n_turns)
 
 
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
@@ -183,7 +218,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
         return output
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> int:
         """
         Computes the score for the provided dialog, 1 if dialogues is judged as real, 0 otherwise.
@@ -253,7 +288,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
         return output
 
-    @scores_cache.cache
+    @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> Union[float, int]:
         """
         Computes the score for the provided dialog.
@@ -530,13 +565,16 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                                  for dialogue in tqdm(reference_dialogues,
                                                       desc=f"Computing reference {self.name} scores",
                                                       leave=verbose)]
-        self.reference_scores = np.array(self.reference_scores)
+        self.reference_scores = np.array([s for s in self.reference_scores if s is not None])
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         if "reference" not in dialog_scores and self.reference_scores is not None:
             pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
-            pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+            try:
+                pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+            except ValueError as e:
+                logger.error(f"Error plotting KDE for {dataset_name}: {e}")
         plot.xlabel(self.dialog_score.name)
         plot.legend()
         plot.title(f"KDE of {self.dialog_score.name} distributions")
@@ -617,7 +655,7 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         self.enable_plotting = enable_plotting
         self.verbose = verbose
         self.ai_speaker = ai_speaker
-        self.name = name or "frechet-bert-distance"
+        self.name = name or "frechet-bert-distance" + ("-ai" if ai_speaker else "")
         self.batch_size = batch_size
         self.model = SentencePairTransformer(model_name=model_name,
                                              device=device,
@@ -748,7 +786,7 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
         if not reference_dialogues or not isinstance(reference_dialogues, list):
             raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
 
-        self.name = name or f"pr-distance-{model_name.split('/')[-1]}"
+        self.name = name or f"pr-distance-{model_name.split('/')[-1]}" + ("-ai" if ai_speaker else "")
         self.verbose = verbose
         self.ai_speaker = ai_speaker
         self.num_clusters = num_clusters
@@ -1100,7 +1138,7 @@ class DatasetComparator:
         self,
         candidates: Union[str, List[Dialog], List[str], List[List[Dialog]], Dict[str, str], Dict[str, List[Dialog]]],
         digits: int = 2,
-        output: str = "table",
+        output: Union[str, type] = "markdown",
     ) -> dict:
         if not candidates:
             raise ValueError("No candidates provided for comparison.")
@@ -1110,7 +1148,7 @@ class DatasetComparator:
 
         results = {}
         dataset_iterator = candidates.items() if isinstance(candidates, dict) else enumerate(candidates)
-        for dataset_name, dataset in dataset_iterator:
+        for dataset_name, dataset in tqdm(dataset_iterator, desc="Evaluating datasets", leave=False):
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
@@ -1123,7 +1161,7 @@ class DatasetComparator:
                 else:
                     results[dataset_name][evaluator_name] = score
 
-        if output == "dict":
+        if output == "dict" or output is dict:
             return results
         elif output in ["markdown", "table"]:
             dict_to_table(results, markdown=output == "markdown", format=f".{digits}f")  # sort_by="evaluator_name"
