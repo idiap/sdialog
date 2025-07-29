@@ -30,6 +30,7 @@ import numpy as np
 
 from abc import ABC
 from functools import partial
+from collections import defaultdict
 from langchain_core.messages import SystemMessage
 
 
@@ -135,35 +136,35 @@ class UtteranceTokenHook(BaseHook):
         self.hook_state = {
             'tokenizer': None,
         }
-        self.representation_cache = {}
         self.agent = agent
+
+    def reset(self):
+        self.utterance_list.clear()
+        self.agent.representation_cache.clear()
+        self.agent.representation_cache.update(defaultdict(lambda: defaultdict(list)))
+        self.current_utterance_ids = None  # Now a tensor
 
     def new_utterance_event(self, memory):
         self.utterance_list.append({'mem': memory, 'output_tokens': []})
-        self.process_current_utterance_ids()
+        self.current_utterance_ids = None
 
     def _hook(self, module, input, output):
         input_ids = input[0].detach().cpu()
         self.register_representations(input_ids)
 
     def register_representations(self, input_ids):
-        if input_ids.shape[-1] == 1:
-            # Accumulate token IDs as a tensor (generated tokens only)
-            if self.current_utterance_ids is None:
-                self.current_utterance_ids = input_ids
-            else:
-                self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids], dim=1)
+        # Accumulate token IDs as a tensor (generated tokens only)
+        if self.current_utterance_ids is None:
+            self.current_utterance_ids = input_ids[..., -1]
         else:
-            # Detected system prompt (input_ids.shape[-1] != 1), do not accumulate
-            # Optionally process/reset current utterance if needed
-            if self.current_utterance_ids is not None:
-                self.current_utterance_ids = None
+            self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids[..., -1]], dim=-1)
 
-    def process_current_utterance_ids(self):
+    def end_utterance_event(self):
         tokenizer = self.hook_state.get('tokenizer')
 
-        token_list = self.current_utterance_ids.squeeze(0).tolist()
-        text = tokenizer.decode(token_list, skip_special_tokens=True)
+        token_list = self.current_utterance_ids.squeeze()
+        token_list = token_list.tolist()
+        text = tokenizer.decode(token_list, skip_special_tokens=False)
         tokens = tokenizer.convert_ids_to_tokens(token_list)
 
         # No longer create an InspectionUnit here; just store the tokens list
@@ -183,7 +184,8 @@ class RepresentationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     """
 
-    def __init__(self, layer_key, cache_key, representation_cache, utterance_list, steering_function=None):
+    def __init__(self, layer_key, cache_key, agent, utterance_hook,
+                 steering_function=None, steering_interval=(0, -1)):
         """
         Args:
             layer_key: The key identifying the layer to hook into.
@@ -191,19 +193,24 @@ class RepresentationHook(BaseHook):
             representation_cache: A nested dictionary or structure to store representations.
             utterance_list: List used to track current utterance index.
             steering_function: Optional function to apply to output_tensor before caching.
+            steering_interval: Tuple `(min_token, max_token)` to apply steering.
+                                   `min_token` tokens are skipped. Steering stops at `max_token`.
+                                   A `max_token` of -1 means no upper limit.
         """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
-        self.representation_cache = representation_cache
-        self.utterance_list = utterance_list
+        self.agent = agent
+        self.utterance_hook = utterance_hook
         self.steering_function = steering_function  # Store the optional function
+        self.steering_interval = steering_interval
+        self._token_counter_steering = 0
 
         # Initialize the nested cache
-        _ = self.representation_cache[len(self.utterance_list)][self.cache_key]  # This will initialize to []
+        _ = self.agent.representation_cache[len(self.utterance_hook.utterance_list)][self.cache_key]
 
     def _hook(self, module, input, output):
         """Hook to extract and store model representation from the output."""
-        utterance_index = len(self.utterance_list)
+        utterance_index = len(self.utterance_hook.utterance_list) - 1
 
         # Extract the main tensor from output if it's a tuple or list
         output_tensor = output[0] if isinstance(output, (tuple, list)) else output
@@ -213,15 +220,29 @@ class RepresentationHook(BaseHook):
             raise TypeError(f"Expected output to be a Tensor, got {type(output_tensor)}")
 
         # Store representation only if the second dimension is 1
-        if output_tensor.ndim >= 2 and output_tensor.shape[1] == 1:
-            self.representation_cache[utterance_index][self.cache_key].append(output_tensor.detach().cpu())
-            # Now apply the steering function, if it exists
-            if self.steering_function is not None:
-                if type(self.steering_function) is list:
-                    for func in self.steering_function:
-                        output_tensor = func(output_tensor)
-                elif callable(self.steering_function):
-                    output_tensor = self.steering_function(output_tensor)
+        if output_tensor.ndim >= 2:
+            if output_tensor.shape[1] > 1:
+                self._token_counter_steering = 0  # Reset counter if more than one token
+            min_token, max_token = self.steering_interval
+            steer_this_token = (
+                self._token_counter_steering >= min_token
+                and (max_token == -1 or self._token_counter_steering < max_token)
+            )
+
+            self.agent.representation_cache[utterance_index][self.cache_key].append(
+                output_tensor[:, -1, :].detach().cpu()
+            )
+
+            if steer_this_token:
+                # Now apply the steering function, if it exists
+                if self.steering_function is not None:
+                    if type(self.steering_function) is list:
+                        for func in self.steering_function:
+                            output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
+                    elif callable(self.steering_function):
+                        output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
+
+            self._token_counter_steering += 1
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
@@ -232,7 +253,7 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
-    def __init__(self, to_watch=None, agent=None, steering_function=None):
+    def __init__(self, to_watch=None, agent=None, steering_function=None, steering_interval=(0, -1)):
         """
         Inspector for managing hooks and extracting representations from a model.
 
@@ -240,14 +261,19 @@ class Inspector:
             to_watch: Dict mapping model layer names to cache keys.
             agent: The agent containing the model and hooks.
             steering_function: Optional function to apply on output tensors in hooks.
+            steering_interval: Tuple `(min_token, max_token)` to control steering.
+                                   `min_token` tokens are skipped. Steering stops at `max_token`.
+                                   A `max_token` of -1 means no upper limit.
         """
         self.to_watch = to_watch if to_watch is not None else {}
         self.agent = agent
         self.steering_function = steering_function
         self._steering_strength = None
+        self.steering_interval = steering_interval
 
         if self.agent is not None and self.to_watch:
-            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
+            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function,
+                                 steering_interval=self.steering_interval)
 
     def __len__(self):
         return len(self.agent.utterance_list)
@@ -308,7 +334,9 @@ class Inspector:
     def add_agent(self, agent):
         self.agent = agent
         if self.to_watch:
-            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function)
+            self.agent.add_hooks(self.to_watch,
+                                 steering_function=self.steering_function,
+                                 steering_interval=self.steering_interval)
 
     def add_steering_function(self, steering_function):
         """
