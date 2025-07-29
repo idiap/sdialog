@@ -177,6 +177,7 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
 class JsaltDummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
     """
     JSALT DummyIndexTts voice database.
+    Made for Jean-Zay cluster only.
     """
 
     def __init__(self):
