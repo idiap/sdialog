@@ -108,6 +108,8 @@ class BaseDialogFlowScore(BaseDialogScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 graph=None,
+                 nodes=None,
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
@@ -131,9 +133,13 @@ class BaseDialogFlowScore(BaseDialogScore):
         self.use_softmax = use_softmax
         self.k_neighbors = k_neighbors
         self.only_system = bool(ai_speaker)
-        self.graph, self.nodes = dialog2graph(reference_dialogues,
-                                              system_speaker_name=ai_speaker,
-                                              **self.d2f_kwargs)
+        if graph is not None and nodes is not None:
+            # If graph and nodes are provided, use them directly
+            self.graph, self.nodes = graph, nodes
+        else:
+            self.graph, self.nodes = dialog2graph(reference_dialogues,
+                                                  system_speaker_name=ai_speaker,
+                                                  **self.d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
         self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {

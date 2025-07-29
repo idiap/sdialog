@@ -158,6 +158,8 @@ class DialogFlowScore(BaseDialogFlowScore):
                  use_only_known_edges: bool = True,
                  name: str = None,
                  verbose: bool = False,
+                 graph=None,
+                 nodes=None,
                  **d2f_kwargs):
         self.use_only_known_edges = use_only_known_edges
         if name is None:
@@ -169,6 +171,8 @@ class DialogFlowScore(BaseDialogFlowScore):
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
             name=name,
+            graph=graph,
+            nodes=nodes,
             verbose=verbose,
             **d2f_kwargs
         )
@@ -538,12 +542,24 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  reference_dialogues: Union[str, List[Dialog]] = None,
-                 metric: str = "all",
+                 metric: str = "kl",
                  kde_bw: float = None,
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False,
                  **evaluator_kwargs):
+        """
+        Evaluator that computes the KDE of the dialog scores and compares them
+        using Cauchy-Schwarz or KL divergence.
+        :param dialog_score: The dialog score to evaluate.
+        :param reference_dialogues: List of reference dialogues or a file path to load them.
+        :param metric: The metric to use for comparison, either "cs", "kl", or "all" (default: "kl").
+        :param kde_bw: Bandwidth for the KDE (default: None, uses default bandwidth).
+        :param name: Optional name for the evaluator.
+        :param enable_plotting: Whether to enable plotting of the KDE distributions (default: True).
+        :param verbose: Whether to print progress messages (default: False).
+        :param **evaluator_kwargs: Additional keyword arguments for the evaluator.
+        """
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
 
         if reference_dialogues is None:
