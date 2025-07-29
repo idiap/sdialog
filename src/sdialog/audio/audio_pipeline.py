@@ -6,7 +6,7 @@ from tqdm import tqdm
 import soundfile as sf
 
 from typing import List, Optional
-from datasets import load_dataset, load_from_disk
+from datasets import load_dataset
 
 from sdialog import Dialog
 from sdialog.audio.room import Room

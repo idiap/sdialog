@@ -7,6 +7,7 @@ This module provides a voice database.
 import os
 import random
 
+
 class BaseVoiceDatabase:
     """
     Base class for voice databases.
@@ -213,9 +214,10 @@ class JsaltDummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
             {"speaker_id": 4, "age": 21, "gender": "F", "name": "Isabella Gidi Texan"}
         ]
 
-        sergio_voice = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/sergio-sample.wav"
-        isabella_normal = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/isabella.wav"
-        isabella_texan = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/isabella-texan.wav"
+        root_voices_path = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/"
+        sergio_voice = root_voices_path + "sergio-sample.wav"
+        isabella_normal = root_voices_path + "isabella.wav"
+        isabella_texan = root_voices_path + "isabella-texan.wav"
 
         for d in dataset:
             _gender = self._gender_to_gender(d["gender"])
