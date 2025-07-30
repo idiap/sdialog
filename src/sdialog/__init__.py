@@ -30,7 +30,7 @@ from typing import List, Union, Optional, Any
 
 from .util import make_serializable, get_timestamp, remove_newlines, get_universal_id
 
-__version__ = "0.0.2"
+__version__ = "0.1.0"
 
 logging.basicConfig(
     level=logging.INFO,
