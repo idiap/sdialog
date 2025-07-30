@@ -521,7 +521,7 @@ class Agent:
     STOP_WORD_TEXT = "(bye bye!)"
 
     def __init__(self,
-                 persona: BasePersona,
+                 persona: BasePersona = Persona(),
                  name: Optional[str] = None,
                  model: Union[str, BaseLanguageModel] = None,
                  example_dialogs: Optional[List['Dialog']] = None,

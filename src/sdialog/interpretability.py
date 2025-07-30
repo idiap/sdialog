@@ -253,26 +253,26 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
-    def __init__(self, to_watch=None, agent=None, steering_function=None, steering_interval=(0, -1)):
+    def __init__(self, target=None, agent=None, steering_function=None, steering_interval=(0, -1)):
         """
         Inspector for managing hooks and extracting representations from a model.
 
         Args:
-            to_watch: Dict mapping model layer names to cache keys.
+            target: Dict mapping model layer names to cache keys.
             agent: The agent containing the model and hooks.
             steering_function: Optional function to apply on output tensors in hooks.
             steering_interval: Tuple `(min_token, max_token)` to control steering.
                                    `min_token` tokens are skipped. Steering stops at `max_token`.
                                    A `max_token` of -1 means no upper limit.
         """
-        self.to_watch = to_watch if to_watch is not None else {}
+        self.target = target if target is not None else {}
         self.agent = agent
         self.steering_function = steering_function
         self._steering_strength = None
         self.steering_interval = steering_interval
 
-        if self.agent is not None and self.to_watch:
-            self.agent.add_hooks(self.to_watch, steering_function=self.steering_function,
+        if self.agent is not None and self.target:
+            self.agent.add_hooks(self.target, steering_function=self.steering_function,
                                  steering_interval=self.steering_interval)
 
     def __len__(self):
@@ -333,8 +333,8 @@ class Inspector:
 
     def add_agent(self, agent):
         self.agent = agent
-        if self.to_watch:
-            self.agent.add_hooks(self.to_watch,
+        if self.target:
+            self.agent.add_hooks(self.target,
                                  steering_function=self.steering_function,
                                  steering_interval=self.steering_interval)
 
@@ -351,24 +351,24 @@ class Inspector:
         if self._steering_strength is not None:
             self._steering_strength = None  # Reset after adding the steering function
 
-    def add_hooks(self, to_watch):
+    def add_hooks(self, target):
         """
-        Adds hooks to the agent's model based on the provided to_watch mapping.
-        Each entry in to_watch should map a layer name to a cache key.
-        The new entries are appended to the existing self.to_watch dictionary.
+        Adds hooks to the agent's model based on the provided target mapping.
+        Each entry in target should map a layer name to a cache key.
+        The new entries are appended to the existing self.target dictionary.
         """
         if self.agent is None:
             raise ValueError("No agent assigned to Inspector.")
 
-        # Append to existing to_watch instead of replacing
-        self.to_watch.update(to_watch)
+        # Append to existing target instead of replacing
+        self.target.update(target)
 
-        self.agent.add_hooks(to_watch, steering_function=self.steering_function)
+        self.agent.add_hooks(target, steering_function=self.steering_function)
 
     def recap(self):
         """
         Prints and returns the current hooks assigned to the inspector's agent.
-        Also prints the 'to_watch' mapping in a clean, readable format.
+        Also prints the 'target' mapping in a clean, readable format.
         Includes any found instructions across utterances.
         """
         if self.agent is None:
@@ -381,9 +381,9 @@ class Inspector:
         else:
             logger.info(f"  {self.agent.name} has spoken for {num_utterances} utterance(s).")
 
-        if self.to_watch:
+        if self.target:
             logger.info("   Watching the following layers:\n")
-            for layer, key in self.to_watch.items():
+            for layer, key in self.target.items():
                 logger.info(f"  • {layer}  →  '{key}'")
             logger.info("")
 
@@ -423,7 +423,7 @@ class Inspector:
 
 class InspectionUtterance(Inspector):
     def __init__(self, utterance, agent):
-        super().__init__(to_watch=None)
+        super().__init__(target=None)
         self.utterance = utterance
         self.tokens = utterance['tokens']
         self.text = utterance['text']
@@ -451,7 +451,7 @@ class InspectionUtterance(Inspector):
 
 class InspectionUnit(Inspector):
     def __init__(self, token, agent, utterance, token_index, utterance_index):
-        super().__init__(to_watch=None)
+        super().__init__(target=None)
         """ Represents a single token at the utterance level """
         self.token = token
         self.token_index = token_index
