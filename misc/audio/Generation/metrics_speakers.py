@@ -9,6 +9,7 @@ from collections import defaultdict
 from scipy.spatial.distance import cdist
 from pyannote.audio import Model, Inference
 import soundfile as sf
+import matplotlib.pyplot as plt
 
 DIR_PATH = (
     "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/"
@@ -113,7 +114,7 @@ for dir_dialog in tqdm(_paths):
         continue
 
     dialog_id = dir_dialog.split("_")[1]
-    print(f"Processing dialog {dialog_id}")
+    # print(f"Processing dialog {dialog_id}")
 
     path_utterances = os.path.join(DIR_PATH, dir_dialog, "utterances")
 
@@ -199,3 +200,50 @@ for role in ["DOCTOR", "PATIENT"]:
         max_dialog = avg_dist_centroid_scores.idxmax()
         print(f"    - Min:  {avg_dist_centroid_scores.min():.4f} (Dialog: {min_dialog})")
         print(f"    - Max:  {avg_dist_centroid_scores.max():.4f} (Dialog: {max_dialog})")
+
+
+# Plotting the results
+metrics_to_plot = [
+    "local_consistency",
+    "global_consistency",
+    "average_distance_with_centroid",
+]
+roles = ["DOCTOR", "PATIENT"]
+
+# Determine the y-axis range to zoom in on the data
+all_scores = []
+for metric in metrics_to_plot:
+    for role in roles:
+        scores = df[metric].apply(lambda x: x.get(role, np.nan)).dropna()
+        if not scores.empty:
+            all_scores.extend(scores.tolist())
+
+# Set y_min slightly below the minimum score to give some padding
+y_min = min(all_scores) - 0.05 if all_scores else 0.0
+
+
+fig, axes = plt.subplots(1, len(metrics_to_plot), figsize=(18, 6), sharey=True)
+fig.suptitle("Speaker Consistency Metrics", fontsize=16)
+
+for i, metric in enumerate(metrics_to_plot):
+    ax = axes[i]
+    data_to_plot = []
+    labels = []
+
+    for role in roles:
+        scores = df[metric].apply(lambda x: x.get(role, np.nan)).dropna()
+        if not scores.empty:
+            data_to_plot.append(scores)
+            labels.append(role)
+
+    if data_to_plot:
+        ax.boxplot(data_to_plot, labels=labels)
+
+    ax.set_title(metric.replace("_", " ").title())
+    if i == 0:
+        ax.set_ylabel("Consistency Score")
+    ax.set_ylim(bottom=y_min)
+
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.savefig("metrics_speakers_plot.pdf")
+print("\nPlot saved to metrics_speakers_plot.pdf")

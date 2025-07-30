@@ -132,7 +132,10 @@ class AudioPipeline:
             do_word_alignments: Optional[bool] = False,
             do_snr: Optional[bool] = False,
             do_room_position: Optional[bool] = False,
-            microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED) -> AudioDialog:
+            microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED,
+            do_step_1: Optional[bool] = True,
+            do_step_2: Optional[bool] = True,
+            do_step_3: Optional[bool] = True) -> AudioDialog:
         """
         Run the audio pipeline.
         """
@@ -149,7 +152,7 @@ class AudioPipeline:
         )
         print(dialog.audio_step_1_filepath)
 
-        if not os.path.exists(dialog.audio_step_1_filepath):
+        if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
 
             print(f"Generating utterances audios from dialogue {dialog.id}")
 
@@ -223,7 +226,7 @@ class AudioPipeline:
         # # Randomly sample a static microphone position for the whole dialogue
         # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
-        if self._dscaper is not None:
+        if self._dscaper is not None and do_step_2:
 
             from scaper import Dscaper
 
@@ -244,17 +247,17 @@ class AudioPipeline:
             dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
             print(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
 
-        else:
+        elif do_step_2:
             logging.warning(
                 "The dSCAPER is not set, which make the generation of the timeline impossible"
             )
 
         # Generate the audio room accoustic
-        if room is not None and self._dscaper is not None:
+        if room is not None and self._dscaper is not None and do_step_3:
             print(f"Generating room accoustic for dialogue {dialog.id}")
             dialog: AudioDialog = generate_audio_room_accoustic(dialog, microphone_position)
             print(f"Room accoustic generated for dialogue {dialog.id}!")
-        else:
+        elif do_step_3:
             logging.warning(
                 "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
             )
