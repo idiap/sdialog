@@ -576,8 +576,6 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
         elif not isinstance(reference_dialogues, list):
             raise ValueError("Reference dialogues must be provided as a list of Dialog objects or a file path.")
 
-        if metric != "all":
-            self.name += f"-{metric}"
         self.metric = metric
         self.kde_bw = kde_bw
         self.reference_scores = [self.dialog_score(dialogue)

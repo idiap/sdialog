@@ -635,7 +635,7 @@ class PersonaGenerator:
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
-                            className=type(output_persona).__name__,
+                            className=type(self._persona).__name__,
                             notes=notes
                         )
                     except ValidationError as e:
