@@ -17,7 +17,6 @@ from jinja2 import Template
 from typing import Union, List, Any
 from pydantic import BaseModel, ValidationError
 from langchain_ollama.chat_models import ChatOllama
-from langchain_core.messages.base import messages_to_dict
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
@@ -171,7 +170,7 @@ class DialogGenerator:
 
         dialogue = self.llm.invoke(self.messages)
 
-        logger.log(logging.INFO, f"Prompt used: {messages_to_dict(self.messages)}")
+        logger.log(logging.DEBUG, f"System prompt used: {self.messages[0]}")
 
         if not self.output_format:
             return dialogue.content
