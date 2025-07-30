@@ -1165,6 +1165,11 @@ class DatasetComparator:
         if isinstance(candidates, str) or isinstance(candidates, list) and isinstance(candidates[0], Dialog):
             candidates = [candidates]  # Ensure candidates is always a list of datasets (set of dialogues)
 
+        # Clear the historical results of each evaluator
+        for evaluator in self.evaluators:
+            if hasattr(evaluator, "clear"):
+                evaluator.clear()
+
         results = {}
         dataset_iterator = candidates.items() if isinstance(candidates, dict) else enumerate(candidates)
         for dataset_name, dataset in tqdm(dataset_iterator, desc="Evaluating datasets", leave=False):

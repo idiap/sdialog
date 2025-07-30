@@ -282,7 +282,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
-    def clear_history(self):
+    def clear(self):
         self.datasets_scores.clear()
 
     def plot(self,
