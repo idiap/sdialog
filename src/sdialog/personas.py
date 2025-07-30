@@ -591,7 +591,7 @@ class Agent:
 
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
-        self.model_name = str(self.llm)
+        self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.first_utterances = None
         self.finished = False
         self.scenario = scenario
@@ -919,9 +919,14 @@ class Agent:
         """
         self.memory[:] = self.memory[:1]
         self.finished = False
-        if hasattr(self.llm, "seed"):
-            self.llm.seed = seed if seed is not None else random.getrandbits(32)
-        else:
+        try:
+            seed = seed if seed is not None else random.getrandbits(32)
+            if hasattr(self.llm, "seed"):
+                self.llm.seed = seed
+            else:
+                self.llm.steps[0].bound.seed = seed
+            logger.log(logging.DEBUG, f"Generating dialogue with seed {seed}...")
+        except Exception:
             logger.warning("The LLM does not support dynamically setting a seed.")
 
         if self.orchestrators:

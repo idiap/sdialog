@@ -96,7 +96,7 @@ class DialogGenerator:
         self._personas = personas
         self.example_dialogs = example_dialogs
         self.dialogue_details = dialogue_details
-        self.model_name = str(self.llm)
+        self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.scenario = scenario
         self.messages = [SystemMessage(""), HumanMessage("")]
 
@@ -151,10 +151,13 @@ class DialogGenerator:
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
         seed = seed if seed is not None else random.getrandbits(32)
-        if hasattr(self.llm, "seed"):
-            self.llm.seed = seed
-            logger.log(logging.DEBUG, f"Generating dialogue with seed {self.llm.seed}...")
-        else:
+        try:
+            if hasattr(self.llm, "seed"):
+                self.llm.seed = seed
+            else:
+                self.llm.steps[0].bound.seed = seed
+            logger.log(logging.DEBUG, f"Generating dialogue with seed {seed}...")
+        except Exception:
             seed = None
             logger.warning("The LLM does not support dynamically setting a seed.")
 
@@ -629,7 +632,7 @@ class PersonaGenerator:
                     try:
                         personas.append(self._persona.model_validate(persona_dict))
                         personas[-1]._metadata = PersonaMetadata(
-                            model=str(llm) if llm else None,
+                            model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
@@ -645,7 +648,7 @@ class PersonaGenerator:
                                         for k, v in self._persona.model_dump().items()}
                         personas.append(self._persona.model_validate(persona_dict))
                         personas[-1]._metadata = PersonaMetadata(
-                            model=str(llm) if llm else None,
+                            model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
@@ -689,7 +692,7 @@ class PersonaGenerator:
         # Adding metadata to the generated persona
         # TODO: shall we also add generator parameters? (e.g. self._persona_rnd_attributes, self.default_*)
         output_persona._metadata = PersonaMetadata(
-            model=str(llm) if llm else None,
+            model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
             seed=seed,
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,

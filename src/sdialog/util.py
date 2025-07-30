@@ -428,7 +428,7 @@ def get_llm_model(model_name: str,
     elif is_ollama_model_name(model_name):
         if model_name.startswith("ollama:"):
             model_name = model_name.split(":", 1)[-1]
-        logger.info(f"Loading ChatOllama model: {model_name}")
+        logger.info(f"Loading Ollama model: {model_name}")
 
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
         llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
