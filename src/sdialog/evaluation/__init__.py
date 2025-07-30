@@ -221,7 +221,8 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         prompt = self.prompt_template.render(dialogs=dialogs,
                                              dialog=dialogs[0],
                                              feedback=feedback if feedback is not None else self.feedback)
-        output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
+        output = BaseLLMJudge.__call__(self, prompt)
+        output = self.output_format.model_validate(output)
 
         return output
 
