@@ -47,7 +47,7 @@ def llm(llm_name, **llm_kwargs):
         set_llm_params(**llm_kwargs)
 
 
-def set_llm_params(**params):
+def llm_params(**params):
     """
     Update the LLM hyperparameters in the config.
 
@@ -80,7 +80,7 @@ def cache(enable):
         )
 
 
-def set_cache_path(path):
+def cache_path(path):
     """
     Set the path for the cache directory.
 
@@ -148,5 +148,8 @@ def set_persona_agent_prompt(path):
 # Make sure all default prompt paths are absolute
 _make_cfg_absolute_path(config["prompts"])
 
-set_cache_enabled = cache  # Alias
-set_llm = llm  # Alias
+# Aliases for convenience
+set_cache_enabled = cache
+set_cache_path = cache_path
+set_llm = llm
+set_llm_params = llm_params
