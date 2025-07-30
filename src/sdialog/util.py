@@ -456,7 +456,9 @@ def get_llm_model(model_name: str,
 
         pipe = transformers.pipeline("text-generation", **hf_params)
 
-        llm = ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
+        llm = ChatHuggingFace(
+            llm=HuggingFacePipeline(pipeline=pipe),
+            tokenizer=AutoTokenizer.from_pretrained(model_name))  # if None, error (https://huggingface.co/models/None)
 
     if output_format:
         if isinstance(output_format, type) and issubclass(output_format, BaseModel):
