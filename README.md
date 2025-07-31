@@ -29,18 +29,13 @@ Modern conversational AI research and applications increasingly require high-qua
 - **Dialogue Orchestration:** Control agent actions and inject instructions dynamically using orchestrators.
 - **Scenario Management:** Easily describe and manage dialogue scenarios, including flowcharts and user/system goals.
 - **Flexible Serialization:** Export dialogues and events in JSON or plain text for downstream tasks.
-- **Integration with LLMs:** Out-of-the-box support for [Ollama](https://ollama.com/) and [LangChain](https://python.langchain.com/), with planned support for HuggingFace models.
+- **Integration with LLMs:** Out-of-the-box support for many LLM backends (Ollama, HuggingFace, OpenAI, Google Gen, etc.).
 
 ## ⚡ Installation
 
 ```bash
 pip install sdialog
 ```
-
-> **Note:** You must have [Ollama](https://ollama.com/download) running on your system to use the default LLM integration.
-> ```bash
-> curl -fsSL https://ollama.com/install.sh | sh
-> ```
 
 ## 🏁 Quick Start
 
