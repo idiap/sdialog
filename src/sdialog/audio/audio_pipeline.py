@@ -1,18 +1,27 @@
-import scaper
+import os
+import json
 import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-from typing import List
-from sdialog import Dialog
+
+from typing import List, Optional
 from datasets import load_dataset
+
+from sdialog import Dialog
+from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
-from scaper.dscaper_datatypes import DscaperAudio
+from sdialog.audio.tts_engine import KokoroTTS
+from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.voice_database import BaseVoiceDatabase
 from sdialog.audio.audio_events_enricher import AudioEventsEnricher
-from sdialog.audio import generate_utterances_audios, save_utterances_audios, send_utterances_to_dscaper
-from sdialog.audio import generate_dscaper_timeline, generate_audio_room_accoustic, generate_word_alignments
+from sdialog.audio.voice_database import BaseVoiceDatabase, DummyKokoroVoiceDatabase
+from sdialog.audio import (
+    generate_utterances_audios,
+    save_utterances_audios,
+    generate_audio_room_accoustic,
+    generate_word_alignments
+)
 
 
 class AudioPipeline:
@@ -22,27 +31,46 @@ class AudioPipeline:
 
     def __init__(
             self,
-            dir_audio: str,
-            tts_pipeline: BaseTTS,
-            voice_database: BaseVoiceDatabase,
-            dscaper: scaper.Dscaper,
-            enricher: AudioEventsEnricher,
-            sampling_rate: int = 24_000):
+            dir_audio: Optional[str] = "./outputs",
+            tts_pipeline: Optional[BaseTTS] = None,
+            voice_database: Optional[BaseVoiceDatabase] = None,
+            enricher: Optional[AudioEventsEnricher] = None,
+            sampling_rate: Optional[int] = 24_000,
+            dscaper=None):
         """
         Initialize the audio pipeline.
         """
 
         self.dir_audio = dir_audio
-        self.tts_pipeline = tts_pipeline
-        self.voice_database = voice_database
-        self._dscaper = dscaper
-        self.enricher = enricher
-        self.sampling_rate = sampling_rate
 
-    def populate_dscaper(self, datasets: List[str]) -> int:
+        self.tts_pipeline = tts_pipeline
+        if self.tts_pipeline is None:
+            self.tts_pipeline = KokoroTTS()
+
+        self.voice_database = voice_database
+        if self.voice_database is None:
+            self.voice_database = DummyKokoroVoiceDatabase()
+
+        self.enricher = enricher
+        self._dscaper = dscaper
+
+        self.sampling_rate = sampling_rate  # Need to be set to the same as the TTS model
+
+    def populate_dscaper(
+            self,
+            datasets: List[str],
+            split: str = "train") -> int:
         """
         Populate the dSCAPER with the audio recordings.
         """
+
+        if self._dscaper is None:
+            raise ValueError("The dSCAPER is not provided to the audio pipeline")
+        else:
+            from scaper import Dscaper
+            from scaper.dscaper_datatypes import DscaperAudio
+            if not isinstance(self._dscaper, Dscaper):
+                raise ValueError("The dSCAPER is not a Dscaper instance")
 
         n_audio_files = 0
 
@@ -50,7 +78,7 @@ class AudioPipeline:
         for dataset_name in datasets:
 
             # Load huggingface dataset
-            dataset = load_dataset(dataset_name, split="train")
+            dataset = load_dataset(dataset_name, split=split)
 
             for data in tqdm(dataset, desc=f"Populating dSCAPER with {dataset_name} dataset..."):
 
@@ -76,13 +104,17 @@ class AudioPipeline:
 
         return n_audio_files
 
-    def master_audio(self, dialog: AudioDialog) -> np.ndarray:
+    def master_audio(
+            self,
+            dialog: AudioDialog) -> np.ndarray:
         """
         Combines multiple audio segments into a single master audio track.
         """
         return np.concatenate([turn.get_audio() for turn in dialog.turns])
 
-    def enrich(self, dialog: AudioDialog) -> AudioDialog:
+    def enrich(
+            self,
+            dialog: AudioDialog) -> AudioDialog:
         """
         Enrich with audio events, SNR and room position.
         """
@@ -96,54 +128,163 @@ class AudioPipeline:
     def inference(
             self,
             dialog: Dialog,
-            do_word_alignments: bool = False,
-            do_snr: bool = False,
-            do_room_position: bool = False) -> AudioDialog:
+            room: Optional[Room] = None,
+            do_word_alignments: Optional[bool] = False,
+            do_snr: Optional[bool] = False,
+            do_room_position: Optional[bool] = False,
+            microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED,
+            do_step_1: Optional[bool] = True,
+            do_step_2: Optional[bool] = True,
+            do_step_3: Optional[bool] = True) -> AudioDialog:
         """
         Run the audio pipeline.
         """
 
-        dialog = generate_utterances_audios(
-            dialog,
-            voice_database=self.voice_database,
-            tts_pipeline=self.tts_pipeline
-        )
+        if room is not None:
+            dialog.set_room(room)
 
-        dialog = save_utterances_audios(dialog, self.dir_audio)
+        dialog.audio_dir_path = self.dir_audio
+        dialog.audio_step_1_filepath = os.path.join(
+            dialog.audio_dir_path,
+            f"dialog_{dialog.id}",
+            "exported_audios",
+            "audio_pipeline_step1.wav"
+        )
+        print(dialog.audio_step_1_filepath)
 
-        # Combine the audio segments into a single master audio track as a baseline
-        dialog.set_combined_audio(
-            self.master_audio(dialog)
-        )
-        # save the combined audio to exported_audios folder
-        sf.write(
-            f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios/combined_audio.wav",
-            dialog.get_combined_audio(),
-            self.sampling_rate
-        )
+        if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
+
+            print(f"Generating utterances audios from dialogue {dialog.id}")
+
+            dialog: AudioDialog = generate_utterances_audios(
+                dialog,
+                voice_database=self.voice_database,
+                tts_pipeline=self.tts_pipeline
+            )
+
+            dialog: AudioDialog = save_utterances_audios(dialog, self.dir_audio)
+
+            # Combine the audio segments into a single master audio track as a baseline
+            dialog.set_combined_audio(
+                self.master_audio(dialog)
+            )
+
+            # Save the combined audio to exported_audios folder
+            sf.write(
+                dialog.audio_step_1_filepath,
+                dialog.get_combined_audio(),
+                self.sampling_rate
+            )
+
+        else:
+
+            print(f"Loading utterances and combined audio from dialogue {dialog.id}")
+
+            # Load combined audio from the exported_audios folder
+            dialog.set_combined_audio(
+                sf.read(dialog.audio_step_1_filepath)[0]  # WARNING: watchout for the sampling rate
+            )
+
+            # Load utterances to the dialog turns
+            path_utterances = os.path.join(dialog.audio_dir_path, f"dialog_{dialog.id}", "utterances")
+
+            audio_start_time = 0
+
+            for utterance_audio in os.listdir(path_utterances):
+
+                utterance_id = utterance_audio.split("_")[0]
+
+                # WARNING: watchout for the sampling rate
+                audio_utterance_filepath = os.path.join(
+                    path_utterances,
+                    utterance_audio
+                )
+
+                # Populate the turn audio fields from the audio path
+                _turn = dialog.turns[int(utterance_id)]
+                _turn.audio_path = audio_utterance_filepath
+                _audio, _sampling_rate = sf.read(audio_utterance_filepath)
+                _turn.set_audio(_audio, _sampling_rate)
+                _turn.audio_duration = _audio.shape[0] / _sampling_rate
+                _turn.audio_start_time = audio_start_time
+                audio_start_time += _turn.audio_duration
+
+            print(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
 
         # TODO: Test this computation of word alignments
         if do_word_alignments:
-            dialog = generate_word_alignments(dialog)
+            dialog: AudioDialog = generate_word_alignments(dialog)
 
         # TODO: Test this generation of SNR
         if do_snr:
-            dialog = self.enricher.generate_snr(dialog)
+            dialog: AudioDialog = self.enricher.generate_snr(dialog)
 
-        # TODO: Test this generation of room position
+        # Generate the position of the speakers in the room
         if do_room_position:
-            dialog = self.enricher.generate_room_position(dialog)
+            dialog: AudioDialog = self.enricher.generate_room_position(dialog)
 
-        # Randomly sample a static microphone position for the whole dialogue
-        dialog = self.enricher.generate_microphone_position(dialog)
+        # # Randomly sample a static microphone position for the whole dialogue
+        # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
-        # Send the utterances to dSCAPER
-        dialog = send_utterances_to_dscaper(dialog, self._dscaper)
+        if self._dscaper is not None and do_step_2:
 
-        # Generate the timeline from dSCAPER
-        dialog = generate_dscaper_timeline(dialog, self._dscaper)
+            from scaper import Dscaper
+
+            if not isinstance(self._dscaper, Dscaper):
+                raise ValueError("The dSCAPER is not a Dscaper instance")
+
+            from sdialog.audio.audio_scaper_utils import (
+                send_utterances_to_dscaper,
+                generate_dscaper_timeline
+            )
+
+            # Send the utterances to dSCAPER
+            print(f"Sending utterances to dSCAPER for dialogue {dialog.id}")
+            dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)
+
+            # Generate the timeline from dSCAPER
+            print(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
+            dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
+            print(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
+
+        elif do_step_2:
+            logging.warning(
+                "The dSCAPER is not set, which make the generation of the timeline impossible"
+            )
 
         # Generate the audio room accoustic
-        dialog = generate_audio_room_accoustic(dialog)
+        if room is not None and self._dscaper is not None and do_step_3:
+            print(f"Generating room accoustic for dialogue {dialog.id}")
+            dialog: AudioDialog = generate_audio_room_accoustic(dialog, microphone_position)
+            print(f"Room accoustic generated for dialogue {dialog.id}!")
+        elif do_step_3:
+            logging.warning(
+                "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
+            )
+
+        # Save information about the audio pipeline
+        audio_pipeline_info = {
+            "dialog_id": dialog.id,
+            "tts_pipeline": self.tts_pipeline.__class__.__name__,
+            "voice_database": self.voice_database.__class__.__name__,
+            "enricher": self.enricher.__class__.__name__,
+            "dscaper": self._dscaper.__class__.__name__ if self._dscaper is not None else None,
+            "room": room.get_info() if room is not None else None,
+            "microphone_position": microphone_position.value if microphone_position is not None else None,
+            "do_word_alignments": do_word_alignments,
+            "do_snr": do_snr,
+            "do_room_position": do_room_position,
+            "sampling_rate": self.sampling_rate,
+            "dir_audio": self.dir_audio,
+            "personas": dialog.personas,
+        }
+        # Save the audio pipeline info to a json file
+        with open(os.path.join(
+            dialog.audio_dir_path,
+            f"dialog_{dialog.id}",
+            "exported_audios",
+            "audio_pipeline_info.json"
+        ), "w") as f:
+            json.dump(audio_pipeline_info, f, indent=4)
 
         return dialog

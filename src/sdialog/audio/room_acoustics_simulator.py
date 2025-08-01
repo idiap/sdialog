@@ -1,10 +1,15 @@
+"""
+This module provides a class for simulating room acoustics.
+"""
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>
+# SPDX-License-Identifier: MIT
 import os
 from typing import List, Optional, Union
 import numpy as np
 
 # import matplotlib.pyplot as plt
 import soundfile as sf
-import pyroomacoustics as pra
 from sdialog.audio.room import Room, RoomRole, AudioSource, Position3D
 from sdialog.audio.room import (
     DoctorPosition,
@@ -38,7 +43,7 @@ class RoomAcousticsSimulator:
          >>> audio = room_acoustics.simulate(audio_sources)
     """
 
-    def __init__(self, room: Optional[Room] = None, sampling_rate=16000):
+    def __init__(self, room: Optional[Room] = None, sampling_rate=44_100):
         self.sampling_rate = sampling_rate
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
@@ -67,7 +72,8 @@ class RoomAcousticsSimulator:
         )
         self.add_microphone(self.mic_position.to_list())
 
-    def _create_pyroom(self, room: Room, sampling_rate=16000):
+    def _create_pyroom(self, room: Room, sampling_rate=44_100):
+        import pyroomacoustics as pra
         e_absorption, max_order = pra.inverse_sabine(room.rt60, room.dimensions)
         # max_order = 17  # Number of reflections
         return pra.ShoeBox(
@@ -91,6 +97,8 @@ class RoomAcousticsSimulator:
         Args:
             mic_pos: Can be MicrophonePosition enum, list [x,y,z], or Position3D object
         """
+        import pyroomacoustics as pra
+
         if isinstance(mic_pos, MicrophonePosition):
             position_3d = self.microphone_position_to_room_position(self.room, mic_pos)
         elif isinstance(mic_pos, list):
@@ -155,9 +163,7 @@ class RoomAcousticsSimulator:
                 continue
 
             if audio is not None:
-                print(f"Sound source {asource.name} Peak level: {np.max(np.abs(audio)):.3f}")
                 audio = self.apply_snr(audio, asource.snr)
-                print(f"Sound source {asource.name} Peak level after: {np.max(np.abs(audio)):.3f}")
                 self._pyroom.add_source(asource._position3d.to_list(), signal=audio)
 
     def simulate(self, sources: List[AudioSource] = [], reset=False):  # -> np.array:
@@ -167,7 +173,7 @@ class RoomAcousticsSimulator:
             self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
 
         self._add_sources(sources)
-        self._pyroom.simulate()  # snr=
+        self._pyroom.simulate()
         mixed_signal = self._pyroom.mic_array.signals[0, :]
 
         # peak_level = np.max(np.abs(mixed_signal))
@@ -178,7 +184,7 @@ class RoomAcousticsSimulator:
         #     print(f"Applied soft compression (ratio: {compression_ratio:.3f}) to prevent clipping")
         # print(f"Simulation complete! Peak level: {np.max(np.abs(mixed_signal)):.3f}")
 
-        mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max -0.3dB
+        mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max 1dB
         return mixed_signal
 
     def reset(self):
@@ -449,7 +455,7 @@ class RoomAcousticsSimulator:
 
     @staticmethod
     def generate_test_audio_sources(
-        sampling_rate=16000, duration=2.0, save_files=True
+        sampling_rate=44_100, duration=2.0, save_files=True
     ) -> List[AudioSource]:
         """
         Generate synthetic audio sources for testing the room acoustics simulator.
