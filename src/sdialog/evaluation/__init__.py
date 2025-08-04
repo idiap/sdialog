@@ -903,7 +903,8 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         # Plot box plots for each dataset
-        plot.title(f"Boxplot of {self.dialog_score.name} scores")
+        title = self.name or f"{self.dialog_score.name} scores"
+        plot.title(f"Boxplot of {title}")
         plot.boxplot(list(dialog_scores.values()),
                      labels=list(dialog_scores.keys()))
         plot.xlabel("datasets")
