@@ -1,5 +1,4 @@
 codecov
-einops
 flake8
 graphviz
 Jinja2

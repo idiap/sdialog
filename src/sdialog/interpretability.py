@@ -24,7 +24,6 @@ and providing interfaces for downstream interpretability and analysis tasks.
 # SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import torch
-import einops
 import logging
 import numpy as np
 
@@ -40,8 +39,14 @@ logger = logging.getLogger(__name__)
 def default_steering_function(activation, direction, strength=1, op="+"):
     if activation.device != direction.device:
         direction = direction.to(activation.device)
-    proj = einops.einsum(activation, direction.view(-1, 1), '... d_act, d_act single -> ... single') * direction
-    return activation + proj * strength if op == "+" else activation - proj * strength
+    if op == "-":
+        # Project activation onto direction
+        proj_coeff = torch.matmul(activation, direction)  # (...,)
+        proj = proj_coeff.unsqueeze(-1) * direction  # (..., d_act)
+        # Force activations to be orthogonal to the direction
+        return activation - proj * strength
+    else:
+        return activation + direction * strength
 
 
 class Steerer(ABC):
