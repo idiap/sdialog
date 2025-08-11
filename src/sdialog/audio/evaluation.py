@@ -16,7 +16,6 @@ from scipy.spatial.distance import cdist
 from sdialog.audio.audio_dialog import AudioDialog
 from torchmetrics.audio.nisqa import NonIntrusiveSpeechQualityAssessment
 
-import whisper
 from pyannote.audio import Model, Inference
 from .whisper_normalizer import EnglishTextNormalizer
 
@@ -27,16 +26,19 @@ pyannote_model = Model.from_pretrained("pyannote/embedding")
 inference = Inference(pyannote_model, window="whole")
 
 normalizer = EnglishTextNormalizer()
-whisper_model = whisper.load_model("large-v3", device=device)
 
 
-def transcript(audios: List[np.ndarray]) -> List[str]:
+def transcript(audios: List[np.ndarray], whisper_model_name: str = "large-v3") -> List[str]:
     """
     Transcript the audios using the whisper model.
     :param audios: The audios to transcript.
     :return: The transcripts.
     :rtype: List[str]
     """
+    from sdialog.audio.audio_utils import AudioUtils
+
+    whisper_model = AudioUtils.get_whisper_model(model_name=whisper_model_name)
+
     transcripts = []
     for audio in audios:
         result = whisper_model.transcribe(audio, fp16=False)

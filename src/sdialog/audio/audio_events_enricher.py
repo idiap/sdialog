@@ -6,22 +6,20 @@ Generate audio events from text utterances in a dialog using the markup language
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import re
-import torch
 import logging
-import whisper
 from typing import List
 from random import choice
-from sdialog import config
 from jinja2 import Template
+from pydantic import BaseModel
+
+from sdialog import config
 from sdialog.generators import DialogGenerator
+from sdialog.audio.audio_turn import AudioTurn
 from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_events import Timeline, AudioEvent
 
 logger = logging.getLogger(__name__)
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-whisper_model = whisper.load_model("large-v3", device=device)
 
 
 def _parse_duration_ms(duration_str: str) -> int:
@@ -36,6 +34,10 @@ def _parse_duration_ms(duration_str: str) -> int:
         return int(float(duration_str))  # Assume ms if no unit
     except ValueError:
         return 0
+
+
+class AudioDialogFormat(BaseModel):
+    dialog: List[AudioTurn]
 
 
 class AudioEventsEnricher:
@@ -76,14 +78,11 @@ class AudioEventsEnricher:
         with open(config.config["prompts"]["audio"]["snr"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(dialog))
 
-        dialog_with_snr = DialogGenerator(dialogue_details=prompt).generate()
+        list_audio_turns = DialogGenerator(dialogue_details=prompt, output_format=AudioDialogFormat).generate()
+        for new_turn, turn in zip(list_audio_turns.dialog, dialog.turns):
+            turn.snr = float(new_turn.snr)
 
-        # Extract the SNR from the dialog
-        for turn in dialog_with_snr.turns:
-            snr = re.search(r'snr="(\d+)"', turn.text)
-            turn.snr = int(snr.group(1)) if snr else None
-
-        return dialog_with_snr
+        return dialog
 
     def generate_room_position(self, dialog: AudioDialog) -> AudioDialog:
         """
@@ -93,16 +92,11 @@ class AudioEventsEnricher:
         with open(config.config["prompts"]["audio"]["room_position"], "r") as f:
             prompt = Template(f.read()).render(dialog=str(dialog))
 
-        dialog_with_room_position = DialogGenerator(dialogue_details=prompt).generate()
+        list_audio_turns = DialogGenerator(dialogue_details=prompt, output_format=AudioDialogFormat).generate()
+        for new_turn, turn in zip(list_audio_turns.dialog, dialog.turns):
+            turn.position = new_turn.position
 
-        # Extract the position and microphone position from the dialog
-        for turn in dialog_with_room_position.turns:
-
-            turn.position = re.search(
-                r'position="([^"]+)"',
-                turn.text).group(1) if re.search(r'position="([^"]+)"', turn.text) else None
-
-        return dialog_with_room_position
+        return dialog
 
     def generate_microphone_position(self, dialog: AudioDialog) -> AudioDialog:
         """
@@ -202,6 +196,11 @@ class AudioEventsEnricher:
         Compute the alignment of the audio events in the dialog based on the position
         of the anchors tokens (begin_token and end_token) and the utterances audios.
         """
+        import librosa
+        from sdialog.audio.audio_utils import AudioUtils
+
+        whisper_model = AudioUtils.get_whisper_model(model_name="large-v3")
+
         structured_events = self._structure_markup_language(dialog)
         timeline = Timeline()
         dialog_word_timings = []
@@ -209,14 +208,22 @@ class AudioEventsEnricher:
         cumulative_words = 0
 
         # We assume audio is 16kHz for whisper
-        sample_rate = 16000
+        sample_rate = 16_000
 
         current_time_offset_s = 0.0
 
         for i, turn in enumerate(dialog.turns):
+
+            # Get the audio of the turn
+            _audio = turn.get_audio()
+
+            # Resample audio to 16kHz if necessary, assuming we know original sr
+            if _audio.shape[0] != sample_rate:
+                _audio = librosa.resample(_audio, orig_sr=turn.sampling_rate, target_sr=sample_rate)
+
             # Add utterance to timeline
             utterance_start_time_s = current_time_offset_s
-            utterance_duration_s = len(turn.get_audio()) / sample_rate if sample_rate > 0 else 0
+            utterance_duration_s = len(_audio) / sample_rate if sample_rate > 0 else 0
             clean_text_for_label = re.sub(r'<[^>]+>', '', turn.text).strip()
 
             if clean_text_for_label or utterance_duration_s > 0:
@@ -244,9 +251,8 @@ class AudioEventsEnricher:
                 current_time_offset_s += utterance_duration_s
                 continue
 
-            # Resample audio to 16kHz if necessary, assuming we know original sr
-            # For now, we assume it is already 16kHz from the TTS engine
-            result = whisper_model.transcribe(turn.get_audio(), word_timestamps=True, fp16=False, language='en')
+            # Transcribe and get the word timestamps of the audio using the whisper model
+            result = whisper_model.transcribe(_audio, word_timestamps=True, fp16=False, language='en')
 
             turn_words_with_ts = []
             for segment in result.get('segments', []):

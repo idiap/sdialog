@@ -20,6 +20,7 @@ class AudioTurn(Turn):
     """
 
     _audio: np.ndarray = None
+    _sampling_rate: int = None
     audio_path: str = None
     audio_duration: float = None
     audio_start_time: float = None
@@ -37,11 +38,12 @@ class AudioTurn(Turn):
         """
         return self._audio
 
-    def set_audio(self, audio: np.ndarray):
+    def set_audio(self, audio: np.ndarray, sampling_rate: int):
         """
         Set the audio of the turn.
         """
         self._audio = audio
+        self._sampling_rate = sampling_rate
 
     @staticmethod
     def from_turn(

@@ -1,4 +1,4 @@
-Your task is to rewrite the following dialogue by adding a quantitative Signal-to-Noise Ratio (SNR) attribute to each speaker's tag.
+Your task is to rewrite the following dialogue by adding a quantitative Signal-to-Noise Ratio (SNR) attribute to each audio turn.
 
 The `snr` attribute should be a numerical integer representing decibels (dB) that estimates the audio quality based on the conversational context. Assign a value from the following ranges:
 
@@ -6,19 +6,9 @@ The `snr` attribute should be a numerical integer representing decibels (dB) tha
 - **Medium Noise Environment (e.g., a typical office, a quiet cafe):** Assign an SNR value between **10 and 20**.
 - **Loud Environment (e.g., a busy street, a construction site, a crowded bar):** Assign an SNR value between **0 and 10**.
 
-The dialogue content, speakers, and order must remain exactly the same. You should only add the `snr` attribute to each speaker tag in the format `snr="XX"`.
-
-Here is an example of the expected transformation:
-
-Original Turn:
-[DOCTOR] Hello, how can I help you today?
-[PATIENT] I'm on a busy street and can barely hear you!
-
-Modified Turn:
-[DOCTOR snr="32"] Hello, how can I help you today?
-[PATIENT snr="8"] I'm on a busy street and can barely hear you!
+The dialogue content, speakers, and order must remain exactly the same. You should only add the `snr` attribute to each audio turn.
 
 Here is the original dialogue:
 {{ dialog }}
 
-Return only the modified dialogue with the `snr` attributes included in the speaker tags.
+Return the modified audio dialogue with the `snr` attribute from the AudioTurn filled up.
