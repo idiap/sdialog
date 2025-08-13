@@ -526,7 +526,8 @@ class Agent:
                  model: Union[str, BaseLanguageModel] = None,
                  example_dialogs: Optional[List['Dialog']] = None,
                  dialogue_details: str = "",
-                 response_details: str = "Unless necessary, responses SHOULD NOT be longer than one utterances.",
+                 response_details: str = ("Unless necessary, responses SHOULD be only one utterance long, and SHOULD "
+                                          "NOT contain many questions or topics in one single turn."),
                  system_prompt: Optional[str] = None,
                  can_finish: bool = True,
                  orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
@@ -790,6 +791,25 @@ class Agent:
         """
         self.orchestrators = None
 
+    def clear_inspectors(self):
+        """
+        Removes all inspectors from the agent.
+        """
+        self.inspectors = None
+        self.utterance_hook = None
+        self.clear_hooks()
+
+    def clear_hooks(self):
+        """
+        Resets all representation cached and removes all registered hooks from the agent.
+        """
+        for hook in getattr(self, 'rep_hooks', []):
+            hook.remove()
+        self.rep_hooks = []
+        if self.utterance_hook is not None:
+            self.utterance_hook.reset()
+        self.set_utterance_hook()
+
     def add_hooks(self, layer_name_to_key, steering_function=None, steering_interval=(0, -1)):
         """
         Registers RepresentationHooks for each layer in the given mapping.
@@ -822,18 +842,6 @@ class Agent:
             )
             hook.register(model)
             self.rep_hooks.append(hook)
-
-    def clear_hooks(self):
-        """
-        Resets all representation cached and removes all registered hooks from the agent.
-        """
-        for hook in getattr(self, 'rep_hooks', []):
-            hook.reset()
-            hook.remove()
-        self.rep_hooks = []
-        if self.utterance_hook is not None:
-            self.utterance_hook.reset()
-        self.set_utterance_hook()
 
     def set_utterance_hook(self):
         # Register UtteranceTokenHook and expose utterance_list
