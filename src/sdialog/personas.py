@@ -11,7 +11,6 @@ complex behaviors.
 import os
 import sys
 import json
-import torch
 import random
 import logging
 import inspect
@@ -24,7 +23,6 @@ from pydantic import BaseModel, Field
 from print_color import print as cprint
 from typing import List, Union, Optional
 
-from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages.base import messages_to_dict
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -35,7 +33,7 @@ from .orchestrators import BaseOrchestrator
 from . import Dialog, Turn, Event, Instruction, _get_dynamic_version
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 from .util import get_llm_model, camel_or_snake_to_words, get_timestamp, remove_newlines, get_universal_id
-from .util import is_aws_model_name, is_huggingface_model_name
+from .util import is_aws_model_name, is_huggingface_model_name, set_generator_seed
 
 
 logger = logging.getLogger(__name__)
@@ -927,15 +925,7 @@ class Agent:
         """
         self.memory[:] = self.memory[:1]
         self.finished = False
-        try:
-            seed = seed if seed is not None else random.getrandbits(32)
-            if hasattr(self.llm, "seed"):
-                self.llm.seed = seed
-            else:
-                self.llm.steps[0].bound.seed = seed
-            logger.log(logging.DEBUG, f"Generating dialogue with seed {seed}...")
-        except Exception:
-            logger.warning("The LLM does not support dynamically setting a seed.")
+        seed = set_generator_seed(self, seed)
 
         if self.orchestrators:
             for orchestrator in self.orchestrators:
@@ -943,19 +933,6 @@ class Agent:
 
         if self.utterance_hook is not None:
             self.utterance_hook.reset()
-
-        if isinstance(self.llm, ChatOllama):
-            # hack to avoid seed bug in prompt cache in Ollama
-            # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
-            _ = self.llm.num_predict
-            self.llm.num_predict = 1
-            self.llm.invoke(self.memory)
-            self.llm.num_predict = _
-        else:
-            if seed is None:
-                torch.manual_seed(13)
-            else:
-                torch.manual_seed(seed)
 
     def dialog_with(self,
                     agent: "PersonaAgent",

@@ -12,6 +12,7 @@ import re
 import json
 import uuid
 import torch
+import random
 import logging
 import subprocess
 import numpy as np
@@ -471,6 +472,38 @@ def get_llm_model(model_name: str,
     return llm
 
 
+def set_generator_seed(generator, seed):
+    seed = seed if seed is not None else random.getrandbits(32)
+    llm = generator.llm
+    base_model = None
+    try:
+        if hasattr(llm, "seed"):
+            base_model = llm
+        else:
+            base_model = llm.steps[0].bound
+        base_model.seed = seed
+        logger.log(logging.DEBUG, f"Setting the LLM seed to {seed}...")
+    except Exception:
+        torch.manual_seed(seed)
+        seed = None
+        logger.warning("The LLM does not support dynamically setting a seed.")
+
+    if isinstance(base_model, ChatOllama):
+        # hack to avoid seed bug in prompt cache in Ollama
+        # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
+        if hasattr(generator, "messages"):
+            messages = generator.messages
+        else:
+            messages = generator.memory
+
+        num_predict = base_model.num_predict
+        base_model.num_predict = 1
+        base_model.invoke(messages)
+        base_model.num_predict = num_predict
+
+    return seed
+
+
 def ollama_check_and_pull_model(model_name: str) -> bool:
     """
     Check if an Ollama model is available locally, and if not, pull it from the hub.
@@ -480,6 +513,8 @@ def ollama_check_and_pull_model(model_name: str) -> bool:
     :return: True if the model is available (either was already local or successfully pulled), False otherwise.
     :rtype: bool
     """
+    if model_name.startswith("ollama:"):
+        model_name = model_name.split(":", 1)[-1]
     try:
         # First, check if the model is available locally
         result = subprocess.run(

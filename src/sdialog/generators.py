@@ -16,14 +16,13 @@ import logging
 from jinja2 import Template
 from typing import Union, List, Any
 from pydantic import BaseModel, ValidationError
-from langchain_ollama.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
 from . import Dialog, Turn
 from .config import config
 from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
-from .util import get_llm_model, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
+from .util import get_llm_model, set_generator_seed, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -149,24 +148,7 @@ class DialogGenerator:
         :rtype: Union[Dialog, dict, BaseModel]
         """
         self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
-        seed = seed if seed is not None else random.getrandbits(32)
-        try:
-            if hasattr(self.llm, "seed"):
-                self.llm.seed = seed
-            else:
-                self.llm.steps[0].bound.seed = seed
-            logger.log(logging.DEBUG, f"Generating dialogue with seed {seed}...")
-        except Exception:
-            seed = None
-            logger.warning("The LLM does not support dynamically setting a seed.")
-
-        if isinstance(self.llm, ChatOllama):
-            # hack to avoid seed bug in prompt cache in Ollama
-            # (to force a new cache, related to https://github.com/ollama/ollama/issues/5321)
-            _ = self.llm.num_predict
-            self.llm.num_predict = 1
-            self.llm.invoke(self.messages)
-            self.llm.num_predict = _
+        seed = set_generator_seed(self, seed)
 
         dialogue = self.llm.invoke(self.messages)
 
