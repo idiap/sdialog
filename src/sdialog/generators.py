@@ -681,3 +681,67 @@ class PersonaGenerator:
             notes=notes
         )
         return output_persona
+
+
+class Paraphraser:
+    def __init__(self,
+                 extra_instructions: str = "Keep entities and values identical while making it sound more natural",
+                 target_speaker: str = None,
+                 model: Union[str, BaseLanguageModel] = None,
+                 **llm_kwargs):
+        if model is None:
+            model = config["llm"]["model"]
+
+        self.model = model
+        self.llm = get_llm_model(model_name=model,
+                                 output_format=LLMDialogOutput,
+                                 **llm_kwargs)
+        self.extra_instructions = extra_instructions
+        self.target_speaker = target_speaker
+
+        with open(config["prompts"]["paraphraser_system"], encoding="utf-8") as f:
+            system_message = Template(f.read()).render()
+
+        with open(config["prompts"]["paraphraser"], encoding="utf-8") as f:
+            self.instruction_template = Template(f.read())
+
+        self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
+        self.messages = [SystemMessage(system_message), HumanMessage("")]
+
+    def __call__(self,
+                 dialog: Dialog,
+                 target_speaker: str = None,
+                 seed: int = None) -> Dialog:
+        target_speaker = target_speaker or self.target_speaker
+        new_dialog = dialog.clone()
+        if target_speaker:
+            new_dialog.turns = [turn
+                                for turn in dialog.turns
+                                if turn.speaker.lower() == target_speaker.lower()]
+        self.messages[1].content = self.instruction_template.render(dialog=new_dialog,
+                                                                    extra_instructions=self.extra_instructions,
+                                                                    target_speaker=target_speaker)
+        seed = set_generator_seed(self, seed)
+
+        output = LLMDialogOutput.model_validate(self.llm.invoke(self.messages))
+
+        if not target_speaker:
+            new_dialog.turns = output.dialog
+        else:
+            new_dialog.turns = [output.dialog.pop(0) if turn.speaker.lower() == target_speaker.lower() else turn
+                                for turn in dialog.turns]
+        new_dialog.events = None  # TODO: replace each "utt" event by the new paraphrased utterance
+
+        if len(new_dialog) != len(dialog):
+            logger.warning("Number of turns in the new paraphrased dialog does not match the original!")
+
+        return new_dialog
+
+    def prompt(self) -> str:
+        """
+        Returns the system and user prompt used for the generation.
+
+        :return: The prompt strings.
+        :rtype: str
+        """
+        return f"{self.messages[0].content}\n\n{self.instruction_template}"
