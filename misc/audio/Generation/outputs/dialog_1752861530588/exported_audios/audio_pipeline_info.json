@@ -3,8 +3,23 @@
     "tts_pipeline": "KokoroTTS",
     "voice_database": "DummyKokoroVoiceDatabase",
     "enricher": "NoneType",
-    "dscaper": null,
-    "room": null,
+    "dscaper": "Dscaper",
+    "room": {
+        "id": "0113",
+        "name": "RoomRole.CONSULTATION room_0113",
+        "description": "consultation room",
+        "role": "consultation",
+        "dimensions": [
+            3.577708763999664,
+            2.23606797749979,
+            3.0
+        ],
+        "walls_material": null,
+        "rt60": 0.5,
+        "mic_type": "webcam",
+        "mic_position": "monitor",
+        "furnitures": false
+    },
     "microphone_position": "ceiling_centered",
     "do_word_alignments": false,
     "do_snr": false,
@@ -45,7 +60,11 @@
                 "id": 1752861446110,
                 "parentId": null,
                 "className": "Doctor",
-                "notes": null
+                "notes": null,
+                "voice": {
+                    "identifier": "am_liam",
+                    "voice": "am_liam"
+                }
             }
         },
         "PATIENT": {
@@ -85,7 +104,11 @@
                 "id": 1752861465653,
                 "parentId": null,
                 "className": "Patient",
-                "notes": null
+                "notes": null,
+                "voice": {
+                    "identifier": "am_liam",
+                    "voice": "am_liam"
+                }
             }
         }
     }

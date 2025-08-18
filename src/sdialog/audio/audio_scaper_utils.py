@@ -56,8 +56,8 @@ def generate_dscaper_timeline(
     background_metadata = DscaperBackground(
         library="background",
         label=["const", "ac_noise"],
-        source_file=["const", "0"]
-        # source_file=["choose", "[]"]
+        # source_file=["const", "0"]
+        source_file=["choose", "[]"]
     )
     _dscaper.add_background(timeline_name, background_metadata)
 
