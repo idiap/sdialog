@@ -85,8 +85,8 @@ class Dimensions3D:
     def __getitem__(self, index):
         return [self.length, self.width, self.height][index]
 
-    # def to_list(self):
-    #     return [self.length, self.width, self.height]
+    def to_list(self):
+        return [self.length, self.width, self.height]
 
     @classmethod
     def from_volume(

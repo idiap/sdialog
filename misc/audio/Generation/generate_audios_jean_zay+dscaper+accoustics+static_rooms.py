@@ -79,13 +79,13 @@ for current_room, current_room_name in rooms_configs:
             dscaper=dsc
         )
 
-        # audio_pipeline.populate_dscaper([
-        #     (
-        #         "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/"
-        #         f"sdialog/misc/audio/Generation/hf_dscaper/{sound_bank_name}"
-        #     )
-        #     for sound_bank_name in ["foreground", "background"]
-        # ])
+        audio_pipeline.populate_dscaper([
+            (
+                "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/"
+                f"sdialog/misc/audio/Generation/hf_dscaper/{sound_bank_name}"
+            )
+            for sound_bank_name in ["foreground", "background"]
+        ])
         # audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
 
         paths = [_ for _ in os.listdir(path_dir) if ".json" in _]

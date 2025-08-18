@@ -14,7 +14,7 @@ Attributes:
 import os
 import yaml
 
-from ..util import CacheDialogScore, ollama_check_and_pull_model, is_ollama_model_name
+from ..util import ollama_check_and_pull_model, is_ollama_model_name
 
 PROMPT_YAML_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
@@ -65,7 +65,6 @@ def set_cache_enabled(enable):
     :type enable: bool
     """
     config["cache"]["enabled"] = enable
-    CacheDialogScore.set_enable_cache(enable)
 
 
 def set_cache_path(path):
@@ -76,7 +75,6 @@ def set_cache_path(path):
     :type path: str
     """
     config["cache"]["path"] = path
-    CacheDialogScore.set_cache_path(path)
 
 
 def set_cache(path, enable=True):

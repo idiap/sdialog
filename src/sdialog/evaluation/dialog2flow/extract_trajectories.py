@@ -179,7 +179,7 @@ def dialog2trajectories(
                 continue
 
             dialog_id, ext = os.path.splitext(filename)
-            if ext in [".json", ".txt", "csv", "tsv"]:
+            if ext in [".json", ".txt"]:  # "csv", "tsv"
                 dialog = Dialog.from_file(os.path.join(path_dialogues, filename))
                 if dialog.id is None:
                     dialog.id = dialog_id
@@ -411,7 +411,6 @@ def dialog2graph(
     output_path: str = None,
     node_embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     node_thresholds: Union[Union[float, int], List[Union[float, int]]] = .55,  # [system threshold, user threshold]
-    nodes_prune_threshold: float = 0.023,
     node_llm_labels_enabled: bool = True,
     node_llm_labels_model: str = None,
     node_llm_labels_top_k: int = 5,
@@ -442,7 +441,6 @@ def dialog2graph(
         path_trajectories=path_trajectories,
         output_folder=os.path.join(os.path.split(path_trajectories)[0], "graph"),
         edges_weight=edges_weight_type,
-        prune_threshold_nodes=nodes_prune_threshold,
         prune_threshold_edges=edges_prune_threshold,
         png_show_ids=node_show_ids,
         png_visualization=out_png,

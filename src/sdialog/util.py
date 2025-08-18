@@ -97,92 +97,39 @@ class KNNModel:
 
 
 class CacheDialogScore:
-    _cache = {}
-    _score_obj_attributes = {}
-    _cache_path = None
-    _enable_cache = True
-
-    @staticmethod
-    def init(path, enable_cache=True):
+    def __init__(self, path, enable_cache=True):
         cache_dir = os.path.expanduser(path)
         os.makedirs(cache_dir, exist_ok=True)
-        CacheDialogScore.set_enable_cache(enable_cache)
-        CacheDialogScore.set_cache_path(cache_dir)
+        self.enable_cache = enable_cache
+        self.cache_path = os.path.join(cache_dir, "dialog_scores_cache.json")
+        self._score_obj_attributes = {}
         # Load cache dict if exists
-        if os.path.exists(CacheDialogScore._cache_path):
-            with open(CacheDialogScore._cache_path) as f:
-                CacheDialogScore._cache = json.load(f)
+        if os.path.exists(self.cache_path):
+            with open(self.cache_path) as f:
+                self._cache = json.load(f)
         else:
-            CacheDialogScore._cache = {}
+            self._cache = {}
 
-    @staticmethod
-    def set_enable_cache(enable: bool):
-        """
-        Enable or disable the cache.
-        :param enable: True to enable caching, False to disable.
-        """
-        CacheDialogScore._enable_cache = enable
-
-    @staticmethod
-    def is_cache_enabled() -> bool:
-        """
-        Check if the cache is enabled.
-        :return: True if caching is enabled, False otherwise.
-        """
-        return CacheDialogScore._enable_cache
-
-    @staticmethod
-    def get_cache():
-        """
-        Get the current cache dictionary.
-        :return: The cache dictionary.
-        """
-        return CacheDialogScore._cache
-
-    @staticmethod
-    def get_cache_path() -> str:
-        """
-        Get the path to the cache file.
-        :return: The path to the cache file.
-        """
-        if CacheDialogScore._cache_path is None:
-            raise ValueError("CacheDialogScore not initialized. Call CacheDialogScore.init(path) first.")
-        return CacheDialogScore._cache_path
-
-    @staticmethod
-    def set_cache_path(path: str):
-        """
-        Set the path to the cache file.
-        :param path: The path to the cache file.
-        """
-        CacheDialogScore._cache_path = os.path.join(path, "dialog_scores_cache.json")
-        if not os.path.exists(os.path.dirname(CacheDialogScore._cache_path)):
-            os.makedirs(os.path.dirname(CacheDialogScore._cache_path), exist_ok=True)
-
-    @staticmethod
-    def save():
+    def save(self):
         """
         Save the cache to the file.
         """
-        if not CacheDialogScore.is_cache_enabled():
-            logger.debug("CacheDialogScore is disabled, not saving cache.")
-            return
-        if CacheDialogScore._cache_path is None:
-            raise ValueError("CacheDialogScore not initialized. Call CacheDialogScore.init(path) first.")
-        os.makedirs(os.path.dirname(CacheDialogScore._cache_path), exist_ok=True)
-        with open(CacheDialogScore._cache_path, "w") as f:
-            json.dump(CacheDialogScore._cache, f)
+        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+        with open(self.cache_path, "w") as f:
+            json.dump(self._cache, f)
 
-    @staticmethod
-    def cache(func):
+    def cache(self, func):
         @wraps(func)
         def wrapper(score_obj, dialog, *args, **kwargs):
+            # Build cache key
             dialog_path = getattr(dialog, "_path", None)
-            if not CacheDialogScore.is_cache_enabled() or dialog_path is None:
+            if not self.enable_cache or dialog_path is None:
                 result = func(score_obj, dialog, *args, **kwargs)
             else:
+                # Build a hashable key that includes score_obj attributes (sorted, serializable only)
+                # Cache attr_items for each score_obj class
                 score_obj_class = score_obj.__class__.__name__
-                if score_obj_class not in CacheDialogScore._score_obj_attributes:
+                if score_obj_class not in self._score_obj_attributes:
                     attrs = []
                     for attr in sorted(vars(score_obj)):
                         value = getattr(score_obj, attr)
@@ -191,33 +138,33 @@ class CacheDialogScore:
                             attrs.append(attr)
                         except (TypeError, OverflowError):
                             continue
-                    CacheDialogScore._score_obj_attributes[score_obj_class] = attrs
+                    self._score_obj_attributes[score_obj_class] = attrs
                 else:
-                    attrs = CacheDialogScore._score_obj_attributes[score_obj_class]
+                    attrs = self._score_obj_attributes[score_obj_class]
                 attr_items = {attr: getattr(score_obj, attr) for attr in attrs}
                 attr_str = json.dumps(attr_items, sort_keys=True)
                 if (
-                    score_obj_class in CacheDialogScore._cache
-                    and attr_str in CacheDialogScore._cache[score_obj_class]
-                    and dialog_path in CacheDialogScore._cache[score_obj_class][attr_str]
+                    score_obj_class in self._cache
+                    and attr_str in self._cache[score_obj_class]
+                    and dialog_path in self._cache[score_obj_class][attr_str]
                 ):
-                    return CacheDialogScore._cache[score_obj_class][attr_str][dialog_path]
+                    return self._cache[score_obj_class][attr_str][dialog_path]
                 result = func(score_obj, dialog, *args, **kwargs)
-                if score_obj_class not in CacheDialogScore._cache:
-                    CacheDialogScore._cache[score_obj_class] = {}
-                if attr_str not in CacheDialogScore._cache[score_obj_class]:
-                    CacheDialogScore._cache[score_obj_class][attr_str] = {}
-                CacheDialogScore._cache[score_obj_class][attr_str][dialog_path] = result
+                if score_obj_class not in self._cache:
+                    self._cache[score_obj_class] = {}
+                if attr_str not in self._cache[score_obj_class]:
+                    self._cache[score_obj_class][attr_str] = {}
+                self._cache[score_obj_class][attr_str][dialog_path] = result
             return result
         return wrapper
 
-    @staticmethod
-    def clear():
+    # TODO: add a filter to clear only specific keys
+    def clear(self):
         """
         Clear the cache.
         """
-        CacheDialogScore._cache = {}
-        CacheDialogScore.save()
+        self._cache = {}
+        self.save()
 
 
 def dialogs_to_utt_pairs(dialogs: List[BaseModel], ai_speaker: str = None) -> Tuple[List[str], List[str]]:
