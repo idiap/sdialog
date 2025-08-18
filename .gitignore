@@ -4,14 +4,26 @@ dist
 __*__
 
 dscaper_data/
-
 #audio files
 *.wav
 *.mp3
 *.mp4
 *.flac
 *.ogg
+*.zip
+*.tar
 misc/audio/Generation/dscaper
 misc/audio/Voices/embeddings/xvectors.pkl
 misc/audio/Generation/index-tts/
 misc/audio/Generation/model/
+misc/audio/Generation/logs_slurm
+misc/audio/Generation/logs_slurm_transcripts
+misc/audio/Generation/logs_slurm_static_rooms
+misc/audio/Generation/output*
+misc/audio/Generation/data
+misc/audio/Generation/*.zip
+misc/audio/Generation/*.png
+misc/audio/Generation/*.csv
+misc/audio/Generation/*.json
+misc/audio/Generation/200-dialogues-V0
+old.git
