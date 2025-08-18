@@ -1,9 +1,6 @@
 import os
 
-DIR_PATH = (
-    "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/"
-    "outputs-voices-libritts-indextts+dscaper+acoustics+metadata"
-)
+DIR_PATH = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/outputs-voices-libritts-indextts+dscaper+acoustics+metadata"
 
 for dir_dialog in os.listdir(DIR_PATH):
 

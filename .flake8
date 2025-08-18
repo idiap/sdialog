@@ -4,6 +4,3 @@ exclude =
     .venv,
     ./dscaper
     ./git
-    ./misc/audio/Generation/dscaper
-    ./misc/audio/Generation/dscaper_data
-    ./misc/audio/Generation/index-tts

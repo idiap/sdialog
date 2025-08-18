@@ -17,10 +17,11 @@ import scaper
 import sdialog
 from sdialog import Dialog
 from sdialog.audio.tts_engine import IndexTTS
+from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_pipeline import AudioPipeline
 from sdialog.audio.room_generator import RoomGenerator, RoomRole
-from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase
+from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase, HuggingfaceVoiceDatabase
 
 # python generate_audios_jean_zay+dscaper+accoustics.py --nbr_worker=30 --worker_id=0
 
@@ -93,8 +94,7 @@ for dialog_path in tqdm(paths_to_process):
     room = RoomGenerator().generate(RoomRole.CONSULTATION, room_size=9.5)
     print(room)
 
-    # Generate the audio for the dialog
-    dialog: AudioDialog = audio_pipeline.inference(dialog, room=room)
+    dialog: AudioDialog = audio_pipeline.inference(dialog, room=room)  # Generate the audio for the dialog
     print(dialog.audio_step_1_filepath)
     print(dialog.audio_step_2_filepath)
     print(dialog.audio_step_3_filepath)

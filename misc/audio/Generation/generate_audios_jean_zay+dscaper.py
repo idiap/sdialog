@@ -19,7 +19,7 @@ from sdialog import Dialog
 from sdialog.audio.tts_engine import IndexTTS
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_pipeline import AudioPipeline
-from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase
+from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase, HuggingfaceVoiceDatabase
 
 # python generate_audios_jean_zay+dscaper.py --nbr_worker=30 --worker_id=0
 
@@ -95,6 +95,7 @@ for dialog_path in tqdm(paths_to_process):
 
     continue
 
+    from sdialog.audio.room import MicrophonePosition
     from sdialog.audio.room_generator import RoomGenerator, RoomRole
 
     room = RoomGenerator().generate(RoomRole.CONSULTATION)
@@ -103,6 +104,7 @@ for dialog_path in tqdm(paths_to_process):
     dialog: AudioDialog = audio_pipeline.inference(
         dialog,
         room=room,  # Need to provide a room object to trigger the 3rd step of the audio pipeline
+        # microphone_position=MicrophonePosition.MONITOR # Default is MicrophonePosition.CEILING_CENTERED
     )
     print(dialog.audio_step_1_filepath)
     print(dialog.audio_step_2_filepath)
