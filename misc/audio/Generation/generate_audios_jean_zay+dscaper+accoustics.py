@@ -9,9 +9,10 @@
 # conda activate jsalt10
 
 import os
-from tqdm import tqdm
+import shutil
 import argparse
 import numpy as np
+from tqdm import tqdm
 
 import scaper
 import sdialog
@@ -21,7 +22,7 @@ from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.audio_pipeline import AudioPipeline
 from sdialog.audio.room_generator import RoomGenerator, RoomRole
-from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase, HuggingfaceVoiceDatabase
+from sdialog.audio.voice_database import DummyIndexTtsVoiceDatabase
 
 # python generate_audios_jean_zay+dscaper+accoustics.py --nbr_worker=30 --worker_id=0
 
@@ -31,8 +32,6 @@ parser = argparse.ArgumentParser(description="Generate audios in parallel.")
 parser.add_argument("--nbr_worker", type=int, default=1, help="Total number of workers.")
 parser.add_argument("--worker_id", type=int, default=0, help="ID of this worker (0-based).")
 args = parser.parse_args()
-
-os.makedirs("./outputs", exist_ok=True)
 
 path_dir = "./200-dialogues-V0"
 
@@ -50,51 +49,85 @@ os.makedirs(DATA_PATH, exist_ok=True)
 
 dsc = scaper.Dscaper(dscaper_base_path=DATA_PATH)
 
-audio_pipeline = AudioPipeline(
-    voice_database=dummy_voice_database,
-    tts_pipeline=tts_pipeline,
-    dir_audio="./outputs",
-    dscaper=dsc
-)
+rooms_configs = [
+    (RoomGenerator().generate(RoomRole.CONSULTATION, room_size=9.5), "consultation_9-5"),
+    (RoomGenerator().generate(RoomRole.CONSULTATION, room_size=12), "consultation_12"),
+    (RoomGenerator().generate(RoomRole.CONSULTATION, room_size=15), "consultation_15"),
+]
 
-audio_pipeline.populate_dscaper([
-    f"/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/hf_dscaper/{sound_bank_name}"
-    for sound_bank_name in ["foreground", "background"]
-])
-# audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
+microphone_positions = [
+    (MicrophonePosition.CEILING_CENTERED, "ceiling_centered"),
+    (MicrophonePosition.MONITOR, "webcam")
+]
 
-paths = [_ for _ in os.listdir(path_dir) if ".json" in _]
-paths.sort()
+for current_room, current_room_name in rooms_configs:
 
-# Split paths for the current worker
-if args.nbr_worker > 1:
-    if args.worker_id >= args.nbr_worker:
-        raise ValueError("worker_id must be less than nbr_worker")
+    for current_microphone_position, current_microphone_position_name in microphone_positions:
 
-    path_splits = np.array_split(paths, args.nbr_worker)
-    paths_to_process = path_splits[args.worker_id]
-    print(f"Worker {args.worker_id}/{args.nbr_worker} processing {len(paths_to_process)} of {len(paths)} dialogs.")
-else:
-    paths_to_process = paths
+        run_dir = f"./outputs|{current_room_name}|{current_microphone_position_name}"
 
+        if not os.path.exists(run_dir):
+            shutil.copytree(
+                "./outputs-voices-libritts-indextts+dscaper+acoustics+metadata",
+                run_dir
+            )
 
-for dialog_path in tqdm(paths_to_process):
+        audio_pipeline = AudioPipeline(
+            voice_database=dummy_voice_database,
+            tts_pipeline=tts_pipeline,
+            dir_audio=run_dir,
+            dscaper=dsc
+        )
 
-    full_path = os.path.join(path_dir, dialog_path)
+        # audio_pipeline.populate_dscaper([
+        #     (
+        #         "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/"
+        #         f"sdialog/misc/audio/Generation/hf_dscaper/{sound_bank_name}"
+        #     )
+        #     for sound_bank_name in ["foreground", "background"]
+        # ])
+        # audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
 
-    print(full_path)
+        paths = [_ for _ in os.listdir(path_dir) if ".json" in _]
+        paths.sort()
 
-    original_dialog = Dialog.from_file(full_path)
+        # Split paths for the current worker
+        if args.nbr_worker > 1:
+            if args.worker_id >= args.nbr_worker:
+                raise ValueError("worker_id must be less than nbr_worker")
 
-    original_dialog.print()
+            path_splits = np.array_split(paths, args.nbr_worker)
+            paths_to_process = path_splits[args.worker_id]
+            print(
+                f"Worker {args.worker_id}/{args.nbr_worker} processing {len(paths_to_process)} of {len(paths)} dialogs."
+            )
+        else:
+            paths_to_process = paths
 
-    dialog: AudioDialog = AudioDialog.from_dialog(original_dialog)
-    # audio_pipeline = AudioPipeline()  # Default values are used
+        for dialog_path in tqdm(paths_to_process):
 
-    room = RoomGenerator().generate(RoomRole.CONSULTATION, room_size=9.5)
-    print(room)
+            full_path = os.path.join(path_dir, dialog_path)
 
-    dialog: AudioDialog = audio_pipeline.inference(dialog, room=room)  # Generate the audio for the dialog
-    print(dialog.audio_step_1_filepath)
-    print(dialog.audio_step_2_filepath)
-    print(dialog.audio_step_3_filepath)
+            print(full_path)
+
+            original_dialog = Dialog.from_file(full_path)
+
+            original_dialog.print()
+
+            dialog: AudioDialog = AudioDialog.from_dialog(original_dialog)
+            # audio_pipeline = AudioPipeline()  # Default values are used
+
+            print(current_room)
+
+            # Generate the audio for the dialog
+            dialog: AudioDialog = audio_pipeline.inference(
+                dialog,
+                room=current_room,
+                microphone_position=current_microphone_position,
+                do_step_1=False,
+                do_step_2=False,
+                do_step_3=True
+            )
+            print(dialog.audio_step_1_filepath)
+            print(dialog.audio_step_2_filepath)
+            print(dialog.audio_step_3_filepath)

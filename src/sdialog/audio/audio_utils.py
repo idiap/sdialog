@@ -26,4 +26,4 @@ class AudioUtils:
         """
         Remove all the tags that use those formatting: <>, {}, (), []
         """
-        return re.sub(r'<[^>]*>', '', text).replace("*","")
+        return re.sub(r'<[^>]*>', '', text).replace("*", "")
