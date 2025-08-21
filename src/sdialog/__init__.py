@@ -72,6 +72,13 @@ class Turn(BaseModel):
     def __str__(self):
         return f"{self.speaker}: {self.text}"
 
+    def prompt(self) -> str:
+        """Generates a prompt string for this turn."""
+        return json.dumps(self.model_dump(), indent=2)
+
+    def print(self):
+        cprint(self.text, tag=self.speaker, tag_color="blue", color="white")
+
 
 class Event(BaseModel):
     """
@@ -149,6 +156,24 @@ class Dialog(BaseModel):
         """
         return len(self.turns)
 
+    def __getitem__(self, index: Union[int, slice]) -> Union[Turn, "Dialog"]:
+        """
+        Allows indexing to retrieve a specific turn by its index or a range of turns.
+
+        :param index: The index or slice of the turns to retrieve.
+        :type index: Union[int, slice]
+        :return: The turn at the specified index or a new Dialog with the selected range of turns.
+        :rtype: Union[Turn, Dialog]
+        """
+        if isinstance(index, int):
+            return self.turns[index]
+        elif isinstance(index, slice):
+            cloned_dialog = self.clone()
+            cloned_dialog.turns = self.turns[index]
+            return cloned_dialog
+        else:
+            raise TypeError("Index must be an integer or a slice.")
+
     def length(self, mode: str = "words", words_per_minute: int = 130) -> int:
         """
         Returns the length of the dialogue according to the specified mode (number of words by default).
@@ -204,6 +229,10 @@ class Dialog(BaseModel):
         return "\n".join(turn_template.format(speaker="" if turn.speaker is None else turn.speaker,
                                               text=turn.text.replace("\n", " "))
                          for turn in self.turns)
+
+    def prompt(self) -> str:
+        """Generates a prompt string for the entire dialogue."""
+        return self.json(string=True)
 
     def json(self, string: bool = False, indent: int = 2):
         """
