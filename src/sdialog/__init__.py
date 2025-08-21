@@ -309,7 +309,9 @@ class Dialog(BaseModel):
                   type: str = "auto",
                   txt_template: str = "{speaker}: {text}",
                   csv_speaker_col: Union[int, str] = "speaker",
-                  csv_text_col: Union[int, str] = "text") -> Union["Dialog", List["Dialog"]]:
+                  csv_text_col: Union[int, str] = "text",
+                  collapse_consecutive_speakers: bool = False,
+                  collapse_separator: str = "\n") -> Union["Dialog", List["Dialog"]]:
         """
         Loads a dialogue from a file.
 
@@ -318,15 +320,20 @@ class Dialog(BaseModel):
         :type path: str
         :param type: "json", "txt", "csv", "tsv", or "auto" (determined by file extension).
         :type type: str
-        :param txt_turn_template: Template for parsing text dialogue turns (default "{speaker}: {text}").
-        :type txt_turn_template: str
+        :param txt_template: Template for parsing text dialogue turns (default "{speaker}: {text}").
+        :type txt_template: str
         :param csv_speaker_col: Column identifier for speaker in CSV/TSV files (can be index or header name).
         :type csv_speaker_col: Union[int, str]
         :param csv_text_col: Column identifier for text in CSV/TSV files (can be index or header name).
         :type csv_text_col: Union[int, str]
+        :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker into one
+                                              turn.
+        :type collapse_consecutive_speakers: bool
+        :param collapse_separator: String used to join texts when collapsing consecutive turns (default: "\\n").
+        :type collapse_separator: str
         :return: The loaded dialogue object.
         :rtype: Dialog
-        :raises ValueError: If the file format is not recognized or if required columns are missing
+        :raises ValueError: If the file format is not recognized or if required columns are missing.
         """
         if os.path.isdir(path):
             # Let's load first all dialogues without a stored ID (all non-json files)
@@ -337,7 +344,9 @@ class Dialog(BaseModel):
             dialogs = [Dialog.from_file(os.path.join(path, filename), type=type,
                                         txt_template=txt_template,
                                         csv_speaker_col=csv_speaker_col,
-                                        csv_text_col=csv_text_col)
+                                        csv_text_col=csv_text_col,
+                                        collapse_consecutive_speakers=collapse_consecutive_speakers,
+                                        collapse_separator=collapse_separator)
                        for filename in tqdm(filenames, desc="Loading dialogues from directory", leave=False)]
             # Make sure the ID is always the same, for the same file (as long as no more files are added)
             for ix, dialog in enumerate(dialogs):
@@ -346,10 +355,22 @@ class Dialog(BaseModel):
             dialogs.extend([Dialog.from_file(os.path.join(path, filename), type=type,
                                              txt_template=txt_template,
                                              csv_speaker_col=csv_speaker_col,
-                                             csv_text_col=csv_text_col)
+                                             csv_text_col=csv_text_col,
+                                             collapse_consecutive_speakers=collapse_consecutive_speakers,
+                                             collapse_separator=collapse_separator)
                             for filename in os.listdir(path)
                             if (type in ["auto", "json"]) and filename.endswith(".json")])
             return dialogs
+
+        def _maybe_collapse(d: "Dialog"):
+            if collapse_consecutive_speakers and d.turns:
+                collapsed = []
+                for turn in d.turns:
+                    if collapsed and collapsed[-1].speaker == turn.speaker:
+                        collapsed[-1].text = (collapsed[-1].text + collapse_separator + turn.text).strip()
+                    else:
+                        collapsed.append(turn)
+                d.turns = collapsed
 
         type = type.lower()
         if type == "auto":
@@ -362,11 +383,18 @@ class Dialog(BaseModel):
             if type == "json":
                 dialog = Dialog.from_dict(json.load(reader))
                 dialog._path = path  # Store the path for later use
+                _maybe_collapse(dialog)
                 return dialog
             elif type in ["csv", "tsv"]:
                 is_tsv = type == "tsv"
                 if isinstance(csv_speaker_col, str) and isinstance(csv_text_col, str):
                     reader = csv.DictReader(reader, delimiter='\t' if is_tsv else ',')
+                    # validate headers to raise ValueError (not KeyError) on missing columns
+                    if not reader.fieldnames or (
+                        csv_speaker_col not in reader.fieldnames or csv_text_col not in reader.fieldnames
+                    ):
+                        raise ValueError(f"File '{path}': Missing required columns "
+                                         f"'{csv_speaker_col}' and/or '{csv_text_col}'.")
                 elif isinstance(csv_speaker_col, int) and isinstance(csv_text_col, int):
                     reader = csv.reader(reader, delimiter='\t' if is_tsv else ',')
                 else:
@@ -374,27 +402,33 @@ class Dialog(BaseModel):
                                      "strings (column names) or both integers (column indices).")
 
                 for ix, row in enumerate(reader):
-                    speaker = row[csv_speaker_col]
-                    text = row[csv_text_col]
+                    try:
+                        speaker = row[csv_speaker_col]
+                        text = row[csv_text_col]
+                    except (KeyError, IndexError):
+                        raise ValueError(f"File '{path}': Missing required columns at row {ix}. "
+                                         f"Expected columns '{csv_speaker_col}' and '{csv_text_col}'.")
                     if speaker is None:
                         raise ValueError(f"Missing speaker in row {ix}: {row}")
                     if not text:
                         logger.warning(f"File '{path}': Empty text in row {ix}: {row}. Skipping this turn.")
                         continue
                     turns.append((speaker.strip(), text.strip()))
+
+                dialog = Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
+                dialog._path = path
+                _maybe_collapse(dialog)
+                return dialog
             elif type == "txt":
                 try:
                     dialog = Dialog.from_str(reader.read(), template=txt_template)
                     dialog._path = path
+                    _maybe_collapse(dialog)
                     return dialog
                 except ValueError as e:
                     raise ValueError(f"File '{path}': {str(e)}")
             else:
                 raise ValueError(f"Unknown file type '{type}'. Supported types: 'json', 'txt', 'csv', 'tsv'.")
-
-            dialog = Dialog(turns=[Turn(speaker=speaker, text=text) for speaker, text in turns])
-            dialog._path = path
-            return dialog
 
     @staticmethod
     def from_str(dialog_text: str,
