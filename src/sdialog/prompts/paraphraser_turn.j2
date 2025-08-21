@@ -1,0 +1,11 @@
+Given the following previous utterances of the dialogue as context:
+{{ dialog[:-1] }}
+
+Paraphrase the following next turn:
+
+{{ dialog[-1].prompt() }}
+
+{% if extra_instructions %}
+Consider the following extra guidelines when paraphrasing:
+{{ extra_instructions }}
+{% endif %}

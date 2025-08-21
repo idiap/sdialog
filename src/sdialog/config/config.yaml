@@ -5,6 +5,7 @@ prompts:
   dialog_generator: ../prompts/generator_dialog.j2
   persona_agent: ../prompts/agent_persona.j2
   paraphraser_system: ../prompts/paraphraser_system.j2
+  paraphraser_turn: ../prompts/paraphraser_turn.j2
   paraphraser: ../prompts/paraphraser.j2
   audio:
     enricher: ../prompts/audio/audio_enricher.j2

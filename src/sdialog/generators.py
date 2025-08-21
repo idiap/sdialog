@@ -13,6 +13,7 @@ import json
 import random
 import logging
 
+from tqdm.auto import tqdm
 from jinja2 import Template
 from typing import Union, List, Any
 from pydantic import BaseModel, ValidationError
@@ -687,23 +688,44 @@ class Paraphraser:
     def __init__(self,
                  extra_instructions: str = "Keep entities and values identical while making it sound more natural",
                  target_speaker: str = None,
+                 turn_by_turn: bool = False,
                  model: Union[str, BaseLanguageModel] = None,
                  **llm_kwargs):
+        """
+        Initializes a Paraphraser that rewrites dialog turns while preserving entities and values.
+
+        :param extra_instructions: Additional style or behavior instructions for the paraphrase.
+                                   Defaults to "Keep entities and values identical while making it sound more natural".
+        :type extra_instructions: str
+        :param target_speaker: If provided, only paraphrases turns spoken by this speaker (case-insensitive).
+        :type target_speaker: str, optional
+        :param turn_by_turn: Whether to paraphrase one turn at a time (intended for smaller LLMs).
+        :type turn_by_turn: bool, optional
+        :param model: The LLM instance or model name to use. If None, uses config["llm"]["model"].
+        :type model: Union[str, BaseLanguageModel], optional
+        :param **llm_kwargs: Additional keyword arguments for the LLM that override config values.
+        :type **llm_kwargs: dict
+        """
         if model is None:
             model = config["llm"]["model"]
 
         self.model = model
+        self.output_format = Turn if turn_by_turn else LLMDialogOutput
         self.llm = get_llm_model(model_name=model,
-                                 output_format=LLMDialogOutput,
+                                 output_format=self.output_format,
                                  **llm_kwargs)
         self.extra_instructions = extra_instructions
         self.target_speaker = target_speaker
 
         with open(config["prompts"]["paraphraser_system"], encoding="utf-8") as f:
-            system_message = Template(f.read()).render()
+            system_message = Template(f.read()).render(only_turn=turn_by_turn)
 
-        with open(config["prompts"]["paraphraser"], encoding="utf-8") as f:
-            self.instruction_template = Template(f.read())
+        if turn_by_turn:
+            with open(config["prompts"]["paraphraser_turn"], encoding="utf-8") as f:
+                self.instruction_template = Template(f.read())
+        else:
+            with open(config["prompts"]["paraphraser"], encoding="utf-8") as f:
+                self.instruction_template = Template(f.read())
 
         self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.messages = [SystemMessage(system_message), HumanMessage("")]
@@ -713,25 +735,39 @@ class Paraphraser:
                  target_speaker: str = None,
                  seed: int = None) -> Dialog:
         target_speaker = target_speaker or self.target_speaker
-        new_dialog = dialog.clone()
-        if target_speaker:
-            new_dialog.turns = [turn
-                                for turn in dialog.turns
-                                if turn.speaker.lower() == target_speaker.lower()]
-        self.messages[1].content = self.instruction_template.render(dialog=new_dialog,
-                                                                    extra_instructions=self.extra_instructions,
-                                                                    target_speaker=target_speaker)
         seed = set_generator_seed(self, seed)
+        new_dialog = dialog.clone()
 
-        output = LLMDialogOutput.model_validate(self.llm.invoke(self.messages))
+        if self.output_format is LLMDialogOutput:
+            if target_speaker:
+                new_dialog.turns = [turn
+                                    for turn in dialog.turns
+                                    if turn.speaker.lower() == target_speaker.lower()]
+            self.messages[1].content = self.instruction_template.render(dialog=new_dialog,
+                                                                        extra_instructions=self.extra_instructions,
+                                                                        target_speaker=target_speaker)
 
-        if not target_speaker:
-            new_dialog.turns = output.dialog
+            output = self.output_format.model_validate(self.llm.invoke(self.messages))
+
+            if not target_speaker:
+                new_dialog.turns = output.dialog
+            else:
+                new_dialog.turns = [output.dialog.pop(0) if turn.speaker.lower() == target_speaker.lower() else turn
+                                    for turn in dialog.turns]
         else:
-            new_dialog.turns = [output.dialog.pop(0) if turn.speaker.lower() == target_speaker.lower() else turn
-                                for turn in dialog.turns]
-        new_dialog.events = None  # TODO: replace each "utt" event by the new paraphrased utterance
+            new_dialog.turns.clear()
+            for turn in tqdm(dialog.clone().turns, desc="Paraphrasing turns", leave=False):
+                new_dialog.turns.append(turn)
+                if not target_speaker or turn.speaker.lower() == target_speaker.lower():
+                    self.messages[1].content = self.instruction_template.render(
+                        dialog=new_dialog,
+                        extra_instructions=self.extra_instructions,
+                        target_speaker=target_speaker
+                    )
+                    output = self.output_format.model_validate(self.llm.invoke(self.messages))
+                    new_dialog.turns[-1].text = output.text
 
+        new_dialog.events = None  # TODO: replace each "utt" event by the new paraphrased utterance
         if len(new_dialog) != len(dialog):
             logger.warning("Number of turns in the new paraphrased dialog does not match the original!")
 
