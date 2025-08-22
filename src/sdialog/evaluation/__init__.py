@@ -22,9 +22,9 @@ from math import exp, log, sqrt
 from sklearn.manifold import TSNE
 from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
-from typing import Optional, Annotated
 from sklearn.cluster import MiniBatchKMeans
 from typing import Union, List, Dict, Tuple
+from typing import Optional, Annotated, Literal
 from sentence_transformers import SentenceTransformer
 from langchain_core.language_models.base import BaseLanguageModel
 
@@ -951,196 +951,101 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         return percentage
 
 
-class LinguisticFeaturesDatasetEvaluator(BaseDatasetScoreEvaluator):
-    def __init__(self, features=None, name="linguistic_features", enable_plotting: bool = True):
-        super().__init__(dialog_score=None, name=name, enable_plotting=enable_plotting)
-        self.name = name
-        self.features = features or [
-            "mean_turn_length", "hesitation_rate", "gunning_fog", "flesch_reading_ease"
-        ]
-        self.all_results = []
+class LinguisticFeatureScore(BaseDialogScore):
+    """
+    Compute various linguistic feature for a dialogue, such as mean turn length,
+    hesitation rate, Gunning Fog index, and Flesch Reading Ease score.
+    """
+    def __init__(self,
+                 feature: Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"] = None,
+                 name="linguistic_features",
+                 speaker: Optional[str] = None):
+        """
+        Compute various linguistic features for a dialogue.
 
-    @staticmethod
-    def clean_utterance(text):
-        cleaned = re.sub(r'<[^>]*>', '', text)
-        cleaned = re.sub(r'\*[^*]*\*', '', cleaned)
-        cleaned = re.sub(r'\([^)]*\)', '', cleaned)
-        cleaned = re.sub(r'\s+', ' ', cleaned)
-        return cleaned.strip()
-
-    @staticmethod
-    def count_syllables(word):
-        return max(1, syllables.estimate(word))
-
-    @staticmethod
-    def count_complex_words(text):
-        words = text.split()
-        return sum(1 for word in words if syllables.estimate(word) >= 3), len(words)
-
-    @staticmethod
-    def calculate_gunning_fog(text):
-        sentences = re.split(r'[.!?]+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if not sentences:
-            return 0
-        words = re.findall(r'\b[a-zA-Z]+\b', text)
-        if not words:
-            return 0
-        complex_words, total_words = LinguisticFeaturesDatasetEvaluator.count_complex_words(text)
-        avg_sentence_length = len(words) / len(sentences)
-        complex_word_ratio = (complex_words / total_words) * 100 if total_words > 0 else 0
-        fog_index = 0.4 * (avg_sentence_length + complex_word_ratio)
-        return fog_index
-
-    @staticmethod
-    def calculate_flesch_reading_ease(text):
-        sentences = re.split(r'[.!?]+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if not sentences:
-            return 0
-        words = re.findall(r'\b[a-zA-Z]+\b', text)
-        if not words:
-            return 0
-        total_syllables = sum(LinguisticFeaturesDatasetEvaluator.count_syllables(word) for word in words)
-        avg_sentence_length = len(words) / len(sentences)
-        avg_syllables_per_word = total_syllables / len(words)
-        flesch_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
-        return flesch_score
+        :param feature: Name of the specific feature to compute. Accepted values:
+                        "mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease".
+                        If None (default), all supported features are computed and the score returns a dict
+                        mapping each feature name to its value.
+        :param name: The name of the score.
+        :param speaker: The speaker to filter by (if any). When provided, only turns whose speaker
+                        (case-insensitive match) equals this value are considered.
+        """
+        super().__init__(name=name or feature or "")
+        self.feature = feature
+        self.speaker = speaker
 
     @staticmethod
     def count_hesitations(text):
-        # Exclude the backchannel
-        hesitation_patterns = [
-            r'\buh+\b',     # uh, uhh, uhhh
-            r'\bum+\b',     # um, umm, ummm
-            r'\ber+\b',     # er, err, errr
-            r'\bahh*\b',    # ah, ahh, ahhh
-            r'\bohh*\b',    # oh, ohh, ohhh
-            r'\bhmm+\b',    # hmm, hmmm
-            r'\bhuh+\b',    # h uh
-            r'\bmm+\b',     # mm, mmm
-            r'\bmhm+\b',    # mhm, mhmm
-            r'\buh\-huh\b',    # uh-huh (backchannel)
-            r'\bum-hum+\b',    # um-hum (backchannel)
-        ]
-        total_hesitations = 0
-        text_lower = text.lower()
-        for pattern in hesitation_patterns:
-            matches = re.findall(pattern, text_lower)
-            total_hesitations += len(matches)
-        return total_hesitations
+        """
+        Count the number of hesitations in the text.
 
-    def evaluate(self, dialog, dataset_name=None):
-        speaker_stats = {}
-        for turn in dialog.turns:
-            if not getattr(turn, 'speaker', None) or not getattr(turn, 'text', None):
-                continue
-            speaker = turn.speaker
-            if speaker not in speaker_stats:
-                speaker_stats[speaker] = []
-            speaker_stats[speaker].append(self.clean_utterance(turn.text))
-        results = {"dataset": dataset_name or "unknown"}
-        for speaker, utts in speaker_stats.items():
-            all_text = " ".join(utts)
-            turn_lengths = [len(utt.split()) for utt in utts]
-            hesitations = [self.count_hesitations(utt) for utt in utts]
-            results[f"{speaker}_mean_turn_length"] = np.mean(turn_lengths)
-            # results[f"{speaker}_hesitation_rate"] = sum(hesitations) / max(1, sum(turn_lengths))
-            results[f"{speaker}_hesitation_rate"] = (sum(hesitations) / max(1, sum(turn_lengths)) * 100)
-            results[f"{speaker}_gunning_fog"] = self.calculate_gunning_fog(all_text)
-            results[f"{speaker}_flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
-        self.all_results.append(results)
-        return results
+        :param text: Input text.
+        :return: Number of hesitations.
+        """
+        hesitation_patterns = re.compile(
+            r'\b(?:uh+|um+|er+|ahh*|ohh*|hmm+|huh+|mm+|mhm+|uh-huh|um-hum+)\b',
+            flags=re.IGNORECASE
+        )
+        return len(hesitation_patterns.findall(text))
 
-    def __call__(self, dialogs, dataset_name=None, **kwargs):
-        if isinstance(dialogs, list):
-            for dialog in dialogs:
-                self.evaluate(dialog, dataset_name=dataset_name)
-            keys = set(k for res in self.all_results for k in res.keys() if k != "dataset")
-            dataset_results = {
-                k: np.mean([
-                    res[k]
-                    for res in self.all_results
-                    if (k in res and (dataset_name is None or res["dataset"] == dataset_name))
-                ])
-                for k in keys
-            }
-            return dataset_results
-        else:
-            return self.evaluate(dialogs, dataset_name=dataset_name)
+    @staticmethod
+    def calculate_gunning_fog(text):
+        """
+        Calculate the Gunning Fog index for the given text.
 
-    def plot(self, feature=None, kde_bw=0.3, show=True, save_dir=None, save_stats_csv=True):
-        if not self.all_results:
-            print("No results to plot. Please run evaluation first.")
-            return
-        df = pd.DataFrame(self.all_results)
-        if feature is None:
-            exclude_cols = {"dataset"}
-            all_features = [col for col in df.columns if col not in exclude_cols]
-            base_names = set("_".join(col.split("_")[1:]) for col in all_features)
-        else:
-            base_names = [feature]
-        stats_all = []
-        for base in base_names:
-            feature_cols = [col for col in df.columns if base in col]
-            if not feature_cols:
-                continue
-            for f in feature_cols:
-                plt.figure(figsize=(8, 5))
-                stats = {"feature": f}
-                means = {}
-                stds = {}
-                ax = plt.gca()
-                for dataset in df['dataset'].unique():
-                    values = df[df['dataset'] == dataset][f].dropna()
-                    if len(values) < 2:
-                        continue
-                    values.plot.kde(bw_method=kde_bw, label=f"{dataset}", ax=ax)
-                for i, dataset in enumerate(df['dataset'].unique()):
-                    values = df[df['dataset'] == dataset][f].dropna()
-                    if len(values) < 2:
-                        continue
-                    mean = values.mean()
-                    std = values.std()
-                    color = ax.get_lines()[i].get_color()
-                    plt.axvline(mean, linestyle="--", color=color, label=f"{dataset} mean ({mean:.2f})")
-                    stats[f"{dataset}_mean"] = mean
-                    stats[f"{dataset}_std"] = std
-                    means[dataset] = mean
-                    stds[dataset] = std
-                # sds_away calculation
-                if "primock" in means and "ours" in means and stds["primock"] > 0:
-                    sds_away = (means["ours"] - means["primock"]) / stds["primock"]
-                    stats["sds_away"] = sds_away
-                    if sds_away > 0:
-                        stats["sds_away_explanation"] = (
-                            f"Our dataset is {abs(sds_away):.2f} standard deviations higher than Primock."
-                        )
-                    else:
-                        stats["sds_away_explanation"] = (
-                            f"Our dataset is {abs(sds_away):.2f} standard deviations lower than Primock."
-                        )
-                # plt.xlabel(f)
-                plt.xlabel(f"{f} (%)" if "hesitation_rate" in f else f)
-                plt.ylabel("Density")
-                plt.title(f"KDE plot of {f} by dataset")
-                plt.legend()
-                plt.grid(alpha=0.3)
-                if save_dir:
-                    os.makedirs(save_dir, exist_ok=True)
-                    plt.savefig(os.path.join(save_dir, f"{f}.png"), dpi=300)
-                if show:
-                    plt.show()
-                plt.close()
-                stats_all.append(stats)
-        # Save all statistics as CSV
-        if save_stats_csv and save_dir:
-            stats_df = pd.DataFrame(stats_all)
-            stats_csv_path = os.path.join(save_dir, "all_feature_stats.csv")
-            stats_df.to_csv(stats_csv_path, index=False)
-            print(f"All feature statistics saved to {stats_csv_path}")
-        if save_dir:
-            print(f"All plots saved to {save_dir}")
+        :param text: Input text.
+        :return: Gunning Fog index.
+        """
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        total_words = len(words)
+        complex_words = sum(1 for word in words if syllables.estimate(word) >= 3)
+        avg_sentence_length = total_words / len(sentences)
+        complex_word_ratio = (complex_words / total_words) * 100 if total_words > 0 else 0
+        return 0.4 * (avg_sentence_length + complex_word_ratio)
+
+    @staticmethod
+    def calculate_flesch_reading_ease(text):
+        """
+        Calculate the Flesch Reading Ease score for the given text.
+
+        :param text: Input text.
+        :return: Flesch Reading Ease score.
+        """
+        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        total_syllables = sum(syllables.estimate(word) for word in words)
+        avg_sentence_length = len(words) / len(sentences)
+        avg_syllables_per_word = total_syllables / len(words)
+        return 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+
+    def score(self, dialog: Dialog) -> float:
+        if self.speaker:
+            dialog = dialog.filter(speaker=self.speaker)
+
+        utts = [" ".join(re.findall(r"[\w-]+", turn.text)) for turn in dialog]
+
+        results = {}
+        all_text = " ".join(utts)
+        turn_lengths = [len(utt.split()) for utt in utts]
+        if not self.feature or self.feature == "mean-turn-length":
+            results["mean-turn-length"] = np.mean(turn_lengths)
+        if not self.feature or self.feature == "hesitation-rate":
+            results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, sum(turn_lengths)) * 100)
+        if not self.feature or self.feature == "gunning-fog":
+            results["gunning_fog"] = self.calculate_gunning_fog(all_text)
+        if not self.feature or self.feature == "flesch-reading-ease":
+            results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
+
+        return results if len(results) > 1 else list(results.values())[0]
 
 
 class DatasetComparator:
