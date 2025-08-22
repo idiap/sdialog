@@ -174,6 +174,15 @@ class Dialog(BaseModel):
         else:
             raise TypeError("Index must be an integer or a slice.")
 
+    def __iter__(self):
+        """
+        Allows iteration over the turns in the dialogue.
+
+        :return: An iterator over the turns.
+        :rtype: Iterator[Turn]
+        """
+        return iter(self.turns)
+
     def length(self, mode: str = "words", words_per_minute: int = 130) -> int:
         """
         Returns the length of the dialogue according to the specified mode (number of words by default).
