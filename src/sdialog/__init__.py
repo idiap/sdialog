@@ -566,6 +566,41 @@ class Dialog(BaseModel):
 
         return self
 
+    def get_speakers(self, keep_case: bool = True) -> List[str]:
+        """
+        Returns a list of unique speaker names in the dialogue.
+
+        :param keep_case: Whether to keep the original case of speaker names or convert them to lowercase
+                          (default: True).
+        :type keep_case: bool
+        :return: A list of unique speaker names.
+        :rtype: List[str]
+        """
+        if keep_case:
+            return list(set(turn.speaker for turn in self.turns if turn.speaker))
+        else:
+            return list(set(turn.speaker.lower() for turn in self.turns if turn.speaker))
+
+    def filter(self, speaker: str) -> "Dialog":
+        """
+        Filters the dialogue turns by speaker.
+
+        :param speaker: The speaker name to filter by.
+        :type speaker: str
+        :return: A new Dialog object containing only the turns by the specified speaker.
+        :rtype: Dialog
+        """
+        if speaker.lower() not in self.get_speakers(keep_case=False):
+            logger.error(f"The provided speaker '{speaker}' does not exist in the dialogue. "
+                         f"Valid speakers are: {self.get_speakers()}")
+            return None
+
+        filtered_dialog = self.clone()
+        filtered_dialog.turns = [turn for turn in self.turns if turn.speaker.lower() == speaker.lower()]
+        if filtered_dialog.events:
+            filtered_dialog.events = [event for event in self.events if event.agent.lower() == speaker.lower()]
+        return filtered_dialog
+
     __str__ = description
 
 
