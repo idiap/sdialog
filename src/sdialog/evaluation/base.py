@@ -259,7 +259,6 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         try:
             scores = [self.dialog_score(dialogue)
                       for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)]
-            scores = np.array([s for s in scores if s is not None])  # Filter out None scores
         except KeyboardInterrupt:
             logger.warning(
                 f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
@@ -269,8 +268,19 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             raise KeyboardInterrupt
         CacheDialogScore.save()
 
-        self.datasets_scores[dataset_name] = scores  # Store the scores for later use
-        results = self.eval(scores)
+        if scores and isinstance(scores[0], dict):
+            metrics = scores[0].keys()
+            scores = {metric: np.array([s[metric] for s in scores if s[metric] is not None])
+                      for metric in metrics}
+            results = {metric: self.eval(scores[metric]) for metric in metrics}
+            for metric in metrics:
+                if metric not in self.datasets_scores:
+                    self.datasets_scores[metric] = {}
+                self.datasets_scores[metric][dataset_name] = scores[metric]
+        else:
+            scores = np.array([s for s in scores if s is not None])  # Filter out None scores
+            results = self.eval(scores)
+            self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         return (results, scores) if return_scores else results
 
     @abstractmethod
@@ -292,12 +302,27 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             return
 
         # Plot box plots for each dataset
-        plt.figure(figsize=(8, 5))
-        self.__plot__(self.datasets_scores, plot=plt)
-        if save_path:
-            plt.savefig(save_path, dpi=300)
-        if show:
-            plt.show()
+        if self.datasets_scores and isinstance(next(iter(self.datasets_scores.values())), dict):
+            for metric in self.datasets_scores:
+                plt.figure(figsize=(8, 5))
+                self.__plot__(self.datasets_scores[metric], plot=plt, metric=metric)
+                if save_path:
+                    # Append metric name to filename before saving
+                    if "." in save_path.split("/")[-1]:
+                        base, ext = save_path.rsplit(".", 1)
+                        metric_save_path = f"{base}-{metric}.{ext}"
+                    else:
+                        metric_save_path = f"{save_path}-{metric}"
+                    plt.savefig(metric_save_path, dpi=300)
+                if show:
+                    plt.show()
+        else:
+            plt.figure(figsize=(8, 5))
+            self.__plot__(self.datasets_scores, plot=plt)
+            if save_path:
+                plt.savefig(save_path, dpi=300)
+            if show:
+                plt.show()
 
     @abstractmethod
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
