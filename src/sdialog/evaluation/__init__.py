@@ -901,14 +901,15 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
                  verbose: bool = False):
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
 
-    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
         # Plot box plots for each dataset
-        title = self.name or f"{self.dialog_score.name} scores"
+        name = metric or self.name
+        title = name or f"{self.dialog_score.name} scores"
         plot.title(f"Boxplot of {title}")
         plot.boxplot(list(dialog_scores.values()),
                      labels=list(dialog_scores.keys()))
         plot.xlabel("datasets")
-        plot.ylabel(self.dialog_score.name)
+        plot.ylabel(name or self.dialog_score.name)
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         return {
@@ -918,6 +919,18 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
             "max": np.max(dialog_scores),
             "median": np.median(dialog_scores)
         }
+
+
+class MeanEvaluator(StatsEvaluator):
+    def __init__(self,
+                 dialog_score: BaseDialogScore,
+                 name: str = None,
+                 enable_plotting: bool = True,
+                 verbose: bool = False):
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+
+    def eval(self, dialog_scores: List[Union[float, int]]) -> float:
+        return np.mean(dialog_scores)
 
 
 class FrequencyEvaluator(BaseDatasetScoreEvaluator):
@@ -931,7 +944,7 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
                  verbose: bool = False):
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
 
-    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
         # Bar plot for frequency/percentage
         percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
         bars = plot.bar(percentages.keys(), percentages.values(), color=plt.cm.tab10.colors[:len(percentages)])
@@ -939,9 +952,9 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         for bar in bars:
             height = bar.get_height()
             plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%", ha='center', va='bottom')
-        plot.ylabel(f"Percentage of {self.dialog_score.name} (%)")
+        plot.ylabel(f"Percentage of {metric or self.dialog_score.name} (%)")
         plot.xlabel("datasets")
-        plot.title(f"Percentage of {self.dialog_score.name} per dataset")
+        plot.title(f"Percentage of {metric or self.dialog_score.name} per dataset")
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         # Assumes dialog_scores are binary (0/1 or True/False)
