@@ -55,6 +55,9 @@ class DummyPersonaLLM:
     def __init__(self, *a, **kw):
         pass
 
+    def with_structured_output(self, output_format):
+        return self
+
     def invoke(self, memory):
         return {"name": "Dummy",
                 "age": 30,

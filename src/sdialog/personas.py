@@ -99,6 +99,8 @@ class BasePersona(BaseModel, ABC):
         """
         data = self.json()
         data.update(kwargs)
+        if "_metadata" in data:
+            del data["_metadata"]  # to avoid model validation issues
         new_persona = self.__class__(**data)
         if self._metadata:
             new_persona._metadata = self._metadata.model_copy()
@@ -219,10 +221,12 @@ class BasePersona(BaseModel, ABC):
         # Assign to "persona" the instance of the right class using the `className`
         if "_metadata" in data and "className" in data["_metadata"] and data["_metadata"]["className"]:
             persona_class_name = data["_metadata"]["className"]
+            metadata = PersonaMetadata(**data["_metadata"])
+            del data["_metadata"]  # to avoid model_validate(data) issues
             if persona_class and issubclass(persona_class, BasePersona):
                 # If the user provided a specific class, use it
                 persona = persona_class.model_validate(data)
-                persona._metadata = PersonaMetadata(**data["_metadata"])
+                persona._metadata = metadata
                 return persona
             else:  # Assuming the class name is from one of the built-in classes
                 # Automatically get all classes in the module that inherit from BasePersona
@@ -235,7 +239,7 @@ class BasePersona(BaseModel, ABC):
                 persona_class = persona_class_map.get(persona_class_name)
                 if persona_class:
                     persona = persona_class.model_validate(data)
-                    persona._metadata = PersonaMetadata(**data["_metadata"])
+                    persona._metadata = metadata
                     return persona
                 else:
                     raise ValueError(f"Unknown persona class given in the `className` field: {persona_class_name}.")
