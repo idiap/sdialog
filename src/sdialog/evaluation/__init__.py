@@ -111,6 +111,103 @@ class LLMJudgeYesNoOutput(BaseModel):
     feedback: Optional[Union[str, List[str]]] = None
 
 
+class LinguisticFeatureScore(BaseDialogScore):
+    """
+    Compute various linguistic feature for a dialogue, such as mean turn length,
+    hesitation rate, Gunning Fog index, and Flesch Reading Ease score.
+    """
+    def __init__(self,
+                 feature: Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"] = None,
+                 name="linguistic_features",
+                 speaker: Optional[str] = None):
+        """
+        Compute various linguistic features for a dialogue.
+
+        :param feature: Name of the specific feature to compute. Accepted values:
+                        "mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease".
+                        If None (default), all supported features are computed and the score returns a dict
+                        mapping each feature name to its value.
+        :param name: The name of the score.
+        :param speaker: The speaker to filter by (if any). When provided, only turns whose speaker
+                        (case-insensitive match) equals this value are considered.
+        """
+        super().__init__(name=name or feature or "")
+        self.feature = feature
+        self.speaker = speaker
+
+    @staticmethod
+    def count_hesitations(text):
+        """
+        Count the number of hesitations in the text.
+
+        :param text: Input text.
+        :return: Number of hesitations.
+        """
+        hesitation_patterns = re.compile(
+            r'\b(?:uh+|um+|er+|ahh*|ohh*|hmm+|huh+|mm+|mhm+|uh-huh|um-hum+)\b',
+            flags=re.IGNORECASE
+        )
+        return len(hesitation_patterns.findall(text))
+
+    @staticmethod
+    def calculate_gunning_fog(text):
+        """
+        Calculate the Gunning Fog index for the given text.
+
+        :param text: Input text.
+        :return: Gunning Fog index.
+        """
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        total_words = len(words)
+        complex_words = sum(1 for word in words if syllables.estimate(word) >= 3)
+        avg_sentence_length = total_words / len(sentences)
+        complex_word_ratio = (complex_words / total_words) * 100 if total_words > 0 else 0
+        return 0.4 * (avg_sentence_length + complex_word_ratio)
+
+    @staticmethod
+    def calculate_flesch_reading_ease(text):
+        """
+        Calculate the Flesch Reading Ease score for the given text.
+
+        :param text: Input text.
+        :return: Flesch Reading Ease score.
+        """
+        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        total_syllables = sum(syllables.estimate(word) for word in words)
+        avg_sentence_length = len(words) / len(sentences)
+        avg_syllables_per_word = total_syllables / len(words)
+        return 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+
+    def score(self, dialog: Dialog) -> float:
+        if self.speaker:
+            dialog = dialog.filter(speaker=self.speaker)
+
+        utts = [" ".join(re.findall(r"[\w-]+", turn.text)) for turn in dialog]
+
+        results = {}
+        all_text = " ".join(utts)
+        turn_lengths = [len(utt.split()) for utt in utts]
+        if not self.feature or self.feature == "mean-turn-length":
+            results["mean-turn-length"] = np.mean(turn_lengths)
+        if not self.feature or self.feature == "hesitation-rate":
+            results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, sum(turn_lengths)) * 100)
+        if not self.feature or self.feature == "gunning-fog":
+            results["gunning_fog"] = self.calculate_gunning_fog(all_text)
+        if not self.feature or self.feature == "flesch-reading-ease":
+            results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
+
+        return results if len(results) > 1 else list(results.values())[0]
+
+
 class DialogFlowPPL(BaseDialogFlowScore):
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -962,103 +1059,6 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         count = np.sum(dialog_scores)
         percentage = count / total if total > 0 else 0
         return percentage
-
-
-class LinguisticFeatureScore(BaseDialogScore):
-    """
-    Compute various linguistic feature for a dialogue, such as mean turn length,
-    hesitation rate, Gunning Fog index, and Flesch Reading Ease score.
-    """
-    def __init__(self,
-                 feature: Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"] = None,
-                 name="linguistic_features",
-                 speaker: Optional[str] = None):
-        """
-        Compute various linguistic features for a dialogue.
-
-        :param feature: Name of the specific feature to compute. Accepted values:
-                        "mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease".
-                        If None (default), all supported features are computed and the score returns a dict
-                        mapping each feature name to its value.
-        :param name: The name of the score.
-        :param speaker: The speaker to filter by (if any). When provided, only turns whose speaker
-                        (case-insensitive match) equals this value are considered.
-        """
-        super().__init__(name=name or feature or "")
-        self.feature = feature
-        self.speaker = speaker
-
-    @staticmethod
-    def count_hesitations(text):
-        """
-        Count the number of hesitations in the text.
-
-        :param text: Input text.
-        :return: Number of hesitations.
-        """
-        hesitation_patterns = re.compile(
-            r'\b(?:uh+|um+|er+|ahh*|ohh*|hmm+|huh+|mm+|mhm+|uh-huh|um-hum+)\b',
-            flags=re.IGNORECASE
-        )
-        return len(hesitation_patterns.findall(text))
-
-    @staticmethod
-    def calculate_gunning_fog(text):
-        """
-        Calculate the Gunning Fog index for the given text.
-
-        :param text: Input text.
-        :return: Gunning Fog index.
-        """
-        sentences = re.split(r'[.!?]+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if not sentences:
-            return 0
-        words = re.findall(r'\b[a-zA-Z]+\b', text)
-        total_words = len(words)
-        complex_words = sum(1 for word in words if syllables.estimate(word) >= 3)
-        avg_sentence_length = total_words / len(sentences)
-        complex_word_ratio = (complex_words / total_words) * 100 if total_words > 0 else 0
-        return 0.4 * (avg_sentence_length + complex_word_ratio)
-
-    @staticmethod
-    def calculate_flesch_reading_ease(text):
-        """
-        Calculate the Flesch Reading Ease score for the given text.
-
-        :param text: Input text.
-        :return: Flesch Reading Ease score.
-        """
-        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
-        if not sentences:
-            return 0
-        words = re.findall(r'\b[a-zA-Z]+\b', text)
-        if not words:
-            return 0
-        total_syllables = sum(syllables.estimate(word) for word in words)
-        avg_sentence_length = len(words) / len(sentences)
-        avg_syllables_per_word = total_syllables / len(words)
-        return 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
-
-    def score(self, dialog: Dialog) -> float:
-        if self.speaker:
-            dialog = dialog.filter(speaker=self.speaker)
-
-        utts = [" ".join(re.findall(r"[\w-]+", turn.text)) for turn in dialog]
-
-        results = {}
-        all_text = " ".join(utts)
-        turn_lengths = [len(utt.split()) for utt in utts]
-        if not self.feature or self.feature == "mean-turn-length":
-            results["mean-turn-length"] = np.mean(turn_lengths)
-        if not self.feature or self.feature == "hesitation-rate":
-            results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, sum(turn_lengths)) * 100)
-        if not self.feature or self.feature == "gunning-fog":
-            results["gunning_fog"] = self.calculate_gunning_fog(all_text)
-        if not self.feature or self.feature == "flesch-reading-ease":
-            results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
-
-        return results if len(results) > 1 else list(results.values())[0]
 
 
 class DatasetComparator:
