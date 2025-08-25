@@ -19,7 +19,7 @@ from abc import ABC
 from time import time
 from tqdm.auto import tqdm
 from collections import defaultdict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from print_color import print as cprint
 from typing import List, Union, Optional
 
@@ -73,9 +73,8 @@ class PersonaMetadata(BaseModel):
 class BasePersona(BaseModel, ABC):
     """
     Base class for defining a persona (character profile) for role-play.
-
-    :param kwargs: Arbitrary keyword arguments are stored as persona attributes.
     """
+    model_config = ConfigDict(extra='forbid')
     _metadata: Optional[PersonaMetadata] = None
 
     def clone(self, new_id: int = None, **kwargs) -> "BasePersona":
