@@ -318,6 +318,8 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
     """ Set default parameters for an Ollama model if not already specified in llm_params."""
     if not is_ollama_model_name(model_name):
         return llm_params
+    if model_name.startswith("ollama:"):
+        model_name = model_name.split(":", 1)[-1]
 
     defaults = {}
     try:
@@ -330,7 +332,7 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
         # Look for a line like: "temperature: 0.7"
         for line in result.stdout.splitlines():
             m = re.match(r'(\w+)\s+([0-9]*\.?[0-9]+)', line)  # For now only with numbers
-            # TODO: check support strings leter, gives Ollama ValidationError (probably the stop tokens?)
+            # TODO: add support for parsing string values later, gives ValidationError (probably the stop tokens?)
             # m = re.match(r'(\w+)\s+(.+)', line)
             if m:
                 param, value = m.groups()
@@ -350,7 +352,7 @@ def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
         if "temperature" not in defaults:
             defaults["temperature"] = 0.8
     except Exception as e:
-        logger.error(f"Error getting default parameters for model '{model_name}': {e}")
+        logger.error(f"Error getting default parameters for model '{model_name}': {e}. Is Ollama server running?")
 
     for k, v in list(defaults.items()):
         if k in llm_params and llm_params[k] is not None:
