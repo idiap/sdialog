@@ -7,10 +7,6 @@ prompts:
   paraphraser_system: ../prompts/paraphraser_system.j2
   paraphraser_turn: ../prompts/paraphraser_turn.j2
   paraphraser: ../prompts/paraphraser.j2
-  audio:
-    enricher: ../prompts/audio/audio_enricher.j2
-    snr: ../prompts/audio/audio_snr.j2
-    room_position: ../prompts/audio/audio_room_position.j2
   evaluation:
     llm_as_judge: ../prompts/evaluation/llm_as_judge.j2
     llm_as_judge_refusal: ../prompts/evaluation/llm_as_judge_refusal.j2
