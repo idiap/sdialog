@@ -8,15 +8,16 @@ This example demonstrates how to define two personas, instantiate agents for eac
 
 .. code-block:: python
 
-    from sdialog import Persona, PersonaAgent
+    from sdialog.personas import Persona
+    from sdialog.agents import Agent
 
     # Define personas
     alice = Persona(name="Alice", role="friendly barista", personality="cheerful and helpful")
     bob = Persona(name="Bob", role="customer", personality="curious and polite")
 
     # Create agents
-    alice_agent = PersonaAgent("llama2", persona=alice, name="Alice")
-    bob_agent = PersonaAgent("llama2", persona=bob, name="Bob")
+    alice_agent = Agent("llama2", persona=alice, name="Alice")
+    bob_agent = Agent("llama2", persona=bob, name="Bob")
 
     # Generate a dialogue
     dialog = alice_agent.dialog_with(bob_agent, max_iterations=10)
@@ -28,8 +29,8 @@ Multi-Agent Dialogue with Orchestration
 This example shows how to add orchestration to the dialogue generation process. Orchestrators can control aspects such as dialogue length or simulate behaviors like an agent changing its mind. Here, we use both a length orchestrator and a mind-changing orchestrator to influence the assistant agent's behavior.
 
 .. code-block:: python
-
-    from sdialog import Persona, PersonaAgent
+    from sdialog.personas import Persona
+    from sdialog.agents import Agent
     from sdialog.orchestrators import LengthOrchestrator, ChangeMindOrchestrator
 
     # Define personas
@@ -37,8 +38,8 @@ This example shows how to add orchestration to the dialogue generation process. 
     assistant = Persona(name="Assistant", role="support agent")
 
     # Create agents
-    user_agent = PersonaAgent("llama2", persona=user, name="User")
-    assistant_agent = PersonaAgent("llama2", persona=assistant, name="Assistant")
+    user_agent = Agent("llama2", persona=user, name="User")
+    assistant_agent = Agent("llama2", persona=assistant, name="Assistant")
 
     # Add orchestrators to control dialogue length and simulate mind changes
     length_orch = LengthOrchestrator(min=3, max=6)
@@ -109,7 +110,7 @@ Attach your orchestrator to an agent:
 
 .. code-block:: python
 
-    agent = PersonaAgent("llama2", persona=Persona(name="Bot"))
+    agent = Agent("llama2", persona=Persona(name="Bot"))
     agent = agent | CustomGreetingOrchestrator()
 
 Advanced Usage: Scenario-Driven Generation

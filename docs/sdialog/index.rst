@@ -158,13 +158,14 @@ The ``PersonaAgent`` class simulates an agent that role-plays a given Persona us
 
 .. code-block:: python
 
-    from sdialog import Persona, PersonaAgent
+    from sdialog.personas import Persona
+    from sdialog.agents import Agent
 
     alice = Persona(name="Alice", role="barista", personality="cheerful")
     bob = Persona(name="Bob", role="customer", personality="curious")
 
-    alice_agent = PersonaAgent("llama2", persona=alice, name="Alice")
-    bob_agent = PersonaAgent("llama2", persona=bob, name="Bob")
+    alice_agent = Agent("llama2", persona=alice, name="Alice")
+    bob_agent = Agent("llama2", persona=bob, name="Bob")
 
     # Simulate a dialogue
     dialog = alice_agent.dialog_with(bob_agent)
@@ -265,11 +266,12 @@ SDialog provides several built-in orchestrators for common dialogue control patt
 
 .. code-block:: python
 
-    from sdialog import Persona, PersonaAgent
+    from sdialog.personas import Persona
+    from sdialog.agents import Agent
     from sdialog.orchestrators import LengthOrchestrator
 
     assistant = Persona(name="Assistant", role="support agent")
-    assistant_agent = PersonaAgent("llama2", persona=assistant, name="Assistant")
+    assistant_agent = Agent("llama2", persona=assistant, name="Assistant")
     length_orch = LengthOrchestrator(min=3, max=6)
     assistant_agent = assistant_agent | length_orch  # Add orchestrator using the | operator
 

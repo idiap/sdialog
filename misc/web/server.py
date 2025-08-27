@@ -7,7 +7,8 @@ from typing import Dict, Any
 import io
 import soundfile as sf
 
-from sdialog.personas import Patient, Doctor, PersonaAgent
+from sdialog.agents import Agent
+from sdialog.personas import Patient, Doctor
 from sdialog.generators import PersonaGenerator
 from sdialog.audio import generate_utterance
 
@@ -115,13 +116,13 @@ def generate_dialog():
         doctor_persona = Doctor(**doctor_filtered_data)
 
         # Create PersonaAgents, ensuring they have a name.
-        patient_agent = PersonaAgent(
+        patient_agent = Agent(
             persona=patient_persona,
             name=patient_persona.name or "Patient",
             model=dialog_model,
             llm_kwargs=llm_kwargs
         )
-        doctor_agent = PersonaAgent(
+        doctor_agent = Agent(
             persona=doctor_persona,
             name=doctor_persona.name or "Doctor",
             model=dialog_model,
