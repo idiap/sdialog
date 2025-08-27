@@ -15,7 +15,8 @@ import json
 from tqdm.auto import tqdm
 
 from . import Dialog, Turn, Event
-from .personas import Persona, Agent
+from .agents import Agent
+from .personas import Persona
 from .orchestrators import InstructionListOrchestrator, SimpleResponseOrchestrator
 
 

@@ -22,7 +22,8 @@ from langchain_core.language_models.base import BaseLanguageModel
 
 from . import Dialog, Turn
 from .config import config
-from .personas import BasePersona, Persona, PersonaAgent, PersonaMetadata
+from .agents import Agent
+from .personas import BasePersona, Persona, PersonaMetadata
 from .util import get_llm_model, set_generator_seed, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
 
 logger = logging.getLogger(__name__)
@@ -188,8 +189,8 @@ class PersonaDialogGenerator(DialogGenerator):
     _agent_b = None
 
     def __init__(self,
-                 persona_a: Union[Persona, PersonaAgent],
-                 persona_b: Union[Persona, PersonaAgent],
+                 persona_a: Union[Persona, Agent],
+                 persona_b: Union[Persona, Agent],
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
                  response_details: str = "",
@@ -200,9 +201,9 @@ class PersonaDialogGenerator(DialogGenerator):
         Initializes a PersonaDialogGenerator.
 
         :param persona_a: The first persona.
-        :type persona_a: Persona (or PersonaAgent)
+        :type persona_a: Persona (or Agent)
         :param persona_b: The second persona.
-        :type persona_b: Persona (or PersonaAgent)
+        :type persona_b: Persona (or Agent)
         :example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional dialogue instructions.
@@ -217,7 +218,7 @@ class PersonaDialogGenerator(DialogGenerator):
         :type llm_kwargs: dict
         """
 
-        if isinstance(persona_a, PersonaAgent) and isinstance(persona_b, PersonaAgent):
+        if isinstance(persona_a, Agent) and isinstance(persona_b, Agent):
             self._agent_a = persona_a
             self._agent_b = persona_b
             persona_a = persona_a.persona
@@ -264,7 +265,7 @@ class PersonaDialogGenerator(DialogGenerator):
         :type id: int, optional
         :param parent_id: ID of the parent dialogue, if any.
         :type parent_id: int, optional
-        :param max_turns: Maximum number of dialogue turns. Only used if both agents are PersonaAgent.
+        :param max_turns: Maximum number of dialogue turns. Only used if both agents are Agent.
         :type max_turns: int, optional
         :param notes: Optional notes to include in the dialogue.
         :type notes: str, optional

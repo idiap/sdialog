@@ -2,7 +2,8 @@ import os
 
 from sdialog.generators import DialogGenerator, PersonaDialogGenerator, LLMDialogOutput, Turn
 from sdialog.generators import PersonaGenerator
-from sdialog.personas import BasePersona, Persona, Agent
+from sdialog.personas import BasePersona, Persona
+from sdialog.agents import Agent
 from sdialog import Dialog
 
 
