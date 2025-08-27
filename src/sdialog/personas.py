@@ -385,40 +385,9 @@ class ExtendedPersona(BasePersona):
     religious_beliefs: str = ""  # religious, agnostic, atheist, etc.
 
 
-class Patient(ExtendedPersona):
+class Patient(BasePersona):
     """
-    Patient persona with medical and health-related attributes.
-
-    :ivar reason_for_visit: Reason for visit or chief complaint.
-    :vartype reason_for_visit: str
-    :ivar symptoms: List of symptoms or health issues.:ivar symptoms: Reason for visit or chief complaint.
-    :vartype symptoms: str
-    :ivar vital_signs: Vital signs of the patient.
-    :vartype vital_signs: str
-    :ivar health_literacy: Health literacy level.
-    :vartype health_literacy: str
-    :ivar medical_conditions: Medical conditions in history.
-    :vartype medical_conditions: str
-    :ivar medications: Current medications.
-    :vartype medications: str
-    :ivar allergies: Known allergies.
-    :vartype allergies: str
-    :ivar family_history: Family medical history.
-    :vartype family_history: str
-    """
-    reason_for_visit: str = ""
-    symptoms: str = ""
-    vital_signs: str = ""
-    health_literacy: str = ""
-    medical_conditions: str = ""
-    medications: str = ""
-    allergies: str = ""
-    family_history: str = ""
-
-
-class MinimalPatient(BasePersona):
-    """
-    Minimal version of a Patient persona, focusing on essential attributes for dialogue generation.
+    Patient persona with essential / minimal attributes for dialogue generation.
 
     :ivar name: Name of the persona.
     :vartype name: str
@@ -465,28 +434,40 @@ class MinimalPatient(BasePersona):
     family_history: Union[str, List[str]] = ""
 
 
-class Doctor(ExtendedPersona):
+class ExtendedPatient(ExtendedPersona):
     """
-    Doctor persona with medical expertise and professional background.
+    ExtendedPatient persona with medical and health-related attributes.
 
-    :ivar specialty: Medical specialty.
-    :vartype specialty: str
-    :ivar years_of_experience: Years of experience as a doctor.
-    :vartype years_of_experience: int
-    :ivar certifications: Certifications held by the doctor.
-    :vartype certifications: str
-    :ivar work_experience: Professional work experience.
-    :vartype work_experience: str
+    :ivar reason_for_visit: Reason for visit or chief complaint.
+    :vartype reason_for_visit: str
+    :ivar symptoms: List of symptoms or health issues.:ivar symptoms: Reason for visit or chief complaint.
+    :vartype symptoms: str
+    :ivar vital_signs: Vital signs of the patient.
+    :vartype vital_signs: str
+    :ivar health_literacy: Health literacy level.
+    :vartype health_literacy: str
+    :ivar medical_conditions: Medical conditions in history.
+    :vartype medical_conditions: str
+    :ivar medications: Current medications.
+    :vartype medications: str
+    :ivar allergies: Known allergies.
+    :vartype allergies: str
+    :ivar family_history: Family medical history.
+    :vartype family_history: str
     """
-    specialty: str = ""
-    years_of_experience: Union[int, str] = ""
-    certifications: str = ""
-    work_experience: str = ""
+    reason_for_visit: str = ""
+    symptoms: str = ""
+    vital_signs: str = ""
+    health_literacy: str = ""
+    medical_conditions: str = ""
+    medications: str = ""
+    allergies: str = ""
+    family_history: str = ""
 
 
-class MinimalDoctor(BasePersona):
+class Doctor(BasePersona):
     """
-    This class is a minimal version of a Doctor persona, focusing on essential attributes for dialogue generation.
+    Doctor persona with essential / minimal attributes for dialogue generation.
 
     :ivar name: Name of the persona.
     :vartype name: str
@@ -522,6 +503,25 @@ class MinimalDoctor(BasePersona):
     formality: str = ""
     hurriedness: str = ""
     openness: str = ""
+
+
+class ExtendedDoctor(ExtendedPersona):
+    """
+    ExtendedDoctor persona with medical expertise and professional background.
+
+    :ivar specialty: Medical specialty.
+    :vartype specialty: str
+    :ivar years_of_experience: Years of experience as a doctor.
+    :vartype years_of_experience: int
+    :ivar certifications: Certifications held by the doctor.
+    :vartype certifications: str
+    :ivar work_experience: Professional work experience.
+    :vartype work_experience: str
+    """
+    specialty: str = ""
+    years_of_experience: Union[int, str] = ""
+    certifications: str = ""
+    work_experience: str = ""
 
 
 class Agent:

@@ -1,7 +1,7 @@
 from sdialog import Dialog
 from sdialog.personas import Agent
 from sdialog.generators import LLMDialogOutput, Turn
-from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
+from sdialog.personas import Persona, ExtendedPersona, ExtendedDoctor, ExtendedPatient, PersonaMetadata, Patient, Doctor
 
 MODEL = "smollm:135m"
 example_dialog = Dialog(turns=[Turn(speaker="A", text="This is an example!"), Turn(speaker="B", text="Hi!")])
@@ -126,8 +126,8 @@ def test_extended_persona_fields_and_description():
     assert js["occupation"] == "Engineer"
 
 
-def test_patient_fields_and_description():
-    p = Patient(
+def test_extended_patient_fields_and_description():
+    p = ExtendedPatient(
         name="Jane",
         age=30,
         symptoms="cough, fever",
@@ -147,8 +147,8 @@ def test_patient_fields_and_description():
     assert js["medical_conditions"] == "asthma"
 
 
-def test_doctor_fields_and_description():
-    d = Doctor(
+def test_extended_doctor_fields_and_description():
+    d = ExtendedDoctor(
         name="Dr. Smith",
         age=50,
         specialty="Cardiology",
@@ -165,8 +165,8 @@ def test_doctor_fields_and_description():
     assert js["years_of_experience"] == 25
 
 
-def test_MinimalPatient_fields_and_description():
-    p = MinimalPatient(
+def test_patient_fields_and_description():
+    p = Patient(
         name="John",
         age=35,
         race="Hispanic",
@@ -217,8 +217,8 @@ def test_MinimalPatient_fields_and_description():
     assert js["family_history"] == "No significant history"
 
 
-def test_MinimalDoctor_fields_and_description():
-    d = MinimalDoctor(
+def test_doctor_fields_and_description():
+    d = Doctor(
         name="Dr. Jane",
         age=45,
         speciality="Pediatrics",
