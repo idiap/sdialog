@@ -77,6 +77,22 @@ class BasePersona(BaseModel, ABC):
     model_config = ConfigDict(extra='forbid')
     _metadata: Optional[PersonaMetadata] = None
 
+    # Automatically inject a staticmethod attributes() into every subclass
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        def _attributes(_cls=cls):
+            return [k for k in _cls.model_fields.keys() if not k.startswith("_")]
+        cls.attributes = staticmethod(_attributes)
+
+    @staticmethod
+    def attributes():
+        """
+        Return the list of attribute (field) names for BasePersona itself.
+        Subclasses get their own version injected in __init_subclass__.
+        """
+        return [k for k in BasePersona.model_fields.keys() if not k.startswith("_")]
+
     def clone(self, new_id: int = None, **kwargs) -> "BasePersona":
         """
         Creates a deep copy of the persona, with optional attribute overrides.
