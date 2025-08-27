@@ -24,10 +24,10 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from .config import config
 from jinja2 import Template
-from .orchestrators import BaseOrchestrator
 
 from . import Dialog, Turn, Event, Instruction
 from .personas import BasePersona, Persona
+from .orchestrators import BaseOrchestrator
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
 from .util import get_llm_model, is_aws_model_name, is_huggingface_model_name, set_generator_seed, get_universal_id
 
@@ -63,7 +63,7 @@ class Agent:
                  postprocess_fn: Optional[callable] = None,
                  **llm_kwargs):
         """
-        Initializes a PersonaAgent for role-play dialogue.
+        Initializes a Agent for role-play dialogue.
 
         :param persona: The persona to role-play.
         :type persona: BasePersona
@@ -242,7 +242,7 @@ class Agent:
         :param orchestrator: Orchestrator(s) to add.
         :type orchestrator: Union[BaseOrchestrator, List[BaseOrchestrator]]
         :return: The agent with orchestrators added.
-        :rtype: PersonaAgent
+        :rtype: Agent
         """
         if isinstance(other, Inspector):
             self.add_inspectors(other)

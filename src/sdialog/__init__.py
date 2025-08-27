@@ -8,7 +8,7 @@ supports dialogue orchestration, scenario management, and flexible serialization
 Main components:
 
     - Dialog, Turn, Event: Data structures for representing dialogues and their events.
-    - Persona and PersonaAgent: For defining and simulating role-played agents.
+    - Persona and Agent: For defining and simulating role-played agents.
     - Orchestrators: For controlling agent behavior during dialogue generation.
     - Utility functions for serialization, pretty-printing, and file I/O.
 """

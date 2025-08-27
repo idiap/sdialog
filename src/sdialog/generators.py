@@ -255,7 +255,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  max_turns: int = 200,
                  notes: str = None):
         """
-        Generates a dialogue between two personas using the LLM or PersonaAgents.
+        Generates a dialogue between two personas using the LLM or Agents.
 
         :param example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]

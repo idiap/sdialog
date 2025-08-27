@@ -133,10 +133,10 @@ The ``Persona`` class defines a character profile for role-playing in dialogue g
     )
     print(alice)
 
-PersonaAgent
-^^^^^^^^^^^^
+Agent
+^^^^^
 
-The ``PersonaAgent`` class simulates an agent that role-plays a given Persona using an LLM. It maintains a memory of the conversation, supports orchestration for injecting instructions or controlling behavior, and can be seeded for reproducible dialogue generation.
+The ``Agent`` class simulates an agent that role-plays a given Persona using an LLM. It maintains a memory of the conversation, supports orchestration for injecting instructions or controlling behavior, and can be seeded for reproducible dialogue generation.
 
 - **Purpose:** Simulates an agent that role-plays a given Persona using an LLM.
 - **Features:**
@@ -149,7 +149,7 @@ The ``PersonaAgent`` class simulates an agent that role-plays a given Persona us
 - **Methods:**
 
   - ``__call__()``: Processes an input utterance and generates a response.
-  - ``dialog_with()``: Simulates a dialogue with another PersonaAgent.
+  - ``dialog_with()``: Simulates a dialogue with another Agent.
   - ``add_orchestrators()``, ``clear_orchestrators()``: Manage orchestration.
   - ``reset()``: Reset memory and orchestrators.
   - ``json()``: Serialize agent configuration and persona.
@@ -181,12 +181,12 @@ To enable fine-grained control over dialogue generation, SDialog introduces the 
 BaseOrchestrator
 ^^^^^^^^^^^^^^^^
 
-The ``BaseOrchestrator`` is the abstract base class for all orchestrators. It provides methods for generating instructions, managing persistence, event labeling, and serialization. Orchestrators can be attached to a ``PersonaAgent`` to influence its behavior during dialogue generation.
+The ``BaseOrchestrator`` is the abstract base class for all orchestrators. It provides methods for generating instructions, managing persistence, event labeling, and serialization. Orchestrators can be attached to a ``Agent`` to influence its behavior during dialogue generation.
 
 - **Purpose:** Abstract base class for all orchestrators.
 - **Features:**
 
-  - Can be attached to a PersonaAgent.
+  - Can be attached to a Agent.
   - Provides methods for generating instructions, managing persistence, and event labeling.
   - Supports serialization for reproducibility.
 
@@ -347,7 +347,7 @@ The STAR dataset utilities provide functions for loading, parsing, and describin
 
   - Load dialogues by ID, filter by domain, task, or scenario attributes.
   - Extract scenario descriptions, flowcharts (in DOT format), and example responses.
-  - Construct PersonaAgent objects for simulation and evaluation.
+  - Construct Agent objects for simulation and evaluation.
   - Support for scenario-driven dialogue generation and analysis.
 
 **Example:**

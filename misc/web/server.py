@@ -115,7 +115,7 @@ def generate_dialog():
         patient_persona = Patient(**patient_filtered_data)
         doctor_persona = Doctor(**doctor_filtered_data)
 
-        # Create PersonaAgents, ensuring they have a name.
+        # Create Agents, ensuring they have a name.
         patient_agent = Agent(
             persona=patient_persona,
             name=patient_persona.name or "Patient",
