@@ -273,6 +273,27 @@ class Agent:
             pass
         return self.llm
 
+    @property
+    def tokenizer(self):
+        """
+        Return the underlying tokenizer object (e.g., a HuggingFace Transformers tokenizer).
+
+        Resolution order:
+          1. ChatHuggingFace wrapper: self.llm.llm.tokenizer
+          2. Objects exposing pipeline.tokenizer
+          3. Objects exposing tokenizer
+        """
+        try:
+            if hasattr(self.llm, "llm") and hasattr(self.llm.llm, "pipeline"):
+                return self.llm.llm.pipeline.tokenizer
+            if hasattr(self.llm, "pipeline") and hasattr(self.llm.pipeline, "tokenizer"):
+                return self.llm.pipeline.tokenizer
+            if hasattr(self.llm, "tokenizer"):
+                return self.llm.tokenizer
+        except Exception:
+            pass
+        return None
+
     def response_lookahead(self, utterance: str = None):
         """
         Generates a response to a hypothetical next utterance without updating memory.
@@ -397,10 +418,9 @@ class Agent:
         # Register UtteranceTokenHook and expose utterance_list
         if self.utterance_hook is None:
             self.utterance_hook = UtteranceTokenHook(agent=self)
-        model_obj = self.llm.llm.pipeline.model
-        self.utterance_hook.register(model_obj)
+        self.utterance_hook.register(self.base_model)
         # Automatically set the tokenizer in the hook
-        self.utterance_hook.hook_state['tokenizer'] = self.llm.llm.pipeline.tokenizer
+        self.utterance_hook.hook_state['tokenizer'] = self.tokenizer
 
     def instruct(self, instruction: str, persist: bool = False):
         """
