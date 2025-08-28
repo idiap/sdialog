@@ -142,7 +142,7 @@ class Dialog(BaseModel):
     complete: Optional[bool] = None
     personas: Optional[dict[str, Any]] = None  # Any is a subclass of MetaPersona
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
-    turns: List[Turn]  # the list of turns of the conversation
+    turns: Optional[List[Turn]] = Field(default_factory=list)  # the list of turns of the conversation
     events: Optional[List[Event]] = None  # the list of events of the conversation (optional)
     notes: Optional[str] = None  # Free-text notes or comments about the dialogue
     _path: Optional[str] = None  # Path to the file where the dialogue was loaded or saved
@@ -182,6 +182,50 @@ class Dialog(BaseModel):
         :rtype: Iterator[Turn]
         """
         return iter(self.turns)
+
+    def _transform_texts(self, fn, in_place: bool):
+        """
+        Internal utility: apply the string transformation function fn to each turn's text.
+        :param fn: Callable transforming a str into a str.
+        :param in_place: If True mutate this Dialog, otherwise work on a cloned copy.
+        :return: The mutated (in_place=True) or cloned (in_place=False) Dialog.
+        """
+        target = self if in_place else self.clone()
+        for turn in target.turns:
+            if turn.text is not None:
+                turn.text = fn(turn.text)
+        return target
+
+    def lower(self, in_place: bool = False) -> "Dialog":
+        """Apply str.lower() to every turn's text."""
+        return self._transform_texts(lambda s: s.lower(), in_place)
+
+    def upper(self, in_place: bool = False) -> "Dialog":
+        """Apply str.upper() to every turn's text."""
+        return self._transform_texts(lambda s: s.upper(), in_place)
+
+    def title(self, in_place: bool = False) -> "Dialog":
+        """Apply str.title() to every turn's text."""
+        return self._transform_texts(lambda s: s.title(), in_place)
+
+    def capitalize(self, in_place: bool = False) -> "Dialog":
+        """Apply str.capitalize() to every turn's text."""
+        return self._transform_texts(lambda s: s.capitalize(), in_place)
+
+    def strip(self, chars: str = None, in_place: bool = False) -> "Dialog":
+        """Apply str.strip(chars) to every turn's text."""
+        return self._transform_texts(lambda s: s.strip(chars) if chars is not None else s.strip(), in_place)
+
+    def replace(self, old: str, new: str, count: int = -1, in_place: bool = False) -> "Dialog":
+        """
+        Apply str.replace(old, new, count) to every turn's text.
+        If count < 0 all occurrences are replaced.
+        """
+        return self._transform_texts(
+            (lambda s: s.replace(old, new, count if count >= 0 else s.count(old))) if count >= 0
+            else (lambda s: s.replace(old, new)),
+            in_place
+        )
 
     def length(self, mode: str = "words", words_per_minute: int = 130) -> int:
         """
