@@ -31,6 +31,7 @@ from abc import ABC
 from functools import partial
 from collections import defaultdict
 from langchain_core.messages import SystemMessage
+from typing import Dict, List, Union, Callable, Tuple
 
 
 logger = logging.getLogger(__name__)
@@ -258,19 +259,31 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
-    def __init__(self, target=None, agent=None, steering_function=None, steering_interval=(0, -1)):
+    def __init__(self,
+                 target: Union[Dict, List[str], str] = None,
+                 agent=None,  # : Agent
+                 steering_function: Callable = None,
+                 steering_interval: Tuple[int, int] = (0, -1)):
         """
         Inspector for managing hooks and extracting representations from a model.
 
         Args:
-            target: Dict mapping model layer names to cache keys.
+            target: Dict mapping model layer names to cache keys, a list of layer names, or a single layer name.
             agent: The agent containing the model and hooks.
             steering_function: Optional function to apply on output tensors in hooks.
             steering_interval: Tuple `(min_token, max_token)` to control steering.
                                    `min_token` tokens are skipped. Steering stops at `max_token`.
                                    A `max_token` of -1 means no upper limit.
         """
-        self.target = target if target is not None else {}
+        if target is None:
+            target = {}
+        elif isinstance(target, str):
+            target = {0: target}
+        elif isinstance(target, list):
+            target = {i: t for i, t in enumerate(target)}
+        elif not isinstance(target, dict):
+            raise ValueError("Target must be a dict, list, or string.")
+        self.target = target
         self.agent = agent
         self.steering_function = steering_function
         self._steering_strength = None
