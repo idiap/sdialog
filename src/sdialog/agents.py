@@ -135,10 +135,6 @@ class Agent:
                      f"using prompt from '{config['prompts']['persona_agent']}'.")
         logger.debug("Prompt: " + self.prompt())
 
-    @property
-    def utterance_list(self):
-        return self.utterance_hook.utterance_list
-
     def __call__(self, utterance: str = "", return_events: bool = False) -> str:
         """
         Processes an input utterance and generates a response.
@@ -249,6 +245,33 @@ class Agent:
         else:
             self.add_orchestrators(other)
         return self
+
+    @property
+    def utterance_list(self):
+        return self.utterance_hook.utterance_list
+
+    @property
+    def base_model(self):
+        """
+        Return the underlying base (wrapped) model object (e.g., a HuggingFace Transformers model).
+
+        Resolution order:
+          1. ChatHuggingFace wrapper: self.llm.llm.pipeline.model
+          2. Objects exposing pipeline.model
+          3. Objects exposing model
+
+        If none are found, self.llm is returned as a fallback.
+        """
+        try:
+            if hasattr(self.llm, "llm") and hasattr(self.llm.llm, "pipeline"):
+                return self.llm.llm.pipeline.model
+            if hasattr(self.llm, "pipeline") and hasattr(self.llm.pipeline, "model"):
+                return self.llm.pipeline.model
+            if hasattr(self.llm, "model"):
+                return self.llm.model
+        except Exception:
+            pass
+        return self.llm
 
     def response_lookahead(self, utterance: str = None):
         """
