@@ -26,7 +26,7 @@ import subprocess
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
 from print_color import print as cprint
-from typing import List, Union, Optional, Any
+from typing import List, Union, Optional, Any, Pattern
 
 from .util import make_serializable, get_timestamp, remove_newlines, get_universal_id
 
@@ -186,6 +186,7 @@ class Dialog(BaseModel):
     def _transform_texts(self, fn, in_place: bool):
         """
         Internal utility: apply the string transformation function fn to each turn's text.
+
         :param fn: Callable transforming a str into a str.
         :param in_place: If True mutate this Dialog, otherwise work on a cloned copy.
         :return: The mutated (in_place=True) or cloned (in_place=False) Dialog.
@@ -224,6 +225,28 @@ class Dialog(BaseModel):
         return self._transform_texts(
             (lambda s: s.replace(old, new, count if count >= 0 else s.count(old))) if count >= 0
             else (lambda s: s.replace(old, new)),
+            in_place
+        )
+
+    def re_sub(self,
+               pattern: Union[str, Pattern],
+               repl: Union[str, callable],
+               count: int = 0,
+               flags: int = 0,
+               in_place: bool = True) -> "Dialog":
+        """
+        Apply re.sub(pattern, repl, text, count=count, flags=flags) to every turn's text.
+        If pattern is a compiled regex, flags are ignored.
+
+        :param pattern: Regex pattern (string or compiled).
+        :param repl: Replacement string or callable.
+        :param count: Max substitutions per text (0 means unlimited).
+        :param flags: re flags (ignored if compiled pattern is passed).
+        :param in_place: Mutate this Dialog if True, else return a cloned transformed Dialog.
+        """
+        return self._transform_texts(
+            (lambda s: pattern.sub(repl, s, count=count)) if isinstance(pattern, re.Pattern)
+            else (lambda s: re.sub(pattern, repl, s, count=count, flags=flags)),
             in_place
         )
 
