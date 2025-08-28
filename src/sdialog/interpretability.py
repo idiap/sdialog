@@ -456,6 +456,10 @@ class InspectionUtterance(Inspector):
     def __str__(self):
         return self.text
 
+    def __len__(self):
+        # Return the number of tokens in the utterance
+        return len(self.tokens)
+
     def __getitem__(self, index):
         if isinstance(index, slice):
             return [
@@ -477,13 +481,24 @@ class InspectionUnit(Inspector):
         self.agent = agent
         self.utterance_index = utterance_index
 
+    @property
+    def act(self):
+        """
+        Return the activation(s) for this token across all hooked targets.
+
+        Behavior:
+        - If multiple cache keys (hooked layers) exist, return a dict {cache_key/index: activation}.
+        - If only one cache key exists, return the activation tensor directly.
+        """
+        if not hasattr(self.agent, 'representation_cache'):
+            raise KeyError("Agent has no representation_cache.")
+        # Directly use utterance_index (assume always populated)
+        rep_tensor = self.agent.representation_cache[self.utterance_index]
+        return self if len(rep_tensor) > 1 else self[next(iter(rep_tensor))]
+
     def __iter__(self):
         # Not iterable, represents a single token
         raise TypeError("InspectionUnit is not iterable")
-
-    def __len__(self):
-        # Return the number of tokens in the parent utterance
-        return len(self.utterance.tokens)
 
     def __str__(self):
         # Return the token string directly
