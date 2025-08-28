@@ -335,6 +335,39 @@ class Agent:
         for inspector in inspectors:
             inspector.add_agent(self)
 
+    def add_hooks(self, key_to_layer_name, steering_function=None, steering_interval=(0, -1)):
+        """
+        Registers RepresentationHooks for each layer in the given mapping.
+        Skips already registered layers. Adds new keys to the shared representation_cache.
+
+        Args:
+            key_to_layer_name: Dict mapping cache keys to layer names.
+            steering_function: Optional function to apply to the output tensor before caching.
+            steering_interval: Tuple `(min_token, max_token)` to control steering.
+                                   `min_token` tokens are skipped. Steering stops at `max_token`.
+                                   A `max_token` of -1 means no upper limit.
+        """
+        # Get the model (assume HuggingFace pipeline)
+        model = self.base_model
+        if model is self.llm:
+            raise RuntimeError("Base model not found or not a HuggingFace pipeline.")
+
+        # Always re-initialize cache and hooks
+        self.rep_hooks = []
+
+        # Register new hooks
+        for cache_key, layer_name in key_to_layer_name.items():
+            hook = RepresentationHook(
+                cache_key=cache_key,
+                layer_key=layer_name,
+                agent=self,
+                utterance_hook=self.utterance_hook,
+                steering_function=steering_function,  # pass the function here,
+                steering_interval=steering_interval
+            )
+            hook.register(model)
+            self.rep_hooks.append(hook)
+
     def clear_orchestrators(self):
         """
         Removes all orchestrators from the agent.
@@ -359,39 +392,6 @@ class Agent:
         if self.utterance_hook is not None:
             self.utterance_hook.reset()
         self.set_utterance_hook()
-
-    def add_hooks(self, layer_name_to_key, steering_function=None, steering_interval=(0, -1)):
-        """
-        Registers RepresentationHooks for each layer in the given mapping.
-        Skips already registered layers. Adds new keys to the shared representation_cache.
-
-        Args:
-            layer_name_to_key: Dict mapping layer names to cache keys.
-            steering_function: Optional function to apply to the output tensor before caching.
-            steering_interval: Tuple `(min_token, max_token)` to control steering.
-                                   `min_token` tokens are skipped. Steering stops at `max_token`.
-                                   A `max_token` of -1 means no upper limit.
-        """
-        # Get the model (assume HuggingFace pipeline)
-        model = self.llm.llm.pipeline.model if hasattr(self.llm, 'llm') and hasattr(self.llm.llm, 'pipeline') else None
-        if model is None:
-            raise RuntimeError("Model not found or not a HuggingFace pipeline.")
-
-        # Always re-initialize cache and hooks
-        self.rep_hooks = []
-
-        # Register new hooks
-        for layer_name, cache_key in layer_name_to_key.items():
-            hook = RepresentationHook(
-                layer_key=layer_name,
-                cache_key=cache_key,
-                agent=self,
-                utterance_hook=self.utterance_hook,
-                steering_function=steering_function,  # pass the function here,
-                steering_interval=steering_interval
-            )
-            hook.register(model)
-            self.rep_hooks.append(hook)
 
     def set_utterance_hook(self):
         # Register UtteranceTokenHook and expose utterance_list

@@ -189,12 +189,12 @@ class RepresentationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     """
 
-    def __init__(self, layer_key, cache_key, agent, utterance_hook,
+    def __init__(self, cache_key, layer_key, agent, utterance_hook,
                  steering_function=None, steering_interval=(0, -1)):
         """
         Args:
-            layer_key: The key identifying the layer to hook into.
             cache_key: Key under which to store the outputs in the cache.
+            layer_key: The key identifying the layer to hook into.
             representation_cache: A nested dictionary or structure to store representations.
             utterance_list: List used to track current utterance index.
             steering_function: Optional function to apply to output_tensor before caching.
