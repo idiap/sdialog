@@ -196,27 +196,27 @@ class Dialog(BaseModel):
                 turn.text = fn(turn.text)
         return target
 
-    def lower(self, in_place: bool = False) -> "Dialog":
+    def lower(self, in_place: bool = True) -> "Dialog":
         """Apply str.lower() to every turn's text."""
         return self._transform_texts(lambda s: s.lower(), in_place)
 
-    def upper(self, in_place: bool = False) -> "Dialog":
+    def upper(self, in_place: bool = True) -> "Dialog":
         """Apply str.upper() to every turn's text."""
         return self._transform_texts(lambda s: s.upper(), in_place)
 
-    def title(self, in_place: bool = False) -> "Dialog":
+    def title(self, in_place: bool = True) -> "Dialog":
         """Apply str.title() to every turn's text."""
         return self._transform_texts(lambda s: s.title(), in_place)
 
-    def capitalize(self, in_place: bool = False) -> "Dialog":
+    def capitalize(self, in_place: bool = True) -> "Dialog":
         """Apply str.capitalize() to every turn's text."""
         return self._transform_texts(lambda s: s.capitalize(), in_place)
 
-    def strip(self, chars: str = None, in_place: bool = False) -> "Dialog":
+    def strip(self, chars: str = None, in_place: bool = True) -> "Dialog":
         """Apply str.strip(chars) to every turn's text."""
         return self._transform_texts(lambda s: s.strip(chars) if chars is not None else s.strip(), in_place)
 
-    def replace(self, old: str, new: str, count: int = -1, in_place: bool = False) -> "Dialog":
+    def replace(self, old: str, new: str, count: int = -1, in_place: bool = True) -> "Dialog":
         """
         Apply str.replace(old, new, count) to every turn's text.
         If count < 0 all occurrences are replaced.
