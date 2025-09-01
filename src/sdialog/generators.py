@@ -21,9 +21,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
 from . import Dialog, Turn
-from .config import config
 from .agents import Agent
-from .personas import BasePersona, Persona, PersonaMetadata
+from .config import config
+from .base import Metadata
+from .personas import BasePersona, Persona
 from .util import get_llm_model, set_generator_seed, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
 
 logger = logging.getLogger(__name__)
@@ -614,7 +615,7 @@ class PersonaGenerator:
                     persona_dict = llm_output[ix] if ix < len(llm_output) else persona_dict
                     try:
                         personas.append(self._persona.model_validate(persona_dict))
-                        personas[-1]._metadata = PersonaMetadata(
+                        personas[-1]._metadata = Metadata(
                             model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
@@ -630,7 +631,7 @@ class PersonaGenerator:
                                               else v)
                                         for k, v in self._persona.model_dump().items()}
                         personas.append(self._persona.model_validate(persona_dict))
-                        personas[-1]._metadata = PersonaMetadata(
+                        personas[-1]._metadata = Metadata(
                             model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
@@ -674,7 +675,7 @@ class PersonaGenerator:
 
         # Adding metadata to the generated persona
         # TODO: shall we also add generator parameters? (e.g. self._persona_rnd_attributes, self.default_*)
-        output_persona._metadata = PersonaMetadata(
+        output_persona._metadata = Metadata(
             model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
             seed=seed,
             id=id if id is not None else get_universal_id(),

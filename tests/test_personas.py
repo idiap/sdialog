@@ -1,4 +1,5 @@
-from sdialog.personas import Persona, ExtendedPersona, ExtendedDoctor, ExtendedPatient, PersonaMetadata, Patient, Doctor
+from sdialog.base import Metadata
+from sdialog.personas import Persona, ExtendedPersona, ExtendedDoctor, ExtendedPatient, Patient, Doctor
 
 
 def test_persona_description_and_json():
@@ -270,7 +271,7 @@ def test_persona_clone_parent_id():
     Test that .clone() sets the clone's _metadata.parentId to the original's _metadata.id.
     """
     persona = Persona(name="Alice", role="barista")
-    persona._metadata = PersonaMetadata(id=123)
+    persona._metadata = Metadata(id=123)
     clone = persona.clone()
     assert clone._metadata is not None
     assert clone._metadata.parentId == 123

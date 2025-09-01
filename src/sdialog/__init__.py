@@ -21,16 +21,15 @@ import json
 import csv
 import logging
 import importlib
-import subprocess
 
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
 from print_color import print as cprint
 from typing import List, Union, Optional, Any, Pattern
 
-from .util import make_serializable, get_timestamp, remove_newlines, get_universal_id
+from .util import __version__, make_serializable, get_timestamp, remove_newlines, get_universal_id, _get_dynamic_version
 
-__version__ = "0.1.0"
+__version__ = __version__
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,18 +42,6 @@ logger = logging.getLogger(__name__)
 
 # import config sumbodule as "config" attribute of the package
 config = importlib.import_module("sdialog.config")
-
-
-def _get_dynamic_version() -> str:
-    """ Retrieves the current version of the package, appending the current git commit hash if available."""
-    try:
-        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode("utf-8")
-        # If not a valid commit hash, set to empty string
-        if re.match(r"\b[0-9a-f]{5,40}\b", commit_hash):
-            return f"{__version__}+{commit_hash}"
-    except Exception:
-        pass
-    return __version__
 
 
 class Turn(BaseModel):

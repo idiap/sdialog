@@ -31,194 +31,19 @@ from sentence_transformers.util import get_device_name, batch_to_device
 
 logger = logging.getLogger(__name__)
 
-
-class SentencePairTransformer:  # As opposed to SentenceTransformer
-    """
-    A transformer that takes a pair of sentences and returns the [cls] BERT embedding for sent1<sep>sent2 (as in NLI).
-    """
-    def __init__(self, model_name: str = "roberta-base", device: str = None, verbose: bool = True):
-        if device is None:
-            device = get_device_name()
-            logger.info(f"Use pytorch device_name: {device}")
-        self.verbose = verbose
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name, return_dict=True)
-        self.model.to(device)
-
-    def encode(self,
-               sent1: Union[str, List[str]],
-               sent2: Union[str, List[str]],
-               batch_size: int = 128,
-               show_progress_bar: bool = True,
-               progress_bar_desc: str = "Computing embeddings") -> np.ndarray:
-        """
-        Encode a pair of sentences into a single BERT embeddings.
-
-        :param sent1: The first sentence or list of first sentences.
-        :param sent2: The second sentence or list of second sentences.
-        :return: A numpy array containing the BERT embeddings.
-        :rtype: np.ndarray
-        """
-        embs = []
-
-        self.model.eval()
-        with torch.no_grad():
-            inputs = self.tokenizer(sent1, sent2, return_tensors='pt', padding=True, truncation=True)
-            dataset = TensorDataset(*inputs.values())
-            loader = DataLoader(dataset, batch_size=batch_size)
-            for batch in tqdm(loader,
-                              desc=progress_bar_desc,
-                              disable=not show_progress_bar, leave=self.verbose):
-                batch_inputs = batch_to_device({k: v for k, v in zip(inputs.keys(), batch)}, self.model.device)
-                outputs = self.model(**batch_inputs)
-                embs.append(outputs.last_hidden_state[:, 0].cpu().data)
-
-        return torch.cat(embs).numpy()
+__version__ = "0.1.0"
 
 
-class KNNModel:
-    def __init__(self, items, k=3):
-        # items = (item, vector) pair list
-        self.model = NearestNeighbors(algorithm='auto',
-                                      metric="cosine",
-                                      n_jobs=-1)
-        self.k = k
-        self.model.ix2id = {ix: item for ix, (item, _) in enumerate(items)}
-        self.model.fit([vec for _, vec in items])
-
-    def neighbors(self, target_emb, k=None):
-        k = k or self.k
-        dists, indexes = self.model.kneighbors([target_emb],
-                                               min(k, len(self.model.ix2id)),
-                                               return_distance=True)
-        dists, indexes = dists[0], indexes[0]
-        return [(self.model.ix2id[indexes[ix]], dist) for ix, dist in enumerate(dists)]
-
-    __call__ = neighbors
-
-
-class CacheDialogScore:
-    _cache = {}
-    _score_obj_attributes = {}
-    _cache_path = None
-    _enable_cache = True
-
-    @staticmethod
-    def init(path, enable_cache=True):
-        cache_dir = os.path.expanduser(path)
-        os.makedirs(cache_dir, exist_ok=True)
-        CacheDialogScore.set_enable_cache(enable_cache)
-        CacheDialogScore.set_cache_path(cache_dir)
-        # Load cache dict if exists
-        if os.path.exists(CacheDialogScore._cache_path):
-            with open(CacheDialogScore._cache_path) as f:
-                CacheDialogScore._cache = json.load(f)
-        else:
-            CacheDialogScore._cache = {}
-
-    @staticmethod
-    def set_enable_cache(enable: bool):
-        """
-        Enable or disable the cache.
-        :param enable: True to enable caching, False to disable.
-        """
-        CacheDialogScore._enable_cache = enable
-
-    @staticmethod
-    def is_cache_enabled() -> bool:
-        """
-        Check if the cache is enabled.
-        :return: True if caching is enabled, False otherwise.
-        """
-        return CacheDialogScore._enable_cache
-
-    @staticmethod
-    def get_cache():
-        """
-        Get the current cache dictionary.
-        :return: The cache dictionary.
-        """
-        return CacheDialogScore._cache
-
-    @staticmethod
-    def get_cache_path() -> str:
-        """
-        Get the path to the cache file.
-        :return: The path to the cache file.
-        """
-        if CacheDialogScore._cache_path is None:
-            raise ValueError("CacheDialogScore not initialized. Call CacheDialogScore.init(path) first.")
-        return CacheDialogScore._cache_path
-
-    @staticmethod
-    def set_cache_path(path: str):
-        """
-        Set the path to the cache file.
-        :param path: The path to the cache file.
-        """
-        CacheDialogScore._cache_path = os.path.join(path, "dialog_scores_cache.json")
-        if not os.path.exists(os.path.dirname(CacheDialogScore._cache_path)):
-            os.makedirs(os.path.dirname(CacheDialogScore._cache_path), exist_ok=True)
-
-    @staticmethod
-    def save():
-        """
-        Save the cache to the file.
-        """
-        if not CacheDialogScore.is_cache_enabled():
-            logger.debug("CacheDialogScore is disabled, not saving cache.")
-            return
-        if CacheDialogScore._cache_path is None:
-            raise ValueError("CacheDialogScore not initialized. Call CacheDialogScore.init(path) first.")
-        os.makedirs(os.path.dirname(CacheDialogScore._cache_path), exist_ok=True)
-        with open(CacheDialogScore._cache_path, "w") as f:
-            json.dump(CacheDialogScore._cache, f)
-
-    @staticmethod
-    def cache(func):
-        @wraps(func)
-        def wrapper(score_obj, dialog, *args, **kwargs):
-            dialog_path = getattr(dialog, "_path", None)
-            if not CacheDialogScore.is_cache_enabled() or dialog_path is None:
-                result = func(score_obj, dialog, *args, **kwargs)
-            else:
-                score_obj_class = score_obj.__class__.__name__
-                if score_obj_class not in CacheDialogScore._score_obj_attributes:
-                    attrs = []
-                    for attr in sorted(vars(score_obj)):
-                        value = getattr(score_obj, attr)
-                        try:
-                            json.dumps(value)
-                            attrs.append(attr)
-                        except (TypeError, OverflowError):
-                            continue
-                    CacheDialogScore._score_obj_attributes[score_obj_class] = attrs
-                else:
-                    attrs = CacheDialogScore._score_obj_attributes[score_obj_class]
-                attr_items = {attr: getattr(score_obj, attr) for attr in attrs}
-                attr_str = json.dumps(attr_items, sort_keys=True)
-                if (
-                    score_obj_class in CacheDialogScore._cache
-                    and attr_str in CacheDialogScore._cache[score_obj_class]
-                    and dialog_path in CacheDialogScore._cache[score_obj_class][attr_str]
-                ):
-                    return CacheDialogScore._cache[score_obj_class][attr_str][dialog_path]
-                result = func(score_obj, dialog, *args, **kwargs)
-                if score_obj_class not in CacheDialogScore._cache:
-                    CacheDialogScore._cache[score_obj_class] = {}
-                if attr_str not in CacheDialogScore._cache[score_obj_class]:
-                    CacheDialogScore._cache[score_obj_class][attr_str] = {}
-                CacheDialogScore._cache[score_obj_class][attr_str][dialog_path] = result
-            return result
-        return wrapper
-
-    @staticmethod
-    def clear():
-        """
-        Clear the cache.
-        """
-        CacheDialogScore._cache = {}
-        CacheDialogScore.save()
+def _get_dynamic_version() -> str:
+    """ Retrieves the current version of the package, appending the current git commit hash if available."""
+    try:
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode("utf-8")
+        # If not a valid commit hash, set to empty string
+        if re.match(r"\b[0-9a-f]{5,40}\b", commit_hash):
+            return f"{__version__}+{commit_hash}"
+    except Exception:
+        pass
+    return __version__
 
 
 def dialogs_to_utt_pairs(dialogs: List[BaseModel], ai_speaker: str = None) -> Tuple[List[str], List[str]]:
@@ -281,7 +106,7 @@ def softmax(values, temperature=0.05, as_list=True):
 
 def get_universal_id() -> str:
     """
-    Generates a unique identifier for a dialog or persona using a universal ID generator.
+    Generates a unique identifier for sdialog objects using a universal ID generator.
 
     :return: A unique identifier as a string.
     :rtype: str
@@ -655,3 +480,192 @@ def upper_camel_to_dash(name: str) -> str:
     name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1-\2', name)
     name = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', name)
     return name.lower()
+
+
+class SentencePairTransformer:  # As opposed to SentenceTransformer
+    """
+    A transformer that takes a pair of sentences and returns the [cls] BERT embedding for sent1<sep>sent2 (as in NLI).
+    """
+    def __init__(self, model_name: str = "roberta-base", device: str = None, verbose: bool = True):
+        if device is None:
+            device = get_device_name()
+            logger.info(f"Use pytorch device_name: {device}")
+        self.verbose = verbose
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name, return_dict=True)
+        self.model.to(device)
+
+    def encode(self,
+               sent1: Union[str, List[str]],
+               sent2: Union[str, List[str]],
+               batch_size: int = 128,
+               show_progress_bar: bool = True,
+               progress_bar_desc: str = "Computing embeddings") -> np.ndarray:
+        """
+        Encode a pair of sentences into a single BERT embeddings.
+
+        :param sent1: The first sentence or list of first sentences.
+        :param sent2: The second sentence or list of second sentences.
+        :return: A numpy array containing the BERT embeddings.
+        :rtype: np.ndarray
+        """
+        embs = []
+
+        self.model.eval()
+        with torch.no_grad():
+            inputs = self.tokenizer(sent1, sent2, return_tensors='pt', padding=True, truncation=True)
+            dataset = TensorDataset(*inputs.values())
+            loader = DataLoader(dataset, batch_size=batch_size)
+            for batch in tqdm(loader,
+                              desc=progress_bar_desc,
+                              disable=not show_progress_bar, leave=self.verbose):
+                batch_inputs = batch_to_device({k: v for k, v in zip(inputs.keys(), batch)}, self.model.device)
+                outputs = self.model(**batch_inputs)
+                embs.append(outputs.last_hidden_state[:, 0].cpu().data)
+
+        return torch.cat(embs).numpy()
+
+
+class KNNModel:
+    def __init__(self, items, k=3):
+        # items = (item, vector) pair list
+        self.model = NearestNeighbors(algorithm='auto',
+                                      metric="cosine",
+                                      n_jobs=-1)
+        self.k = k
+        self.model.ix2id = {ix: item for ix, (item, _) in enumerate(items)}
+        self.model.fit([vec for _, vec in items])
+
+    def neighbors(self, target_emb, k=None):
+        k = k or self.k
+        dists, indexes = self.model.kneighbors([target_emb],
+                                               min(k, len(self.model.ix2id)),
+                                               return_distance=True)
+        dists, indexes = dists[0], indexes[0]
+        return [(self.model.ix2id[indexes[ix]], dist) for ix, dist in enumerate(dists)]
+
+    __call__ = neighbors
+
+
+class CacheDialogScore:
+    _cache = {}
+    _score_obj_attributes = {}
+    _cache_path = None
+    _enable_cache = True
+
+    @staticmethod
+    def init(path, enable_cache=True):
+        cache_dir = os.path.expanduser(path)
+        os.makedirs(cache_dir, exist_ok=True)
+        CacheDialogScore.set_enable_cache(enable_cache)
+        CacheDialogScore.set_cache_path(cache_dir)
+        # Load cache dict if exists
+        if os.path.exists(CacheDialogScore._cache_path):
+            with open(CacheDialogScore._cache_path) as f:
+                CacheDialogScore._cache = json.load(f)
+        else:
+            CacheDialogScore._cache = {}
+
+    @staticmethod
+    def set_enable_cache(enable: bool):
+        """
+        Enable or disable the cache.
+        :param enable: True to enable caching, False to disable.
+        """
+        CacheDialogScore._enable_cache = enable
+
+    @staticmethod
+    def is_cache_enabled() -> bool:
+        """
+        Check if the cache is enabled.
+        :return: True if caching is enabled, False otherwise.
+        """
+        return CacheDialogScore._enable_cache
+
+    @staticmethod
+    def get_cache():
+        """
+        Get the current cache dictionary.
+        :return: The cache dictionary.
+        """
+        return CacheDialogScore._cache
+
+    @staticmethod
+    def get_cache_path() -> str:
+        """
+        Get the path to the cache file.
+        :return: The path to the cache file.
+        """
+        if CacheDialogScore._cache_path is None:
+            raise ValueError("CacheDialogScore not initialized. Call CacheDialogScore.init(path) first.")
+        return CacheDialogScore._cache_path
+
+    @staticmethod
+    def set_cache_path(path: str):
+        """
+        Set the path to the cache file.
+        :param path: The path to the cache file.
+        """
+        CacheDialogScore._cache_path = os.path.join(path, "dialog_scores_cache.json")
+        if not os.path.exists(os.path.dirname(CacheDialogScore._cache_path)):
+            os.makedirs(os.path.dirname(CacheDialogScore._cache_path), exist_ok=True)
+
+    @staticmethod
+    def save():
+        """
+        Save the cache to the file.
+        """
+        if not CacheDialogScore.is_cache_enabled():
+            logger.debug("CacheDialogScore is disabled, not saving cache.")
+            return
+        if CacheDialogScore._cache_path is None:
+            raise ValueError("CacheDialogScore not initialized. Call CacheDialogScore.init(path) first.")
+        os.makedirs(os.path.dirname(CacheDialogScore._cache_path), exist_ok=True)
+        with open(CacheDialogScore._cache_path, "w") as f:
+            json.dump(CacheDialogScore._cache, f)
+
+    @staticmethod
+    def cache(func):
+        @wraps(func)
+        def wrapper(score_obj, dialog, *args, **kwargs):
+            dialog_path = getattr(dialog, "_path", None)
+            if not CacheDialogScore.is_cache_enabled() or dialog_path is None:
+                result = func(score_obj, dialog, *args, **kwargs)
+            else:
+                score_obj_class = score_obj.__class__.__name__
+                if score_obj_class not in CacheDialogScore._score_obj_attributes:
+                    attrs = []
+                    for attr in sorted(vars(score_obj)):
+                        value = getattr(score_obj, attr)
+                        try:
+                            json.dumps(value)
+                            attrs.append(attr)
+                        except (TypeError, OverflowError):
+                            continue
+                    CacheDialogScore._score_obj_attributes[score_obj_class] = attrs
+                else:
+                    attrs = CacheDialogScore._score_obj_attributes[score_obj_class]
+                attr_items = {attr: getattr(score_obj, attr) for attr in attrs}
+                attr_str = json.dumps(attr_items, sort_keys=True)
+                if (
+                    score_obj_class in CacheDialogScore._cache
+                    and attr_str in CacheDialogScore._cache[score_obj_class]
+                    and dialog_path in CacheDialogScore._cache[score_obj_class][attr_str]
+                ):
+                    return CacheDialogScore._cache[score_obj_class][attr_str][dialog_path]
+                result = func(score_obj, dialog, *args, **kwargs)
+                if score_obj_class not in CacheDialogScore._cache:
+                    CacheDialogScore._cache[score_obj_class] = {}
+                if attr_str not in CacheDialogScore._cache[score_obj_class]:
+                    CacheDialogScore._cache[score_obj_class][attr_str] = {}
+                CacheDialogScore._cache[score_obj_class][attr_str][dialog_path] = result
+            return result
+        return wrapper
+
+    @staticmethod
+    def clear():
+        """
+        Clear the cache.
+        """
+        CacheDialogScore._cache = {}
+        CacheDialogScore.save()
