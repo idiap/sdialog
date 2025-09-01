@@ -2,7 +2,7 @@ import csv
 import os
 
 from sdialog.config import config
-from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version
+from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version, Context
 
 
 PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
@@ -198,3 +198,26 @@ def test_dialog_clone():
 
     assert len(dialog) == 2
     assert len(dialog_clone) == 3
+
+
+def test_context_initialization():
+    ctx = Context(location="Office",
+                  goals=["Discuss project"],
+                  constraints="Be concise",
+                  topics=["AI", "ML"],
+                  notes="Kickoff")
+    assert ctx.location == "Office"
+    assert ctx.goals == ["Discuss project"]
+    assert ctx.constraints == "Be concise"
+    assert ctx.topics == ["AI", "ML"]
+    assert ctx.notes == "Kickoff"
+
+
+def test_context_print(capsys):
+    ctx = Context(location="Lab", participants=["Alice", "Bob"])
+    ctx.print()
+    out = capsys.readouterr().out
+    assert "Context" in out
+    assert "location" in out.lower()
+    assert "Lab" in out
+    assert "Alice" in out and "Bob" in out

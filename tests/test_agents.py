@@ -1,4 +1,4 @@
-from sdialog import Dialog
+from sdialog import Dialog, Context
 from sdialog.agents import Agent
 from sdialog.personas import Persona
 from sdialog.generators import LLMDialogOutput, Turn
@@ -70,3 +70,16 @@ def test_agent_example_dialogs():
     persona = Persona(name="Alice")
     agent = Agent(persona=persona, name="Alice", model=DummyLLM(), example_dialogs=[example_dialog])
     assert example_dialog.turns[0].text in agent.memory[0].content
+
+
+def test_agents_dialog_with_context():
+    ctx = Context(location="Office", goals=["Discuss project"])
+    persona1 = Persona(name="A")
+    persona2 = Persona(name="B")
+    agent1 = Agent(persona=persona1, name="A", model=DummyLLM(), context=ctx)
+    agent2 = Agent(persona=persona2, name="B", model=DummyLLM(), context=ctx)
+    dialog = agent1.dialog_with(agent2, max_turns=2)
+    assert isinstance(dialog, Dialog)
+    assert len(dialog.turns) > 0
+    assert agent1.context is ctx
+    assert agent2.context is ctx

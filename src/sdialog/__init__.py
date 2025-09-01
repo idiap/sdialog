@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from print_color import print as cprint
 from typing import List, Union, Optional, Any, Pattern
 
+from .base import BaseAttributeModel
 from .util import __version__, make_serializable, get_timestamp, remove_newlines, get_universal_id, _get_dynamic_version
 
 __version__ = __version__
@@ -678,6 +679,50 @@ class Instruction(BaseModel):
     """
     text: str = None
     events: Optional[Union[Event, List[Event]]] = None  # extra events
+
+
+class Context(BaseAttributeModel):
+    """
+    Dialogue-shared context (simplified).
+    Merged fields:
+      - weather, lighting, emotional_atmosphere, safety_hazards -> environment dict
+      - rules, time_pressure -> constraints (append as strings)
+      - topics_allowed / topics_avoid -> topics{'allowed':[],'avoid':[]}
+    Removed redundant:
+      - version, timeframe
+    """
+    # Time / place
+    location: Optional[str] = None
+    datetime: Optional[str] = None
+
+    # Environment
+    environment: Optional[str] = None
+
+    # Objects
+    objects: Optional[Union[str, List[str]]] = None
+
+    # Participants & relations
+    participants: Optional[Union[str, List[str]]] = None
+    relationships: Optional[Union[str, List[str]]] = None
+    shared_knowledge: Optional[str] = None
+
+    # Intent / constraints
+    circumstances: Optional[Union[str, List[str]]] = None
+    goals: Optional[Union[str, List[str]]] = None
+    constraints: Optional[Union[str, List[str]]] = None
+
+    # Topics (unified)
+    topics: Optional[Union[str, List[str]]] = None
+
+    # Style and Extensions
+    style_guidelines: Optional[Union[str, List[str]]] = None
+    notes: Optional[str] = None
+
+    def print(self):
+        """
+        Pretty-prints the context, including its metadata information.
+        """
+        super().print(object_name="Context")
 
 
 def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestration: bool = False):

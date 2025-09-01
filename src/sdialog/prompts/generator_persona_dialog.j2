@@ -11,14 +11,14 @@ Role-play a conversation between the following two characters. Each character is
 
 ---
 {% if dialogue_details %}
-Dialogue context:
-{{ dialogue_details }}
+- Dialogue details: {{ dialogue_details }}
+{% endif %}
+{% if context %}
+- Dialogue context: {{ context }}
 {% endif %}
 {% if response_details %}
-Response guidelines:
-{{ response_details }}
+- Response guidelines: {{ response_details }}
 {% endif %}
-
 Instructions:
   1. Always stay in character for both personas.
   2. The first utterance must be a short, generic greeting. Wait for a reply before continuing the conversation.

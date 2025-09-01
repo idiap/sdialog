@@ -93,16 +93,30 @@ class BaseAttributeModel(BaseModel, ABC):
         super().__init_subclass__(**kwargs)
 
         def _attributes(_cls=cls):
-            return [k for k in _cls.model_fields.keys() if not k.startswith("_")]
+            items = []
+            for name, field in _cls.model_fields.items():
+                if name.startswith("_"):
+                    continue
+                ann = getattr(field, "annotation", None)
+                type_str = getattr(ann, "__name__", str(ann))
+                items.append((name, type_str))
+            return items
         cls.attributes = staticmethod(_attributes)
 
     @staticmethod
     def attributes():
         """
-        Return the list of attribute (field) names for AttributeModel itself.
-        Subclasses get their own version injected in __init_subclass__.
+        Return list of (field_name, type_name) for BaseAttributeModel itself.
+        Subclasses receive the same format via __init_subclass__.
         """
-        return [k for k in BaseAttributeModel.model_fields.keys() if not k.startswith("_")]
+        items = []
+        for name, field in BaseAttributeModel.model_fields.items():
+            if name.startswith("_"):
+                continue
+            ann = getattr(field, "annotation", None)
+            type_str = getattr(ann, "__name__", str(ann))
+            items.append((name, type_str))
+        return items
 
     def clone(self, new_id: int = None, **kwargs) -> "BaseAttributeModel":
         """

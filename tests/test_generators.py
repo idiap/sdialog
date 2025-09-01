@@ -4,7 +4,7 @@ from sdialog.generators import DialogGenerator, PersonaDialogGenerator, LLMDialo
 from sdialog.generators import PersonaGenerator
 from sdialog.personas import BasePersona, Persona
 from sdialog.agents import Agent
-from sdialog import Dialog
+from sdialog import Dialog, Context
 
 
 MODEL = "smollm:135m"
@@ -220,3 +220,25 @@ def test_persona_dialog_generator_example_dialogs(monkeypatch):
     assert gen.example_dialogs[0] == example_dialog
     _ = gen()
     assert example_dialog.turns[0].text in gen.messages[0].content
+
+
+def test_persona_dialog_generator_with_context_in_constructor(monkeypatch):
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
+    ctx = Context(location="Cafe", goals=["Casual chat"])
+    persona_a = Persona(name="A")
+    persona_b = Persona(name="B")
+    gen = PersonaDialogGenerator(persona_a, persona_b, context=ctx)
+    dialog = gen()
+    assert "Cafe" in gen.dialogue_details
+    assert hasattr(dialog, "turns")
+
+
+def test_persona_dialog_generator_with_context_at_generate(monkeypatch):
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
+    ctx = Context(location="Library", goals=["Study"])
+    persona_a = Persona(name="A")
+    persona_b = Persona(name="B")
+    gen = PersonaDialogGenerator(persona_a, persona_b)
+    dialog = gen(context=ctx)
+    assert "Library" in gen.prompt()
+    assert hasattr(dialog, "turns")

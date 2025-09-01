@@ -15,12 +15,12 @@ import logging
 
 from tqdm.auto import tqdm
 from jinja2 import Template
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional
 from pydantic import BaseModel, ValidationError
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
-from . import Dialog, Turn
+from . import Dialog, Turn, Context
 from .agents import Agent
 from .config import config
 from .base import Metadata
@@ -54,6 +54,7 @@ class DialogGenerator:
     """
     def __init__(self,
                  dialogue_details: str,
+                 context: Optional[Union[str, Context]] = None,
                  example_dialogs: List['Dialog'] = None,
                  model: Union[BaseLanguageModel, str] = None,
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
@@ -65,6 +66,8 @@ class DialogGenerator:
 
         :param dialogue_details: Instructions or details for the dialogue.
         :type dialogue_details: str
+        :param context: The context for the dialogue (optional).
+        :type context: Optional[Union[str, Context]]
         :param example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
         :param model: The LLM or model name to use.
@@ -95,23 +98,29 @@ class DialogGenerator:
             self.system_prompt_template = Template(f.read())
 
         self._personas = personas
+        self.context = context
         self.example_dialogs = example_dialogs
         self.dialogue_details = dialogue_details
         self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.scenario = scenario
         self.messages = [SystemMessage(""), HumanMessage("")]
 
-    def _set_prompt(self, dialogue_details: str, example_dialogs: List['Dialog'] = None):
+    def _set_prompt(self,
+                    dialogue_details: str,
+                    context: Optional[Union[str, Context]] = None,
+                    example_dialogs: List['Dialog'] = None):
         """
         Sets the dialogue details and scenario for generation.
 
         :param dialogue_details: Instructions or details for the dialogue.
         :type dialogue_details: str
-        :param scenario: Scenario metadata.
-        :type scenario: dict
+        :param context: The context for the dialogue (optional).
+        :type context: Optional[Union[str, Context]]
+        :param example_dialogs: Optional list of example dialogues to guide the generation.
+        :type example_dialogs: List[Dialog]
         """
         # Load system message from prompt file
-        system_message = self.system_prompt_template.render(example_dialogs=example_dialogs)
+        system_message = self.system_prompt_template.render(example_dialogs=example_dialogs, context=context)
 
         self.messages[0].content = system_message
         self.messages[1].content = dialogue_details
@@ -127,6 +136,7 @@ class DialogGenerator:
 
     def generate(self,
                  dialogue_details: str = None,
+                 context: Optional[Union[str, Context]] = None,
                  example_dialogs: List[Dialog] = None,
                  seed: int = None,
                  id: int = None,
@@ -137,6 +147,8 @@ class DialogGenerator:
 
         :param dialogue_details: Instructions or details for the dialogue (to override the default).
         :type dialogue_details: str
+        :param context: The context for the dialogue (optional).
+        :type context: Optional[Union[str, Context]]
         :param example_dialogs: Optional list of example dialogues to guide the generation (to override the default).
         :type example_dialogs: List[Dialog]
         :param seed: Random seed for reproducibility.
@@ -150,7 +162,9 @@ class DialogGenerator:
         :return: The generated dialogue or output object.
         :rtype: Union[Dialog, dict, BaseModel]
         """
-        self._set_prompt(dialogue_details or self.dialogue_details, example_dialogs or self.example_dialogs)
+        self._set_prompt(dialogue_details or self.dialogue_details,
+                         context or self.context,
+                         example_dialogs or self.example_dialogs)
         seed = set_generator_seed(self, seed)
 
         dialogue = self.llm.invoke(self.messages)
@@ -192,6 +206,7 @@ class PersonaDialogGenerator(DialogGenerator):
     def __init__(self,
                  persona_a: Union[Persona, Agent],
                  persona_b: Union[Persona, Agent],
+                 context: Optional[Union[str, Context]] = None,
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
                  response_details: str = "",
@@ -205,7 +220,9 @@ class PersonaDialogGenerator(DialogGenerator):
         :type persona_a: Persona (or Agent)
         :param persona_b: The second persona.
         :type persona_b: Persona (or Agent)
-        :example_dialogs: Optional list of example dialogues to guide the generation.
+        :param context: The context for the dialogue (optional).
+        :type context: Optional[Union[str, Context]]
+        :param example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional dialogue instructions.
         :type dialogue_details: str
@@ -218,7 +235,6 @@ class PersonaDialogGenerator(DialogGenerator):
         :param **llm_kwargs: Additional keyword arguments for the LLM (overrides config).
         :type llm_kwargs: dict
         """
-
         if isinstance(persona_a, Agent) and isinstance(persona_b, Agent):
             self._agent_a = persona_a
             self._agent_b = persona_b
@@ -234,6 +250,7 @@ class PersonaDialogGenerator(DialogGenerator):
         dialogue_details = dialogue_details_template.render(
             persona_a=persona_a.prompt(),
             persona_b=persona_b.prompt(),
+            context=context,
             dialogue_details=dialogue_details,
             response_details=response_details
         )
@@ -249,6 +266,7 @@ class PersonaDialogGenerator(DialogGenerator):
                          **llm_kwargs)
 
     def generate(self,
+                 context: Optional[Union[str, Context]] = None,
                  example_dialogs: List[Dialog] = None,
                  seed: int = None,
                  id: int = None,
@@ -258,6 +276,8 @@ class PersonaDialogGenerator(DialogGenerator):
         """
         Generates a dialogue between two personas using the LLM or Agents.
 
+        :param context: The context for the dialogue (optional).
+        :type context: Optional[Union[str, Context]]
         :param example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
         :param seed: Random seed for reproducibility.
@@ -281,7 +301,8 @@ class PersonaDialogGenerator(DialogGenerator):
                                              notes=notes,
                                              parent_id=parent_id)
         else:
-            return super().generate(example_dialogs=example_dialogs,
+            return super().generate(context=context,
+                                    example_dialogs=example_dialogs,
                                     seed=seed,
                                     id=id,
                                     notes=notes,

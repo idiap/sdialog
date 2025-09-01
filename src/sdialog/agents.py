@@ -25,7 +25,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from .config import config
 from jinja2 import Template
 
-from . import Dialog, Turn, Event, Instruction
+from . import Dialog, Turn, Event, Instruction, Context
 from .personas import BasePersona, Persona
 from .orchestrators import BaseOrchestrator
 from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
@@ -52,6 +52,7 @@ class Agent:
                  name: Optional[str] = None,
                  model: Union[str, BaseLanguageModel] = None,
                  example_dialogs: Optional[List['Dialog']] = None,
+                 context: Optional[Union[str, Context]] = None,
                  dialogue_details: str = "",
                  response_details: str = ("Unless necessary, responses SHOULD be only one utterance long, and SHOULD "
                                           "NOT contain many questions or topics in one single turn."),
@@ -73,6 +74,8 @@ class Agent:
         :type model: Union[str, BaseLanguageModel], optional
         :param example_dialogs: List of example dialogues as a reference for the agent.
         :type example_dialogs: Optional[List[Dialog]]
+        :param context: The context for the agent (optional).
+        :type context: Optional[Union[str, Context]]
         :param dialogue_details: Additional details about the dialogue.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
@@ -92,6 +95,8 @@ class Agent:
         :param **llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
+        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+        llm_kwargs = {**llm_config_params, **llm_kwargs}
         if model is None:
             model = config["llm"]["model"]
         self.model_uri = model
@@ -101,22 +106,15 @@ class Agent:
 
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
-                system_prompt_template = Template(f.read())
-            system_prompt = system_prompt_template.render(
-                persona=persona.prompt(),
-                example_dialogs=example_dialogs,
-                dialogue_details=dialogue_details,
-                response_details=response_details,
-                can_finish=can_finish,
-                stop_word=self.STOP_WORD
-            )
+                self.system_prompt_template = Template(f.read())
+        self.context = context
+        self.example_dialogs = example_dialogs
+        self.dialogue_details = dialogue_details
+        self.response_details = response_details
+        self.can_finish = can_finish
 
-        llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
-        llm_kwargs = {**llm_config_params, **llm_kwargs}
         self.llm = get_llm_model(model_name=model, **llm_kwargs)
-
-        self.memory = [SystemMessage(system_prompt)]
-
+        self.memory = [SystemMessage("")]  # to be populated in reset()
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
         self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
@@ -134,6 +132,8 @@ class Agent:
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
                      f"using prompt from '{config['prompts']['persona_agent']}'.")
         logger.debug("Prompt: " + self.prompt())
+
+        self.reset()
 
     def __call__(self, utterance: str = "", return_events: bool = False) -> str:
         """
@@ -487,15 +487,27 @@ class Agent:
             data["persona"]["orchestrators"] = [orc.json() for orc in self.orchestrators]
         return json.dumps(data, indent=indent) if string else data
 
-    def reset(self, seed: int = None):
+    def reset(self, seed: int = None, context: Union[str, Context] = None, example_dialogs: List['Dialog'] = None):
         """
         Resets the agent's memory and orchestrators, optionally reseeding the LLM.
         Clears the interpretability state (utterance_list and representation_cache).
 
         :param seed: Random seed for reproducibility.
         :type seed: int
+        :param context: Optional context for the agent.
+        :type context: Union[str, Context]
         """
-        self.memory[:] = self.memory[:1]
+        system_prompt = self.system_prompt_template.render(
+            persona=self.persona.prompt(),
+            context=context or self.context,
+            example_dialogs=example_dialogs or self.example_dialogs,
+            dialogue_details=self.dialogue_details,
+            response_details=self.response_details,
+            can_finish=self.can_finish,
+            stop_word=self.STOP_WORD
+        )
+        self.memory[:] = self.memory[:1]  # Remove history
+        self.memory[0].content = system_prompt
         self.finished = False
         seed = set_generator_seed(self, seed)
 
@@ -508,6 +520,8 @@ class Agent:
 
     def dialog_with(self,
                     agent: "Agent",
+                    context: Union[str, Context] = None,
+                    example_dialogs: List['Dialog'] = None,
                     max_turns: int = 200,
                     id: int = None,
                     parent_id: int = None,
@@ -519,6 +533,10 @@ class Agent:
 
         :param agent: The other agent to converse with.
         :type agent: Agent
+        :param context: The context for the dialogue (optional).
+        :type context: Optional[Union[str, Context]]
+        :param example_dialogs: Example dialogues to guide the conversation (optional).
+        :type example_dialogs: Optional[List[Dialog]]
         :param max_turns: Maximum number of dialogue turns.
         :type max_turns: int
         :param id: Dialogue ID.
@@ -537,8 +555,8 @@ class Agent:
         seed = seed if seed is not None else random.getrandbits(32)
 
         random.seed(seed)
-        self.reset(seed)
-        agent.reset(seed)
+        self.reset(seed, context, example_dialogs)
+        agent.reset(seed, context, example_dialogs)
 
         dialog = []
         events = []
