@@ -509,3 +509,138 @@ class ExtendedDoctor(ExtendedPersona):
     years_of_experience: Union[int, str] = ""
     certifications: str = ""
     work_experience: str = ""
+
+
+class Customer(BasePersona):
+    """
+    Persona for a customer in a customer service interaction.
+
+    Identification / profile:
+    :ivar name: Customer name.
+    :ivar age: Customer age.
+    :ivar gender: Customer gender.
+    :ivar language: Preferred language.
+    :ivar customer_id: Internal customer identifier.
+    :ivar occupation: Customer occupation.
+
+    Loyalty / tenure:
+    :ivar account_tenure: How long (e.g., "2 years", "3 months") they have been a customer.
+    :ivar membership_level: Plan/tier (e.g., basic, premium, enterprise).
+    :ivar loyalty_status: Qualitative loyalty tier (loyal, at-risk, churn-risk, advocate).
+    :ivar fidelity_score: Numerical or descriptive fidelity/loyalty score.
+
+    Issue context:
+    :ivar issue: Short summary of the current problem (concise).
+    :ivar issue_category: High-level category (billing, technical, shipping, cancellation, feedback).
+    :ivar issue_description: Free-text detailed description of the issue.
+    :vartype issue_description: str
+    :ivar issue_history: Brief summary of prior related issues.
+    :ivar desired_outcome: What the customer wants resolved.
+
+    Knowledge / competence:
+    :ivar knowledge_domain: Domain knowledge area or level (novice, intermediate, expert, billing-savvy, etc.).
+    :ivar technical_expertise: (Deprecated overlap) Original field kept for backward compatibility.
+
+    Emotional / behavioral state:
+    :ivar sentiment: Overall emotional tone (angry, frustrated, neutral, positive, confused).
+    :ivar anger_level: Specific anger intensity (low, medium, high, escalating, etc.).
+    :ivar tiredness: Fatigue level affecting patience/comprehension.
+    :ivar patience_level: Patience (low, medium, high) or numeric score.
+    :ivar politeness: Politeness style (polite, curt, rude, formal, casual).
+    :ivar personality: Brief personality descriptor (assertive, analytical, anxious, etc.).
+    :ivar instruction_following: Tendency to follow step-by-step instructions (low, medium, high).
+    :ivar forgetfulness: Propensity to forget prior guidance (low, medium, high).
+
+    Contact / interaction history:
+    :ivar times_called: Number of prior contacts about this (or related) issue.
+    :ivar preferred_channel: Preferred support channel (chat, phone, email, portal).
+    :ivar prior_interactions_summary: Compressed summary of prior support contacts.
+
+    Meta:
+    :ivar urgency: Perceived urgency (low, medium, high, critical).
+    :ivar rules: Constraints or special handling notes.
+    """
+    # Identification / profile
+    name: str = ""
+    age: Union[int, str] = ""
+    gender: str = ""
+    language: str = "English"
+    customer_id: str = ""
+    occupation: str = ""
+
+    # Loyalty / tenure
+    account_tenure: str = ""
+    membership_level: str = ""
+    loyalty_status: str = ""
+    fidelity_score: Union[str, float, int] = ""
+
+    # Issue context
+    issue: str = ""
+    issue_category: str = ""
+    issue_description: str = ""
+    issue_history: str = ""
+    desired_outcome: str = ""
+
+    # Knowledge / competence
+    knowledge_domain: str = ""
+    technical_expertise: str = ""  # kept for backward compatibility
+
+    # Emotional / behavioral state
+    sentiment: str = ""
+    anger_level: str = ""
+    tiredness: str = ""
+    patience_level: str = ""
+    politeness: str = ""
+    personality: str = ""
+    instruction_following: str = ""
+    forgetfulness: str = ""
+
+    # Contact / interaction history
+    times_called: Union[int, str] = ""
+    preferred_channel: str = ""
+    prior_interactions_summary: str = ""
+
+    # Meta
+    urgency: str = ""
+    rules: str = ""
+
+
+class SupportAgent(BasePersona):
+    """
+    Persona for a customer service / support agent.
+
+    :ivar name: Agent name.
+    :ivar language: Working language.
+    :ivar agent_id: Internal agent identifier.
+    :ivar role: Role or queue (e.g., frontline, technical support, retention).
+    :ivar experience_years: Years (or range) of support experience.
+    :ivar product_scope: Products / domains the agent covers.
+    :ivar product_knowledge_level: Knowledge depth (basic, proficient, expert).
+    :ivar communication_style: Style (formal, friendly, concise, empathetic).
+    :ivar empathy_level: Empathy (low, medium, high) or descriptive phrase.
+    :ivar politeness: Politeness level descriptor.
+    :ivar resolution_authority_level: Authority to refund / replace / escalate (e.g., low, medium, high).
+    :ivar escalation_policy: Short description of escalation triggers.
+    :ivar average_handle_time: Typical AHT (e.g., "6m", "300s").
+    :ivar adherence_notes: Notes on process adherence or QA.
+    :ivar stress_tolerance: Stress handling descriptor.
+    :ivar performance_notes: KPIs summary.
+    :ivar rules: Internal rules / constraints / compliance reminders.
+    """
+    name: str = ""
+    language: str = "English"
+    agent_id: str = ""
+    role: str = "Customer Support Agent"
+    experience_years: str = ""
+    product_scope: str = ""
+    product_knowledge_level: str = ""
+    communication_style: str = ""
+    empathy_level: str = ""
+    politeness: str = ""
+    resolution_authority_level: str = ""
+    escalation_policy: str = ""
+    average_handle_time: str = ""
+    adherence_notes: str = ""
+    stress_tolerance: str = ""
+    performance_notes: str = ""
+    rules: str = ""
