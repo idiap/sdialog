@@ -695,10 +695,8 @@ class Context(BaseAttributeModel):
     # Objects
     objects: Optional[Union[str, List[str]]] = None
 
-    # Participants & relations
-    participants: Optional[Union[str, List[str]]] = None
-    relationships: Optional[Union[str, List[str]]] = None
-    shared_knowledge: Optional[str] = None
+    # Participants shared knowledge
+    participants_shared_knowledge: Optional[str] = None
 
     # Intent / constraints
     circumstances: Optional[Union[str, List[str]]] = None

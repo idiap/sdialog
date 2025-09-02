@@ -40,7 +40,7 @@ class LLMDialogOutput(BaseModel):
     dialog: List[Turn]
 
 
-class AttributeObject(BasePersona):
+class AttributeObject(BaseAttributeModel):
     placeholder: str = None
 
 
@@ -51,7 +51,6 @@ class ListOfAttributeObjects(BaseModel):
 _objects_schema = ListOfAttributeObjects.model_json_schema()
 
 
-# TODO: create a BaseDialogGenerator
 class DialogGenerator:
     """
     Base class for generating synthetic dialogues using an LLM.
@@ -533,19 +532,15 @@ class BaseAttributeModelGenerator:
                     template = Template(self.llm_prompt_n)
                     prompt = template.render(
                         objects=json.dumps(random_objects_dict, indent=2),
-                        personas=json.dumps(random_objects_dict, indent=2),  # compatibility
-                        attribute_model_class_name=type(self._attribute_model).__name__,
-                        persona_class_name=type(self._attribute_model).__name__,  # compatibility
+                        class_name=type(self._attribute_model).__name__,
                         attributes_instructions=llm_attribute_instructions_txt,
-                        n_personas=n
+                        n=n
                     )
                 else:
                     template = Template(self.llm_prompt)
                     prompt = template.render(
                         object=json.dumps(random_objects_dict[0], indent=2),
-                        persona=json.dumps(random_objects_dict[0], indent=2),  # compatibility
-                        attribute_model_class_name=type(self._attribute_model).__name__,
-                        persona_class_name=type(self._attribute_model).__name__,  # compatibility
+                        class_name=type(self._attribute_model).__name__,
                         attributes_instructions=llm_attribute_instructions_txt
                     )
 
@@ -693,6 +688,36 @@ class PersonaGenerator(BaseAttributeModelGenerator):
         with open(config["prompts"]["persona_generator_n"], encoding="utf-8") as f:
             llm_prompt_n = f.read()
         super().__init__(attribute_model=persona_instance,
+                         generated_attributes=generated_attributes,
+                         model=model,
+                         system_prompt=system_prompt,
+                         llm_prompt=llm_prompt,
+                         llm_prompt_n=llm_prompt_n,
+                         **llm_kwargs)
+
+
+class ContextGenerator(BaseAttributeModelGenerator):
+    """
+    Generates Context objects with randomized or LLM-populated attributes.
+    """
+    def __init__(self,
+                 context: Context,
+                 generated_attributes: str = "all",
+                 model: str = None,
+                 **llm_kwargs):
+        if isinstance(context, type) and issubclass(context, Context):
+            context = context()
+        elif not isinstance(context, Context):
+            raise ValueError("context must be a `Context` instance or subclass.")
+        system_prompt = (
+            "You are an expert at generating shared dialogue context as well-structured JSON objects "
+            "for synthetic dialogue generation."
+        )
+        with open(config["prompts"]["context_generator"], encoding="utf-8") as f:
+            llm_prompt = f.read()
+        with open(config["prompts"]["context_generator_n"], encoding="utf-8") as f:
+            llm_prompt_n = f.read()
+        super().__init__(attribute_model=context,
                          generated_attributes=generated_attributes,
                          model=model,
                          system_prompt=system_prompt,

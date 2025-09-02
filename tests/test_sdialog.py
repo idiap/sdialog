@@ -214,10 +214,10 @@ def test_context_initialization():
 
 
 def test_context_print(capsys):
-    ctx = Context(location="Lab", participants=["Alice", "Bob"])
+    ctx = Context(location="Lab", goals=["Study"])
     ctx.print()
     out = capsys.readouterr().out
     assert "Context" in out
     assert "location" in out.lower()
     assert "Lab" in out
-    assert "Alice" in out and "Bob" in out
+    assert "Study" in out

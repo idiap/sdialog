@@ -5,6 +5,7 @@ from sdialog.generators import PersonaGenerator
 from sdialog.personas import BasePersona, Persona
 from sdialog.agents import Agent
 from sdialog import Dialog, Context
+from sdialog.generators import ContextGenerator  # added
 
 
 MODEL = "smollm:135m"
@@ -65,6 +66,26 @@ class DummyPersonaLLM:
                 "city": "Unknown",
                 "hobby": "Reading",
                 "occupation": "Engineer"}
+
+    def __str__(self):
+        return "dummy"
+
+
+# Patch LLM for ContextGenerator
+class DummyContextLLM:
+    seed = 0
+    num_predict = 1
+    temperature = None
+
+    def __init__(self, *a, **kw):
+        pass
+
+    def with_structured_output(self, output_format):
+        return self
+
+    def invoke(self, memory):
+        # Assumes Context model has at least location and goals
+        return {"location": "Office", "goals": ["Small talk"]}
 
     def __str__(self):
         return "dummy"
@@ -242,3 +263,32 @@ def test_persona_dialog_generator_with_context_at_generate(monkeypatch):
     dialog = gen(context=ctx)
     assert "Library" in gen.prompt()
     assert hasattr(dialog, "turns")
+
+
+def test_context_generator_basic(monkeypatch):
+    """
+    Verify that ContextGenerator generates a Context object via structured LLM output.
+    """
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
+    ctx = Context(location="Library", goals=["Study"])
+    gen = ContextGenerator(context=ctx)
+    ctx = gen.generate()
+    assert ctx.location == "Library"
+    assert isinstance(ctx.goals, list)
+
+
+def test_context_generator_attribute_overrides(monkeypatch):
+    """
+    Verify that set_attribute_generators works (list / LLM delegation) and fills values.
+    """
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
+    ctx = Context()
+    gen = ContextGenerator(context=ctx)
+    gen.set_attribute_generators(
+        location=["Cafe", "Library"],
+        # Delegate goals to LLM ("*" means fill via LLM) so DummyContextLLM sets it
+        goals="*"
+    )
+    ctx = gen.generate()
+    assert ctx.location in ["Cafe", "Library"]
+    assert isinstance(ctx.goals, list) and len(ctx.goals) > 0
