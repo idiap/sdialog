@@ -23,8 +23,8 @@ from langchain_core.language_models.base import BaseLanguageModel
 from . import Dialog, Turn, Context
 from .agents import Agent
 from .config import config
-from .base import Metadata
 from .personas import BasePersona, Persona
+from .base import Metadata, BaseAttributeModel
 from .util import get_llm_model, set_generator_seed, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
 
 logger = logging.getLogger(__name__)
@@ -40,11 +40,15 @@ class LLMDialogOutput(BaseModel):
     dialog: List[Turn]
 
 
-class ListOfPersonas(BaseModel):
-    personas: List[Persona]
+class AttributeObject(BasePersona):
+    placeholder: str = None
 
 
-_personas_schema = ListOfPersonas.model_json_schema()
+class ListOfAttributeObjects(BaseModel):
+    objects: List[AttributeObject]
+
+
+_objects_schema = ListOfAttributeObjects.model_json_schema()
 
 
 # TODO: create a BaseDialogGenerator
@@ -311,66 +315,51 @@ class PersonaDialogGenerator(DialogGenerator):
     __call__ = generate  # alias for generate method
 
 
-class PersonaGenerator:
+class BaseAttributeModelGenerator:
     """
-    Generates persona objects with randomized or LLM-populated attributes.
-
-    :param persona: An instance of a subclass of `BasePersona` to generate personas from.
-    :type persona: BasePersona
-    :param generated_attributes: Specifies which attributes to fill by default. Can be "all", a list of attribute names, or None. Defaults to "all".
-    :type generated_attributes: str, list, or dict, optional
-    :param model: The default language model to use for attribute population via LLM.
-    :type model: str, optional
-
-    :raises ValueError: If specified attributes do not exist in the persona or if required files for templates are missing.
-
-    :example:
-        generator = PersonaGenerator(Doctor)
-        persona_instance = generator.generate()
-    """  # noqa: E501
-
+    Generates BaseAttributeModel (or subclass) instances with randomized or LLM-populated attributes.
+    """
     def __init__(self,
-                 persona: BasePersona,
-                 generated_attributes: str = "all",  # None
+                 attribute_model: BaseAttributeModel,
+                 generated_attributes: str = "all",
                  model: str = None,
+                 system_prompt: str = None,
+                 llm_prompt: str = None,
+                 llm_prompt_n: str = None,
                  **llm_kwargs):
-        if isinstance(persona, BasePersona):
-            self._persona = persona
-        elif isinstance(persona, type) and issubclass(persona, BasePersona):
-            self._persona = persona()
+        if isinstance(attribute_model, BaseAttributeModel):
+            self._attribute_model = attribute_model
+        elif isinstance(attribute_model, type) and issubclass(attribute_model, BaseAttributeModel):
+            self._attribute_model = attribute_model()
 
         if isinstance(generated_attributes, (list, dict)):
             self._check_attributes(generated_attributes)
 
-        self._persona_rnd_attributes = generated_attributes if isinstance(generated_attributes, dict) else {}
-
+        self._rnd_attributes = generated_attributes if isinstance(generated_attributes, dict) else {}
         self.generated_attributes = generated_attributes
         self.llm_model = model if model is not None else config["llm"]["model"]
         self.llm_kwargs = llm_kwargs
+        self.system_prompt = system_prompt or ("You are an expert at generating structured JSON objects "
+                                               "for synthetic dialogue workflows.")
+        self.llm_prompt = llm_prompt
+        self.llm_prompt_n = llm_prompt_n
 
-        # Load persona generation prompt template from file if not provided
-        with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
-            self.llm_prompt = f.read()
-        with open(config["prompts"]["persona_generator_n"], encoding="utf-8") as f:
-            self.llm_prompt_n = f.read()
-
-    def _check_attributes(self, persona_attributes):
+    def _check_attributes(self, attribute_keys):
         """
-        Validate that provided attribute keys exist in the persona.
+        Validate that provided attribute keys exist in the target model instance.
 
         :param persona_attributes: Iterable of attribute keys to check.
         :raises ValueError: If any attribute is not found in the persona.
         """
-        for key in persona_attributes:
-            if key not in self._persona.__dict__:
+        for key in attribute_keys:
+            if key not in self._attribute_model.__dict__:
                 raise ValueError(f"Default attribute '{key}' not found in "
-                                 f"persona class '{type(self._persona).__name__}'. "
-                                 "Expected attributes are: "
-                                 f"{list(self._persona.__dict__.keys())}.")
+                                 f"class '{type(self._attribute_model).__name__}'. "
+                                 f"Expected attributes are: {list(self._attribute_model.__dict__.keys())}.")
 
     def _extract_field_descriptions(self, schema, target_attributes=None):
         """
-        Extract field descriptions from the persona's JSON schema.
+        Extract field descriptions from the model JSON schema.
 
         :param schema: The JSON schema dictionary
         :param target_attributes: Optional set of attribute names to filter descriptions
@@ -381,15 +370,15 @@ class PersonaGenerator:
 
         for field_name, field_schema in properties.items():
             if target_attributes is None or field_name in target_attributes:
-                description = field_schema.get("description")
-                if description:
-                    descriptions[field_name] = description
+                d = field_schema.get("description")
+                if d:
+                    descriptions[field_name] = d
 
         return descriptions
 
     def prompt(self) -> str:
         """
-        Returns the prompt used for generating personas.
+        Returns the single-object prompt template text.
 
         :return: The prompt string.
         :rtype: str
@@ -398,26 +387,23 @@ class PersonaGenerator:
 
     def set_attribute_generators(self, **attributes):
         """
-        Set attributes to be randomly generated for the persona.
+        Set per-attribute randomization specifications.
 
-        Each keyword argument specifies an attribute name and its randomization specification. The value for each attribute can be one of the following:
-
-        - "*": The attribute will be filled by the default value (ie. by the LLM).
-        - A function: The function will be called to generate the value.
-        - A list: A random element will be selected from the list.
-        - A fixed value: The attribute will always be set to this value.
-        - A template string: Use double curly braces to specify a template, e.g., "{{VALUE}}". Supported template formats include:
-            - "{{min-max}}": A random integer in the range [min, max] will be selected.
-            - "{{txt:PATH}}": A random line will be selected from the text file at PATH.
-            - "{{csv:COLUMN:PATH}}": A random value will be selected from the COLUMN column in the CSV file at PATH.
-            - "{{llm}}: A random value will be generated by the LLM based on the persona context.
-            - "{{llm:INSTRUCTION}}: A random value will be generated by the LLM based on the persona context by following the provided INSTRUCTION.
-
-        :param attributes: Keyword arguments of attribute names and values to set.
-        :raises ValueError: If any attribute is not found in the persona.
-        """  # noqa: E501
+        Rules per value:
+            "*": Fill via LLM.
+            callable: Invoke (optionally with current partial object as kwargs).
+            list: Random element.
+            fixed value: Assigned directly.
+            templated string "{{...}}":
+                "{{min-max}}": Random int in [min,max].
+                "{{txt:PATH}}": Random non-empty line from PATH.
+                "{{csv:COLUMN:PATH}}": Random value from COLUMN in CSV (or TSV if 'tsv:' used).
+                "{{tsv:COLUMN:PATH}}": Same as above for TSV.
+                "{{llm}}": Defer to LLM.
+                "{{llm:INSTRUCTION}}": Defer to LLM with instruction.
+        """
         self._check_attributes(attributes)
-        self._persona_rnd_attributes = attributes
+        self._rnd_attributes = attributes
 
     def generate(self,
                  n: int = 1,
@@ -426,9 +412,9 @@ class PersonaGenerator:
                  id: int = None,
                  parent_id: int = None,
                  notes: str = None,
-                 max_attempts: int = 3) -> BasePersona:
+                 max_attempts: int = 3) -> BaseAttributeModel:
         """
-        Generate a persona instance with attributes filled by random selection, templates, or LLM as needed.
+        Generate one or many model instances with attributes filled by random rules, templates, or LLM.
 
         :param n: Number of personas to generate (default: 1).
         :type n: int, optional
@@ -451,260 +437,268 @@ class PersonaGenerator:
         seed = seed if seed is not None else random.getrandbits(32)
         random.seed(seed)
 
-        output_persona = None
-        random_personas_dict = [{} for _ in range(n)]
-        target_persona_dict = self._persona.__dict__
+        output_object = None
+        random_objects_dict = [{} for _ in range(n)]
+        target_model_dict = self._attribute_model.__dict__
 
         for attempt in range(max_attempts):
-            for random_persona_dict in random_personas_dict:
+            for random_object_dict in random_objects_dict:
                 llm_attribute_instructions_txt = ""
                 llm_attribute_instructions = {}
 
-                for key, value in target_persona_dict.items():
+                for key, value in target_model_dict.items():
                     if value or value == 0:
-                        random_persona_dict[key] = value  # keep the default value
-                    elif key in self._persona_rnd_attributes:
-                        rnd_value = self._persona_rnd_attributes[key]
-                        if callable(rnd_value) and key in self._persona_rnd_attributes:
-                            random_persona_dict[key] = rnd_value  # a callable
-                        elif isinstance(rnd_value, list) and key in self._persona_rnd_attributes:
-                            random_persona_dict[key] = random.choice(rnd_value)
-                        elif isinstance(rnd_value, str) and rnd_value and key in self._persona_rnd_attributes:
-                            if rnd_value == "*":
-                                random_persona_dict[key] = None  # to be filled by the LLM
-                            elif rnd_value.startswith("{") and rnd_value.endswith("}"):  # templates
-                                # TODO: Shall we also have pre-devined lists for name and other attributes
-                                #       and then have temples like {{name}} to use them?
-                                rnd_value = rnd_value.strip("{}")  # remove outer curly braces
-                                m_range = re.match(r"(\d+)-(\d+)", rnd_value)  # match {{min-max}}
-                                m_txt = re.match(r"txt:(.+)", rnd_value)  # path to txt file (one line per rnd_value)
-                                m_csv = re.match(r"csv:([^:]+):(.+)", rnd_value)  # path to csv file (+column name)
-                                m_tsv = re.match(r"tsv:([^:]+):(.+)", rnd_value)  # path to tsv file (+column name)
-                                m_llm = re.match(r"llm(:.+)?", rnd_value)  # LLM template with optional instruction
+                        random_object_dict[key] = value
+                    elif key in self._rnd_attributes:
+                        spec = self._rnd_attributes[key]
+                        if callable(spec):
+                            random_object_dict[key] = spec
+                        elif isinstance(spec, list):
+                            random_object_dict[key] = random.choice(spec)
+                        elif isinstance(spec, str) and spec:
+                            if spec == "*":
+                                random_object_dict[key] = None
+                            elif spec.startswith("{") and spec.endswith("}"):
+                                spec_inner = spec.strip("{}")
+                                m_range = re.match(r"(\d+)-(\d+)", spec_inner)
+                                m_txt = re.match(r"txt:(.+)", spec_inner)
+                                m_csv = re.match(r"csv:([^:]+):(.+)", spec_inner)
+                                m_tsv = re.match(r"tsv:([^:]+):(.+)", spec_inner)
+                                m_llm = re.match(r"llm(:.+)?", spec_inner)
                                 if m_range:
-                                    min_len, max_len = int(m_range.group(1)), int(m_range.group(2))
-                                    random_persona_dict[key] = random.randint(min_len, max_len)
+                                    a, b = int(m_range.group(1)), int(m_range.group(2))
+                                    random_object_dict[key] = random.randint(a, b)
                                 elif m_txt:
-                                    txt_path = m_txt.group(1)
+                                    path = m_txt.group(1)
                                     try:
-                                        with open(txt_path) as f:
-                                            lines = [ln for ln in f.readlines() if ln.strip()]
-                                        random_persona_dict[key] = random.choice(lines).strip()
+                                        with open(path) as f:
+                                            lines = [ln for ln in f if ln.strip()]
+                                        random_object_dict[key] = random.choice(lines).strip()
                                     except FileNotFoundError:
-                                        raise ValueError(f"File '{txt_path}' not found for '{rnd_value}' attribute.")
+                                        raise ValueError(f"File '{path}' not found for template '{spec}'.")
                                 elif m_csv or m_tsv:
                                     m_csv = m_csv or m_tsv
-                                    csv_column, csv_path = m_csv.group(1), m_csv.group(2)
-                                    csv_column = int(csv_column) if csv_column.isdigit() else csv_column
+                                    col, path = m_csv.group(1), m_csv.group(2)
+                                    col = int(col) if col.isdigit() else col
                                     try:
-                                        with open(csv_path, newline='', encoding="utf-8") as csvfile:
-                                            if isinstance(csv_column, int):
-                                                reader = csv.reader(csvfile, delimiter='\t' if m_tsv else ',')
-                                                values = [row[csv_column] for row in reader if row[csv_column]]
+                                        with open(path, newline='', encoding="utf-8") as csvfile:
+                                            delim = '\t' if m_tsv else ','
+                                            if isinstance(col, int):
+                                                reader = csv.reader(csvfile, delimiter=delim)
+                                                values = [row[col] for row in reader if row[col]]
                                             else:
-                                                reader = csv.DictReader(csvfile, delimiter='\t' if m_tsv else ',')
-                                                if csv_column not in reader.fieldnames:
-                                                    raise ValueError(
-                                                        f"Column '{csv_column}' not found in CSV file '{csv_path}'."
-                                                    )
-                                                values = [row[csv_column] for row in reader if row[csv_column]]
-                                        random_persona_dict[key] = random.choice(values)
+                                                reader = csv.DictReader(csvfile, delimiter=delim)
+                                                if col not in reader.fieldnames:
+                                                    raise ValueError(f"Column '{col}' not found in '{path}'.")
+                                                values = [row[col] for row in reader if row[col]]
+                                        random_object_dict[key] = random.choice(values)
                                     except FileNotFoundError:
-                                        raise ValueError(f"File '{csv_path}' not found for '{rnd_value}' attribute.")
+                                        raise ValueError(f"File '{path}' not found for template '{spec}'.")
                                 elif m_llm:
-                                    random_persona_dict[key] = None  # to be filled by the LLM
-
-                                    instruction = m_llm.group(1)[1:] if m_llm.group(1) else None
-                                    if instruction:
-                                        llm_attribute_instructions[key] = instruction
-
-                                # elif rnd_value == "{{name}}":
-                                #     random_persona_dict[key] = get_name(seed=seed)  # get name from pre-defined list
+                                    random_object_dict[key] = None
+                                    instr = m_llm.group(1)[1:] if m_llm.group(1) else None
+                                    if instr:
+                                        llm_attribute_instructions[key] = instr
                             else:
-                                random_persona_dict[key] = rnd_value
-                    elif self.generated_attributes and (
-                        self.generated_attributes == "all" or key in self.generated_attributes
-                    ):
-                        random_persona_dict[key] = None  # to be filled by the LLM
+                                random_object_dict[key] = spec
+                    elif self.generated_attributes and (self.generated_attributes == "all"
+                                                        or key in self.generated_attributes):
+                        random_object_dict[key] = None
 
-                for key, value in random_persona_dict.items():
+                for key, value in list(random_object_dict.items()):
                     if callable(value):
                         try:
-                            random_persona_dict[key] = value(**random_persona_dict)
+                            random_object_dict[key] = value(**random_object_dict)
                         except TypeError:
-                            random_persona_dict[key] = value()  # in case user-proved function has no arguments
+                            random_object_dict[key] = value()
 
             llm = None
-            # If there are None value, we need to fill them using the LLM
-            if any(value is None for value in random_persona_dict.values()):
-                schema = self._persona.model_json_schema()
-                null_attributes = {k for k, v in random_persona_dict.items() if v is None}
-                field_descriptions = self._extract_field_descriptions(schema, null_attributes)
+            if any(v is None for v in random_objects_dict[0].values()):
+                schema = self._attribute_model.model_json_schema()
+                null_attrs = {k for k, v in random_objects_dict[0].items() if v is None}
+                field_desc = self._extract_field_descriptions(schema, null_attrs)
 
-                if llm_attribute_instructions or field_descriptions:
-                    for k, v in field_descriptions.items():
+                if field_desc or (n == 1 and null_attrs):
+                    for k, v in field_desc.items():
                         if k not in llm_attribute_instructions:
                             llm_attribute_instructions[k] = v
-                    llm_attribute_instructions_txt = ("Consider the following instructions for filling "
-                                                      "the following attributes:\n")
-                    llm_attribute_instructions_txt += "\n".join(
-                        [f"* {k}: {v}." for k, v in llm_attribute_instructions.items()]
-                    )
+                    if llm_attribute_instructions:
+                        llm_attribute_instructions_txt = ("Consider the following instructions for filling "
+                                                          "the following attributes:\n")
+                        llm_attribute_instructions_txt += "\n".join(
+                            f"* {k}: {v}." for k, v in llm_attribute_instructions.items()
+                        )
 
                 if n > 1:
                     template = Template(self.llm_prompt_n)
                     prompt = template.render(
-                        personas=json.dumps(random_personas_dict, indent=2),
-                        persona_class_name=str(type(self._persona).__name__),
+                        objects=json.dumps(random_objects_dict, indent=2),
+                        personas=json.dumps(random_objects_dict, indent=2),  # compatibility
+                        attribute_model_class_name=type(self._attribute_model).__name__,
+                        persona_class_name=type(self._attribute_model).__name__,  # compatibility
                         attributes_instructions=llm_attribute_instructions_txt,
                         n_personas=n
                     )
                 else:
                     template = Template(self.llm_prompt)
                     prompt = template.render(
-                        persona=json.dumps(random_persona_dict, indent=2),
-                        persona_class_name=str(type(self._persona).__name__),
+                        object=json.dumps(random_objects_dict[0], indent=2),
+                        persona=json.dumps(random_objects_dict[0], indent=2),  # compatibility
+                        attribute_model_class_name=type(self._attribute_model).__name__,
+                        persona_class_name=type(self._attribute_model).__name__,  # compatibility
                         attributes_instructions=llm_attribute_instructions_txt
                     )
 
-                schema = self._persona.model_json_schema()
+                schema = self._attribute_model.model_json_schema()
                 filtered_properties = schema
                 if n > 1:
                     if is_ollama_model_name(self.llm_model):
                         schema["type"] = "array"
                     else:
-                        schema = _personas_schema.copy()
-                        filtered_properties = list(schema["$defs"].values())[0]
-                # Filter properties to only make the LLM to output the attributes that are required
+                        filtered_properties = list(_objects_schema["$defs"].values())[0]
+                        filtered_properties["properties"] = schema["properties"]
+                        schema = _objects_schema
                 filtered_properties["properties"] = {
-                    k: v
-                    for k, v in filtered_properties["properties"].items()
-                    if k in random_persona_dict
+                    k: v for k, v in filtered_properties["properties"].items()
+                    if k in random_objects_dict[0]
                 }
-                # Collect LLM parameters from config, only if not None
+
                 llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
                 llm_kwargs = {**llm_config_params, **self.llm_kwargs}
                 llm_kwargs = set_ollama_model_defaults(self.llm_model, llm_kwargs)
-                # temperature from function argument overrides config
                 if temperature is not None:
                     llm_kwargs["temperature"] = temperature
-                llm_kwargs["seed"] = seed + attempt  # to ensure different seed for each attempt
-                # llm_kwargs from __init__ override config
+                llm_kwargs["seed"] = seed + attempt
 
                 llm = get_llm_model(model_name=self.llm_model,
                                     output_format=schema,
                                     **llm_kwargs)
 
-                messages = [
-                    SystemMessage("You are an expert at generating persona JSON objects "
-                                  "for synthetic dialogue generation."),
-                    HumanMessage(prompt)
-                ]
+                messages = [SystemMessage(self.system_prompt), HumanMessage(prompt)]
 
                 if n > 1:
                     for ix in range(max_attempts):
                         llm_output = llm.invoke(messages)
                         if not is_ollama_model_name(self.llm_model):
-                            llm_output = llm_output["personas"]
-
-                        if type(llm_output) is list:
+                            llm_output = llm_output["objects"]
+                        if isinstance(llm_output, list):
                             break
-                        else:
-                            logger.warning(
-                                f"LLM output is not a list, retrying ((attempt {ix + 1} out of {max_attempts}))..."
-                            )
-
-                    if type(llm_output) is list:
-                        llm_output = llm_output[:n]  # Limit to n personas
+                        logger.warning("LLM output is not a list, retrying "
+                                       f"((attempt {ix + 1} out of {max_attempts}))...")
+                    if isinstance(llm_output, list):
+                        llm_output = llm_output[:n]
                         for ix in range(len(llm_output)):
                             llm_output[ix] = {
                                 k: llm_output[ix].get(k, None) if v is None else v
-                                for k, v in random_personas_dict[ix].items()
+                                for k, v in random_objects_dict[ix].items()
                             }
                     else:
-                        logging.error("LLM failed to generate a list of personas, all attributes will be left empty.")
+                        logging.error("LLM failed to generate a list; attributes left empty.")
                         llm_output = []
                 else:
                     llm_output = llm.invoke(messages)
-                    random_persona_dict.update({k: v
-                                                for k, v in llm_output.items()
-                                                if random_persona_dict[k] is None})
+                    random_objects_dict[0].update({
+                        k: v for k, v in llm_output.items() if random_objects_dict[0][k] is None
+                    })
 
             if n > 1:
-                personas = []
-                for ix, persona_dict in enumerate(random_personas_dict):
-                    persona_dict = llm_output[ix] if ix < len(llm_output) else persona_dict
+                instances = []
+                for ix, object_dict in enumerate(random_objects_dict):
+                    object_dict = llm_output[ix] if ix < len(llm_output) else object_dict
                     try:
-                        personas.append(self._persona.model_validate(persona_dict))
-                        personas[-1]._metadata = Metadata(
-                            model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
+                        instances.append(self._attribute_model.model_validate(object_dict))
+                        instances[-1]._metadata = Metadata(
+                            model=str(self.llm_model) if llm else None,
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
-                            className=type(self._persona).__name__,
+                            className=type(self._attribute_model).__name__,
                             notes=notes
                         )
                     except ValidationError as e:
-                        logger.warning(f"Validation error in generated persona {ix + 1}: {e}")
-                        persona_dict = {k: v if v or v == 0
-                                        else (persona_dict[k]
-                                              if k in persona_dict and persona_dict[k] is not None
-                                              else v)
-                                        for k, v in self._persona.model_dump().items()}
-                        personas.append(self._persona.model_validate(persona_dict))
-                        personas[-1]._metadata = Metadata(
-                            model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
+                        logger.warning(f"Validation error in generated object {ix + 1}: {e}")
+                        object_dict = {
+                            k: v if v or v == 0 else (
+                                object_dict[k] if k in object_dict and object_dict[k] is not None else v
+                            )
+                            for k, v in self._attribute_model.model_dump().items()
+                        }
+                        instances.append(self._attribute_model.model_validate(object_dict))
+                        instances[-1]._metadata = Metadata(
+                            model=str(self.llm_model) if llm else None,
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
-                            className=type(self._persona).__name__,
+                            className=type(self._attribute_model).__name__,
                             notes=notes
                         )
-                if len(personas) != n:
-                    logger.warning(f"Only {len(personas)} personas out of {n} were generated fully. "
-                                   "Returning the generated personas anyway.")
-                return personas
+                if len(instances) != n:
+                    logger.warning(f"Only {len(instances)} objects out of {n} were fully generated.")
+                return instances
             else:
                 try:
-                    if any(value in [None, "", "null"] for value in random_persona_dict.values()):
+                    if any(v in [None, "", "null"] for v in random_objects_dict[0].values()):
                         raise ValidationError([], [])
-                    output_persona = self._persona.model_validate(random_persona_dict)
+                    output_object = self._attribute_model.model_validate(random_objects_dict[0])
                     break
                 except ValidationError:
                     missing_attributes = {
-                        k: v for k, v in self._persona.model_dump().items()
-                        if k not in random_persona_dict or random_persona_dict[k] in [None, "", "null"]
+                        k: v for k, v in self._attribute_model.model_dump().items()
+                        if k not in random_objects_dict[0] or random_objects_dict[0][k] in [None, "", "null"]
                     }
                     logger.warning(
-                        f"The following {len(missing_attributes)} attributes are missing in the "
-                        f"generated persona: {', '.join(missing_attributes.keys())}. "
-                        f"Trying to fill the missing attributes again (attempt {attempt + 1} out of {max_attempts})..."
+                        f"The following {len(missing_attributes)} attributes are missing: "
+                        f"{', '.join(missing_attributes.keys())}. "
+                        f"Retrying (attempt {attempt + 1} of {max_attempts})..."
                     )
+                    target_model_dict = {
+                        k: v if k in missing_attributes else random_objects_dict[0][k]
+                        for k, v in target_model_dict.items()
+                    }
 
-                    target_persona_dict = {k: v if k in missing_attributes else random_persona_dict[k]
-                                           for k, v in target_persona_dict.items()}
+        if output_object is None:
+            logger.warning("Generated object still has missing attributes after max attempts.")
+            random_objects_dict[0].update(missing_attributes)
+            output_object = self._attribute_model.model_validate(random_objects_dict[0])
 
-        # If we ran out of attempts and still have missing attributes...
-        # we return a persona with missing attributes filled with default null values
-        if output_persona is None:
-            logger.warning(
-                f"The generated persona is missing the following {len(missing_attributes)} attributes: "
-                f"{', '.join(missing_attributes.keys())}."
-            )
-            random_persona_dict.update(missing_attributes)
-            output_persona = self._persona.model_validate(random_persona_dict)
-
-        # Adding metadata to the generated persona
-        # TODO: shall we also add generator parameters? (e.g. self._persona_rnd_attributes, self.default_*)
-        output_persona._metadata = Metadata(
-            model=str(self.llm_model) if llm else None,  # TODO: improve by adding llm params str(llm)
+        output_object._metadata = Metadata(
+            model=str(self.llm_model) if llm else None,
             seed=seed,
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,
-            className=type(self._persona).__name__,
+            className=type(self._attribute_model).__name__,
             notes=notes
         )
-        return output_persona
+        return output_object
+
+
+class PersonaGenerator(BaseAttributeModelGenerator):
+    """
+    Generates persona objects (Persona subclasses of BaseAttributeModel) with randomized or LLM-populated attributes.
+    """
+    def __init__(self,
+                 persona: BasePersona,
+                 generated_attributes: str = "all",
+                 model: str = None,
+                 **llm_kwargs):
+        if isinstance(persona, BasePersona):
+            persona_instance = persona
+        elif isinstance(persona, type) and issubclass(persona, BasePersona):
+            persona_instance = persona()
+        else:
+            raise ValueError("persona must be a BasePersona instance or subclass.")
+        system_prompt = "You are an expert at generating persona JSON objects for synthetic dialogue generation."
+        with open(config["prompts"]["persona_generator"], encoding="utf-8") as f:
+            llm_prompt = f.read()
+        with open(config["prompts"]["persona_generator_n"], encoding="utf-8") as f:
+            llm_prompt_n = f.read()
+        super().__init__(attribute_model=persona_instance,
+                         generated_attributes=generated_attributes,
+                         model=model,
+                         system_prompt=system_prompt,
+                         llm_prompt=llm_prompt,
+                         llm_prompt_n=llm_prompt_n,
+                         **llm_kwargs)
 
 
 class Paraphraser:

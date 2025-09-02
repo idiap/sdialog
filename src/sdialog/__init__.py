@@ -683,13 +683,7 @@ class Instruction(BaseModel):
 
 class Context(BaseAttributeModel):
     """
-    Dialogue-shared context (simplified).
-    Merged fields:
-      - weather, lighting, emotional_atmosphere, safety_hazards -> environment dict
-      - rules, time_pressure -> constraints (append as strings)
-      - topics_allowed / topics_avoid -> topics{'allowed':[],'avoid':[]}
-    Removed redundant:
-      - version, timeframe
+    Dialogue-shared context class.
     """
     # Time / place
     location: Optional[str] = None
