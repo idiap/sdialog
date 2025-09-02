@@ -173,10 +173,11 @@ class BaseAttributeModel(BaseModel, ABC):
         """
         return self.description()
 
-    def print(self, object_name: str = "Object"):
+    def print(self):
         """
         Pretty-prints the object, including its metadata information.
         """
+        object_name = self.__class__.__name__
         if hasattr(self, "_metadata") and self._metadata is not None:
             for key, value in self._metadata.model_dump().items():
                 if value not in [None, ""]:

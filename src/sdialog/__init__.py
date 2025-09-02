@@ -710,12 +710,6 @@ class Context(BaseAttributeModel):
     style_guidelines: Optional[Union[str, List[str]]] = None
     notes: Optional[str] = None
 
-    def print(self):
-        """
-        Pretty-prints the context, including its metadata information.
-        """
-        super().print(object_name="Context")
-
 
 def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestration: bool = False):
     """

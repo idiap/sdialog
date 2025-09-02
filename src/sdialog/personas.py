@@ -16,16 +16,7 @@ from .base import BaseAttributeModel
 
 logger = logging.getLogger(__name__)
 
-
-class BasePersona(BaseAttributeModel):
-    """
-    Base class for defining a persona (character profile) for role-play.
-    """
-    def print(self):
-        """
-        Pretty-prints the persona, including its metadata information.
-        """
-        super().print(object_name="Persona")
+BasePersona = BaseAttributeModel
 
 
 class Persona(BasePersona):
