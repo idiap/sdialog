@@ -92,31 +92,22 @@ class BaseAttributeModel(BaseModel, ABC):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        def _attributes(_cls=cls):
+        def _attributes(_cls=cls, print=False):
             items = []
-            for name, field in _cls.model_fields.items():
+            for name, _ in _cls.model_fields.items():
                 if name.startswith("_"):
                     continue
-                ann = getattr(field, "annotation", None)
-                type_str = getattr(ann, "__name__", str(ann))
-                items.append((name, type_str))
-            return items
-        cls.attributes = staticmethod(_attributes)
+                items.append(name)
 
-    @staticmethod
-    def attributes():
-        """
-        Return list of (field_name, type_name) for BaseAttributeModel itself.
-        Subclasses receive the same format via __init_subclass__.
-        """
-        items = []
-        for name, field in BaseAttributeModel.model_fields.items():
-            if name.startswith("_"):
-                continue
-            ann = getattr(field, "annotation", None)
-            type_str = getattr(ann, "__name__", str(ann))
-            items.append((name, type_str))
-        return items
+            if print:
+                cprint(f"--- {_cls.__name__} Begins ---", color="magenta", format="bold")
+                for attr in items:
+                    cprint("", tag=attr, tag_color="red", color="white")
+                cprint(f"--- {_cls.__name__} Ends ---", color="magenta", format="bold")
+            else:
+                return items
+
+        cls.attributes = staticmethod(_attributes)
 
     def clone(self, new_id: int = None, **kwargs) -> "BaseAttributeModel":
         """
