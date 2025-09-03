@@ -10,6 +10,7 @@ these personas in synthetic dialogue generation.
 import logging
 
 from typing import List, Union
+from pydantic import Field
 
 from .base import BaseAttributeModel
 
@@ -44,16 +45,16 @@ class Persona(BasePersona):
     :vartype rules: str
     """
 
-    name: str = ""
-    age: Union[int, str] = None
-    race: str = ""
-    gender: str = ""
-    language: str = "English"
-    role: str = ""
-    background: str = ""
-    personality: str = ""
-    circumstances: str = ""
-    rules: str = ""
+    name: str = Field("", description="Name of the persona.")
+    age: Union[int, str] = Field(None, description="Age (integer or descriptive string like 'middle-aged').")
+    race: str = Field("", description="Race or ethnicity.")
+    gender: str = Field("", description="Gender of the persona.")
+    language: str = Field("English", description="Preferred language of communication.")
+    role: str = Field("", description="Role, profession, or primary identity descriptor.")
+    background: str = Field("", description="Background or life history summary.")
+    personality: str = Field("", description="Personality traits summary.")
+    circumstances: str = Field("", description="Current situational context.")
+    rules: str = Field("", description="Constraints, style, or behavioral rules to enforce.")
 
 
 class ExtendedPersona(BasePersona):
@@ -101,31 +102,31 @@ class ExtendedPersona(BasePersona):
     :ivar religious_beliefs: Religious stance (e.g., religious, agnostic, atheist).
     :vartype religious_beliefs: str
     """
-    name: str = ""
+    name: str = Field("", description="Name of the persona.")
     # Demographics
-    age: Union[int, str] = ""
-    race: str = ""
-    gender: str = ""
-    language: str = "English"
-    weight: str = ""
-    height: Union[str, float] = ""
-    voice_characteristics: str = ""  # e.g., accent, tone, etc.
+    age: Union[int, str] = Field("", description="Age (numeric or descriptive).")
+    race: str = Field("", description="Race or ethnicity.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Preferred language.")
+    weight: str = Field("", description="Weight (value with unit or descriptive text).")
+    height: Union[str, float] = Field("", description="Height (value with unit or descriptive text).")
+    voice_characteristics: str = Field("", description="Voice characteristics (accent, tone, pacing).")
     # Background
-    occupation: str = ""
-    education: str = ""
-    socioeconomic_status: str = ""
+    occupation: str = Field("", description="Current occupation or professional role.")
+    education: str = Field("", description="Education level or academic background.")
+    socioeconomic_status: str = Field("", description="Socioeconomic status descriptor.")
     # Interests and hobbies
-    interests: str = ""
-    hobbies: str = ""
+    interests: str = Field("", description="General interests (comma-separated or free text).")
+    hobbies: str = Field("", description="Hobbies (comma-separated or free text).")
     # Personality traits
-    politeness: str = ""
-    forgetfulness: str = ""
-    attentiveness: str = ""
-    communication_style: str = ""
-    empathy_level: str = ""
+    politeness: str = Field("", description="Politeness style or level.")
+    forgetfulness: str = Field("", description="Forgetfulness tendency.")
+    attentiveness: str = Field("", description="Attentiveness or focus tendency.")
+    communication_style: str = Field("", description="Communication style (e.g., direct, verbose).")
+    empathy_level: str = Field("", description="Empathy level descriptor.")
     # Political and social views
-    political_views: str = ""  # conservative, liberal, not polital, moderate, other
-    religious_beliefs: str = ""  # religious, agnostic, atheist, etc.
+    political_views: str = Field("", description="Political alignment (e.g., conservative, moderate, apolitical).")
+    religious_beliefs: str = Field("", description="Religious stance (e.g., religious, agnostic, atheist).")
 
 
 class Patient(BasePersona):
@@ -173,26 +174,26 @@ class Patient(BasePersona):
     :ivar family_history: Family medical history (string or list).
     :vartype family_history: Union[str, List[str]]
     """
-    name: str = ""
-    age: Union[int, str] = None
-    race: str = ""
-    gender: str = ""
-    language: str = "English"
-    forgetfulness: Union[str, float] = ""
-    formality: Union[str, float] = ""
-    hurriedness: Union[str, float] = ""
-    openness: Union[str, float] = ""
-    height: Union[int, str] = ""
-    weight: Union[int, str] = ""
-    occupation: str = ""
-    marital_status: str = ""
-    insurance: str = ""
-    reason_for_visit: str = ""
-    medical_history: Union[str, List[str]] = ""
-    medical_conditions: Union[str, List[str]] = ""
-    medications_current: Union[str, List[str]] = ""
-    allergies: Union[str, List[str]] = ""
-    family_history: Union[str, List[str]] = ""
+    name: str = Field("", description="Patient name.")
+    age: Union[int, str] = Field(None, description="Patient age (numeric or descriptive).")
+    race: str = Field("", description="Race or ethnicity.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Preferred communication language.")
+    forgetfulness: Union[str, float] = Field("", description="Forgetfulness tendency (qualitative or numeric).")
+    formality: Union[str, float] = Field("", description="Formality of speech.")
+    hurriedness: Union[str, float] = Field("", description="Degree of impatience or hurriedness.")
+    openness: Union[str, float] = Field("", description="Openness to share information.")
+    height: Union[int, str] = Field("", description="Height (value with unit or descriptive).")
+    weight: Union[int, str] = Field("", description="Weight (value with unit or descriptive).")
+    occupation: str = Field("", description="Occupation or employment status.")
+    marital_status: str = Field("", description="Marital status.")
+    insurance: str = Field("", description="Insurance provider or status.")
+    reason_for_visit: str = Field("", description="Chief complaint or presenting problem.")
+    medical_history: Union[str, List[str]] = Field("", description="Past medical history.")
+    medical_conditions: Union[str, List[str]] = Field("", description="Known diagnosed conditions.")
+    medications_current: Union[str, List[str]] = Field("", description="Current medications.")
+    allergies: Union[str, List[str]] = Field("", description="Known allergies.")
+    family_history: Union[str, List[str]] = Field("", description="Family medical history.")
 
 
 class ExtendedPatient(ExtendedPersona):
@@ -217,14 +218,14 @@ class ExtendedPatient(ExtendedPersona):
     :ivar family_history: Family medical history summary.
     :vartype family_history: str
     """
-    reason_for_visit: str = ""
-    symptoms: str = ""
-    vital_signs: str = ""
-    health_literacy: str = ""
-    medical_conditions: str = ""
-    medications: str = ""
-    allergies: str = ""
-    family_history: str = ""
+    reason_for_visit: str = Field("", description="Chief complaint or reason for consultation.")
+    symptoms: str = Field("", description="Reported symptoms.")
+    vital_signs: str = Field("", description="Vital signs summary (e.g., 'BP 120/80, HR 72').")
+    health_literacy: str = Field("", description="Health literacy level.")
+    medical_conditions: str = Field("", description="Known or chronic conditions summary.")
+    medications: str = Field("", description="Current medications summary.")
+    allergies: str = Field("", description="Allergy list or summary.")
+    family_history: str = Field("", description="Family medical history summary.")
 
 
 class Doctor(BasePersona):
@@ -255,17 +256,17 @@ class Doctor(BasePersona):
     :vartype openness: str
     """
 
-    name: str = ""
-    age: Union[int, str] = ""
-    race: str = ""
-    gender: str = ""
-    language: str = "English"
-    years_of_experience: Union[int, str] = ""
-    speciality: str = ""
-    forgetfulness: str = ""
-    formality: str = ""
-    hurriedness: str = ""
-    openness: str = ""
+    name: str = Field("", description="Doctor's name.")
+    age: Union[int, str] = Field("", description="Doctor's age (numeric or descriptive).")
+    race: str = Field("", description="Race or ethnicity.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Working language.")
+    years_of_experience: Union[int, str] = Field("", description="Years or range of medical practice.")
+    speciality: str = Field("", description="Medical speciality.")
+    forgetfulness: str = Field("", description="Forgetfulness tendency.")
+    formality: str = Field("", description="Formality level in communication.")
+    hurriedness: str = Field("", description="Degree of time pressure or haste.")
+    openness: str = Field("", description="Openness or approachability.")
 
 
 class ExtendedDoctor(ExtendedPersona):
@@ -282,10 +283,10 @@ class ExtendedDoctor(ExtendedPersona):
     :ivar work_experience: Summary of prior practice settings / roles.
     :vartype work_experience: str
     """
-    specialty: str = ""
-    years_of_experience: Union[int, str] = ""
-    certifications: str = ""
-    work_experience: str = ""
+    specialty: str = Field("", description="Medical specialty or domain focus.")
+    years_of_experience: Union[int, str] = Field("", description="Years (or range) of clinical experience.")
+    certifications: str = Field("", description="Professional certifications / board statuses.")
+    work_experience: str = Field("", description="Summary of prior practice settings / roles.")
 
 
 class Customer(BasePersona):
@@ -367,48 +368,48 @@ class Customer(BasePersona):
     :vartype rules: str
     """
     # Identification / profile
-    name: str = ""
-    age: Union[int, str] = ""
-    gender: str = ""
-    language: str = "English"
-    customer_id: str = ""
-    occupation: str = ""
+    name: str = Field("", description="Customer name.")
+    age: Union[int, str] = Field("", description="Customer age (numeric or descriptive).")
+    gender: str = Field("", description="Customer gender.")
+    language: str = Field("English", description="Preferred language.")
+    customer_id: str = Field("", description="Internal customer identifier.")
+    occupation: str = Field("", description="Customer occupation.")
 
     # Loyalty / tenure
-    account_tenure: str = ""
-    membership_level: str = ""
-    loyalty_status: str = ""
-    fidelity_score: Union[str, float, int] = ""
+    account_tenure: str = Field("", description="Customer tenure (e.g., '2 years').")
+    membership_level: str = Field("", description="Subscription or plan tier.")
+    loyalty_status: str = Field("", description="Loyalty descriptor (e.g., loyal, at-risk).")
+    fidelity_score: Union[str, float, int] = Field("", description="Loyalty / fidelity score.")
 
     # Issue context
-    issue: str = ""
-    issue_category: str = ""
-    issue_description: str = ""
-    issue_history: str = ""
-    desired_outcome: str = ""
+    issue: str = Field("", description="Short summary of current problem.")
+    issue_category: str = Field("", description="Issue category (billing, technical, etc.).")
+    issue_description: str = Field("", description="Detailed issue description.")
+    issue_history: str = Field("", description="Summary of prior related issues.")
+    desired_outcome: str = Field("", description="Desired resolution outcome.")
 
     # Knowledge / competence
-    knowledge_domain: str = ""
-    technical_expertise: str = ""  # kept for backward compatibility
+    knowledge_domain: str = Field("", description="Domain knowledge level or area.")
+    technical_expertise: str = Field("", description="Legacy technical expertise field.")
 
     # Emotional / behavioral state
-    sentiment: str = ""
-    anger_level: str = ""
-    tiredness: str = ""
-    patience_level: str = ""
-    politeness: str = ""
-    personality: str = ""
-    instruction_following: str = ""
-    forgetfulness: str = ""
+    sentiment: str = Field("", description="Overall emotional tone.")
+    anger_level: str = Field("", description="Anger intensity descriptor.")
+    tiredness: str = Field("", description="Fatigue level.")
+    patience_level: str = Field("", description="Patience descriptor.")
+    politeness: str = Field("", description="Politeness style.")
+    personality: str = Field("", description="Personality descriptor.")
+    instruction_following: str = Field("", description="Likelihood of following instructions.")
+    forgetfulness: str = Field("", description="Tendency to forget prior guidance.")
 
     # Contact / interaction history
-    times_called: Union[int, str] = ""
-    preferred_channel: str = ""
-    prior_interactions_summary: str = ""
+    times_called: Union[int, str] = Field("", description="Number of prior related contacts.")
+    preferred_channel: str = Field("", description="Preferred support channel.")
+    prior_interactions_summary: str = Field("", description="Summary of prior interactions.")
 
     # Meta
-    urgency: str = ""
-    rules: str = ""
+    urgency: str = Field("", description="Perceived urgency level.")
+    rules: str = Field("", description="Constraints or special handling notes.")
 
 
 class SupportAgent(BasePersona):
@@ -450,20 +451,20 @@ class SupportAgent(BasePersona):
     :ivar rules: Internal rules, compliance reminders, or constraints.
     :vartype rules: str
     """
-    name: str = ""
-    language: str = "English"
-    agent_id: str = ""
-    role: str = "Customer Support Agent"
-    experience_years: str = ""
-    product_scope: str = ""
-    product_knowledge_level: str = ""
-    communication_style: str = ""
-    empathy_level: str = ""
-    politeness: str = ""
-    resolution_authority_level: str = ""
-    escalation_policy: str = ""
-    average_handle_time: str = ""
-    adherence_notes: str = ""
-    stress_tolerance: str = ""
-    performance_notes: str = ""
-    rules: str = ""
+    name: str = Field("", description="Agent name.")
+    language: str = Field("English", description="Working language.")
+    agent_id: str = Field("", description="Internal agent identifier.")
+    role: str = Field("Customer Support Agent", description="Agent role or queue designation.")
+    experience_years: str = Field("", description="Years (or range) of support experience.")
+    product_scope: str = Field("", description="Products or domains covered.")
+    product_knowledge_level: str = Field("", description="Knowledge depth (e.g., basic, expert).")
+    communication_style: str = Field("", description="Communication style (e.g., concise, empathetic).")
+    empathy_level: str = Field("", description="Empathy descriptor.")
+    politeness: str = Field("", description="Politeness level descriptor.")
+    resolution_authority_level: str = Field("", description="Authority for resolutions/escalations.")
+    escalation_policy: str = Field("", description="Escalation criteria / process summary.")
+    average_handle_time: str = Field("", description="Typical handling time (e.g., '6m').")
+    adherence_notes: str = Field("", description="Process adherence / QA notes.")
+    stress_tolerance: str = Field("", description="Stress handling capability descriptor.")
+    performance_notes: str = Field("", description="Performance KPIs or evaluation notes.")
+    rules: str = Field("", description="Internal rules or compliance reminders.")
