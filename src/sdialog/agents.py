@@ -36,7 +36,39 @@ logger = logging.getLogger(__name__)
 
 class Agent:
     """
-    Agent that simulates a persona in dialogue using an LLM.
+    Agent that simulates a persona-driven conversational actor using an LLM.
+
+    This class wraps:
+    - A persona (traits / role)
+    - Optional context + exemplar dialogues
+    - Orchestrators (dynamic / persistent injected instructions)
+    - Interpretability hooks (token / layer events, steering)
+    - Simple dialogue loop utilities (dialog_with)
+
+    Example:
+    ```python
+        from sdialog import Persona, Context
+        from sdialog.agents import Agent
+
+        # Create two agents
+        user = Agent(persona=Persona(name="Dr. Nebula",
+                                     role="Astrobotanist seeking alien spores"),
+                     name="Scientist")
+        bot = Agent(persona=Persona(name="StationCore",
+                                    role="Sarcastic habitat control AI"),
+                    name="Bot")
+
+        # Create an (optional) context for the conversation
+        context = Context(location="Orbiting Research Station Theta-9",
+                          environment="Zero‑gravity greenhouse"
+                          objects=["alien spores", "hydroponic garden", "research equipment"])
+
+        # Create a dialogue
+        dialog = user.dialog_with(bot, context=context)
+
+        # Print dialog
+        dialog.print()
+    ```
     """
     STOP_WORD = "STOP"
     STOP_WORD_TEXT = "(bye bye!)"

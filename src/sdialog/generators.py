@@ -13,6 +13,7 @@ import json
 import random
 import logging
 
+from abc import ABC
 from tqdm.auto import tqdm
 from jinja2 import Template
 from typing import Union, List, Any, Optional
@@ -71,6 +72,16 @@ class DialogGenerator:
       1. Instantiate with default dialogue instructions and optional context / examples.
       2. Call generate(...) to produce a Dialog (or raw structured output).
       3. Access system prompt via prompt() for debugging / inspection.
+
+    Example:
+    ```python
+        from sdialog.generators import DialogGenerator
+
+        gen = DialogGenerator("Generate a short friendly greeting between two speakers")
+
+        dialog = gen.generate()
+        dialog.print()
+    ```
     """
     def __init__(self,
                  dialogue_details: str,
@@ -221,10 +232,19 @@ class PersonaDialogGenerator(DialogGenerator):
     """
     Generates dialogues between two personas (or Agents wrapping personas) using an LLM.
 
-    :ivar persona_a: First persona (or Agent).
-    :vartype persona_a: Persona
-    :ivar persona_b: Second persona (or Agent).
-    :vartype persona_b: Persona
+    Example:
+    ```python
+        from sdialog.personas import Persona
+        from sdialog.generators import PersonaDialogGenerator
+
+        p1 = Persona(name="Alice", role="Curious student")
+        p2 = Persona(name="Mentor", role="Helpful tutor")
+
+        gen = PersonaDialogGenerator(p1, p2, dialogue_details="Explain one concept briefly.")
+
+        dialog = gen()
+        dialog.print()
+    ```
     """
     _agent_a = None
     _agent_b = None
@@ -344,31 +364,14 @@ class PersonaDialogGenerator(DialogGenerator):
     __call__ = generate  # alias for generate method
 
 
-class BaseAttributeModelGenerator:
+class BaseAttributeModelGenerator(ABC):
     """
-    Generates BaseAttributeModel (or subclass) instances with randomized and/or LLM-populated attributes.
+    Abstract class to create subclasses for generators with randomized and/or LLM-populated attributes.
 
     Workflow:
       1. Provide a target attribute model instance or class.
       2. Configure attribute generation rules (set_attribute_generators or generated_attributes='all').
       3. Call generate(n=...) to produce validated instances.
-
-    :ivar _attribute_model: The base attribute model instance used as a template.
-    :vartype _attribute_model: BaseAttributeModel
-    :ivar generated_attributes: Strategy specification ("all", list, or dict of per-attribute rules).
-    :vartype generated_attributes: Union[str, list, dict]
-    :ivar _rnd_attributes: Internal mapping of attribute -> rule specification.
-    :vartype _rnd_attributes: dict
-    :ivar llm_model: Chosen model name for LLM-backed attribute filling.
-    :vartype llm_model: str
-    :ivar llm_kwargs: Extra keyword arguments applied when instantiating the LLM.
-    :vartype llm_kwargs: dict
-    :ivar system_prompt: System prompt used for attribute generation requests.
-    :vartype system_prompt: str
-    :ivar llm_prompt: Single-object generation template.
-    :vartype llm_prompt: str
-    :ivar llm_prompt_n: Multi-object generation template.
-    :vartype llm_prompt_n: str
     """
     def __init__(self,
                  attribute_model: BaseAttributeModel,
@@ -748,6 +751,24 @@ class BaseAttributeModelGenerator:
 class PersonaGenerator(BaseAttributeModelGenerator):
     """
     Generates persona objects (Persona subclasses of BaseAttributeModel) with randomized or LLM-populated attributes.
+
+    Example:
+    ```python
+        from sdialog.personas import Doctor
+        from sdialog.generators import PersonaGenerator
+
+        base_persona = Doctor(speciality="Cardiology")
+
+        doctor_generator = PersonaGenerator(base_persona)
+
+        doctor_generator.set_attribute_generators(
+            years_of_experience="{4-10}",
+            gender=["male", "female", "non-binary"]
+        )
+
+        doctor = doctor_generator.generate()
+        doctor.print()
+    ```
     """
     def __init__(self,
                  persona: BasePersona,
@@ -789,6 +810,24 @@ class PersonaGenerator(BaseAttributeModelGenerator):
 class ContextGenerator(BaseAttributeModelGenerator):
     """
     Generates Context objects with randomized or LLM-populated attributes.
+
+    Example:
+    ```python
+        from sdialog import Context
+        from sdialog.generators import ContextGenerator
+
+        base_context = Context(location="Mars Forward Base Alpha")
+
+        ctx_generator = ContextGenerator(base_context)
+
+        ctx_generator.set_attribute_generators(
+            environment=["Pressurized dome", "Dusty lab", "Airlock staging zone"],
+            topics=["terraforming", "resource logistics", "crew morale"]
+        )
+
+        ctx = ctx_generator.generate()
+        ctx.print()
+    ```
     """
     def __init__(self,
                  context: Context,
@@ -837,16 +876,16 @@ class Paraphraser:
       * Whole dialogue paraphrasing (default, returns full set of possibly modified turns).
       * Turn-by-turn paraphrasing (stream-like, for smaller LLMs).
 
-    :ivar extra_instructions: Additional style / constraint instructions for paraphrasing.
-    :vartype extra_instructions: str
-    :ivar target_speaker: If set, only paraphrase turns by this speaker (case-insensitive match).
-    :vartype target_speaker: str
-    :ivar output_format: Either Turn (turn-by-turn mode) or LLMDialogOutput.
-    :vartype output_format: Union[type[Turn], type[LLMDialogOutput]]
-    :ivar model: LLM model name or instance.
-    :vartype model: Union[str, BaseLanguageModel]
-    :ivar messages: Last constructed message list (system + user).
-    :vartype messages: List[BaseMessage]
+    Example:
+    ```python
+        from sdialog.generators import Paraphraser
+
+        # Assume 'original_dialog' is an existing `Dialog` with one of the speaker being "Bot"
+        paraphraser = Paraphraser(target_speaker="Bot")
+
+        new_dialog = paraphraser(original_dialog)
+        new_dialog.print()
+    ```
     """
     def __init__(self,
                  extra_instructions: str = "Keep entities and values identical while making it sound more natural",

@@ -25,19 +25,37 @@ from .util import make_serializable
 
 class BaseOrchestrator(ABC):
     """
-    Base class for orchestrators that control or influence Agent behavior during dialogue generation.
+    Base abstract class to create orchestrators that control or influence Agent behavior during dialogue generation.
 
     Responsibilities:
       * Observe dialogue (agent memory) and produce turn-level instructions.
       * Optionally emit events describing guidance injected.
       * Support persistence across turns when marked persistent.
 
-    :ivar _target: Target agent instance this orchestrator controls.
-    :vartype _target: Agent
-    :ivar _event_label: Optional explicit label used for emitted events.
-    :vartype _event_label: str
-    :ivar _persistent: Whether the orchestrator remains active across turns until removed/reset.
-    :vartype _persistent: bool
+    Example:
+    ```python
+        from sdialog.orchestrators import BaseOrchestrator
+        from sdialog.personas import Persona
+        from sdialog.agents import Agent
+
+        # Let's create our own orchestrator
+        class EncourageDetailOrchestrator(BaseOrchestrator):
+            def instruct(self, dialog, utterance):
+                if utterance and len(utterance.split()) < 5:
+                    return "Add a bit more detail in your next reply."
+                return None
+
+        orch_encourage = EncourageDetailOrchestrator()
+
+        bob = Agent(persona=Persona(role="Guide"))
+        alice = Agent(persona=Persona(role="User"))
+
+        # Let's orchestrate bob to provide more detailed answers if alice is brief
+        bob = bob | orch_encourage
+
+        dialog = bob.talk_with(alice)
+        dialog.print(orchestration=True)
+    ```
     """
 
     _target = None
@@ -192,10 +210,38 @@ class BaseOrchestrator(ABC):
 
 class BasePersistentOrchestrator(BaseOrchestrator):
     """
-    Persistent orchestrator base class.
+    Persistent orchestrator base class to create custom persistent orchestrators.
 
     Automatically sets persistence to True; intended for orchestrators that maintain state
     across the whole dialogue unless explicitly removed.
+
+    Example:
+    ```python
+        from sdialog.orchestrators import BasePersistentOrchestrator
+        from sdialog.personas import Persona
+        from sdialog.agents import Agent
+
+        # Let's create our custom persistent orchestrator to permanently flip tone after a trigger word
+        class FlipToneOrchestrator(BasePersistentOrchestrator):
+            def __init__(self, trigger=None):
+                self.trigger = trigger
+            def instruct(self, dialog, utterance):
+                if self.trigger and self.trigger in utterance.lower():
+                    return ("From now on adopt an annoyed, curt tone; keep answers short and a bit irritable.")
+
+        # Let's create our agents
+        alice = Agent(persona=Persona(name="Alice", role="daughter"))
+        bob = Agent(persona=Persona(name="Bob", role="dad"))
+
+        # Let's create our orchestrator using "sweet" as the trigger word
+        orchestrator = FlipToneOrchestrator(trigger="sweet")
+
+        # Let's attach the orchestrator to Alice
+        alice = alice | orchestrator
+
+        dialog = alice.dialog_with(bob)
+        dialog.print(orchestration=True)
+    ```
     """
     _persistent = True
 
@@ -226,6 +272,24 @@ class BasePersistentOrchestrator(BaseOrchestrator):
 class SimpleReflexOrchestrator(BaseOrchestrator):
     """
     Simple reflex orchestrator that provides fixed instructions when a condition matches.
+
+    Example:
+    ```python
+    from sdialog.orchestrators import SimpleReflexOrchestrator
+    from sdialog.agents import Agent
+    from sdialog.personas import Persona
+
+    # If the last utterance contains 'quest', steer to suggest party planning (tutorial style)
+    reflex = SimpleReflexOrchestrator(
+        condition=lambda utt: "quest" in utt.lower(),
+        instruction="Acknowledge the quest idea, then suggest one concrete themed activity."
+    )
+
+    bob = Agent(persona=Persona(name="Bob", role="dad")) | reflex
+    alice = Agent(persona=Persona(name="Alice", role="daughter"))
+    dialog = bob.talk_with(alice)
+    dialog.print(orchestration=True)
+    ```
     """
 
     def __init__(self, condition: callable, instruction: str, persistent: bool = False, event_label: str = None):
@@ -263,6 +327,25 @@ class SimpleReflexOrchestrator(BaseOrchestrator):
 class LengthOrchestrator(BaseOrchestrator):
     """
     Orchestrator that encourages continuation or termination based on current number of turns.
+
+    Example:
+    ```python
+        from sdialog.orchestrators import LengthOrchestrator
+        from sdialog.personas import Persona
+        from sdialog.agents import Agent
+
+        # Keep dialogue going at least 8 turns; try to wrap by turn 12
+        len_orch = LengthOrchestrator(min=8, max=12)
+
+        planner = Agent(persona=Persona(name="Planner", role="organizer"))
+        guest = Agent(persona=Persona(name="Guest", role="participant"))
+
+        # Attach orchestrator to planner
+        planner = planner | len_orch
+
+        dialog = planner.dialog_with(guest)
+        dialog.print(orchestration=True)
+    ```
     """
 
     def __init__(self, min: int = None, max: int = None, persistent: bool = False, event_label: str = None):
@@ -302,6 +385,27 @@ class LengthOrchestrator(BaseOrchestrator):
 class ChangeMindOrchestrator(BaseOrchestrator):
     """
     Orchestrator that probabilistically injects a 'change your mind' instruction a limited number of times.
+
+    Example:
+    ```python
+        from sdialog.orchestrators import ChangeMindOrchestrator
+        from sdialog.personas import Persona
+        from sdialog.agents import Agent
+
+        # 40% chance (once) to pivot party theme justification
+        changer = ChangeMindOrchestrator(probability=0.4,
+                                         reasons=["a better surprise", "budget constraints"],
+                                         max_times=1)
+
+        alice = Agent(persona=Persona(name="Alice", role="daughter"))
+        bob = Agent(persona=Persona(name="Bob", role="dad"))
+
+        # Attach orchestrator to Bob
+        bob = bob | changer
+
+        dialog = alice.dialog_with(bob)
+        dialog.print(orchestration=True)
+    ```
     """
 
     def __init__(self, probability: float = 0.3,
@@ -363,6 +467,32 @@ class ChangeMindOrchestrator(BaseOrchestrator):
 class SimpleResponseOrchestrator(BaseOrchestrator):
     """
     Orchestrator that suggests next responses based on semantic similarity against a response set (or action graph).
+
+    Example:
+    ```python
+        from sdialog.orchestrators import SimpleResponseOrchestrator
+        from sdialog.agents import Agent
+        from sdialog.personas import Persona
+
+        canned = [
+            "Could you clarify that?",
+            "Let me summarize the plan.",
+            "That sounds exciting—tell me more.",
+            "Maybe we should adjust the theme.",
+            "Can you give one concrete example?"
+        ]
+
+        sugg = SimpleResponseOrchestrator(responses=canned, top_k=3)
+
+        guide = Agent(persona=Persona(name="Guide", role="facilitator"))
+        user = Agent(persona=Persona(name="User", role="participant"))
+
+        # Attach orchestrator to guide
+        guide = guide | sugg
+
+        dialog = guide.dialog_with(user)
+        dialog.print(orchestration=True)
+    ```
     """
 
     def __init__(self,
@@ -464,6 +594,29 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
 class InstructionListOrchestrator(BaseOrchestrator):
     """
     Orchestrator that dispenses predefined instructions sequentially or by turn index mapping.
+
+    Example:
+    ```python
+        from sdialog.orchestrators import InstructionListOrchestrator
+        from sdialog.personas import Persona
+        from sdialog.agents import Agent
+
+        steps = [
+            "Greet warmly and ask about preferred theme.",
+            "Ask for constraints (budget / space).",
+            "Suggest one fitting activity.",
+            "Confirm decisions and wrap up politely."
+        ]
+
+        coach = Agent(persona=Persona(name="Coach", role="planner"))
+        client = Agent(persona=Persona(name="Client", role="requester"))
+
+        # Attach a new instance of InstructionListOrchestrator to the coach
+        coach = coach | InstructionListOrchestrator(steps)
+
+        dialog = coach.dialog_with(client)
+        dialog.print(orchestration=True)
+    ```
     """
 
     def __init__(self,
