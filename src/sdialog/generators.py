@@ -180,11 +180,13 @@ class DialogGenerator:
             llm_output = self.output_format.model_validate(dialogue)
 
             if self.output_format is LLMDialogOutput:
+                context = context or self.context
                 return Dialog(id=id if id is not None else get_universal_id(),
                               parentId=parent_id,
                               model=self.model_name,
                               seed=seed,
                               personas=self._personas,
+                              context=context.json() if context and isinstance(context, Context) else context,
                               scenario=self.scenario if self.scenario else self.dialogue_details,
                               notes=notes,
                               turns=llm_output.dialog)

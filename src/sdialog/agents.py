@@ -612,6 +612,7 @@ class Agent:
                 ]
             }
 
+        context = context or self.context
         return Dialog(
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,
@@ -621,6 +622,7 @@ class Agent:
             personas={
                 self.get_name(): self.persona.json(),
                 agent.get_name(default="Other"): agent.persona.json()},
+            context=context.json() if context and isinstance(context, Context) else context,
             scenario=scenario,
             notes=notes,
             turns=dialog,

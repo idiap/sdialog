@@ -129,6 +129,7 @@ class Dialog(BaseModel):
     parentId: Optional[Union[int, str]] = None  # ID of the parent dialogue, if any
     complete: Optional[bool] = None
     personas: Optional[dict[str, Any]] = None  # Any is a subclass of MetaPersona
+    context: Optional[Union[str, dict[str, Any]]] = None  # Shared context for the dialogue
     scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
     turns: Optional[List[Turn]] = Field(default_factory=list)  # the list of turns of the conversation
     events: Optional[List[Event]] = None  # the list of events of the conversation (optional)
