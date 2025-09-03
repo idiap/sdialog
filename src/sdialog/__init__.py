@@ -765,29 +765,50 @@ class Context(BaseAttributeModel):
     Dialogue-shared context class.
     """
     # Time / place
-    location: Optional[str] = None
-    datetime: Optional[str] = None
+    location: Optional[str] = Field(default=None, description="Physical or virtual location where the dialogue occurs.")
+    datetime: Optional[str] = Field(default=None, description="Timestamp or temporal setting relevant to the dialogue.")
 
     # Environment
-    environment: Optional[str] = None
+    environment: Optional[str] = Field(
+        default=None,
+        description="Physical environment description, environmental conditions, or contextual atmosphere."
+    )
 
     # Objects
-    objects: Optional[Union[str, List[str]]] = None
+    objects: Optional[Union[str, List[str]]] = Field(default=None, description="Relevant objects (single or list).")
 
     # Participants shared knowledge
-    participants_shared_knowledge: Optional[str] = None
+    participants_shared_knowledge: Optional[str] = Field(
+        default=None,
+        description="Information all participants are assumed to know."
+    )
 
     # Intent / constraints
-    circumstances: Optional[Union[str, List[str]]] = None
-    goals: Optional[Union[str, List[str]]] = None
-    constraints: Optional[Union[str, List[str]]] = None
+    circumstances: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Situational circumstances impacting the dialogue."
+    )
+    goals: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Stated or implicit goals of the participants."
+    )
+    constraints: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Limitations or constraints affecting actions or dialogue."
+    )
 
     # Topics (unified)
-    topics: Optional[Union[str, List[str]]] = None
+    topics: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Main topics or themes (single or list)."
+    )
 
     # Style and Extensions
-    style_guidelines: Optional[Union[str, List[str]]] = None
-    notes: Optional[str] = None
+    style_guidelines: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Stylistic or formatting guidelines to follow."
+    )
+    notes: Optional[str] = Field(default=None, description="Additional free-form contextual notes.")
 
 
 def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestration: bool = False):
