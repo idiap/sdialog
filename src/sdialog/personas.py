@@ -1,9 +1,8 @@
 """
-personas: Persona and Agent Definitions for Synthetic Dialogue Generation
+personas: Persona Definitions for Synthetic Dialogue Generation
 
 This module provides classes for defining personas (character profiles) and simulating agents that role-play
-these personas in synthetic dialogue generation. Agents interact using LLMs and can be orchestrated for
-complex behaviors.
+these personas in synthetic dialogue generation.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>, Séverin Baroudi <severin.baroudi@lis-lab.fr>
@@ -25,23 +24,23 @@ class Persona(BasePersona):
 
     :ivar name: Name of the persona.
     :vartype name: str
-    :ivar age: Age of the persona.
-    :vartype age: int
-    :ivar race: Race of the persona.
+    :ivar age: Age of the persona (can be an int or a descriptive string like "middle-aged").
+    :vartype age: Union[int, str]
+    :ivar race: Race / ethnicity of the persona.
     :vartype race: str
     :ivar gender: Gender of the persona.
     :vartype gender: str
-    :ivar language: Preferred language.
+    :ivar language: Preferred language of communication.
     :vartype language: str
-    :ivar role: Role or occupation.
+    :ivar role: Role, profession, or primary identity descriptor.
     :vartype role: str
-    :ivar background: Background information.
+    :ivar background: Background or life history summary.
     :vartype background: str
-    :ivar personality: Personality traits.
+    :ivar personality: Personality traits summary (free text).
     :vartype personality: str
-    :ivar circumstances: Current circumstances.
+    :ivar circumstances: Current situational context (e.g., "recently moved", "under stress").
     :vartype circumstances: str
-    :ivar rules: Rules or constraints.
+    :ivar rules: Constraints, style or behavioral rules to enforce.
     :vartype rules: str
     """
 
@@ -63,41 +62,43 @@ class ExtendedPersona(BasePersona):
 
     :ivar name: Name of the persona.
     :vartype name: str
-    :ivar age: Age of the persona.
-    :vartype age: int
-    :ivar race: Race of the persona.
+    :ivar age: Age (numeric or descriptive string).
+    :vartype age: Union[int, str]
+    :ivar race: Race / ethnicity.
     :vartype race: str
-    :ivar gender: Gender of the persona.
+    :ivar gender: Gender identity.
     :vartype gender: str
     :ivar language: Preferred language.
     :vartype language: str
-    :ivar weight: Weight of the persona.
+    :ivar weight: Weight (numeric with unit or descriptive string).
     :vartype weight: str
-    :ivar height: Height of the persona.
-    :vartype height: str
-    :ivar occupation: Occupation of the persona.
+    :ivar height: Height (numeric with unit or descriptive string).
+    :vartype height: Union[str, float]
+    :ivar voice_characteristics: Voice, accent, tone, pacing, etc.
+    :vartype voice_characteristics: str
+    :ivar occupation: Current occupation or professional role.
     :vartype occupation: str
-    :ivar education: Education background.
+    :ivar education: Education level or academic background.
     :vartype education: str
-    :ivar socioeconomic_status: Socioeconomic status.
+    :ivar socioeconomic_status: Socioeconomic status descriptor.
     :vartype socioeconomic_status: str
-    :ivar interests: Interests of the persona.
+    :ivar interests: General interests (comma-separated or free text).
     :vartype interests: str
-    :ivar hobbies: Hobbies of the persona.
+    :ivar hobbies: Hobbies (comma-separated or free text).
     :vartype hobbies: str
-    :ivar politeness: Politeness trait.
+    :ivar politeness: Politeness style/level.
     :vartype politeness: str
-    :ivar forgetfulness: Forgetfulness trait.
+    :ivar forgetfulness: Forgetfulness tendency.
     :vartype forgetfulness: str
-    :ivar attentiveness: Attentiveness trait.
+    :ivar attentiveness: Attentiveness or focus tendency.
     :vartype attentiveness: str
-    :ivar communication_style: Communication style.
+    :ivar communication_style: Style of communication (e.g., direct, verbose).
     :vartype communication_style: str
-    :ivar empathy_level: Empathy level.
+    :ivar empathy_level: Empathy level or descriptor.
     :vartype empathy_level: str
-    :ivar political_views: Political views (e.g., conservative, liberal, moderate, etc.).
+    :ivar political_views: Political alignment (e.g., conservative, moderate, apolitical).
     :vartype political_views: str
-    :ivar religious_beliefs: Religious beliefs (e.g., religious, agnostic, atheist, etc.).
+    :ivar religious_beliefs: Religious stance (e.g., religious, agnostic, atheist).
     :vartype religious_beliefs: str
     """
     name: str = ""
@@ -129,30 +130,48 @@ class ExtendedPersona(BasePersona):
 
 class Patient(BasePersona):
     """
-    Patient persona with essential / minimal attributes for dialogue generation.
+    Patient persona with essential / minimal plus behavioral and demographic attributes for dialogue generation.
 
-    :ivar name: Name of the persona.
+    :ivar name: Patient name.
     :vartype name: str
-    :ivar age: Age of the persona.
-    :vartype age: int
-    :ivar race: Race of the persona.
+    :ivar age: Patient age (numeric or descriptive).
+    :vartype age: Union[int, str]
+    :ivar race: Race / ethnicity.
     :vartype race: str
-    :ivar gender: Gender of the persona.
+    :ivar gender: Gender identity.
     :vartype gender: str
-    :ivar language: Preferred language.
+    :ivar language: Preferred communication language.
     :vartype language: str
-    :ivar reason_for_visit: Reason for visit or chief complaint.
+    :ivar forgetfulness: Forgetfulness tendency (qualitative or numeric).
+    :vartype forgetfulness: Union[str, float]
+    :ivar formality: Formality of speech (qualitative or numeric scale).
+    :vartype formality: Union[str, float]
+    :ivar hurriedness: Degree of impatience / hurriedness.
+    :vartype hurriedness: Union[str, float]
+    :ivar openness: Openness to share information.
+    :vartype openness: Union[str, float]
+    :ivar height: Height (numeric with unit or descriptive).
+    :vartype height: Union[int, str]
+    :ivar weight: Weight (numeric with unit or descriptive).
+    :vartype weight: Union[int, str]
+    :ivar occupation: Occupation or employment status.
+    :vartype occupation: str
+    :ivar marital_status: Marital status.
+    :vartype marital_status: str
+    :ivar insurance: Insurance provider / status.
+    :vartype insurance: str
+    :ivar reason_for_visit: Chief complaint / presenting problem.
     :vartype reason_for_visit: str
-    :ivar medical_history: Medical history of the patient.
-    :vartype medical_history: str
-    :ivar medical_conditions: Medical conditions in history.
-    :vartype medical_conditions: str
-    :ivar medications: Current medications.
-    :vartype medications: str
-    :ivar allergies: Known allergies.
-    :vartype allergies: str
-    :ivar family_history: Family medical history.
-    :vartype family_history: str
+    :ivar medical_history: Past medical history (string or list of conditions).
+    :vartype medical_history: Union[str, List[str]]
+    :ivar medical_conditions: Known diagnosed conditions (string or list).
+    :vartype medical_conditions: Union[str, List[str]]
+    :ivar medications_current: Current medications (string or list).
+    :vartype medications_current: Union[str, List[str]]
+    :ivar allergies: Known allergies (string or list).
+    :vartype allergies: Union[str, List[str]]
+    :ivar family_history: Family medical history (string or list).
+    :vartype family_history: Union[str, List[str]]
     """
     name: str = ""
     age: Union[int, str] = None
@@ -178,23 +197,24 @@ class Patient(BasePersona):
 
 class ExtendedPatient(ExtendedPersona):
     """
-    ExtendedPatient persona with medical and health-related attributes.
+    ExtendedPatient persona with additional health-related attributes.
+    Inherits all attributes from ExtendedPersona plus the following medical context fields.
 
-    :ivar reason_for_visit: Reason for visit or chief complaint.
+    :ivar reason_for_visit: Chief complaint or reason for consultation.
     :vartype reason_for_visit: str
-    :ivar symptoms: List of symptoms or health issues.:ivar symptoms: Reason for visit or chief complaint.
+    :ivar symptoms: Reported symptoms (free text or summarized list).
     :vartype symptoms: str
-    :ivar vital_signs: Vital signs of the patient.
+    :ivar vital_signs: Vital signs summary (e.g., "BP 120/80, HR 72").
     :vartype vital_signs: str
-    :ivar health_literacy: Health literacy level.
+    :ivar health_literacy: Health literacy level descriptor.
     :vartype health_literacy: str
-    :ivar medical_conditions: Medical conditions in history.
+    :ivar medical_conditions: Known or chronic conditions (free text summary).
     :vartype medical_conditions: str
-    :ivar medications: Current medications.
+    :ivar medications: Current medications summary.
     :vartype medications: str
-    :ivar allergies: Known allergies.
+    :ivar allergies: Allergy list / summary.
     :vartype allergies: str
-    :ivar family_history: Family medical history.
+    :ivar family_history: Family medical history summary.
     :vartype family_history: str
     """
     reason_for_visit: str = ""
@@ -209,31 +229,32 @@ class ExtendedPatient(ExtendedPersona):
 
 class Doctor(BasePersona):
     """
-    Doctor persona with essential / minimal attributes for dialogue generation.
+    Doctor persona with essential professional and behavioral attributes.
 
-    :ivar name: Name of the persona.
+    :ivar name: Doctor's name.
     :vartype name: str
-    :ivar age: Age of the persona.
-    :vartype age: int
-    :ivar race: Race of the persona.
+    :ivar age: Doctor's age (numeric or descriptive).
+    :vartype age: Union[int, str]
+    :ivar race: Race / ethnicity.
     :vartype race: str
-    :ivar gender: Gender of the persona.
+    :ivar gender: Gender identity.
     :vartype gender: str
-    :ivar language: Preferred language.
+    :ivar language: Working language.
     :vartype language: str
-    :ivar years_of_experience: Years of experience as a doctor.
+    :ivar years_of_experience: Years (or range) of medical practice.
     :vartype years_of_experience: Union[int, str]
-    :ivar speciality: Medical specialty.
+    :ivar speciality: Medical speciality (as spelled in this class).
     :vartype speciality: str
-    :ivar forgetfulness: Forgetfulness trait.
+    :ivar forgetfulness: Forgetfulness tendency.
     :vartype forgetfulness: str
-    :ivar formality: Formality trait.
+    :ivar formality: Formality level in communication.
     :vartype formality: str
-    :ivar hurriedness: Hurriedness trait.
+    :ivar hurriedness: Degree of time pressure / haste.
     :vartype hurriedness: str
-    :ivar openness: Openness trait.
+    :ivar openness: Openness / approachability.
     :vartype openness: str
     """
+
     name: str = ""
     age: Union[int, str] = ""
     race: str = ""
@@ -249,15 +270,16 @@ class Doctor(BasePersona):
 
 class ExtendedDoctor(ExtendedPersona):
     """
-    ExtendedDoctor persona with medical expertise and professional background.
+    ExtendedDoctor persona adding professional credentials.
+    Inherits all attributes from ExtendedPersona.
 
-    :ivar specialty: Medical specialty.
+    :ivar specialty: Medical specialty / domain focus.
     :vartype specialty: str
-    :ivar years_of_experience: Years of experience as a doctor.
-    :vartype years_of_experience: int
-    :ivar certifications: Certifications held by the doctor.
+    :ivar years_of_experience: Years (or range) of clinical experience.
+    :vartype years_of_experience: Union[int, str]
+    :ivar certifications: Professional certifications / board statuses.
     :vartype certifications: str
-    :ivar work_experience: Professional work experience.
+    :ivar work_experience: Summary of prior practice settings / roles.
     :vartype work_experience: str
     """
     specialty: str = ""
@@ -270,50 +292,79 @@ class Customer(BasePersona):
     """
     Persona for a customer in a customer service interaction.
 
-    Identification / profile:
+    Identification / Profile:
     :ivar name: Customer name.
-    :ivar age: Customer age.
+    :vartype name: str
+    :ivar age: Customer age (numeric or descriptive).
+    :vartype age: Union[int, str]
     :ivar gender: Customer gender.
+    :vartype gender: str
     :ivar language: Preferred language.
+    :vartype language: str
     :ivar customer_id: Internal customer identifier.
+    :vartype customer_id: str
     :ivar occupation: Customer occupation.
+    :vartype occupation: str
 
-    Loyalty / tenure:
-    :ivar account_tenure: How long (e.g., "2 years", "3 months") they have been a customer.
-    :ivar membership_level: Plan/tier (e.g., basic, premium, enterprise).
-    :ivar loyalty_status: Qualitative loyalty tier (loyal, at-risk, churn-risk, advocate).
-    :ivar fidelity_score: Numerical or descriptive fidelity/loyalty score.
+    Loyalty / Tenure:
+    :ivar account_tenure: How long they have been a customer (e.g., "2 years").
+    :vartype account_tenure: str
+    :ivar membership_level: Plan/tier (e.g., basic, premium).
+    :vartype membership_level: str
+    :ivar loyalty_status: Loyalty descriptor (e.g., loyal, at-risk).
+    :vartype loyalty_status: str
+    :ivar fidelity_score: Loyalty score (numeric or descriptive).
+    :vartype fidelity_score: Union[str, float, int]
 
-    Issue context:
-    :ivar issue: Short summary of the current problem (concise).
-    :ivar issue_category: High-level category (billing, technical, shipping, cancellation, feedback).
-    :ivar issue_description: Free-text detailed description of the issue.
+    Issue Context:
+    :ivar issue: Short summary of current problem.
+    :vartype issue: str
+    :ivar issue_category: High-level category (billing, technical, etc.).
+    :vartype issue_category: str
+    :ivar issue_description: Detailed issue description.
     :vartype issue_description: str
-    :ivar issue_history: Brief summary of prior related issues.
-    :ivar desired_outcome: What the customer wants resolved.
+    :ivar issue_history: Brief summary of related past issues.
+    :vartype issue_history: str
+    :ivar desired_outcome: Customer's desired resolution / goal.
+    :vartype desired_outcome: str
 
-    Knowledge / competence:
-    :ivar knowledge_domain: Domain knowledge area or level (novice, intermediate, expert, billing-savvy, etc.).
-    :ivar technical_expertise: (Deprecated overlap) Original field kept for backward compatibility.
+    Knowledge / Competence:
+    :ivar knowledge_domain: Subject/domain familiarity (e.g., novice, expert).
+    :vartype knowledge_domain: str
+    :ivar technical_expertise: Legacy field for backward compatibility.
+    :vartype technical_expertise: str
 
-    Emotional / behavioral state:
-    :ivar sentiment: Overall emotional tone (angry, frustrated, neutral, positive, confused).
-    :ivar anger_level: Specific anger intensity (low, medium, high, escalating, etc.).
-    :ivar tiredness: Fatigue level affecting patience/comprehension.
-    :ivar patience_level: Patience (low, medium, high) or numeric score.
-    :ivar politeness: Politeness style (polite, curt, rude, formal, casual).
-    :ivar personality: Brief personality descriptor (assertive, analytical, anxious, etc.).
-    :ivar instruction_following: Tendency to follow step-by-step instructions (low, medium, high).
-    :ivar forgetfulness: Propensity to forget prior guidance (low, medium, high).
+    Emotional / Behavioral State:
+    :ivar sentiment: Overall emotional tone (e.g., frustrated, neutral).
+    :vartype sentiment: str
+    :ivar anger_level: Anger intensity descriptor.
+    :vartype anger_level: str
+    :ivar tiredness: Fatigue level.
+    :vartype tiredness: str
+    :ivar patience_level: Patience descriptor.
+    :vartype patience_level: str
+    :ivar politeness: Politeness style (e.g., polite, curt).
+    :vartype politeness: str
+    :ivar personality: Personality descriptor (e.g., analytical).
+    :vartype personality: str
+    :ivar instruction_following: Likelihood of following instructions.
+    :vartype instruction_following: str
+    :ivar forgetfulness: Tendency to forget prior guidance.
+    :vartype forgetfulness: str
 
-    Contact / interaction history:
-    :ivar times_called: Number of prior contacts about this (or related) issue.
-    :ivar preferred_channel: Preferred support channel (chat, phone, email, portal).
-    :ivar prior_interactions_summary: Compressed summary of prior support contacts.
+    Contact / Interaction History:
+    :ivar times_called: Number of prior contacts (numeric or descriptive).
+    :vartype times_called: Union[int, str]
+    :ivar preferred_channel: Preferred support channel.
+    :vartype preferred_channel: str
+    :ivar prior_interactions_summary: Summary of earlier interactions.
+    :vartype prior_interactions_summary: str
 
     Meta:
-    :ivar urgency: Perceived urgency (low, medium, high, critical).
+    :ivar urgency: Perceived urgency (e.g., low, high).
+    :vartype urgency: str
     :ivar rules: Constraints or special handling notes.
+    :vartype rules: str
     """
     # Identification / profile
     name: str = ""
@@ -365,22 +416,39 @@ class SupportAgent(BasePersona):
     Persona for a customer service / support agent.
 
     :ivar name: Agent name.
+    :vartype name: str
     :ivar language: Working language.
+    :vartype language: str
     :ivar agent_id: Internal agent identifier.
-    :ivar role: Role or queue (e.g., frontline, technical support, retention).
+    :vartype agent_id: str
+    :ivar role: Agent role or queue designation.
+    :vartype role: str
     :ivar experience_years: Years (or range) of support experience.
-    :ivar product_scope: Products / domains the agent covers.
-    :ivar product_knowledge_level: Knowledge depth (basic, proficient, expert).
-    :ivar communication_style: Style (formal, friendly, concise, empathetic).
-    :ivar empathy_level: Empathy (low, medium, high) or descriptive phrase.
+    :vartype experience_years: str
+    :ivar product_scope: Products or domains covered.
+    :vartype product_scope: str
+    :ivar product_knowledge_level: Knowledge depth (e.g., basic, expert).
+    :vartype product_knowledge_level: str
+    :ivar communication_style: Communication style (e.g., concise, empathetic).
+    :vartype communication_style: str
+    :ivar empathy_level: Empathy descriptor.
+    :vartype empathy_level: str
     :ivar politeness: Politeness level descriptor.
-    :ivar resolution_authority_level: Authority to refund / replace / escalate (e.g., low, medium, high).
-    :ivar escalation_policy: Short description of escalation triggers.
-    :ivar average_handle_time: Typical AHT (e.g., "6m", "300s").
-    :ivar adherence_notes: Notes on process adherence or QA.
-    :ivar stress_tolerance: Stress handling descriptor.
-    :ivar performance_notes: KPIs summary.
-    :ivar rules: Internal rules / constraints / compliance reminders.
+    :vartype politeness: str
+    :ivar resolution_authority_level: Authority level for resolutions/escalations.
+    :vartype resolution_authority_level: str
+    :ivar escalation_policy: Summary of escalation criteria/process.
+    :vartype escalation_policy: str
+    :ivar average_handle_time: Typical handling time (e.g., "6m").
+    :vartype average_handle_time: str
+    :ivar adherence_notes: Notes on process or QA adherence.
+    :vartype adherence_notes: str
+    :ivar stress_tolerance: Stress handling capability descriptor.
+    :vartype stress_tolerance: str
+    :ivar performance_notes: Performance KPIs or evaluation notes.
+    :vartype performance_notes: str
+    :ivar rules: Internal rules, compliance reminders, or constraints.
+    :vartype rules: str
     """
     name: str = ""
     language: str = "English"

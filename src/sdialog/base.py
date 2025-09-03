@@ -1,3 +1,14 @@
+"""
+base: model foundations for sdialog root module.
+
+Provides:
+  - Metadata: common provenance fields (version, timestamp, ids).
+  - BaseAttributeModel: pydantic-based abstract base for persona/context-like objects
+    with cloning, serialization, and dynamic subclass discovery utilities.
+"""
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
+# SPDX-License-Identifier: MIT
 import os
 import sys
 import json
@@ -17,8 +28,11 @@ _OBJECT_CLASS_MAP = None
 
 def _build_attribute_model_class_map():
     """
-    Build (once) and return a mapping {className: Class} for all AttributeModel subclasses
-    discovered in any already-imported module that references the same AttributeModel object.
+    Build (once) and return a mapping {className: Class} for all BaseAttributeModel subclasses
+    discovered in any already-imported module that references the same BaseAttributeModel object.
+
+    :return: Mapping from subclass name to the subclass type.
+    :rtype: dict
     """
     global _OBJECT_CLASS_MAP
     if _OBJECT_CLASS_MAP is not None:
@@ -63,12 +77,12 @@ class Metadata(BaseModel):
     :ivar seed: The random seed used for object generation.
     :vartype seed: Optional[int]
     :ivar id: Unique identifier for the object.
-    :vartype id: Optional[int]
+    :vartype id: Optional[Union[int, str]]
     :ivar parentId: ID of the parent object, if any.
-    :vartype parentId: Optional[int]
+    :vartype parentId: Optional[Union[int, str]]
     :ivar notes: Free-text notes or comments about the generated object.
     :vartype notes: Optional[str]
-    :ivar className: The class name of the object (a subclass of AttributeModel).
+    :ivar className: The class name of the object (a subclass of BaseAttributeModel).
     :vartype className: str
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
@@ -83,16 +97,32 @@ class Metadata(BaseModel):
 
 class BaseAttributeModel(BaseModel, ABC):
     """
-    Base class for defining a attribute-based objects.
+    Base class for defining an attribute-based object.
+
+    Features:
+      - Strict field control.
+      - Automatic static attributes() helper listing declared fields.
+      - Metadata tracking (id, parentId, version, timestamp).
+      - Clone with optional field overrides and proper lineage linkage.
+      - JSON / prompt serialization helpers.
     """
     model_config = ConfigDict(extra='forbid')
     _metadata: Optional[Metadata] = None
 
     # Automatically inject a staticmethod attributes() into every subclass
     def __init_subclass__(cls, **kwargs):
+        """Injects a static attributes(print=False) helper into every subclass."""
         super().__init_subclass__(**kwargs)
 
         def _attributes(_cls=cls, print=False):
+            """
+            List (or pretty-print) public attribute field names for this subclass.
+
+            :param print: If True, pretty-prints instead of returning the list.
+            :type print: bool
+            :return: List of attribute names (if print=False).
+            :rtype: List[str] | None
+            """
             items = []
             for name, _ in _cls.model_fields.items():
                 if name.startswith("_"):
@@ -111,23 +141,19 @@ class BaseAttributeModel(BaseModel, ABC):
 
     def clone(self, new_id: int = None, **kwargs) -> "BaseAttributeModel":
         """
-        Creates a deep copy of the object, with optional attribute overrides.
+        Create a deep copy of this object with optional attribute overrides.
 
-        The cloned object will have all attributes copied from the original, with any provided keyword arguments
-        (`kwargs`) used to override or update specific fields. The clone receives a new metadata object:
+        Metadata handling:
+          - parentId of clone = original id (if present).
+          - id of clone = new_id if provided else a new universal id.
+          - Other metadata fields are copied.
 
-        - The `parentId` field in the clone's metadata is set to the original object's `id` (if present).
-        - The `id` field in the clone's metadata is set to `new_id` if provided, otherwise to the original's `id`.
-        - All other metadata fields are copied from the original.
-
-        This method is useful for generating variations of a object for ablation, branching, or scenario testing
-        without modifying the original instance. The clone is a fully independent object.
-
-        :param new_id: Optional new unique ID for the cloned object.
-        :type new_id: int, optional
-        :param kwargs: Attributes to override in the cloned object.
-        :return: A new instance of the object with updated attributes and metadata.
-        :rtype: AttributeModel
+        :param new_id: Optional new unique id for the clone.
+        :type new_id: Optional[int]
+        :param kwargs: Field overrides applied to the cloned instance.
+        :type kwargs: Any
+        :return: Independent cloned instance.
+        :rtype: BaseAttributeModel
         """
         data = self.json()
         data.update(kwargs)
@@ -204,6 +230,9 @@ class BaseAttributeModel(BaseModel, ABC):
     def prompt(self) -> str:
         """
         Returns the textual representation of the object, used as part of the system prompt.
+
+        :return: JSON string without metadata (intended for prompt inclusion).
+        :rtype: str
         """
         return self.json(string=True, output_metadata=False)
 
@@ -228,28 +257,34 @@ class BaseAttributeModel(BaseModel, ABC):
     @staticmethod
     def from_file(path: str, object_class: Optional["BaseAttributeModel"] = None):
         """
-        Loads object from a file.
+        Load an object from a JSON file.
 
-        :param path: Path to the object file.
+        :param path: Path to file.
         :type path: str
-        :param object_class: Optional specific class to use for the object.
-        :type object_class: Optional[AttributeModel]
-        :return: The loaded object object.
-        :rtype: MetaPersona
+        :param object_class: Optional explicit subclass to force (bypasses className dispatch).
+        :type object_class: Optional[BaseAttributeModel]
+        :return: Loaded instance.
+        :rtype: BaseAttributeModel
+        :raises ValueError: If metadata/className is missing or unknown.
         """
         return BaseAttributeModel.from_json(open(path, "r", encoding="utf-8").read(), object_class)
 
     @staticmethod
     def from_dict(data: dict, object_class: Optional["BaseAttributeModel"] = None):
         """
-        Creates a object object from a dictionary.
+        Create an object instance from a dictionary.
 
-        :param data: The dictionary containing object data.
+        Dispatch rules:
+          - If object_class is provided and is a BaseAttributeModel subclass, it is used directly.
+          - Else uses _metadata.className to resolve a registered subclass.
+
+        :param data: Source dictionary (must include _metadata.className).
         :type data: dict
-        :param object_class: Optional specific class to use for the object.
-        :type object_class: Optional[AttributeModel]
-        :return: The created object object.
-        :rtype: MetaPersona
+        :param object_class: Optional explicit subclass.
+        :type object_class: Optional[BaseAttributeModel]
+        :return: Instantiated object.
+        :rtype: BaseAttributeModel
+        :raises ValueError: If className missing or cannot be resolved.
         """
         # Assign to "object" the instance of the right class using the `className`
         if "_metadata" in data and "className" in data["_metadata"] and data["_metadata"]["className"]:
@@ -271,18 +306,18 @@ class BaseAttributeModel(BaseModel, ABC):
                 else:
                     raise ValueError(f"Unknown object class given in the `className` field: {object_class_name}.")
         else:
-            raise ValueError("Metadata with `className` is required to create a object from a dict or json.")
+            raise ValueError("Metadata with `className` is required to create an object from a dict or json.")
 
     @staticmethod
     def from_json(json_str: str, object_class: Optional["BaseAttributeModel"] = None):
         """
-        Creates a object object from a JSON string.
+        Create an object instance from a JSON string.
 
-        :param json_str: The JSON string containing object data.
+        :param json_str: JSON serialization including _metadata.className.
         :type json_str: str
-        :param object_class: Optional specific class to use for the object.
-        :type object_class: Optional[AttributeModel]
-        :return: The created object object.
-        :rtype: MetaPersona
+        :param object_class: Optional explicit subclass override.
+        :type object_class: Optional[BaseAttributeModel]
+        :return: Instantiated object.
+        :rtype: BaseAttributeModel
         """
         return BaseAttributeModel.from_dict(json.loads(json_str), object_class)

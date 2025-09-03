@@ -37,13 +37,7 @@ logger = logging.getLogger(__name__)
 class Agent:
     """
     Agent that simulates a persona in dialogue using an LLM.
-
-    :cvar STOP_WORD: Special token to indicate end of conversation.
-    :vartype STOP_WORD: str
-    :cvar STOP_WORD_TEXT: Replacement text for STOP_WORD.
-    :vartype STOP_WORD_TEXT: str
     """
-
     STOP_WORD = "STOP"
     STOP_WORD_TEXT = "(bye bye!)"
 
@@ -237,12 +231,11 @@ class Agent:
 
     def __or__(self, other):
         """
-        Adds enitity to the agent using the | operator.
+        Overloaded | operator to attach orchestration or interpretability components.
 
-        :param orchestrator: Orchestrator(s) to add.
-        :type orchestrator: Union[BaseOrchestrator, List[BaseOrchestrator]]
-        :return: The agent with orchestrators added.
-        :rtype: Agent
+        :param other: BaseOrchestrator, list[BaseOrchestrator], Inspector or list[Inspector].
+        :type other: Union[BaseOrchestrator, List[BaseOrchestrator], Inspector, List[Inspector]]
+        :return: Self (Agent) for chaining.
         """
         if isinstance(other, Inspector):
             self.add_inspectors(other)
@@ -252,6 +245,7 @@ class Agent:
 
     @property
     def utterance_list(self):
+        """List of utterance dicts captured by the UtteranceTokenHook (interpretability)."""
         return self.utterance_hook.utterance_list
 
     @property
@@ -365,12 +359,12 @@ class Agent:
         Registers RepresentationHooks for each layer in the given mapping.
         Skips already registered layers. Adds new keys to the shared representation_cache.
 
-        Args:
-            key_to_layer_name: Dict mapping cache keys to layer names.
-            steering_function: Optional function to apply to the output tensor before caching.
-            steering_interval: Tuple `(min_token, max_token)` to control steering.
-                                   `min_token` tokens are skipped. Steering stops at `max_token`.
-                                   A `max_token` of -1 means no upper limit.
+        :param key_to_layer_name: Mapping from cache key (str) to target layer name (str).
+        :type key_to_layer_name: Dict[str, str]
+        :param steering_function: Optional function applied to layer output before caching/steering.
+        :type steering_function: Optional[Callable]
+        :param steering_interval: (min_token, max_token). Skip first min_token; stop after max_token (-1 = no limit).
+        :type steering_interval: Tuple[int, int]
         """
         # Get the model (assume HuggingFace pipeline)
         model = self.base_model
@@ -409,7 +403,7 @@ class Agent:
 
     def clear_hooks(self):
         """
-        Resets all representation cached and removes all registered hooks from the agent.
+        Resets all cached representations and removes registered hooks from the agent.
         """
         for hook in getattr(self, 'rep_hooks', []):
             hook.remove()
@@ -419,6 +413,9 @@ class Agent:
         self.set_utterance_hook()
 
     def set_utterance_hook(self):
+        """
+        Ensures a UtteranceTokenHook is registered (idempotent). Also assigns tokenizer reference.
+        """
         # Register UtteranceTokenHook and expose utterance_list
         if self.utterance_hook is None:
             self.utterance_hook = UtteranceTokenHook(agent=self)
@@ -455,6 +452,8 @@ class Agent:
         """
         Returns the agent's name.
 
+        :param default: Fallback name if agent has no explicit name.
+        :type default: str
         :return: The agent's name.
         :rtype: str
         """
@@ -494,12 +493,11 @@ class Agent:
     def reset(self, seed: int = None, context: Union[str, Context] = None, example_dialogs: List['Dialog'] = None):
         """
         Resets the agent's memory and orchestrators, optionally reseeding the LLM.
-        Clears the interpretability state (utterance_list and representation_cache).
+        Clears interpretability state (utterance_list and representation_cache).
 
-        :param seed: Random seed for reproducibility.
-        :type seed: int
-        :param context: Optional context for the agent.
-        :type context: Union[str, Context]
+        :param seed: Random seed for reproducibility (if None, generated).
+        :param context: Optional context override.
+        :param example_dialogs: Optional replacement example dialogs for prompt regeneration.
         """
         # Remove history
         self.memory[:] = self.memory[:1]
@@ -633,7 +631,10 @@ class Agent:
     def memory_dump(self, as_dict: bool = False) -> list:
         """
         Returns a copy of the agent's memory (list of messages).
-        :return: A copy of the memory list.
+
+        :param as_dict: If True, returns list of message dicts (serialization-friendly).
+        :type as_dict: bool
+        :return: Conversation memory snapshot.
         :rtype: list
         """
         return messages_to_dict(self.memory) if as_dict else self.memory.copy()

@@ -3,14 +3,17 @@ sdialog: Synthetic Dialogue Generation Toolkit
 
 This package provides utilities for generating synthetic dialogues using instruction-tuned large language models (LLMs).
 Dialogues are generated primarily via role-playing, where each agent is defined by a Persona object. The package
-supports dialogue orchestration, scenario management, and flexible serialization for downstream tasks.
+supports dialogue orchestration, context management, and flexible serialization for downstream tasks.
 
 Main components:
 
     - Dialog, Turn, Event: Data structures for representing dialogues and their events.
-    - Persona and Agent: For defining and simulating role-played agents.
+    - Context, Persona and Agent: For defining and simulating role-played agents in a given context.
     - Orchestrators: For controlling agent behavior during dialogue generation.
-    - Utility functions for serialization, pretty-printing, and file I/O.
+    - Evaluation: Utilities and metrics for assessing dialogue quality (coherence, turn balance, persona/goal
+      adherence, safety screening, lexical/statistical reports) and for building reproducible evaluation pipelines.
+    - Interpretability: Layer/token-level activation capture, inspection (Inspector, hooks), steering (directional
+      modulation of representations), and instruction extraction utilities (see interpretability.py).
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -87,9 +90,16 @@ class Event(BaseModel):
     action: str  # "utter", "instruct"
     actionLabel: Optional[str] = None  # action label (e.g. type of instruct)
     text: str  # the content of the event
-    timestamp: int  # timestemp
+    timestamp: int  # timestamp
 
-    def model_post_init(self, context: Any, /) -> None:        # This runs after __init__
+    def model_post_init(self, context: Any, /) -> None:
+        """
+        Post-initialization hook (pydantic v2).
+        Logs the event at DEBUG level after model validation / creation.
+
+        :param context: Internal pydantic context (unused).
+        :type context: Any
+        """
         logger.log(level=logging.DEBUG, msg=f"Event: {self}")
 
 
@@ -121,8 +131,8 @@ class Dialog(BaseModel):
     :ivar notes: Free-text notes or comments about the dialogue.
     :vartype notes: Optional[str]
     """
-    version: Optional[str] = Field(default_factory=_get_dynamic_version)  # Version of the format
-    timestamp: Optional[str] = Field(default_factory=get_timestamp)  # Timestamp of dialogue creation
+    version: Optional[str] = Field(default_factory=_get_dynamic_version)
+    timestamp: Optional[str] = Field(default_factory=get_timestamp)
     model: Optional[str] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generate the dialogue
     id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)  # Unique ID for the dialogue
@@ -177,8 +187,11 @@ class Dialog(BaseModel):
         Internal utility: apply the string transformation function fn to each turn's text.
 
         :param fn: Callable transforming a str into a str.
+        :type fn: Callable[[str], str]
         :param in_place: If True mutate this Dialog, otherwise work on a cloned copy.
+        :type in_place: bool
         :return: The mutated (in_place=True) or cloned (in_place=False) Dialog.
+        :rtype: Dialog
         """
         target = self if in_place else self.clone()
         for turn in target.turns:
@@ -187,29 +200,77 @@ class Dialog(BaseModel):
         return target
 
     def lower(self, in_place: bool = True) -> "Dialog":
-        """Apply str.lower() to every turn's text."""
+        """
+        Apply str.lower() to every turn's text.
+
+        :param in_place: If True modify this Dialog in place; otherwise return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
+        """
         return self._transform_texts(lambda s: s.lower(), in_place)
 
     def upper(self, in_place: bool = True) -> "Dialog":
-        """Apply str.upper() to every turn's text."""
+        """
+        Apply str.upper() to every turn's text.
+
+        :param in_place: If True modify this Dialog in place; otherwise return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
+        """
         return self._transform_texts(lambda s: s.upper(), in_place)
 
     def title(self, in_place: bool = True) -> "Dialog":
-        """Apply str.title() to every turn's text."""
+        """
+        Apply str.title() to every turn's text.
+
+        :param in_place: If True modify this Dialog in place; otherwise return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
+        """
         return self._transform_texts(lambda s: s.title(), in_place)
 
     def capitalize(self, in_place: bool = True) -> "Dialog":
-        """Apply str.capitalize() to every turn's text."""
+        """
+        Apply str.capitalize() to every turn's text.
+
+        :param in_place: If True modify this Dialog in place; otherwise return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
+        """
         return self._transform_texts(lambda s: s.capitalize(), in_place)
 
     def strip(self, chars: str = None, in_place: bool = True) -> "Dialog":
-        """Apply str.strip(chars) to every turn's text."""
+        """
+        Apply str.strip(chars) to every turn's text.
+
+        :param chars: Characters to strip; if None, default whitespace is stripped.
+        :type chars: Optional[str]
+        :param in_place: If True modify this Dialog in place; otherwise return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
+        """
         return self._transform_texts(lambda s: s.strip(chars) if chars is not None else s.strip(), in_place)
 
     def replace(self, old: str, new: str, count: int = -1, in_place: bool = True) -> "Dialog":
         """
         Apply str.replace(old, new, count) to every turn's text.
         If count < 0 all occurrences are replaced.
+
+        :param old: Substring to be replaced.
+        :type old: str
+        :param new: Replacement substring.
+        :type new: str
+        :param count: Maximum number of replacements per text; if < 0 replace all.
+        :type count: int
+        :param in_place: If True modify this Dialog in place; otherwise return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
         """
         return self._transform_texts(
             (lambda s: s.replace(old, new, count if count >= 0 else s.count(old))) if count >= 0
@@ -228,10 +289,17 @@ class Dialog(BaseModel):
         If pattern is a compiled regex, flags are ignored.
 
         :param pattern: Regex pattern (string or compiled).
+        :type pattern: Union[str, Pattern]
         :param repl: Replacement string or callable.
+        :type repl: Union[str, Callable]
         :param count: Max substitutions per text (0 means unlimited).
-        :param flags: re flags (ignored if compiled pattern is passed).
-        :param in_place: Mutate this Dialog if True, else return a cloned transformed Dialog.
+        :type count: int
+        :param flags: Regex flags (ignored if compiled pattern provided).
+        :type flags: int
+        :param in_place: Mutate this Dialog if True; else return a cloned transformed Dialog.
+        :type in_place: bool
+        :return: The modified (or cloned) Dialog.
+        :rtype: Dialog
         """
         return self._transform_texts(
             (lambda s: pattern.sub(repl, s, count=count)) if isinstance(pattern, re.Pattern)
@@ -269,7 +337,9 @@ class Dialog(BaseModel):
         """
         Creates a deep copy of the dialogue.
 
-        :return: A new Dialog object that is a copy of this one.
+        :param new_id: Optional ID to assign to the cloned dialog. If None, a new universal ID is generated.
+        :type new_id: int, optional
+        :return: A new Dialog object that is a deep copy of this one, with updated id and parentId.
         :rtype: Dialog
         """
         cloned = Dialog.from_dict(self.json())
@@ -322,6 +392,10 @@ class Dialog(BaseModel):
         :type scenario: bool
         :param orchestration: If True, prints orchestration events.
         :type orchestration: bool
+        :param a: Additional positional arguments (unused).
+        :type a: tuple
+        :param kw: Additional keyword arguments (supports 'scenario' and 'orchestration').
+        :type kw: dict
         """
         _print_dialog(self, *a, **kw)
 
@@ -335,6 +409,8 @@ class Dialog(BaseModel):
         :type type: str
         :param makedir: If True, creates parent directories as needed.
         :type makedir: bool
+        :param overwrite: If False and the file exists, raise FileExistsError instead of overwriting.
+        :type overwrite: bool
         """
         if not path:
             if self._path:
@@ -611,6 +687,8 @@ class Dialog(BaseModel):
         :type case_sensitive: bool
         :param in_events: Whether to also rename in events' agent fields (default: True).
         :type in_events: bool
+        :return: Self (the same Dialog instance) after in-place modification.
+        :rtype: Dialog
         """
         def match(name):
             if case_sensitive:
@@ -650,10 +728,10 @@ class Dialog(BaseModel):
         """
         Filters the dialogue turns by speaker.
 
-        :param speaker: The speaker name to filter by.
+        :param speaker: The speaker name to filter by (case-insensitive).
         :type speaker: str
-        :return: A new Dialog object containing only the turns by the specified speaker.
-        :rtype: Dialog
+        :return: A new Dialog containing only that speaker's turns; returns None if speaker not found.
+        :rtype: Optional[Dialog]
         """
         if speaker.lower() not in self.get_speakers(keep_case=False):
             logger.error(f"The provided speaker '{speaker}' does not exist in the dialogue. "
@@ -675,7 +753,7 @@ class Instruction(BaseModel):
 
     :ivar text: The instruction text.
     :vartype text: str
-    :ivar events: Associated events (optional).
+    :ivar events: Associated event(s), either a single Event or a list of Events.
     :vartype events: Optional[Union[Event, List[Event]]]
     """
     text: str = None

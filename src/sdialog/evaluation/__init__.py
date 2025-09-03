@@ -1,8 +1,7 @@
 """
 evaluation: Evaluation components for dialogue generation and analysis.
 
-This module provides abstract base classes for evaluating dialogues,
-including LLM judges, metrics, and similarity scores.
+This module provides classes for evaluating dialogues, including LLM judges, metrics, and similarity scores.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -41,18 +40,18 @@ logger = logging.getLogger(__name__)
 
 def cs_divergence(p1, p2, resolution=100, bw_method=1):
     """
-    Calculates the Cauchy-Schwarz divergence between two probability distributions.
+    Calculate the Cauchy–Schwarz divergence between two 1D distributions via KDE.
 
-    :param p1: First sample (1D array or list)
+    :param p1: First sample (1D array-like).
     :type p1: array-like
-    :param p2: Second sample (1D array or list)
+    :param p2: Second sample (1D array-like).
     :type p2: array-like
-    :param resolution: Number of points to evaluate the KDEs on (default: 100)
+    :param resolution: Number of evaluation points for KDE grid.
     :type resolution: int
-    :param bw_method: Bandwidth for KDE (default: 1, i.e., standard bandwidth)
-    :type bw_method: float or str
-    :return: Cauchy-Schwarz divergence (0 means identical distributions)
-    :rtype: float
+    :param bw_method: KDE bandwidth (scalar or method string).
+    :type bw_method: Union[float, str]
+    :return: CS divergence (0 means identical distributions); None if either sample empty.
+    :rtype: Optional[float]
     """
     if len(p1) == 0 or len(p2) == 0:
         logger.error("Both input distributions must have at least one sample. Returning None")
@@ -71,21 +70,20 @@ def cs_divergence(p1, p2, resolution=100, bw_method=1):
 
 def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     """
-    Estimates the Kullback-Leibler (KL) divergence KL(p1 || p2) between two distributions given samples, using KDE.
+    Estimate KL divergence KL(p1 || p2) between two 1D distributions via KDE.
 
-    KL divergence is not symmetric: KL(p1 || p2) != KL(p2 || p1).
-    The result is >= 0, and 0 means the distributions are identical.
+    KL(p1||p2) is non‑symmetric and >= 0 (0 means identical).
 
-    :param p1: First sample (1D array or list) (the 'true' distribution)
+    :param p1: First sample (treat as true distribution).
     :type p1: array-like
-    :param p2: Second sample (1D array or list) (the 'approximate' distribution)
+    :param p2: Second sample (approximate distribution).
     :type p2: array-like
-    :param resolution: Number of points to evaluate the KDEs on (default: 100)
+    :param resolution: Number of evaluation points for KDE grid.
     :type resolution: int
-    :param bw_method: Bandwidth for KDE (default: 0.1)
-    :type bw_method: float or str
-    :return: KL divergence KL(p1 || p2)
-    :rtype: float
+    :param bw_method: KDE bandwidth parameter.
+    :type bw_method: Union[float, str]
+    :return: KL divergence value; None if either sample empty.
+    :rtype: Optional[float]
     """
     if len(p1) == 0 or len(p2) == 0:
         logger.error("Both input distributions must have at least one sample. Returning None")
@@ -105,7 +103,12 @@ def kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
 
 class LLMJudgeYesNoOutput(BaseModel):
     """
-    Pydantic model for LLM-generated dialogue output.
+    Structured output for yes/no LLM judgments.
+
+    :ivar yes: Boolean (or list of booleans) indicating classification outcome(s).
+    :vartype yes: Union[bool, List[bool]]
+    :ivar feedback: Optional explanatory feedback (string or list).
+    :vartype feedback: Optional[Union[str, List[str]]]
     """
     yes: Union[bool, List[bool]]
     feedback: Optional[Union[str, List[str]]] = None
@@ -113,23 +116,22 @@ class LLMJudgeYesNoOutput(BaseModel):
 
 class LinguisticFeatureScore(BaseDialogScore):
     """
-    Compute various linguistic feature for a dialogue, such as mean turn length,
-    hesitation rate, Gunning Fog index, and Flesch Reading Ease score.
+    Compute linguistic features for a dialogue: mean turn length, hesitation rate,
+    Gunning Fog index, and Flesch Reading Ease score.
     """
     def __init__(self,
                  feature: Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"] = None,
                  name="linguistic_features",
                  speaker: Optional[str] = None):
         """
-        Compute various linguistic features for a dialogue.
+        Initialize scorer.
 
-        :param feature: Name of the specific feature to compute. Accepted values:
-                        "mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease".
-                        If None (default), all supported features are computed and the score returns a dict
-                        mapping each feature name to its value.
-        :param name: The name of the score.
-        :param speaker: The speaker to filter by (if any). When provided, only turns whose speaker
-                        (case-insensitive match) equals this value are considered.
+        :param feature: Specific feature to compute, or None to compute all.
+        :type feature: Optional[Literal["mean-turn-length","hesitation-rate","gunning-fog","flesch-reading-ease"]]
+        :param name: Internal score name.
+        :type name: str
+        :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
+        :type speaker: Optional[str]
         """
         super().__init__(name=name or feature or "")
         self.feature = feature
@@ -138,10 +140,12 @@ class LinguisticFeatureScore(BaseDialogScore):
     @staticmethod
     def count_hesitations(text):
         """
-        Count the number of hesitations in the text.
+        Count hesitation tokens (e.g., uh, um, hmm).
 
         :param text: Input text.
-        :return: Number of hesitations.
+        :type text: str
+        :return: Number of detected hesitation tokens.
+        :rtype: int
         """
         hesitation_patterns = re.compile(
             r'\b(?:uh+|um+|er+|ahh*|ohh*|hmm+|huh+|mm+|mhm+|uh-huh|um-hum+)\b',
@@ -152,10 +156,12 @@ class LinguisticFeatureScore(BaseDialogScore):
     @staticmethod
     def calculate_gunning_fog(text):
         """
-        Calculate the Gunning Fog index for the given text.
+        Compute the Gunning Fog index.
 
         :param text: Input text.
-        :return: Gunning Fog index.
+        :type text: str
+        :return: Gunning Fog index value.
+        :rtype: float
         """
         sentences = re.split(r'[.!?]+', text)
         sentences = [s.strip() for s in sentences if s.strip()]
@@ -171,10 +177,12 @@ class LinguisticFeatureScore(BaseDialogScore):
     @staticmethod
     def calculate_flesch_reading_ease(text):
         """
-        Calculate the Flesch Reading Ease score for the given text.
+        Compute the Flesch Reading Ease score.
 
         :param text: Input text.
-        :return: Flesch Reading Ease score.
+        :type text: str
+        :return: Reading ease score.
+        :rtype: float
         """
         sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
         if not sentences:
@@ -188,6 +196,14 @@ class LinguisticFeatureScore(BaseDialogScore):
         return 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
 
     def score(self, dialog: Dialog) -> float:
+        """
+        Compute one or multiple linguistic features for the dialogue.
+
+        :param dialog: Dialogue instance to evaluate.
+        :type dialog: Dialog
+        :return: Feature value (float) if single feature requested; otherwise dict mapping feature -> value.
+        :rtype: Union[float, dict]
+        """
         if self.speaker:
             dialog = dialog.filter(speaker=self.speaker)
 
@@ -218,6 +234,26 @@ class DialogFlowPPL(BaseDialogFlowScore):
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
+        """
+        Initialize flow perplexity evaluator.
+
+        :param reference_dialogues: List of reference dialogues or file path.
+        :type reference_dialogues: Union[str, List[Dialog]]
+        :param ai_speaker: If set, restrict scoring to AI/system turns.
+        :type ai_speaker: Optional[str]
+        :param k_neighbors: Neighbor count for embedding lookup.
+        :type k_neighbors: int
+        :param use_softmax: Whether to weight neighbors via softmax.
+        :type use_softmax: bool
+        :param use_only_known_edges: If True, ignore unknown transitions (penalize less).
+        :type use_only_known_edges: bool
+        :param name: Custom score name override.
+        :type name: Optional[str]
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        :param d2f_kwargs: Extra kwargs to dialog2graph.
+        :type d2f_kwargs: dict
+        """
         self.use_only_known_edges = use_only_known_edges
         if name is None:
             name = "dfppl" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else "")
@@ -234,6 +270,14 @@ class DialogFlowPPL(BaseDialogFlowScore):
 
     @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
+        """
+        Compute flow perplexity-like score (exp of negative average log probability).
+
+        :param dialog: Dialogue to score.
+        :type dialog: Dialog
+        :return: Perplexity value or None if insufficient transitions.
+        :rtype: Optional[float]
+        """
         sum_log_p_known, n_turns_known, sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
         if n_turns <= 1:
             dialog_path = getattr(dialog, "_path", None)
@@ -261,6 +305,30 @@ class DialogFlowScore(BaseDialogFlowScore):
                  graph=None,
                  nodes=None,
                  **d2f_kwargs):
+        """
+        Initialize flow likelihood score evaluator (geometric mean of edge probabilities).
+
+        :param reference_dialogues: List of reference dialogues or file path.
+        :type reference_dialogues: Union[str, List[Dialog]]
+        :param ai_speaker: Restrict scoring to AI/system turns if provided.
+        :type ai_speaker: Optional[str]
+        :param k_neighbors: Neighbor count for embedding lookup.
+        :type k_neighbors: int
+        :param use_softmax: Whether to weight neighbors via softmax.
+        :type use_softmax: bool
+        :param use_only_known_edges: If True, only known edges contribute.
+        :type use_only_known_edges: bool
+        :param name: Custom score name.
+        :type name: Optional[str]
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        :param graph: Pre-built graph (optional).
+        :type graph: Any
+        :param nodes: Pre-built node metadata (optional).
+        :type nodes: dict
+        :param d2f_kwargs: Extra kwargs to dialog2graph.
+        :type d2f_kwargs: dict
+        """
         self.use_only_known_edges = use_only_known_edges
         if name is None:
             name = "dfs" + ("" if use_softmax else "-hard") + ("-ai" if ai_speaker else "")
@@ -279,6 +347,14 @@ class DialogFlowScore(BaseDialogFlowScore):
 
     @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> float:
+        """
+        Compute geometric mean transition likelihood.
+
+        :param dialog: Dialogue to score.
+        :type dialog: Dialog
+        :return: Score value or None if insufficient transitions.
+        :rtype: Optional[float]
+        """
         sum_log_p_known, n_turns_known, sum_log_p, n_turns = self.compute_dialog_log_likelihood(dialog)
         if n_turns <= 1:
             dialog_path = getattr(dialog, '_path', None)
@@ -301,6 +377,18 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize yes/no LLM judge.
+
+        :param prompt_template: Jinja2 template for judging prompt.
+        :type prompt_template: str
+        :param model: Model instance or model name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param feedback: Whether to request feedback field.
+        :type feedback: bool
+        :param llm_kwargs: Extra LLM initialization kwargs.
+        :type llm_kwargs: dict
+        """
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
         BaseLLMJudge.__init__(self,
@@ -312,6 +400,16 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         self.feedback = feedback
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
+        """
+        Run judgment over one or multiple dialogues.
+
+        :param dialogs: A single Dialog or list of Dialogs.
+        :type dialogs: Union[Dialog, List[Dialog]]
+        :param feedback: Override feedback flag (falls back to self.feedback).
+        :type feedback: Optional[bool]
+        :return: Structured yes/no output model.
+        :rtype: LLMJudgeYesNoOutput
+        """
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
@@ -349,7 +447,25 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                  score_type: type = int,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize numeric score judge.
 
+        :param prompt_template: Jinja2 template text.
+        :type prompt_template: str
+        :param model: Model instance or model name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param min_score: Minimum allowed score.
+        :type min_score: float
+        :param max_score: Maximum allowed score.
+        :type max_score: float
+        :param score_type: int or float score type.
+        :type score_type: type
+        :param feedback: Whether to request feedback field.
+        :type feedback: bool
+        :param llm_kwargs: Extra LLM kwargs.
+        :type llm_kwargs: dict
+        :raises ValueError: If score_type invalid.
+        """
         if score_type not in [int, float]:
             raise ValueError(f"Invalid score_type: {score_type}. Must be int or float.")
         elif score_type is float:
@@ -381,6 +497,16 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
     def judge(self,
               dialogs: Union[Dialog, List[Dialog]],
               feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int, float]:
+        """
+        Produce a numeric judgment for one or more dialogues.
+
+        :param dialogs: Dialogue or list of dialogues.
+        :type dialogs: Union[Dialog, List[Dialog]]
+        :param feedback: Override feedback flag.
+        :type feedback: Optional[bool]
+        :return: Structured output containing score (+ optional feedback).
+        :rtype: BaseModel
+        """
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
@@ -396,10 +522,13 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
     @CacheDialogScore.cache
     def score(self, dialog: Dialog) -> Union[float, int]:
         """
-        Computes the score for the provided dialog.
+        Return numeric score extracted from model output.
 
-        :param dialog: The dialog to score.
-        :return: A float representing the score of the dialog.
+        :param dialog: Dialogue to score.
+        :type dialog: Dialog
+        :return: Score value.
+        :rtype: Union[int, float]
+        :raises ValueError: If model output malformed.
         """
         output = self.judge(dialog)
         try:
@@ -427,6 +556,16 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize real vs synthetic judge (boolean).
+
+        :param model: Model instance or name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param feedback: Whether to request feedback.
+        :type feedback: bool
+        :param llm_kwargs: Additional LLM kwargs.
+        :type llm_kwargs: dict
+        """
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
@@ -444,6 +583,16 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize Likert realism scorer (1–5).
+
+        :param model: Model instance or name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param feedback: Request feedback flag.
+        :type feedback: bool
+        :param llm_kwargs: Extra LLM kwargs.
+        :type llm_kwargs: dict
+        """
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog_likert_score"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
@@ -457,9 +606,8 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
 
 class LLMJudgeRealDialogScore(LLMJudgeScore):
     """
-    LLM judge for evaluating how "real" (human-like) or "synthetic" (machine-generated) a dialogue appears,
-    returning a numerical score (e.g., Likert scale or custom range) and optional feedback.
-    Useful for fine-grained assessment of dialogue authenticity.
+    LLM judge for evaluating how "real" (human-like) or "synthetic" a dialogue appears
+    on a configurable numeric range.
     """
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
@@ -467,6 +615,20 @@ class LLMJudgeRealDialogScore(LLMJudgeScore):
                  max_score: int = 10,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize realism score judge (custom numeric range).
+
+        :param model: Model instance or name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param min_score: Minimum realism score.
+        :type min_score: int
+        :param max_score: Maximum realism score.
+        :type max_score: int
+        :param feedback: Request feedback flag.
+        :type feedback: bool
+        :param llm_kwargs: Extra LLM kwargs.
+        :type llm_kwargs: dict
+        """
         with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog_score"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
@@ -486,6 +648,16 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize refusal detector.
+
+        :param model: Model instance or name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param feedback: Request feedback flag.
+        :type feedback: bool
+        :param llm_kwargs: Extra LLM kwargs.
+        :type llm_kwargs: dict
+        """
         with open(config["prompts"]["evaluation"]["llm_as_judge_refusal"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
@@ -502,6 +674,20 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                  model: Union[BaseLanguageModel, str] = None,
                  feedback: bool = False,
                  **llm_kwargs):
+        """
+        Initialize persona adherence judge.
+
+        :param persona: Persona definition object.
+        :type persona: BasePersona
+        :param speaker: Target speaker name in dialogue.
+        :type speaker: str
+        :param model: Model instance or name.
+        :type model: Optional[Union[BaseLanguageModel, str]]
+        :param feedback: Request feedback flag.
+        :type feedback: bool
+        :param llm_kwargs: Additional LLM kwargs.
+        :type llm_kwargs: dict
+        """
         with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
@@ -524,9 +710,16 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
                  name: str = None,
                  verbose: bool = False):
         """
+        Initialize dialog embedder.
+
         :param model_name: SentenceTransformer model name.
-        :param mean: If True, embed as mean of turn embeddings; if False, embed whole dialog as a single string.
-        :param name: Optional name for the embedder.
+        :type model_name: str
+        :param mean: If True average per-turn embeddings; else encode concatenated text.
+        :type mean: bool
+        :param name: Optional custom embedder name.
+        :type name: Optional[str]
+        :param verbose: Show progress bars for encoding.
+        :type verbose: bool
         """
         mode_str = "mean-" if mean else ""
         super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}")
@@ -535,6 +728,14 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
         self.verbose = verbose
 
     def embed(self, dialog: Dialog) -> np.ndarray:
+        """
+        Generate embedding for a dialog.
+
+        :param dialog: Dialog instance.
+        :type dialog: Dialog
+        :return: Embedding vector.
+        :rtype: np.ndarray
+        """
         if self.mean:
             texts = [turn.text for turn in dialog.turns if hasattr(turn, "text")]
             if not texts:
@@ -551,8 +752,7 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
 
 class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
     """
-    Evaluator that computes the centroid of reference dialog embeddings and compares
-    the centroid of candidate dialog embeddings using cosine similarity.
+    Evaluator comparing candidate centroid to a reference centroid via cosine similarity.
     """
     def __init__(self,
                  dialog_embedder: BaseDialogEmbedder,
@@ -560,6 +760,20 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
+        """
+        Initialize centroid similarity evaluator.
+
+        :param dialog_embedder: Dialog embedding component.
+        :type dialog_embedder: BaseDialogEmbedder
+        :param reference_dialogues: List of reference Dialog objects or path.
+        :type reference_dialogues: Union[str, List[Dialog]]
+        :param name: Optional evaluator name.
+        :type name: Optional[str]
+        :param enable_plotting: Store embeddings for plotting if True.
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        """
         name = name or f"centroid-similarity-{dialog_embedder.name}"
         super().__init__(dialog_embedder, name=name, enable_plotting=enable_plotting, verbose=verbose)
         # Compute reference centroid
@@ -574,9 +788,12 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
 
     def __plot__(self, dialog_embs: Dict[str, np.ndarray]):
         """
-        Plot the embeddings of the datasets.
-        :param dialog_embs: A dictionary with dataset names as keys and embeddings as values.
-        :param tsne_model: The t-SNE model used for dimensionality reduction.
+        Plot t-SNE projection of embeddings and centroids.
+
+        :param dialog_embs: Mapping dataset name -> embedding matrix.
+        :type dialog_embs: Dict[str, np.ndarray]
+        :return: None
+        :rtype: None
         """
         # Concatenate all embeddings and keep track of dataset labels
         all_embs = [self.reference_centroid.reshape(1, -1)]
@@ -622,8 +839,12 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
 
     def eval(self, dialog_embs: List[np.ndarray]) -> float:
         """
-        Compute the centroid of the given embeddings and return the cosine similarity
-        with the reference centroid.
+        Compute cosine similarity between candidate centroid and reference centroid.
+
+        :param dialog_embs: Embeddings to evaluate.
+        :type dialog_embs: List[np.ndarray]
+        :return: Cosine similarity (−1 to 1).
+        :rtype: float
         """
         if isinstance(dialog_embs, list):
             dialog_embs = np.array(dialog_embs)
@@ -650,16 +871,24 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                  verbose: bool = False,
                  **evaluator_kwargs):
         """
-        Evaluator that computes the KDE of the dialog scores and compares them
-        using Cauchy-Schwarz or KL divergence.
-        :param dialog_score: The dialog score to evaluate.
-        :param reference_dialogues: List of reference dialogues or a file path to load them.
-        :param metric: The metric to use for comparison, either "cs", "kl", or "all" (default: "kl").
-        :param kde_bw: Bandwidth for the KDE (default: None, uses default bandwidth).
-        :param name: Optional name for the evaluator.
-        :param enable_plotting: Whether to enable plotting of the KDE distributions (default: True).
-        :param verbose: Whether to print progress messages (default: False).
-        :param **evaluator_kwargs: Additional keyword arguments for the evaluator.
+        Evaluate distribution divergence between reference and candidate dialog scores using KDE.
+
+        :param dialog_score: Per-dialog scoring object.
+        :type dialog_score: BaseDialogScore
+        :param reference_dialogues: Reference Dialog list or path (optional if score object has attribute).
+        :type reference_dialogues: Optional[Union[str, List[Dialog]]]
+        :param metric: Divergence metric: "kl", "cs", or "all".
+        :type metric: str
+        :param kde_bw: Bandwidth override for KDE.
+        :type kde_bw: Optional[float]
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param enable_plotting: Keep distributions for plotting.
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        :param evaluator_kwargs: Extra kwargs to parent initializer.
+        :type evaluator_kwargs: dict
         """
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
 
@@ -683,6 +912,16 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
         self.reference_scores = np.array([s for s in self.reference_scores if s is not None])
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        """
+        Plot KDE curves of reference and candidate score distributions.
+
+        :param dialog_scores: Mapping dataset name -> scores array.
+        :type dialog_scores: Dict[str, np.ndarray]
+        :param plot: Matplotlib Axes or pyplot module.
+        :type plot: Optional[plt.Axes]
+        :return: None
+        :rtype: None
+        """
         if "reference" not in dialog_scores and self.reference_scores is not None:
             pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
         for dataset_name, scores in dialog_scores.items():
@@ -695,6 +934,14 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
         plot.title(f"KDE of {self.dialog_score.name} distributions")
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        """
+        Compute divergence(s) between reference and candidate score distributions.
+
+        :param dialog_scores: Candidate score list/array.
+        :type dialog_scores: List[Union[float, int]]
+        :return: Single divergence value or dict if metric == "all".
+        :rtype: Union[float, dict]
+        """
         if self.metric == "kl":
             result = kl_divergence(self.reference_scores, dialog_scores, bw_method=self.kde_bw)
         elif self.metric == "cs":
@@ -715,6 +962,22 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
                  enable_plotting: bool = True,
                  verbose: bool = False,
                  **evaluator_kwargs):
+        """
+        Evaluate Frechet distance between Gaussian fits of reference and candidate score distributions.
+
+        :param dialog_score: Per-dialog scoring object.
+        :type dialog_score: BaseDialogScore
+        :param reference_dialogues: List or path of reference dialogues.
+        :type reference_dialogues: Optional[Union[str, List[Dialog]]]
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param enable_plotting: Retained for API parity (not used directly here).
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        :param evaluator_kwargs: Extra parent kwargs.
+        :type evaluator_kwargs: dict
+        """
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
 
         if reference_dialogues is None:
@@ -731,6 +994,16 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
         self.reference_norm_dist = norm(loc=np.mean(reference_scores), scale=np.std(reference_scores))
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+        """
+        Plot fitted normal distributions for each dataset.
+
+        :param dialog_scores: Mapping dataset name -> score array.
+        :type dialog_scores: Dict[str, np.ndarray]
+        :param plot: Matplotlib Axes or pyplot module.
+        :type plot: Optional[plt.Axes]
+        :return: None
+        :rtype: None
+        """
         if "reference" not in dialog_scores and self.reference_norm_dist is not None:
             x = np.linspace(self.reference_norm_dist.ppf(0.001), self.reference_norm_dist.ppf(0.999), 100)
             plot.plot(x, self.reference_norm_dist.pdf(x), color="grey", lw=3, label="Reference")
@@ -742,19 +1015,26 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
         plot.title(f"Normal Distributions of {self.dialog_score.name}")
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
-        # Compute the Frechet distance between the reference normal distribution and the one from dialog_scores
+        """
+        Compute Frechet distance between reference normal and candidate normal distributions.
+
+        :param dialog_scores: Candidate score list/array.
+        :type dialog_scores: List[Union[float, int]]
+        :return: Frechet distance (>= 0).
+        :rtype: float
+        """
+        # Compute the Frechet distance between two 1D Gaussians: sqrt((mu_src-mu_tgt)^2 + (sigma_src-sigma_tgt)^2)
         if not isinstance(dialog_scores, np.ndarray):
             dialog_scores = np.array(dialog_scores)
         mu_src, sigma_src = self.reference_norm_dist.mean(), self.reference_norm_dist.std()
         mu_tgt, sigma_tgt = np.mean(dialog_scores), np.std(dialog_scores)
-        # Frechet distance between two 1D Gaussians: sqrt((mu_src-mu_tgt)^2 + (sigma_src-sigma_tgt)^2)
         return np.sqrt((mu_src - mu_tgt) ** 2 + (sigma_src - sigma_tgt) ** 2)
 
 
 class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
     """
-    Frechet distance evaluator based on BERT embeddings.
-    See: https://aclanthology.org/2021.findings-acl.193/ where it was introduced
+    Frechet distance evaluator based on BERT sentence-pair embeddings.
+    See: https://aclanthology.org/2021.findings-acl.193/
     """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -765,6 +1045,26 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
                  device: str = None,
                  enable_plotting: bool = False,
                  verbose: bool = False):
+        """
+        Initialize Frechet BERT evaluator.
+
+        :param reference_dialogues: Reference dialogues (list or path).
+        :type reference_dialogues: Union[str, List[Dialog]]
+        :param ai_speaker: If set, restrict to AI response pairs.
+        :type ai_speaker: Optional[str]
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param model_name: Underlying transformer model.
+        :type model_name: str
+        :param batch_size: Batch size for encoding.
+        :type batch_size: int
+        :param device: Torch device override.
+        :type device: Optional[str]
+        :param enable_plotting: Store embeddings for later plotting.
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        """
         self.reference_embs = None
         self.datasets_embs = {}
         self.enable_plotting = enable_plotting
@@ -787,11 +1087,14 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
                                         dialogs: List[Dialog],
                                         dataset_name: str = "reference") -> Tuple[np.ndarray, np.ndarray]:
         """
-        Compute the mean and covariance matrix of a set of embeddings.
+        Compute mean and covariance of sentence-pair embeddings for a set of dialogs.
 
-        :param embeddings: A 2D numpy array of shape (n_samples, n_features).
-        :param dataset_name: Name of the dataset for logging.
-        :return: A tuple (mean, covariance_matrix).
+        :param dialogs: List of Dialog objects.
+        :type dialogs: List[Dialog]
+        :param dataset_name: Dataset label for logging / storage.
+        :type dataset_name: str
+        :return: (mean vector, covariance matrix).
+        :rtype: Tuple[np.ndarray, np.ndarray]
         """
         utts, utts_next = dialogs_to_utt_pairs(dialogs, self.ai_speaker)
 
@@ -811,14 +1114,14 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
 
     def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = "candidate") -> float:
         """
-        Compute the Frechet distance (a.k.a. Fréchet Inception Distance, FID) between two multivariate Gaussians.
-        See: https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance#Application_in_machine_learning
+        Compute Frechet distance between reference embedding distribution and candidate.
 
-        :param mu_src: Mean vector of the source distribution (np.ndarray, shape [d])
-        :param sigma_src: Covariance matrix of the source distribution (np.ndarray, shape [d, d])
-        :param mu_tgt: Mean vector of the target distribution (np.ndarray, shape [d])
-        :param sigma_tgt: Covariance matrix of the target distribution (np.ndarray, shape [d, d])
-        :return: The Frechet distance (float)
+        :param dialogues: Candidate dialogues (list or path).
+        :type dialogues: Union[str, List[Dialog]]
+        :param dataset_name: Label for candidate dataset.
+        :type dataset_name: str
+        :return: Frechet distance (>= 0).
+        :rtype: float
         """
         mu_src, sigma_src = np.atleast_1d(self.reference_mu), np.atleast_2d(self.reference_sigma)
         mu_tgt, sigma_tgt = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
@@ -840,7 +1143,14 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
 
     def plot(self, show: bool = True, save_path: str = None):
         """
-        Plot the sentence-pair embeddings of the datasets.
+        Plot t-SNE projection of sentence-pair embeddings for reference and candidates.
+
+        :param show: Display the figure.
+        :type show: bool
+        :param save_path: Path to save figure (if provided).
+        :type save_path: Optional[str]
+        :return: None
+        :rtype: None
         """
         if not self.enable_plotting or not self.datasets_embs:
             return
@@ -896,6 +1206,30 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
                  batch_size: int = 128,
                  device: str = None,
                  verbose: bool = False):
+        """
+        Initialize PR distance evaluator.
+
+        :param reference_dialogues: Reference dialogues (list or path).
+        :type reference_dialogues: Union[str, List[Dialog]]
+        :param ai_speaker: If set, restrict to AI response pairs.
+        :type ai_speaker: Optional[str]
+        :param num_clusters: Number of k-means clusters.
+        :type num_clusters: int
+        :param num_angles: Angular resolution for PRD curve.
+        :type num_angles: int
+        :param num_runs: Repetition count when distributions unbalanced.
+        :type num_runs: int
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param model_name: Underlying transformer model.
+        :type model_name: str
+        :param batch_size: Batch size for embedding.
+        :type batch_size: int
+        :param device: Torch device override.
+        :type device: Optional[str]
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        """
         if isinstance(reference_dialogues, str):
             reference_dialogues = Dialog.from_file(reference_dialogues)
         if not reference_dialogues or not isinstance(reference_dialogues, list):
@@ -915,17 +1249,28 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
 
     def _encode_utterance_pairs(self, dialogues: List[Dialog], dataset_name: str = "reference") -> np.ndarray:
         """
-        Encode utterance pairs from dialogues using the model.
+        Encode aligned utterance pairs.
 
-        :param dialogues: List of Dialog objects.
-        :param dataset_name: Name of the dataset for logging.
-        :return: Encoded utterance pairs as a 2D numpy array.
+        :param dialogues: List of dialogues.
+        :type dialogues: List[Dialog]
+        :param dataset_name: Label for logging.
+        :type dataset_name: str
+        :return: Embedding matrix.
+        :rtype: np.ndarray
         """
         return self.model.encode(*dialogs_to_utt_pairs(dialogues, self.ai_speaker),
                                  batch_size=self.batch_size,
                                  progress_bar_desc=f"Computing embeddings for PRD on {dataset_name}")
 
     def _cluster_histograms(self, target_embs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Cluster embeddings and build normalized histograms for reference and target.
+
+        :param target_embs: Candidate embedding matrix.
+        :type target_embs: np.ndarray
+        :return: (reference_histogram, target_histogram)
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        """
         cluster_data = np.vstack([target_embs, self.reference_embs])
         kmeans = MiniBatchKMeans(n_clusters=self.num_clusters, n_init=10)
         labels = kmeans.fit(cluster_data).labels_
@@ -944,10 +1289,17 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
                                    target_histogram: np.ndarray,
                                    epsilon=1e-10) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Computes the Precision-Recall Distributions (PRD) curve between two histograms, as described in
-        "Improved Precision and Recall Metric for Assessing Generative Models" (arXiv:1904.06991).
-        The PRD curve is calculated for a set of num_angles values, linearly spaced between [0, pi/2],
-        providing a trade-off between precision and recall for the two distributions.
+        Compute precision and recall arrays over angle sweep (PRD curve).
+
+        :param reference_histogram: Reference distribution histogram.
+        :type reference_histogram: np.ndarray
+        :param target_histogram: Target distribution histogram.
+        :type target_histogram: np.ndarray
+        :param epsilon: Small positive epsilon to avoid boundary issues.
+        :type epsilon: float
+        :return: (precision array, recall array), each in [0,1].
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        :raises ValueError: If epsilon or num_angles out of range.
         """
         if not (epsilon > 0 and epsilon < 0.1):
             raise ValueError('epsilon must be in (0, 0.1] but is %s.' % str(epsilon))
@@ -968,6 +1320,16 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
         return np.clip(precision, 0, 1), np.clip(recall, 0, 1)
 
     def __call__(self, dialogues: Union[str, List[Dialog]], dataset_name: str = None) -> Union[dict, float]:
+        """
+        Compute maximum F1 score along PRD curve (averaged if size mismatch).
+
+        :param dialogues: Candidate dialogues (list or path).
+        :type dialogues: Union[str, List[Dialog]]
+        :param dataset_name: Label for candidate dataset.
+        :type dataset_name: Optional[str]
+        :return: Max F1 value.
+        :rtype: float
+        """
         target_embs = self._encode_utterance_pairs(dialogues, dataset_name)
 
         if len(target_embs) != len(self.reference_embs):
@@ -996,9 +1358,33 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
+        """
+        Initialize statistics evaluator (mean/std/min/max/median).
+
+        :param dialog_score: Dialog scoring component.
+        :type dialog_score: BaseDialogScore
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param enable_plotting: Keep per-dataset scores for plotting.
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        """
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
+        """
+        Plot boxplots for score distributions.
+
+        :param dialog_scores: Mapping dataset -> score array.
+        :type dialog_scores: Dict[str, np.ndarray]
+        :param plot: Matplotlib Axes or pyplot module.
+        :type plot: Optional[plt.Axes]
+        :param metric: Optional metric name override.
+        :type metric: Optional[str]
+        :return: None
+        :rtype: None
+        """
         # Plot box plots for each dataset
         name = metric or self.name
         title = name or f"{self.dialog_score.name} scores"
@@ -1009,6 +1395,14 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         plot.ylabel(name or self.dialog_score.name)
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        """
+        Compute descriptive statistics.
+
+        :param dialog_scores: List/array of numeric scores.
+        :type dialog_scores: List[Union[float, int]]
+        :return: Dict of statistics.
+        :rtype: dict
+        """
         return {
             "mean": np.mean(dialog_scores),
             "std": np.std(dialog_scores),
@@ -1024,9 +1418,29 @@ class MeanEvaluator(StatsEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
+        """
+        Initialize mean-only evaluator.
+
+        :param dialog_score: Dialog scoring component.
+        :type dialog_score: BaseDialogScore
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param enable_plotting: Keep scores for plotting.
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        """
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> float:
+        """
+        Compute mean value of scores.
+
+        :param dialog_scores: Numeric scores list.
+        :type dialog_scores: List[Union[float, int]]
+        :return: Mean score.
+        :rtype: float
+        """
         return np.mean(dialog_scores)
 
 
@@ -1039,9 +1453,33 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
+        """
+        Initialize frequency evaluator.
+
+        :param dialog_score: Dialog scoring component producing binary outputs.
+        :type dialog_score: BaseDialogScore
+        :param name: Evaluator name.
+        :type name: Optional[str]
+        :param enable_plotting: Retained for API parity (not used directly).
+        :type enable_plotting: bool
+        :param verbose: Verbosity flag.
+        :type verbose: bool
+        """
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
+        """
+        Plot bar chart of positive proportions.
+
+        :param dialog_scores: Mapping dataset -> binary score array.
+        :type dialog_scores: Dict[str, np.ndarray]
+        :param plot: Matplotlib Axes or pyplot module.
+        :type plot: Optional[plt.Axes]
+        :param metric: Optional label override.
+        :type metric: Optional[str]
+        :return: None
+        :rtype: None
+        """
         # Bar plot for frequency/percentage
         percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
         bars = plot.bar(percentages.keys(), percentages.values(), color=plt.cm.tab10.colors[:len(percentages)])
@@ -1054,6 +1492,14 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         plot.title(f"Percentage of {metric or self.dialog_score.name} per dataset")
 
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        """
+        Compute proportion of positive dialogues.
+
+        :param dialog_scores: Binary scores list (0/1 or False/True).
+        :type dialog_scores: List[Union[float, int]]
+        :return: Fraction in [0,1].
+        :rtype: float
+        """
         # Assumes dialog_scores are binary (0/1 or True/False)
         total = len(dialog_scores)
         count = np.sum(dialog_scores)
@@ -1063,6 +1509,14 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
 
 class DatasetComparator:
     def __init__(self, evaluators: List[BaseDatasetEvaluator]):
+        """
+        Initialize dataset comparator.
+
+        :param evaluators: List of evaluator instances.
+        :type evaluators: List[BaseDatasetEvaluator]
+        :raises ValueError: If list empty.
+        :raises TypeError: If any element not a BaseDatasetEvaluator.
+        """
         if not evaluators:
             raise ValueError("No evaluators provided for comparison.")
         for evaluator in evaluators:
@@ -1077,6 +1531,19 @@ class DatasetComparator:
         digits: int = 2,
         output: Union[str, type] = "markdown",
     ) -> dict:
+        """
+        Evaluate multiple candidate datasets with all evaluators.
+
+        :param candidates: Collection of datasets (lists/paths/dicts of Dialog objects).
+        :type candidates: Union[str, List[Dialog], List[str], List[List[Dialog]], Dict[str, str], Dict[str, List[Dialog]]]
+        :param digits: Decimal precision for tabular output.
+        :type digits: int
+        :param output: Output format: 'dict', 'markdown', or 'table'.
+        :type output: Union[str, type]
+        :return: Results mapping (dataset -> metric -> value) if output='dict'; otherwise prints a table.
+        :rtype: Optional[dict]
+        :raises ValueError: If candidates empty or output format unsupported.
+        """  # noqa: E501
         if not candidates:
             raise ValueError("No candidates provided for comparison.")
 
@@ -1112,6 +1579,16 @@ class DatasetComparator:
                              "'dict', 'markdown', and 'table'.")
 
     def plot(self, show: bool = True, save_folder_path: str = None):
+        """
+        Call plot() on each evaluator that supports it.
+
+        :param show: Whether to display plots.
+        :type show: bool
+        :param save_folder_path: Directory to save plots (one file per evaluator).
+        :type save_folder_path: Optional[str]
+        :return: None
+        :rtype: None
+        """
         """
         Plot the results of the evaluators.
         """

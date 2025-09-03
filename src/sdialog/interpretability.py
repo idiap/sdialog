@@ -18,7 +18,6 @@ Classes:
 
 Typical usage involves attaching hooks to a model, accumulating utterance and token data during inference,
 and providing interfaces for downstream interpretability and analysis tasks.
-
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -38,23 +37,55 @@ logger = logging.getLogger(__name__)
 
 
 def default_steering_function(activation, direction, strength=1, op="+"):
+    """
+    Default steering function applied to token-level activations.
+
+    Behavior:
+      - op="+" : additive shift along direction (scaled by strength).
+      - op="-" : removes (projects out) the component of activation along direction.
+
+    :param activation: Activation tensor for current token (..., d_act)
+    :type activation: torch.Tensor
+    :param direction: Steering direction tensor (d_act,)
+    :type direction: torch.Tensor
+    :param strength: Scalar multiplier for the steering effect.
+    :type strength: float
+    :param op: "+" to add direction, "-" to subtract its projection.
+    :type op: str
+    :return: Modified activation tensor.
+    :rtype: torch.Tensor
+    """
     if activation.device != direction.device:
         direction = direction.to(activation.device)
     if op == "-":
         # Project activation onto direction
+        direction = direction / direction.norm()
         proj_coeff = torch.matmul(activation, direction)  # (...,)
         proj = proj_coeff.unsqueeze(-1) * direction  # (..., d_act)
         # Force activations to be orthogonal to the direction
-        return activation - proj * strength
+        return activation - proj
     else:
         return activation + direction * strength
 
 
 class Steerer(ABC):
+    """Abstract helper enabling operator overloading for adding steering functions to an Inspector."""
     inspector = None
     strength = None
 
     def _add_steering_function(self, inspector, function, **kwargs):
+        """
+        Internal utility to attach a steering function (with deferred strength if set via * operator).
+
+        :param inspector: Target Inspector instance.
+        :type inspector: Inspector
+        :param function: Base steering callable.
+        :type function: Callable
+        :param kwargs: Extra keyword arguments passed to function (e.g., direction, op, strength).
+        :type kwargs: Any
+        :return: The inspector (for chaining).
+        :rtype: Inspector
+        """
         if type(inspector) is Inspector:
             if self.strength is not None:
                 func_obj = function
@@ -70,6 +101,14 @@ class Steerer(ABC):
         return inspector
 
     def __mul__(self, value):
+        """
+        Temporarily sets strength for the next steering function addition, or updates last one if possible.
+
+        :param value: Numeric multiplier for steering strength.
+        :type value: float
+        :return: Self (for chaining).
+        :rtype: Steerer
+        """
         if isinstance(value, (float, int)):
             if self.inspector is not None and isinstance(self.inspector.steering_function, list) and \
                len(self.inspector.steering_function) > 0:
@@ -88,15 +127,36 @@ class Steerer(ABC):
 
 
 class DirectionSteerer(Steerer):
+    """Concrete Steerer binding a direction vector for additive or subtractive steering."""
     def __init__(self, direction, inspector=None):
+        """
+        :param direction: Direction vector (torch.Tensor or numpy array).
+        :type direction: Union[torch.Tensor, np.ndarray]
+        :param inspector: Optional Inspector to bind immediately.
+        :type inspector: Optional[Inspector]
+        """
         self.direction = direction
         self.inspector = inspector
 
     def __add__(self, inspector: "Inspector"):
+        """Attach this direction as additive steering to an Inspector via + operator.
+
+        :param inspector: Target Inspector instance receiving this steering direction.
+        :type inspector: Inspector
+        :return: The inspector (for chaining).
+        :rtype: Inspector
+        """
         return self._add_steering_function(inspector, default_steering_function,
                                            direction=self.direction, op="+")
 
     def __sub__(self, inspector):
+        """Attach this direction as subtractive / projection-removal steering via - operator.
+
+        :param inspector: Target Inspector instance receiving this steering direction.
+        :type inspector: Inspector
+        :return: The inspector (for chaining).
+        :rtype: Inspector
+        """
         return self._add_steering_function(inspector, default_steering_function,
                                            direction=self.direction, op="-")
 
@@ -106,17 +166,31 @@ class BaseHook:
     Base class for registering and managing PyTorch forward hooks on model layers.
     """
     def __init__(self, layer_key, hook_fn, agent):
+        """
+        :param layer_key: Dotted module path in model.named_modules().
+        :type layer_key: str
+        :param hook_fn: Callable with signature (module, input, output).
+        :type hook_fn: Callable
+        :param agent: Owning agent (may be None for generic hooks).
+        :type agent: Any
+        """
         self.layer_key = layer_key
         self.hook_fn = hook_fn
         self.handle = None
         self.agent = agent
 
     def _hook(self):
+        """Placeholder hook (override in subclasses)."""
         pass
 
     def register(self, model):
         """
         Registers the hook on the given model using the layer_key.
+
+        :param model: Model whose layer will be hooked.
+        :type model: torch.nn.Module
+        :return: The hook handle.
+        :rtype: Any
         """
         layer = dict(model.named_modules())[self.layer_key]
         self.handle = layer.register_forward_hook(self.hook_fn)
@@ -136,6 +210,10 @@ class UtteranceTokenHook(BaseHook):
     A BaseHook for the utterance_token_hook, always used on the embedding layer.
     """
     def __init__(self, agent):
+        """
+        :param agent: Agent instance owning this hook.
+        :type agent: Any
+        """
         super().__init__('model.embed_tokens', self._hook, agent=agent)
         self.utterance_list = []
         self.current_utterance_ids = None  # Now a tensor
@@ -145,20 +223,43 @@ class UtteranceTokenHook(BaseHook):
         self.agent = agent
 
     def reset(self):
+        """Clears utterance list, representation cache and current token accumulator."""
         self.utterance_list.clear()
         self.agent.representation_cache.clear()
         self.agent.representation_cache.update(defaultdict(lambda: defaultdict(list)))
         self.current_utterance_ids = None  # Now a tensor
 
     def new_utterance_event(self, memory):
+        """
+        Starts tracking a new generated utterance.
+
+        :param memory: Snapshot of agent memory at utterance start.
+        :type memory: list
+        """
         self.utterance_list.append({'mem': memory, 'output_tokens': []})
         self.current_utterance_ids = None
 
     def _hook(self, module, input, output):
+        """
+        Forward hook capturing input token IDs at embedding layer.
+
+        :param module: Embedding module.
+        :type module: torch.nn.Module
+        :param input: Forward input tuple (expects first element = token ids).
+        :type input: tuple
+        :param output: Embedding output (ignored for storage).
+        :type output: torch.Tensor
+        """
         input_ids = input[0].detach().cpu()
         self.register_representations(input_ids)
 
     def register_representations(self, input_ids):
+        """
+        Accumulates only the newest generated token IDs across forward passes.
+
+        :param input_ids: Tensor of token ids (batch, seq_len).
+        :type input_ids: torch.Tensor
+        """
         # Accumulate token IDs as a tensor (generated tokens only)
         if self.current_utterance_ids is None:
             self.current_utterance_ids = input_ids[..., -1]
@@ -166,6 +267,9 @@ class UtteranceTokenHook(BaseHook):
             self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids[..., -1]], dim=-1)
 
     def end_utterance_event(self):
+        """
+        Finalizes current utterance: decodes tokens, creates InspectionUtterance, stores it.
+        """
         tokenizer = self.hook_state.get('tokenizer')
 
         token_list = self.current_utterance_ids.squeeze()
@@ -189,19 +293,21 @@ class RepresentationHook(BaseHook):
     """
     A BaseHook for capturing representations from a specific model layer.
     """
-
     def __init__(self, cache_key, layer_key, agent, utterance_hook,
                  steering_function=None, steering_interval=(0, -1)):
         """
-        Args:
-            cache_key: Key under which to store the outputs in the cache.
-            layer_key: The key identifying the layer to hook into.
-            representation_cache: A nested dictionary or structure to store representations.
-            utterance_list: List used to track current utterance index.
-            steering_function: Optional function to apply to output_tensor before caching.
-            steering_interval: Tuple `(min_token, max_token)` to apply steering.
-                                   `min_token` tokens are skipped. Steering stops at `max_token`.
-                                   A `max_token` of -1 means no upper limit.
+        :param cache_key: Key under which layer outputs will be stored.
+        :type cache_key: Union[str, int]
+        :param layer_key: Layer name (found in model.named_modules()).
+        :type layer_key: str
+        :param agent: Agent holding the representation_cache.
+        :type agent: Any
+        :param utterance_hook: UtteranceTokenHook instance (for current utterance index).
+        :type utterance_hook: UtteranceTokenHook
+        :param steering_function: Optional single function or list applied in-place to last token activation.
+        :type steering_function: Optional[Union[Callable, List[Callable]]]
+        :param steering_interval: (min_token, max_token) steering window (max=-1 => unbounded).
+        :type steering_interval: Tuple[int, int]
         """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
@@ -215,7 +321,19 @@ class RepresentationHook(BaseHook):
         _ = self.agent.representation_cache[len(self.utterance_hook.utterance_list)][self.cache_key]
 
     def _hook(self, module, input, output):
-        """Hook to extract and store model representation from the output."""
+        """
+        Hook to extract and store model representation from the output.
+
+        :param module: The hooked layer/module.
+        :type module: torch.nn.Module
+        :param input: Forward pass inputs.
+        :type input: tuple
+        :param output: Layer output (tensor or tuple containing tensor).
+        :type output: Union[torch.Tensor, tuple]
+        :return: Possibly modified output (after optional steering).
+        :rtype: Union[torch.Tensor, tuple]
+        :raises TypeError: If output main tensor is not a torch.Tensor.
+        """
         utterance_index = len(self.utterance_hook.utterance_list) - 1
 
         # Extract the main tensor from output if it's a tuple or list
@@ -259,21 +377,21 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
+    """Manages layer hooks, cached activations, and optional steering functions for an Agent."""
     def __init__(self,
                  target: Union[Dict, List[str], str] = None,
-                 agent=None,  # : Agent
+                 agent=None,
                  steering_function: Callable = None,
                  steering_interval: Tuple[int, int] = (0, -1)):
         """
-        Inspector for managing hooks and extracting representations from a model.
-
-        Args:
-            target: Dict mapping model layer names to cache keys, a list of layer names, or a single layer name.
-            agent: The agent containing the model and hooks.
-            steering_function: Optional function to apply on output tensors in hooks.
-            steering_interval: Tuple `(min_token, max_token)` to control steering.
-                                   `min_token` tokens are skipped. Steering stops at `max_token`.
-                                   A `max_token` of -1 means no upper limit.
+        :param target: Mapping (cache_key->layer_name) or list / single layer name.
+        :type target: Union[Dict, List[str], str, None]
+        :param agent: Agent instance to attach to.
+        :type agent: Any
+        :param steering_function: Initial steering function or list of functions.
+        :type steering_function: Optional[Union[Callable, List[Callable]]]
+        :param steering_interval: (min_token, max_token) steering window.
+        :type steering_interval: Tuple[int, int]
         """
         if target is None:
             target = {}
@@ -294,15 +412,32 @@ class Inspector:
                                  steering_interval=self.steering_interval)
 
     def __len__(self):
+        """Return number of completed utterances captured so far."""
         return len(self.agent.utterance_list)
 
     def __iter__(self):
+        """Iterate over InspectionUtterance objects (one per utterance)."""
         return (utt['output_tokens'][0] for utt in self.agent.utterance_list)
 
     def __getitem__(self, index):
+        """Return the InspectionUtterance at given index.
+
+        :param index: Utterance index (0-based).
+        :type index: int
+        :return: The InspectionUtterance object.
+        :rtype: InspectionUtterance
+        """
         return self.agent.utterance_list[index]['output_tokens'][0]
 
     def __add__(self, other):
+        """
+        Add steering (+direction) when other is a vector, or delegate if other is Inspector.
+
+        :param other: Inspector or direction vector.
+        :type other: Union[Inspector, torch.Tensor, np.ndarray]
+        :return: Self.
+        :rtype: Inspector
+        """
         if isinstance(other, Inspector):
             return other + self
         # If 'other' is a direction vector...
@@ -313,6 +448,14 @@ class Inspector:
         return self
 
     def __sub__(self, other):
+        """
+        Add subtractive steering (-direction) when other is a vector.
+
+        :param other: Inspector or direction vector.
+        :type other: Union[Inspector, torch.Tensor, np.ndarray]
+        :return: Self.
+        :rtype: Inspector
+        """
         if isinstance(other, Inspector):
             return other - self
         # If 'other' is a direction vector...
@@ -323,6 +466,14 @@ class Inspector:
         return self
 
     def __mul__(self, value):
+        """
+        Set strength for next steering function (or modify last if possible).
+
+        :param value: Numeric strength.
+        :type value: float
+        :return: Self.
+        :rtype: Inspector
+        """
         if isinstance(value, (float, int)):
             if self.steering_function is not None and isinstance(self.steering_function, list) and \
                len(self.steering_function) > 0:
@@ -340,6 +491,16 @@ class Inspector:
         return self
 
     def __add_default_steering_function__(self, direction, op):
+        """
+        Internal helper to wrap default_steering_function with direction/op.
+
+        :param direction: Direction vector.
+        :type direction: torch.Tensor
+        :param op: "+" or "-".
+        :type op: str
+        :return: Self.
+        :rtype: Inspector
+        """
         kwargs = {
             'direction': direction,
             'op': op
@@ -350,6 +511,12 @@ class Inspector:
         return self
 
     def add_agent(self, agent):
+        """
+        Attach an Agent after construction and (re)register hooks if target specified.
+
+        :param agent: Agent instance.
+        :type agent: Any
+        """
         self.agent = agent
         if self.target:
             self.agent.add_hooks(self.target,
@@ -359,6 +526,9 @@ class Inspector:
     def add_steering_function(self, steering_function):
         """
         Adds a steering function to the inspector's list of functions.
+
+        :param steering_function: Callable accepting activation tensor.
+        :type steering_function: Callable
         """
         if not isinstance(self.steering_function, list):
             if callable(self.steering_function):
@@ -372,8 +542,10 @@ class Inspector:
     def add_hooks(self, target):
         """
         Adds hooks to the agent's model based on the provided target mapping.
-        Each entry in target should map a layer name to a cache key.
-        The new entries are appended to the existing self.target dictionary.
+
+        :param target: Dict mapping cache_key -> layer_name to append.
+        :type target: Dict
+        :raises ValueError: If no agent is attached.
         """
         if self.agent is None:
             raise ValueError("No agent assigned to Inspector.")
@@ -415,9 +587,13 @@ class Inspector:
 
     def find_instructs(self, verbose=False):
         """
-        Return a list of dicts with keys 'index' and 'content' for each SystemMessage (excluding the first memory)
-        found in the agent's utterance_list.
-        If verbose is True, also print each.
+        Return list with 'index' and 'content' for each SystemMessage (excluding first memory)
+        found in the agent's utterance_list. If verbose is True, also print each.
+
+        :param verbose: If True, logs each found instruction.
+        :type verbose: bool
+        :return: List of dicts with keys 'index' and 'content'.
+        :rtype: List[Dict[str, Union[int, str]]]
         """
         matches = []
 
@@ -440,7 +616,14 @@ class Inspector:
 
 
 class InspectionUtterance(Inspector):
+    """Container exposing tokens of a single generated utterance for per-token inspection."""
     def __init__(self, utterance, agent):
+        """
+        :param utterance: Dict with keys (tokens, text, input_ids, utterance_index).
+        :type utterance: dict
+        :param agent: Parent agent.
+        :type agent: Any
+        """
         super().__init__(target=None)
         self.utterance = utterance
         self.tokens = utterance['tokens']
@@ -450,17 +633,25 @@ class InspectionUtterance(Inspector):
         self.utterance_index = utterance.get('utterance_index', 0)
 
     def __iter__(self):
+        """Yield InspectionUnit objects for each token."""
         for idx, token in enumerate(self.tokens):
             yield InspectionUnit(token, self.agent, self, idx, utterance_index=self.utterance_index)
 
     def __str__(self):
+        """Return decoded utterance text."""
         return self.text
 
     def __len__(self):
+        """Number of tokens in this utterance."""
         # Return the number of tokens in the utterance
         return len(self.tokens)
 
     def __getitem__(self, index):
+        """Return token InspectionUnit or list of them (slice).
+        :param index: Token index or slice.
+        :type index: Union[int, slice]
+        :rtype: Union[InspectionUnit, List[InspectionUnit]]
+        """
         if isinstance(index, slice):
             return [
                 InspectionUnit(token, self.agent, self, i, utterance_index=self.utterance_index)
@@ -472,7 +663,20 @@ class InspectionUtterance(Inspector):
 
 
 class InspectionUnit(Inspector):
+    """Represents a single token inside an utterance; accessor for its layer activations."""
     def __init__(self, token, agent, utterance, token_index, utterance_index):
+        """
+        :param token: Token string (or id) at this position.
+        :type token: Union[str, int]
+        :param agent: Parent Agent.
+        :type agent: Any
+        :param utterance: Parent InspectionUtterance.
+        :type utterance: InspectionUtterance
+        :param token_index: Position of token in utterance.
+        :type token_index: int
+        :param utterance_index: Index of utterance in dialogue sequence.
+        :type utterance_index: int
+        """
         super().__init__(target=None)
         """ Represents a single token at the utterance level """
         self.token = token
@@ -487,8 +691,9 @@ class InspectionUnit(Inspector):
         Return the activation(s) for this token across all hooked targets.
 
         Behavior:
-        - If multiple cache keys (hooked layers) exist, return a dict {cache_key/index: activation}.
-        - If only one cache key exists, return the activation tensor directly.
+          - Multiple cache keys => returns self (indexable by cache key).
+          - Single cache key => returns activation tensor.
+        :raises KeyError: If representation cache missing.
         """
         if not hasattr(self.agent, 'representation_cache'):
             raise KeyError("Agent has no representation_cache.")
@@ -497,14 +702,23 @@ class InspectionUnit(Inspector):
         return self if len(rep_tensor) > 1 else self[next(iter(rep_tensor))]
 
     def __iter__(self):
-        # Not iterable, represents a single token
+        """Not iterable (single token)."""
         raise TypeError("InspectionUnit is not iterable")
 
     def __str__(self):
-        # Return the token string directly
+        """Return the token as string."""
         return self.token if isinstance(self.token, str) else str(self.token)
 
     def __getitem__(self, key):
+        """
+        Get activation tensor for this token at given cache key.
+
+        :param key: Cache key (layer identifier used when hooking).
+        :type key: Union[str, int]
+        :return: Activation tensor for this token.
+        :rtype: torch.Tensor
+        :raises KeyError: If cache or key missing.
+        """
         # Fetch the representation for this token from self.agent.representation_cache
         if not hasattr(self.agent, 'representation_cache'):
             raise KeyError("Agent has no representation_cache.")
