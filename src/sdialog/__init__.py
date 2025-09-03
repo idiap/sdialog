@@ -763,26 +763,59 @@ class Instruction(BaseModel):
 class Context(BaseAttributeModel):
     """
     Dialogue-shared context class.
+
+    Attributes (grouped for IDEs):
+        location (str | None): Physical or virtual location of the dialogue.
+        datetime (str | None): Temporal context or timestamp reference.
+        environment (str | None): Description of ambient or situational environment.
+        objects (str | list[str] | None): Relevant objects (single value or list).
+        participants_shared_knowledge (str | None): Assumed shared knowledge among participants.
+        circumstances (str | list[str] | None): Situational circumstances influencing interaction.
+        goals (str | list[str] | None): Stated or implicit participant goals.
+        constraints (str | list[str] | None): Limitations impacting behavior or content.
+        topics (str | list[str] | None): Current or intended discussion topics.
+        style_guidelines (str | list[str] | None): Style or formatting guidelines to follow.
+        notes (str | None): Additional free-form contextual notes.
+
+    :ivar location: Physical or virtual location where the dialogue occurs.
+    :vartype location: Optional[str]
+    :ivar datetime: Timestamp or temporal setting relevant to the dialogue.
+    :vartype datetime: Optional[str]
+    :ivar environment: Physical environment description, environmental conditions, or contextual atmosphere.
+    :vartype environment: Optional[str]
+    :ivar objects: Relevant objects (single value or list of values).
+    :vartype objects: Optional[Union[str, List[str]]]
+    :ivar participants_shared_knowledge: Information all participants are assumed to know.
+    :vartype participants_shared_knowledge: Optional[str]
+    :ivar circumstances: Situational circumstances impacting the dialogue.
+    :vartype circumstances: Optional[Union[str, List[str]]]
+    :ivar goals: Stated or implicit goals of the participants.
+    :vartype goals: Optional[Union[str, List[str]]]
+    :ivar constraints: Limitations or constraints affecting actions or dialogue.
+    :vartype constraints: Optional[Union[str, List[str]]]
+    :ivar topics: Main topics or themes (single or list).
+    :vartype topics: Optional[Union[str, List[str]]]
+    :ivar style_guidelines: Stylistic or formatting guidelines to follow.
+    :vartype style_guidelines: Optional[Union[str, List[str]]]
+    :ivar notes: Additional free-form contextual notes.
+    :vartype notes: Optional[str]
     """
+
     # Time / place
     location: Optional[str] = Field(default=None, description="Physical or virtual location where the dialogue occurs.")
     datetime: Optional[str] = Field(default=None, description="Timestamp or temporal setting relevant to the dialogue.")
-
     # Environment
     environment: Optional[str] = Field(
         default=None,
         description="Physical environment description, environmental conditions, or contextual atmosphere."
     )
-
     # Objects
     objects: Optional[Union[str, List[str]]] = Field(default=None, description="Relevant objects (single or list).")
-
     # Participants shared knowledge
     participants_shared_knowledge: Optional[str] = Field(
         default=None,
         description="Information all participants are assumed to know."
     )
-
     # Intent / constraints
     circumstances: Optional[Union[str, List[str]]] = Field(
         default=None,
@@ -796,13 +829,11 @@ class Context(BaseAttributeModel):
         default=None,
         description="Limitations or constraints affecting actions or dialogue."
     )
-
     # Topics (unified)
     topics: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Main topics or themes (single or list)."
     )
-
     # Style and Extensions
     style_guidelines: Optional[Union[str, List[str]]] = Field(
         default=None,

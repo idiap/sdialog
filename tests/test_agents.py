@@ -38,7 +38,7 @@ def test_persona_agent_init(monkeypatch):
 
 def test_persona_agent_init_and_prompt():
     persona = Persona(name="Alice", role="barista")
-    agent = Agent(persona, "Alice", DummyLLM())
+    agent = Agent(persona, "Alice", model=DummyLLM())
     assert agent.get_name() == "Alice"
     prompt = agent.prompt()
     assert "role" in prompt.lower()
@@ -48,7 +48,7 @@ def test_persona_agent_dialog_with():
     persona1 = Persona(name="A")
     persona2 = Persona(name="B")
     agent1 = Agent(persona=persona1, name="A", model=DummyLLM())
-    agent2 = Agent(persona2, "B", DummyLLM())
+    agent2 = Agent(persona2, "B", model=DummyLLM())
     dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
     assert isinstance(dialog, Dialog)
     assert len(dialog.turns) > 0
@@ -60,7 +60,7 @@ def test_agent_postprocessing_fn():
     persona1 = Persona(name="A")
     persona2 = Persona(name="B")
     agent1 = Agent(persona=persona1, name="A", model=DummyLLM())
-    agent2 = Agent(persona2, "B", DummyLLM(), postprocess_fn=lambda x: x.upper())
+    agent2 = Agent(persona2, "B", model=DummyLLM(), postprocess_fn=lambda x: x.upper())
     dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
     assert dialog.turns[1].text.isupper(), "Postprocessing function did not apply correctly."
     assert not dialog.turns[0].text.isupper(), "Postprocessing function should not have effect."

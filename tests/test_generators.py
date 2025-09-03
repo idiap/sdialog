@@ -127,8 +127,8 @@ def test_persona_dialog_generator_personas(monkeypatch):
 
 def test_persona_dialog_generator_with_agents(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
-    persona_a = Agent(Persona(), "A", DummyLLM())
-    persona_b = Agent(Persona(), "B", DummyLLM())
+    persona_a = Agent(Persona(), "A", model=DummyLLM())
+    persona_b = Agent(Persona(), "B", model=DummyLLM())
     gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")

@@ -23,6 +23,18 @@ class Persona(BasePersona):
     """
     Standard persona class with common attributes for role-play.
 
+    Attributes:
+        name (str): Name of the persona.
+        age (int | str): Age or descriptive category (e.g., 'middle-aged').
+        race (str): Race or ethnicity.
+        gender (str): Gender identity or expression.
+        language (str): Preferred communication language.
+        role (str): Role / profession / primary identity descriptor.
+        background (str): Brief life history or contextual background.
+        personality (str): Personality traits summary.
+        circumstances (str): Current situational context (e.g., stressors, recent changes).
+        rules (str): Style constraints, behavioral norms, or hard guidelines.
+
     :ivar name: Name of the persona.
     :vartype name: str
     :ivar age: Age of the persona (can be an int or a descriptive string like "middle-aged").
@@ -60,6 +72,28 @@ class Persona(BasePersona):
 class ExtendedPersona(BasePersona):
     """
     Extended persona class with additional demographic, personality, and background attributes.
+
+    Attributes:
+        name (str): Persona name.
+        age (int | str): Numeric age or descriptive label.
+        race (str): Race or ethnicity.
+        gender (str): Gender identity.
+        language (str): Preferred language.
+        weight (str): Weight (value + unit or descriptive).
+        height (str | float): Height (value + unit or descriptive).
+        voice_characteristics (str): Voice/accent/tone/pacing notes.
+        occupation (str): Current occupation.
+        education (str): Education level / academic background.
+        socioeconomic_status (str): Socioeconomic status descriptor.
+        interests (str): General interests.
+        hobbies (str): Hobbies.
+        politeness (str): Politeness style or level.
+        forgetfulness (str): Forgetfulness tendency.
+        attentiveness (str): Attentiveness or focus level.
+        communication_style (str): Communication style (e.g., direct, verbose).
+        empathy_level (str): Empathy descriptor.
+        political_views (str): Political alignment.
+        religious_beliefs (str): Religious stance / worldview.
 
     :ivar name: Name of the persona.
     :vartype name: str
@@ -102,6 +136,7 @@ class ExtendedPersona(BasePersona):
     :ivar religious_beliefs: Religious stance (e.g., religious, agnostic, atheist).
     :vartype religious_beliefs: str
     """
+
     name: str = Field("", description="Name of the persona.")
     # Demographics
     age: Union[int, str] = Field("", description="Age (numeric or descriptive).")
@@ -132,6 +167,28 @@ class ExtendedPersona(BasePersona):
 class Patient(BasePersona):
     """
     Patient persona with essential / minimal plus behavioral and demographic attributes for dialogue generation.
+
+    Attributes:
+        name (str): Patient name.
+        age (int | str): Numeric age or descriptive label.
+        race (str): Race or ethnicity.
+        gender (str): Gender identity.
+        language (str): Preferred language.
+        forgetfulness (str | float): Forgetfulness tendency (qualitative or scaled).
+        formality (str | float): Formality in speech.
+        hurriedness (str | float): Impatience / urgency level.
+        openness (str | float): Willingness to share information.
+        height (int | str): Height descriptor or value.
+        weight (int | str): Weight descriptor or value.
+        occupation (str): Occupation or employment status.
+        marital_status (str): Marital status.
+        insurance (str): Insurance status/provider.
+        reason_for_visit (str): Chief complaint.
+        medical_history (str | list[str]): Past medical history.
+        medical_conditions (str | list[str]): Diagnosed conditions.
+        medications_current (str | list[str]): Current medications.
+        allergies (str | list[str]): Known allergies.
+        family_history (str | list[str]): Family medical history.
 
     :ivar name: Patient name.
     :vartype name: str
@@ -174,6 +231,7 @@ class Patient(BasePersona):
     :ivar family_history: Family medical history (string or list).
     :vartype family_history: Union[str, List[str]]
     """
+
     name: str = Field("", description="Patient name.")
     age: Union[int, str] = Field(None, description="Patient age (numeric or descriptive).")
     race: str = Field("", description="Race or ethnicity.")
@@ -199,7 +257,17 @@ class Patient(BasePersona):
 class ExtendedPatient(ExtendedPersona):
     """
     ExtendedPatient persona with additional health-related attributes.
-    Inherits all attributes from ExtendedPersona plus the following medical context fields.
+    Inherits all attributes from ExtendedPersona plus medical context fields.
+
+    Attributes:
+        reason_for_visit (str): Chief complaint.
+        symptoms (str): Reported symptoms.
+        vital_signs (str): Vital signs summary.
+        health_literacy (str): Health literacy descriptor.
+        medical_conditions (str): Chronic/known conditions summary.
+        medications (str): Current medication summary.
+        allergies (str): Allergy summary.
+        family_history (str): Family medical history summary.
 
     :ivar reason_for_visit: Chief complaint or reason for consultation.
     :vartype reason_for_visit: str
@@ -218,6 +286,7 @@ class ExtendedPatient(ExtendedPersona):
     :ivar family_history: Family medical history summary.
     :vartype family_history: str
     """
+
     reason_for_visit: str = Field("", description="Chief complaint or reason for consultation.")
     symptoms: str = Field("", description="Reported symptoms.")
     vital_signs: str = Field("", description="Vital signs summary (e.g., 'BP 120/80, HR 72').")
@@ -231,6 +300,19 @@ class ExtendedPatient(ExtendedPersona):
 class Doctor(BasePersona):
     """
     Doctor persona with essential professional and behavioral attributes.
+
+    Attributes:
+        name (str): Doctor name.
+        age (int | str): Numeric age or descriptive label.
+        race (str): Race or ethnicity.
+        gender (str): Gender identity.
+        language (str): Working language.
+        years_of_experience (int | str): Clinical experience duration.
+        speciality (str): Medical speciality (note spelling).
+        forgetfulness (str): Forgetfulness tendency.
+        formality (str): Communication formality.
+        hurriedness (str): Time pressure / pace.
+        openness (str): Approachability / openness.
 
     :ivar name: Doctor's name.
     :vartype name: str
@@ -272,7 +354,13 @@ class Doctor(BasePersona):
 class ExtendedDoctor(ExtendedPersona):
     """
     ExtendedDoctor persona adding professional credentials.
-    Inherits all attributes from ExtendedPersona.
+    Inherits all attributes from ExtendedPersona plus, the following ones.
+
+    Attributes:
+        specialty (str): Medical specialty / domain focus.
+        years_of_experience (int | str): Clinical experience length.
+        certifications (str): Certifications / board statuses.
+        work_experience (str): Prior practice settings / roles.
 
     :ivar specialty: Medical specialty / domain focus.
     :vartype specialty: str
@@ -283,6 +371,7 @@ class ExtendedDoctor(ExtendedPersona):
     :ivar work_experience: Summary of prior practice settings / roles.
     :vartype work_experience: str
     """
+
     specialty: str = Field("", description="Medical specialty or domain focus.")
     years_of_experience: Union[int, str] = Field("", description="Years (or range) of clinical experience.")
     certifications: str = Field("", description="Professional certifications / board statuses.")
@@ -293,7 +382,28 @@ class Customer(BasePersona):
     """
     Persona for a customer in a customer service interaction.
 
-    Identification / Profile:
+    Attributes (grouped):
+        Identification:
+            name (str), age (int | str), gender (str), language (str),
+            customer_id (str), occupation (str)
+        Loyalty:
+            account_tenure (str), membership_level (str),
+            loyalty_status (str), fidelity_score (str | float | int)
+        Issue Context:
+            issue (str), issue_category (str), issue_description (str),
+            issue_history (str), desired_outcome (str)
+        Knowledge:
+            knowledge_domain (str), technical_expertise (str)
+        Emotional State:
+            sentiment (str), anger_level (str), tiredness (str),
+            patience_level (str), politeness (str), personality (str),
+            instruction_following (str), forgetfulness (str)
+        Interaction History:
+            times_called (int | str), preferred_channel (str),
+            prior_interactions_summary (str)
+        Meta:
+            urgency (str), rules (str)
+
     :ivar name: Customer name.
     :vartype name: str
     :ivar age: Customer age (numeric or descriptive).
@@ -306,8 +416,6 @@ class Customer(BasePersona):
     :vartype customer_id: str
     :ivar occupation: Customer occupation.
     :vartype occupation: str
-
-    Loyalty / Tenure:
     :ivar account_tenure: How long they have been a customer (e.g., "2 years").
     :vartype account_tenure: str
     :ivar membership_level: Plan/tier (e.g., basic, premium).
@@ -316,8 +424,6 @@ class Customer(BasePersona):
     :vartype loyalty_status: str
     :ivar fidelity_score: Loyalty score (numeric or descriptive).
     :vartype fidelity_score: Union[str, float, int]
-
-    Issue Context:
     :ivar issue: Short summary of current problem.
     :vartype issue: str
     :ivar issue_category: High-level category (billing, technical, etc.).
@@ -328,14 +434,10 @@ class Customer(BasePersona):
     :vartype issue_history: str
     :ivar desired_outcome: Customer's desired resolution / goal.
     :vartype desired_outcome: str
-
-    Knowledge / Competence:
     :ivar knowledge_domain: Subject/domain familiarity (e.g., novice, expert).
     :vartype knowledge_domain: str
     :ivar technical_expertise: Legacy field for backward compatibility.
     :vartype technical_expertise: str
-
-    Emotional / Behavioral State:
     :ivar sentiment: Overall emotional tone (e.g., frustrated, neutral).
     :vartype sentiment: str
     :ivar anger_level: Anger intensity descriptor.
@@ -352,21 +454,18 @@ class Customer(BasePersona):
     :vartype instruction_following: str
     :ivar forgetfulness: Tendency to forget prior guidance.
     :vartype forgetfulness: str
-
-    Contact / Interaction History:
     :ivar times_called: Number of prior contacts (numeric or descriptive).
     :vartype times_called: Union[int, str]
     :ivar preferred_channel: Preferred support channel.
     :vartype preferred_channel: str
     :ivar prior_interactions_summary: Summary of earlier interactions.
     :vartype prior_interactions_summary: str
-
-    Meta:
     :ivar urgency: Perceived urgency (e.g., low, high).
     :vartype urgency: str
     :ivar rules: Constraints or special handling notes.
     :vartype rules: str
     """
+
     # Identification / profile
     name: str = Field("", description="Customer name.")
     age: Union[int, str] = Field("", description="Customer age (numeric or descriptive).")
@@ -416,6 +515,25 @@ class SupportAgent(BasePersona):
     """
     Persona for a customer service / support agent.
 
+    Attributes:
+        name (str): Agent name.
+        language (str): Working language.
+        agent_id (str): Internal agent ID.
+        role (str): Role / queue designation.
+        experience_years (str): Support experience duration.
+        product_scope (str): Products / domains covered.
+        product_knowledge_level (str): Knowledge depth level.
+        communication_style (str): Communication style.
+        empathy_level (str): Empathy descriptor.
+        politeness (str): Politeness level.
+        resolution_authority_level (str): Resolution authority level.
+        escalation_policy (str): Escalation process summary.
+        average_handle_time (str): Typical handling time (e.g., '6m').
+        adherence_notes (str): Notes on policy/process adherence.
+        stress_tolerance (str): Stress handling capability.
+        performance_notes (str): Performance KPIs / notes.
+        rules (str): Internal rules / compliance reminders.
+
     :ivar name: Agent name.
     :vartype name: str
     :ivar language: Working language.
@@ -451,6 +569,7 @@ class SupportAgent(BasePersona):
     :ivar rules: Internal rules, compliance reminders, or constraints.
     :vartype rules: str
     """
+
     name: str = Field("", description="Agent name.")
     language: str = Field("English", description="Working language.")
     agent_id: str = Field("", description="Internal agent identifier.")

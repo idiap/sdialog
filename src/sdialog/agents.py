@@ -44,7 +44,6 @@ class Agent:
     def __init__(self,
                  persona: BasePersona = Persona(),
                  name: Optional[str] = None,
-                 model: Union[str, BaseLanguageModel] = None,
                  example_dialogs: Optional[List['Dialog']] = None,
                  context: Optional[Union[str, Context]] = None,
                  dialogue_details: str = "",
@@ -55,6 +54,7 @@ class Agent:
                  orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
                  inspectors: Optional[Union['Inspector', List['Inspector']]] = None,
                  postprocess_fn: Optional[callable] = None,
+                 model: Union[str, BaseLanguageModel] = None,
                  **llm_kwargs):
         """
         Initializes a Agent for role-play dialogue.
@@ -63,11 +63,9 @@ class Agent:
         :type persona: BasePersona
         :param name: Name of the agent (defaults to persona.name if not provided).
         :type name: Optional[str]
-        :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
-        :type model: Union[str, BaseLanguageModel], optional
-        :param example_dialogs: List of example dialogues as a reference for the agent.
+        :param example_dialogs: Optional list of default example dialogues as a reference for the agent.
         :type example_dialogs: Optional[List[Dialog]]
-        :param context: The context for the agent (optional).
+        :param context: Optional default context for the agent's conversations.
         :type context: Optional[Union[str, Context]]
         :param dialogue_details: Additional details about the dialogue.
         :type dialogue_details: str
@@ -83,6 +81,8 @@ class Agent:
         :type inspectors: Optional[Union[Inspector, List[Inspector]]]
         :param postprocess_fn: Optional function to postprocess each utterance (input string, output string).
         :type postprocess_fn: Optional[callable]
+        :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
+        :type model: Union[str, BaseLanguageModel], optional
         :param **llm_kwargs: Additional parameters for the LLM.
         :type llm_kwargs: dict
         """
