@@ -111,7 +111,6 @@ class Agent:
         self.can_finish = can_finish
 
         self.llm = get_llm_model(model_name=model, **llm_kwargs)
-        self.memory = [SystemMessage("")]  # to be populated in reset()
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
         self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
@@ -124,6 +123,15 @@ class Agent:
         self.postprocess_fn = postprocess_fn
         self.utterance_hook = None
         self.representation_cache = defaultdict(lambda: defaultdict(list))
+        self.memory = [SystemMessage(self.system_prompt_template.render(
+            persona=self.persona.prompt(),
+            context=self.context,
+            example_dialogs=self.example_dialogs,
+            dialogue_details=self.dialogue_details,
+            response_details=self.response_details,
+            can_finish=self.can_finish,
+            stop_word=self.STOP_WORD
+        ))]
 
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
                      f"using prompt from '{config['prompts']['persona_agent']}'.")
@@ -493,17 +501,21 @@ class Agent:
         :param context: Optional context for the agent.
         :type context: Union[str, Context]
         """
-        system_prompt = self.system_prompt_template.render(
-            persona=self.persona.prompt(),
-            context=context or self.context,
-            example_dialogs=example_dialogs or self.example_dialogs,
-            dialogue_details=self.dialogue_details,
-            response_details=self.response_details,
-            can_finish=self.can_finish,
-            stop_word=self.STOP_WORD
-        )
-        self.memory[:] = self.memory[:1]  # Remove history
-        self.memory[0].content = system_prompt
+        # Remove history
+        self.memory[:] = self.memory[:1]
+        # Update system prompt if needed
+        if self.memory and (context or example_dialogs):
+            system_prompt = self.system_prompt_template.render(
+                persona=self.persona.prompt(),
+                context=context or self.context,
+                example_dialogs=example_dialogs or self.example_dialogs,
+                dialogue_details=self.dialogue_details,
+                response_details=self.response_details,
+                can_finish=self.can_finish,
+                stop_word=self.STOP_WORD
+            )
+            self.memory[0].content = system_prompt
+
         self.finished = False
         seed = set_generator_seed(self, seed)
 
