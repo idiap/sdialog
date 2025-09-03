@@ -60,7 +60,6 @@ class Agent:
                  can_finish: bool = True,
                  orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
                  inspectors: Optional[Union['Inspector', List['Inspector']]] = None,
-                 scenario: Optional[Union[dict, str]] = None,
                  postprocess_fn: Optional[callable] = None,
                  **llm_kwargs):
         """
@@ -88,8 +87,6 @@ class Agent:
         :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
         :param inspectors: Inspector(s) to add to the agent.
         :type inspectors: Optional[Union[Inspector, List[Inspector]]]
-        :param scenario: Scenario metadata.
-        :type scenario: Optional[Union[dict, str]]
         :param postprocess_fn: Optional function to postprocess each utterance (input string, output string).
         :type postprocess_fn: Optional[callable]
         :param **llm_kwargs: Additional parameters for the LLM.
@@ -120,7 +117,6 @@ class Agent:
         self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.first_utterances = None
         self.finished = False
-        self.scenario = scenario
         self.orchestrators = None
         self.add_orchestrators(orchestrators)
         self.inspectors = None
@@ -522,6 +518,7 @@ class Agent:
                     agent: "Agent",
                     context: Union[str, Context] = None,
                     example_dialogs: List['Dialog'] = None,
+                    scenario: Optional[Union[dict, str]] = None,
                     max_turns: int = 200,
                     id: int = None,
                     parent_id: int = None,
@@ -537,6 +534,8 @@ class Agent:
         :type context: Optional[Union[str, Context]]
         :param example_dialogs: Example dialogues to guide the conversation (optional).
         :type example_dialogs: Optional[List[Dialog]]
+        :param scenario: Optional scenario metadata for the dialogue.
+        :type scenario: Optional[Union[dict, str]]
         :param max_turns: Maximum number of dialogue turns.
         :type max_turns: int
         :param id: Dialogue ID.
@@ -601,16 +600,6 @@ class Agent:
             pbar.update(1)
 
         pbar.close()
-
-        if self.scenario:
-            scenario = self.scenario
-        else:
-            scenario = {
-                "agents": [
-                    self.json(),
-                    agent.json()
-                ]
-            }
 
         context = context or self.context
         return Dialog(

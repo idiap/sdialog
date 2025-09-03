@@ -59,28 +59,28 @@ class DialogGenerator:
                  dialogue_details: str,
                  context: Optional[Union[str, Context]] = None,
                  example_dialogs: List['Dialog'] = None,
-                 model: Union[BaseLanguageModel, str] = None,
-                 output_format: Union[dict, BaseModel] = LLMDialogOutput,
-                 scenario: dict = None,
+                 scenario: Optional[Union[dict, str]] = None,
                  personas: dict[str, dict[str, Any]] = None,
+                 output_format: Union[dict, BaseModel] = LLMDialogOutput,
+                 model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """
         Initializes a DialogGenerator.
 
         :param dialogue_details: Instructions or details for the dialogue.
         :type dialogue_details: str
-        :param context: The context for the dialogue (optional).
+        :param context: The default context for the dialogue (optional).
         :type context: Optional[Union[str, Context]]
-        :param example_dialogs: Optional list of example dialogues to guide the generation.
+        :param example_dialogs: Optional default list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
-        :param model: The LLM or model name to use.
-        :type model: Union[BaseLanguageModel, str]
-        :param output_format: Output format schema or Pydantic model.
-        :type output_format: Union[dict, BaseModel]
-        :param scenario: Scenario metadata for the dialogue (if not provided, value set to `dialogue_details`).
-        :type scenario: dict
+        :param scenario: the default scenario metadata for the dialogue.
+        :type scenario: Optional[Union[dict, str]]
         :param personas: Optional personas for role-playing in the dialogue (if any).
         :type personas: dict[str, dict[str, Any]]
+        :param output_format: Output format schema or Pydantic model.
+        :type output_format: Union[dict, BaseModel]
+        :param model: The LLM or model name to use.
+        :type model: Union[BaseLanguageModel, str]
         :param **llm_kwargs: Additional keyword arguments for the LLM (overrides config).
         :type llm_kwargs: dict
         """
@@ -141,6 +141,7 @@ class DialogGenerator:
                  dialogue_details: str = None,
                  context: Optional[Union[str, Context]] = None,
                  example_dialogs: List[Dialog] = None,
+                 scenario: Optional[Union[dict, str]] = None,
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
@@ -154,6 +155,8 @@ class DialogGenerator:
         :type context: Optional[Union[str, Context]]
         :param example_dialogs: Optional list of example dialogues to guide the generation (to override the default).
         :type example_dialogs: List[Dialog]
+        :param scenario: Optional scenario metadata for the dialogue.
+        :type scenario: Optional[Union[dict, str]]
         :param seed: Random seed for reproducibility.
         :type seed: int
         :param id: Dialogue ID.
@@ -187,7 +190,7 @@ class DialogGenerator:
                               seed=seed,
                               personas=self._personas,
                               context=context.json() if context and isinstance(context, Context) else context,
-                              scenario=self.scenario if self.scenario else self.dialogue_details,
+                              scenario=scenario or self.scenario,
                               notes=notes,
                               turns=llm_output.dialog)
             else:
@@ -215,8 +218,8 @@ class PersonaDialogGenerator(DialogGenerator):
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
                  response_details: str = "",
+                 scenario: Optional[Union[dict, str]] = None,
                  model: Union[BaseLanguageModel, str] = None,
-                 scenario: dict = None,
                  **llm_kwargs):
         """
         Initializes a PersonaDialogGenerator.
@@ -225,18 +228,18 @@ class PersonaDialogGenerator(DialogGenerator):
         :type persona_a: Persona (or Agent)
         :param persona_b: The second persona.
         :type persona_b: Persona (or Agent)
-        :param context: The context for the dialogue (optional).
+        :param context: The default context for the dialogue (optional).
         :type context: Optional[Union[str, Context]]
-        :param example_dialogs: Optional list of example dialogues to guide the generation.
+        :param example_dialogs: Optional default list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
         :param dialogue_details: Additional dialogue instructions.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
+        :param scenario: the default scenario metadata for the dialogue.
+        :type scenario: Optional[Union[dict, str]]
         :param model: The LLM or model name to use.
         :type model: Union[BaseLanguageModel, str]
-        :param scenario: Scenario metadata.
-        :type scenario: dict
         :param **llm_kwargs: Additional keyword arguments for the LLM (overrides config).
         :type llm_kwargs: dict
         """
@@ -262,17 +265,18 @@ class PersonaDialogGenerator(DialogGenerator):
 
         super().__init__(dialogue_details=dialogue_details,
                          example_dialogs=example_dialogs,
-                         model=model,
-                         scenario=scenario,
                          personas={
                              persona_a.name: persona_a.json(),
                              persona_b.name: persona_b.json()
                          },
+                         scenario=scenario,
+                         model=model,
                          **llm_kwargs)
 
     def generate(self,
                  context: Optional[Union[str, Context]] = None,
                  example_dialogs: List[Dialog] = None,
+                 scenario: Optional[Union[dict, str]] = None,
                  seed: int = None,
                  id: int = None,
                  parent_id: int = None,
@@ -285,6 +289,8 @@ class PersonaDialogGenerator(DialogGenerator):
         :type context: Optional[Union[str, Context]]
         :param example_dialogs: Optional list of example dialogues to guide the generation.
         :type example_dialogs: List[Dialog]
+        :param scenario: Optional scenario metadata for the dialogue.
+        :type scenario: Optional[Union[dict, str]]
         :param seed: Random seed for reproducibility.
         :type seed: int, optional
         :param id: Dialogue ID.
@@ -300,6 +306,9 @@ class PersonaDialogGenerator(DialogGenerator):
         """
         if self._agent_a and self._agent_b:
             return self._agent_a.dialog_with(self._agent_b,
+                                             context=context,
+                                             example_dialogs=example_dialogs,
+                                             scenario=scenario,
                                              max_turns=max_turns,
                                              id=id,
                                              seed=seed,
@@ -308,6 +317,7 @@ class PersonaDialogGenerator(DialogGenerator):
         else:
             return super().generate(context=context,
                                     example_dialogs=example_dialogs,
+                                    scenario=scenario,
                                     seed=seed,
                                     id=id,
                                     notes=notes,
