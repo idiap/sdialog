@@ -28,7 +28,7 @@ from jinja2 import Template
 from . import Dialog, Turn, Event, Instruction, Context
 from .personas import BasePersona, Persona
 from .orchestrators import BaseOrchestrator
-from .interpretability import UtteranceTokenHook, RepresentationHook, Inspector
+from .interpretability import ResponseHook, ActivationHook, Inspector
 from .util import get_llm_model, is_aws_model_name, is_huggingface_model_name, set_generator_seed, get_universal_id
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class Agent:
 
         # Create an (optional) context for the conversation
         context = Context(location="Orbiting Research Station Theta-9",
-                          environment="Zero‑gravity greenhouse"
+                          environment="Zero-gravity greenhouse",
                           objects=["alien spores", "hydroponic garden", "research equipment"])
 
         # Create a dialogue
@@ -70,8 +70,8 @@ class Agent:
         dialog.print()
     ```
     """
-    STOP_WORD = "STOP"
-    STOP_WORD_TEXT = "(bye bye!)"
+    _STOP_WORD = "STOP"
+    _STOP_WORD_TEXT = "(bye bye!)"
 
     def __init__(self,
                  persona: BasePersona = Persona(),
@@ -89,7 +89,7 @@ class Agent:
                  model: Union[str, BaseLanguageModel] = None,
                  **llm_kwargs):
         """
-        Initializes a Agent for role-play dialogue.
+        Initializes an Agent for role-play dialogue.
 
         :param persona: The persona to role-play.
         :type persona: BasePersona
@@ -122,163 +122,59 @@ class Agent:
         llm_kwargs = {**llm_config_params, **llm_kwargs}
         if model is None:
             model = config["llm"]["model"]
-        self.model_uri = model
-
         if postprocess_fn is not None and not callable(postprocess_fn):
             raise ValueError("postprocess_fn must be a callable function that takes a string and outputs a string.")
 
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
-                self.system_prompt_template = Template(f.read())
-        self.context = context
-        self.example_dialogs = example_dialogs
-        self.dialogue_details = dialogue_details
-        self.response_details = response_details
-        self.can_finish = can_finish
+                system_prompt_template = Template(f.read())
 
+        # Private attributes
+        self._system_prompt_template = system_prompt_template
+        self._model_uri = model
+        self._context = context
+        self._example_dialogs = example_dialogs
+        self._dialogue_details = dialogue_details
+        self._response_details = response_details
+        self._can_finish = can_finish
+        self._first_utterances = None
+        self._finished = False
+        self._orchestrators = None
+        self._inspectors = None
+        self._postprocess_fn = postprocess_fn
+        self._hook_response_data = None
+        self._hook_response_act = defaultdict(lambda: defaultdict(list))
+
+        # Public attributes
         self.llm = get_llm_model(model_name=model, **llm_kwargs)
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
         self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
-        self.first_utterances = None
-        self.finished = False
-        self.orchestrators = None
-        self.add_orchestrators(orchestrators)
-        self.inspectors = None
-        self.add_inspectors(inspectors)
-        self.postprocess_fn = postprocess_fn
-        self.utterance_hook = None
-        self.representation_cache = defaultdict(lambda: defaultdict(list))
-        self.memory = [SystemMessage(self.system_prompt_template.render(
+        self.memory = [SystemMessage(self._system_prompt_template.render(
             persona=self.persona.prompt(),
-            context=self.context,
-            example_dialogs=self.example_dialogs,
-            dialogue_details=self.dialogue_details,
-            response_details=self.response_details,
-            can_finish=self.can_finish,
-            stop_word=self.STOP_WORD
+            context=self._context,
+            example_dialogs=self._example_dialogs,
+            dialogue_details=self._dialogue_details,
+            response_details=self._response_details,
+            can_finish=self._can_finish,
+            stop_word=self._STOP_WORD
         ))]
 
         logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
                      f"using prompt from '{config['prompts']['persona_agent']}'.")
         logger.debug("Prompt: " + self.prompt())
 
+        self.add_orchestrators(orchestrators)
+        self.add_inspectors(inspectors)
         self.reset()
 
-    def __call__(self, utterance: str = "", return_events: bool = False) -> str:
-        """
-        Processes an input utterance and generates a response.
-
-        :param utterance: The input utterance from the other agent or user.
-        :type utterance: str
-        :param return_events: If True, returns a list of events instead of just the response string.
-        :type return_events: bool
-        :return: The agent's response or events, or None if finished.
-        :rtype: Union[str, List[Event], None]
-        """
-        if self.finished:
-            return None
-
-        if utterance:
-            self.memory.append(HumanMessage(content=utterance))
-
-        if return_events:
-            events = []
-        if self.orchestrators:
-            for orchestrator in self.orchestrators:
-                instruction = orchestrator()
-                if instruction:
-
-                    if type(instruction) is Instruction:
-                        if return_events and instruction.events:
-                            if type(instruction.events) is Event:
-                                events.append(instruction.events)
-                            else:
-                                events.extend(instruction.events)
-                        instruction = instruction.text
-
-                    persist = orchestrator.is_persistent()
-                    self.instruct(instruction, persist=persist)
-                    if return_events:
-                        events.append(Event(agent=self.get_name(),
-                                            action="instruct" + ("-persist" if persist else ""),
-                                            actionLabel=orchestrator.get_event_label(),
-                                            text=instruction,
-                                            timestamp=int(time())))
-
-        if len(self.memory) <= 1 and self.first_utterances:
-            response = (random.choice(self.first_utterances)
-                        if type(self.first_utterances) is list
-                        else self.first_utterances)
-            response = AIMessage(content=response)
-        else:
-            if self.inspectors:
-                self.utterance_hook.new_utterance_event(self.memory_dump())
-
-            if (is_huggingface_model_name(self.model_uri) or is_aws_model_name(self.model_uri)) and \
-               (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
-                # Ensure that the last message is a HumanMessage to avoid
-                # "A conversation must start with a user message" (aws)
-                # or "Last message must be a HumanMessage!" (huggingface)
-                # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
-                # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
-                response = self.llm.invoke(self.memory + [HumanMessage(
-                    content="" if is_huggingface_model_name(self.model_uri) else ".")
-                ])
-                logger.warning(
-                    "For HuggingFace or AWS LLMs, the last message in the conversation history must be a HumanMessage. "
-                    "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
-                )
-            else:
-                response = self.llm.invoke(self.memory)
-
-            if self.inspectors:
-                self.utterance_hook.end_utterance_event()
-
-        if self.postprocess_fn:
-            response.content = self.postprocess_fn(response.content)
-
-        if self.orchestrators:
-            self.memory[:] = [msg for msg in self.memory
-                              if not (msg.response_metadata
-                                      and "persist" in msg.response_metadata
-                                      and not msg.response_metadata["persist"])]
-        self.memory.append(response)
-
-        response = response.content
-        if self.STOP_WORD in response:
-            response = response.replace(self.STOP_WORD, self.STOP_WORD_TEXT).strip()
-            self.memory[-1].content = self.memory[-1].content.replace(self.STOP_WORD, "").strip()
-            self.finished = True
-
-        if return_events:
-            if response:
-                events.append(Event(agent=self.get_name(),
-                                    action="utter",
-                                    text=response,
-                                    timestamp=int(time())))
-            return events
-        else:
-            return response if response else ""
-
-    def __or__(self, other):
-        """
-        Overloaded | operator to attach orchestration or interpretability components.
-
-        :param other: BaseOrchestrator, list[BaseOrchestrator], Inspector or list[Inspector].
-        :type other: Union[BaseOrchestrator, List[BaseOrchestrator], Inspector, List[Inspector]]
-        :return: Self (Agent) for chaining.
-        """
-        if isinstance(other, Inspector):
-            self.add_inspectors(other)
-        else:
-            self.add_orchestrators(other)
-        return self
-
     @property
-    def utterance_list(self):
-        """List of utterance dicts captured by the UtteranceTokenHook (interpretability)."""
-        return self.utterance_hook.utterance_list
+    def _hooked_responses(self):
+        """
+        Generated responses as list of {"mem": {...}, "output": ...} dicts.
+        This attribute is meant to be used internally by the attached Inspector object(s) only.
+        """
+        return self._hook_response_data.responses
 
     @property
     def base_model(self):
@@ -324,6 +220,165 @@ class Agent:
             pass
         return None
 
+    def __call__(self, utterance: str = "", return_events: bool = False) -> str:
+        """
+        Processes an input utterance and generates a response.
+
+        :param utterance: The input utterance from the other agent or user.
+        :type utterance: str
+        :param return_events: If True, returns a list of events instead of just the response string.
+        :type return_events: bool
+        :return: The agent's response or events, or None if finished.
+        :rtype: Union[str, List[Event], None]
+        """
+        if self._finished:
+            return None
+
+        if utterance:
+            self.memory.append(HumanMessage(content=utterance))
+
+        if return_events:
+            events = []
+        if self._orchestrators:
+            for orchestrator in self._orchestrators:
+                instruction = orchestrator()
+                if instruction:
+
+                    if type(instruction) is Instruction:
+                        if return_events and instruction.events:
+                            if type(instruction.events) is Event:
+                                events.append(instruction.events)
+                            else:
+                                events.extend(instruction.events)
+                        instruction = instruction.text
+
+                    persist = orchestrator.is_persistent()
+                    self.instruct(instruction, persist=persist)
+                    if return_events:
+                        events.append(Event(agent=self.get_name(),
+                                            action="instruct" + ("-persist" if persist else ""),
+                                            actionLabel=orchestrator.get_event_label(),
+                                            text=instruction,
+                                            timestamp=int(time())))
+
+        if len(self.memory) <= 1 and self._first_utterances:
+            response = (random.choice(self._first_utterances)
+                        if type(self._first_utterances) is list
+                        else self._first_utterances)
+            response = AIMessage(content=response)
+        else:
+            if self._inspectors:
+                self._hook_response_data.response_begin(self.memory_dump())
+
+            if (is_huggingface_model_name(self._model_uri) or is_aws_model_name(self._model_uri)) and \
+               (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
+                # Ensure that the last message is a HumanMessage to avoid
+                # "A conversation must start with a user message" (aws)
+                # or "Last message must be a HumanMessage!" (huggingface)
+                # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
+                # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
+                response = self.llm.invoke(self.memory + [HumanMessage(
+                    content="" if is_huggingface_model_name(self._model_uri) else ".")
+                ])
+                logger.warning(
+                    "For HuggingFace or AWS LLMs, the last message in the conversation history must be a HumanMessage. "
+                    "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
+                )
+            else:
+                response = self.llm.invoke(self.memory)
+
+            if self._inspectors:
+                self._hook_response_data.response_end()
+
+        if self._postprocess_fn:
+            response.content = self._postprocess_fn(response.content)
+
+        if self._orchestrators:
+            self.memory[:] = [msg for msg in self.memory
+                              if not (msg.response_metadata
+                                      and "persist" in msg.response_metadata
+                                      and not msg.response_metadata["persist"])]
+        self.memory.append(response)
+
+        response = response.content
+        if self._STOP_WORD in response:
+            response = response.replace(self._STOP_WORD, self._STOP_WORD_TEXT).strip()
+            self.memory[-1].content = self.memory[-1].content.replace(self._STOP_WORD, "").strip()
+            self._finished = True
+
+        if return_events:
+            if response:
+                events.append(Event(agent=self.get_name(),
+                                    action="utter",
+                                    text=response,
+                                    timestamp=int(time())))
+            return events
+        else:
+            return response if response else ""
+
+    def __or__(self, other):
+        """
+        Overloaded | operator to attach orchestration or interpretability components.
+
+        :param other: BaseOrchestrator, list[BaseOrchestrator], Inspector or list[Inspector].
+        :type other: Union[BaseOrchestrator, List[BaseOrchestrator], Inspector, List[Inspector]]
+        :return: Self (Agent) for chaining.
+        """
+        if isinstance(other, Inspector):
+            self.add_inspectors(other)
+        else:
+            self.add_orchestrators(other)
+        return self
+
+    def _add_activation_hooks(self, key_to_layer_name, steering_function=None, steering_interval=(0, -1)):
+        """
+        Registers ActivationHooks for each layer in the given mapping.
+        Skips already registered layers.
+
+        :param key_to_layer_name: Mapping from cache key (str) to target layer name (str).
+        :type key_to_layer_name: Dict[str, str]
+        :param steering_function: Optional function applied to layer output before caching/steering.
+        :type steering_function: Optional[Callable]
+        :param steering_interval: (min_token, max_token). Skip first min_token; stop after max_token (-1 = no limit).
+        :type steering_interval: Tuple[int, int]
+        """
+        # Get the model (assume HuggingFace pipeline)
+        if self.base_model is self.llm:
+            raise RuntimeError("Base model not found or not a HuggingFace pipeline.")
+
+        # Always re-initialize cache and hooks
+        self._hook_acts = []
+
+        # Register new hooks
+        for cache_key, layer_name in key_to_layer_name.items():
+            hook = ActivationHook(
+                cache_key=cache_key,
+                layer_key=layer_name,
+                agent=self,
+                response_hook=self._hook_response_data,
+                steering_function=steering_function,  # pass the function here,
+                steering_interval=steering_interval
+            )
+            self._hook_acts.append(hook)
+
+    def _clear_hooks(self):
+        """
+        Resets all cached representations and removes registered hooks from the agent.
+        """
+        for hook in getattr(self, '_hook_acts', []):
+            hook.remove()
+        self._hook_acts = []
+        if self._hook_response_data is not None:
+            self._hook_response_data.reset()
+        self._set_hook_response_data()
+
+    def _set_hook_response_data(self):
+        """
+        Ensures a ResponseHook is registered (idempotent).
+        """
+        if self._hook_response_data is None:
+            self._hook_response_data = ResponseHook(agent=self)
+
     def response_lookahead(self, utterance: str = None):
         """
         Generates a response to a hypothetical next utterance without updating memory.
@@ -347,13 +402,13 @@ class Agent:
         if not orchestrators:
             return
 
-        if self.orchestrators is None:
-            self.orchestrators = []
+        if self._orchestrators is None:
+            self._orchestrators = []
 
         if isinstance(orchestrators, BaseOrchestrator):
             orchestrators = [orchestrators]
 
-        self.orchestrators.extend(orchestrators)
+        self._orchestrators.extend(orchestrators)
 
         for orchestrator in orchestrators:
             orchestrator._set_target_agent(self)
@@ -368,8 +423,8 @@ class Agent:
         if inspectors is None:
             return
 
-        if self.inspectors is None:
-            self.inspectors = []
+        if self._inspectors is None:
+            self._inspectors = []
 
         # Handle both single Inspector and list of Inspectors
         if isinstance(inspectors, Inspector):
@@ -381,74 +436,24 @@ class Agent:
         else:
             raise TypeError("inspectors must be an Inspector or a list of Inspectors")
 
-        self.inspectors.extend(inspectors)
-        self.set_utterance_hook()
+        self._inspectors.extend(inspectors)
+        self._set_hook_response_data()
         for inspector in inspectors:
             inspector.add_agent(self)
-
-    def add_hooks(self, key_to_layer_name, steering_function=None, steering_interval=(0, -1)):
-        """
-        Registers RepresentationHooks for each layer in the given mapping.
-        Skips already registered layers. Adds new keys to the shared representation_cache.
-
-        :param key_to_layer_name: Mapping from cache key (str) to target layer name (str).
-        :type key_to_layer_name: Dict[str, str]
-        :param steering_function: Optional function applied to layer output before caching/steering.
-        :type steering_function: Optional[Callable]
-        :param steering_interval: (min_token, max_token). Skip first min_token; stop after max_token (-1 = no limit).
-        :type steering_interval: Tuple[int, int]
-        """
-        # Get the model (assume HuggingFace pipeline)
-        if self.base_model is self.llm:
-            raise RuntimeError("Base model not found or not a HuggingFace pipeline.")
-
-        # Always re-initialize cache and hooks
-        self.rep_hooks = []
-
-        # Register new hooks
-        for cache_key, layer_name in key_to_layer_name.items():
-            hook = RepresentationHook(
-                cache_key=cache_key,
-                layer_key=layer_name,
-                agent=self,
-                utterance_hook=self.utterance_hook,
-                steering_function=steering_function,  # pass the function here,
-                steering_interval=steering_interval
-            )
-            self.rep_hooks.append(hook)
 
     def clear_orchestrators(self):
         """
         Removes all orchestrators from the agent.
         """
-        self.orchestrators = None
+        self._orchestrators = None
 
     def clear_inspectors(self):
         """
         Removes all inspectors from the agent.
         """
-        self.inspectors = None
-        self.utterance_hook = None
-        self.clear_hooks()
-
-    def clear_hooks(self):
-        """
-        Resets all cached representations and removes registered hooks from the agent.
-        """
-        for hook in getattr(self, 'rep_hooks', []):
-            hook.remove()
-        self.rep_hooks = []
-        if self.utterance_hook is not None:
-            self.utterance_hook.reset()
-        self.set_utterance_hook()
-
-    def set_utterance_hook(self):
-        """
-        Ensures a UtteranceTokenHook is registered (idempotent). Also assigns tokenizer reference.
-        """
-        # Register UtteranceTokenHook and expose utterance_list
-        if self.utterance_hook is None:
-            self.utterance_hook = UtteranceTokenHook(agent=self)
+        self._inspectors = None
+        self._hook_response_data = None
+        self._clear_hooks()
 
     def instruct(self, instruction: str, persist: bool = False):
         """
@@ -473,7 +478,7 @@ class Agent:
         :param utterances: The greeting(s) to use.
         :type utterances: Union[str, List[str]]
         """
-        self.first_utterances = utterances
+        self._first_utterances = utterances
 
     def get_name(self, default: str = "Me") -> str:
         """
@@ -510,17 +515,17 @@ class Agent:
         if self.name:
             data["name"] = self.get_name()
         data["model_name"] = self.model_name
-        if self.first_utterances:
-            data["first_utterances"] = self.first_utterances
+        if self._first_utterances:
+            data["first_utterances"] = self._first_utterances
         data["persona"] = self.persona.json()
-        if self.orchestrators:
-            data["persona"]["orchestrators"] = [orc.json() for orc in self.orchestrators]
+        if self._orchestrators:
+            data["persona"]["orchestrators"] = [orc.json() for orc in self._orchestrators]
         return json.dumps(data, indent=indent) if string else data
 
     def reset(self, seed: int = None, context: Union[str, Context] = None, example_dialogs: List['Dialog'] = None):
         """
         Resets the agent's memory and orchestrators, optionally reseeding the LLM.
-        Clears interpretability state (utterance_list and representation_cache).
+        Also clears interpretability state and components if any.
 
         :param seed: Random seed for reproducibility (if None, generated).
         :param context: Optional context override.
@@ -530,26 +535,26 @@ class Agent:
         self.memory[:] = self.memory[:1]
         # Update system prompt if needed
         if self.memory and (context or example_dialogs):
-            system_prompt = self.system_prompt_template.render(
+            system_prompt = self._system_prompt_template.render(
                 persona=self.persona.prompt(),
-                context=context or self.context,
-                example_dialogs=example_dialogs or self.example_dialogs,
-                dialogue_details=self.dialogue_details,
-                response_details=self.response_details,
-                can_finish=self.can_finish,
-                stop_word=self.STOP_WORD
+                context=context or self._context,
+                example_dialogs=example_dialogs or self._example_dialogs,
+                dialogue_details=self._dialogue_details,
+                response_details=self._response_details,
+                can_finish=self._can_finish,
+                stop_word=self._STOP_WORD
             )
             self.memory[0].content = system_prompt
 
-        self.finished = False
+        self._finished = False
         seed = set_generator_seed(self, seed)
 
-        if self.orchestrators:
-            for orchestrator in self.orchestrators:
+        if self._orchestrators:
+            for orchestrator in self._orchestrators:
                 orchestrator.reset()
 
-        if self.utterance_hook is not None:
-            self.utterance_hook.reset()
+        if self._hook_response_data is not None:
+            self._hook_response_data.reset()
 
     def dialog_with(self,
                     agent: "Agent",
@@ -605,7 +610,7 @@ class Agent:
 
             if utt_events and utt_events[-1].action == "utter":
                 utter = utt_events[-1].text
-                utt_events[-1].text = utter.replace(self.STOP_WORD_TEXT, "").strip()
+                utt_events[-1].text = utter.replace(self._STOP_WORD_TEXT, "").strip()
                 if not utt_events[-1].text:
                     break
             else:
@@ -622,7 +627,7 @@ class Agent:
             utt_events = agent(utter, return_events=True)
             if utt_events and utt_events[-1].action == "utter":
                 utter = utt_events[-1].text
-                utt_events[-1].text = utter.replace(self.STOP_WORD_TEXT, "").strip()
+                utt_events[-1].text = utter.replace(self._STOP_WORD_TEXT, "").strip()
                 if not utt_events[-1].text:
                     break
             else:
@@ -638,7 +643,7 @@ class Agent:
 
         pbar.close()
 
-        context = context or self.context
+        context = context or self._context
         return Dialog(
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,

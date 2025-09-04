@@ -31,7 +31,7 @@ def test_persona_agent_init(monkeypatch):
     assert agent.get_name() == "Alice"
     assert "role" in agent.prompt().lower()
     agent.set_first_utterances("Hi!")
-    assert agent.first_utterances == "Hi!"
+    assert agent._first_utterances == "Hi!"
     agent.clear_orchestrators()
     agent.reset(seed=42)
 
@@ -81,5 +81,5 @@ def test_agents_dialog_with_context():
     dialog = agent1.dialog_with(agent2, max_turns=2)
     assert isinstance(dialog, Dialog)
     assert len(dialog.turns) > 0
-    assert agent1.context is ctx
-    assert agent2.context is ctx
+    assert agent1._context is ctx
+    assert agent2._context is ctx

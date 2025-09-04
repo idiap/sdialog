@@ -3,20 +3,19 @@ interpretability.py
 
 This submodule provides classes and hooks for inspecting and interpreting the internal representations
 of PyTorch-based language models during forward passes. It enables the registration of hooks on specific
-model layers to capture token-level and utterance-level information, facilitating analysis of model behavior
+model layers to capture token-level and response-level information, facilitating analysis of model behavior
 and interpretability. The module is designed to work with conversational agents and integrates with
 tokenizers and memory structures, supporting the extraction and inspection of tokens, representations,
-and system instructions across utterances.
+and system instructions across responses.
 
 Classes:
-    - BaseHook: Base class for managing PyTorch forward hooks.
-    - UtteranceTokenHook: Captures token IDs at the embedding layer for each utterance.
-    - RepresentationHook: Captures intermediate representations from specified model layers.
-    - Inspector: Manages hooks, extracts representations, and provides utilities for analysis.
-    - InspectionUtterance: Represents a single utterance, exposing its tokens for inspection.
-    - InspectionUnit: Represents a single token within an utterance, allowing access to its representations.
+    - Inspector: Main class for managing hooks, extracting representations, and providing utilities for analysis.
+    - ResponseHook: Captures token IDs at the embedding layer for each response.
+    - ActivationHook: Captures intermediate representations from specified model layers.
+    - InspectionResponse: Represents a single response, exposing its tokens for inspection.
+    - InspectionToken: Represents a single token within a response, allowing access to its representations.
 
-Typical usage involves attaching one or more `Inspector` objects to an agent, accumulating utterance and token data
+Typical usage involves attaching one or more `Inspector` objects to an agent, accumulating response and token data
 during inference, and providing interfaces for downstream interpretability and analysis tasks.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -131,6 +130,51 @@ class BaseSteerer(ABC):
         return self
 
 
+class BaseHook(ABC):
+    """
+    Base class for registering and managing PyTorch forward hooks on model layers.
+    This class is used to create specific hook classes, like `ResponseHook` and `ActivationHook`.
+    """
+    def __init__(self, layer_key, hook_fn, agent):
+        """
+        :param layer_key: Dotted module path in model.named_modules().
+        :type layer_key: str
+        :param hook_fn: Callable with signature (module, input, output).
+        :type hook_fn: Callable
+        :param agent: Owning agent (may be None for generic hooks).
+        :type agent: Any
+        """
+        self.layer_key = layer_key
+        self.hook_fn = hook_fn
+        self.handle = None
+        self.agent = agent
+
+    def _hook(self):
+        """Placeholder hook (override in subclasses)."""
+        pass
+
+    def register(self, model):
+        """
+        Registers the hook on the given model using the layer_key.
+
+        :param model: Model whose layer will be hooked.
+        :type model: torch.nn.Module
+        :return: The hook handle.
+        :rtype: Any
+        """
+        layer = dict(model.named_modules())[self.layer_key]
+        self.handle = layer.register_forward_hook(self.hook_fn)
+        return self.handle
+
+    def remove(self):
+        """
+        Removes the hook if it is registered.
+        """
+        if self.handle is not None:
+            self.handle.remove()
+            self.handle = None
+
+
 class DirectionSteerer(BaseSteerer):
     """Concrete Steerer binding a direction vector for additive or subtractive steering.
 
@@ -188,75 +232,30 @@ class DirectionSteerer(BaseSteerer):
                                            direction=self.direction, op="-")
 
 
-class BaseHook:
+class ResponseHook(BaseHook):
     """
-    Base class for registering and managing PyTorch forward hooks on model layers.
-    This class is used to create specific hook classes, like `UtteranceTokenHook` and `RepresentationHook`.
-    """
-    def __init__(self, layer_key, hook_fn, agent):
-        """
-        :param layer_key: Dotted module path in model.named_modules().
-        :type layer_key: str
-        :param hook_fn: Callable with signature (module, input, output).
-        :type hook_fn: Callable
-        :param agent: Owning agent (may be None for generic hooks).
-        :type agent: Any
-        """
-        self.layer_key = layer_key
-        self.hook_fn = hook_fn
-        self.handle = None
-        self.agent = agent
-
-    def _hook(self):
-        """Placeholder hook (override in subclasses)."""
-        pass
-
-    def register(self, model):
-        """
-        Registers the hook on the given model using the layer_key.
-
-        :param model: Model whose layer will be hooked.
-        :type model: torch.nn.Module
-        :return: The hook handle.
-        :rtype: Any
-        """
-        layer = dict(model.named_modules())[self.layer_key]
-        self.handle = layer.register_forward_hook(self.hook_fn)
-        return self.handle
-
-    def remove(self):
-        """
-        Removes the hook if it is registered.
-        """
-        if self.handle is not None:
-            self.handle.remove()
-            self.handle = None
-
-
-class UtteranceTokenHook(BaseHook):
-    """
-    A hook class for capturing utterance-level information.
+    A hook class for capturing response-level information.
     This class is not meant to be used directly, but rather used by the `Inspector` class.
 
     Example:
     ```python
     from sdialog.agents import Agent
-    from sdialog.interpretability import UtteranceTokenHook
+    from sdialog.interpretability import ResponseHook
 
     agent = Agent()
-    uth = UtteranceTokenHook(agent)
+    hook = ResponseHook(agent)
 
-    uth.new_utterance_event(agent.memory.copy())
+    hook.response_begin(agent.memory_dump())
     agent("Hi there")
-    uth.end_utterance_event()
+    hook.response_end()
 
-    print("Generation info:", uth.utterance_list[-1]['output_tokens'][0].utterance)
+    print("Generation info:", hook.responses[-1]['output'][0].response)
     # Output:
     # {'input_ids': tensor([ 271, 9906,   11, 1268,  649]),
     # 'text': '\\n\\nHello, how can',
     # 'tokens': ['ĊĊ', 'Hello', ',', 'Ġhow', 'Ġcan'],
-    # 'utterance_index': 0}
-    uth.remove()
+    # 'response_index': 0}
+    hook.remove()
     ```
     """
     def __init__(self, agent):
@@ -265,27 +264,10 @@ class UtteranceTokenHook(BaseHook):
         :type agent: Any
         """
         super().__init__('model.embed_tokens', self._hook, agent=agent)
-        self.utterance_list = []
-        self.current_utterance_ids = None
+        self.responses = []
+        self.current_response_ids = None
         self.agent = agent
         self.register(agent.base_model)
-
-    def reset(self):
-        """Clears utterance list, representation cache and current token accumulator."""
-        self.utterance_list.clear()
-        self.agent.representation_cache.clear()
-        self.agent.representation_cache.update(defaultdict(lambda: defaultdict(list)))
-        self.current_utterance_ids = None  # Now a tensor
-
-    def new_utterance_event(self, memory):
-        """
-        Starts tracking a new generated utterance.
-
-        :param memory: Snapshot of agent memory at utterance start.
-        :type memory: list
-        """
-        self.utterance_list.append({'mem': memory, 'output_tokens': []})
-        self.current_utterance_ids = None
 
     def _hook(self, module, input, output):
         """
@@ -299,9 +281,46 @@ class UtteranceTokenHook(BaseHook):
         :type output: torch.Tensor
         """
         input_ids = input[0].detach().cpu()
-        self.register_representations(input_ids)
+        self.register_response_tokens(input_ids)
 
-    def register_representations(self, input_ids):
+    def reset(self):
+        """Clears response list, representation cache and current token accumulator."""
+        self.responses.clear()
+        self.agent._hook_response_act.clear()
+        self.agent._hook_response_act.update(defaultdict(lambda: defaultdict(list)))
+        self.current_response_ids = None  # Now a tensor
+
+    def response_begin(self, memory):
+        """
+        Starts tracking a new generated response.
+
+        :param memory: Snapshot of agent memory at response start.
+        :type memory: list
+        """
+        self.responses.append({'mem': memory, 'output': []})
+        self.current_response_ids = None
+
+    def response_end(self):
+        """
+        Finalizes current response: decodes tokens, creates InspectionResponse, stores it.
+        """
+        token_list = self.current_response_ids.squeeze()
+        token_list = token_list.tolist()
+        text = self.agent.tokenizer.decode(token_list, skip_special_tokens=False)
+        tokens = self.agent.tokenizer.convert_ids_to_tokens(token_list)
+
+        # No longer create an InspectionToken here; just store the tokens list
+        response_dict = {
+            'input_ids': self.current_response_ids,
+            'text': text,
+            'tokens': tokens,
+            'response_index': len(self.responses) - 1
+        }
+        # Append an InspectionResponse instance instead of a dict
+        current_response_inspector = InspectionResponse(response_dict, agent=self.agent)
+        self.responses[-1]['output'].append(current_response_inspector)
+
+    def register_response_tokens(self, input_ids):
         """
         Accumulates only the newest generated token IDs across forward passes.
 
@@ -309,33 +328,13 @@ class UtteranceTokenHook(BaseHook):
         :type input_ids: torch.Tensor
         """
         # Accumulate token IDs as a tensor (generated tokens only)
-        if self.current_utterance_ids is None:
-            self.current_utterance_ids = input_ids[..., -1]
+        if self.current_response_ids is None:
+            self.current_response_ids = input_ids[..., -1]
         else:
-            self.current_utterance_ids = torch.cat([self.current_utterance_ids, input_ids[..., -1]], dim=-1)
-
-    def end_utterance_event(self):
-        """
-        Finalizes current utterance: decodes tokens, creates InspectionUtterance, stores it.
-        """
-        token_list = self.current_utterance_ids.squeeze()
-        token_list = token_list.tolist()
-        text = self.agent.tokenizer.decode(token_list, skip_special_tokens=False)
-        tokens = self.agent.tokenizer.convert_ids_to_tokens(token_list)
-
-        # No longer create an InspectionUnit here; just store the tokens list
-        utterance_dict = {
-            'input_ids': self.current_utterance_ids,
-            'text': text,
-            'tokens': tokens,
-            'utterance_index': len(self.utterance_list) - 1
-        }
-        # Append an InspectionUtterance instance instead of a dict
-        current_utterance_inspector = InspectionUtterance(utterance_dict, agent=self.agent)
-        self.utterance_list[-1]['output_tokens'].append(current_utterance_inspector)
+            self.current_response_ids = torch.cat([self.current_response_ids, input_ids[..., -1]], dim=-1)
 
 
-class RepresentationHook(BaseHook):
+class ActivationHook(BaseHook):
     """
     A BaseHook for capturing representations from a specific model layer.
     This class is not meant to be used directly, but rather used by the `Inspector` class.
@@ -343,43 +342,43 @@ class RepresentationHook(BaseHook):
     Example:
     ```python
     from sdialog.agents import Agent
-    from sdialog.interpretability import UtteranceTokenHook, RepresentationHook
+    from sdialog.interpretability import ResponseHook, ActivationHook
 
     agent = Agent()
 
-    utter_hook = UtteranceTokenHook(agent)
-    rep_hook = RepresentationHook(
+    resp_hook = ResponseHook(agent)
+    act_hook = ActivationHook(
         cache_key="my_target",
         layer_key="model.layers.10.post_attention_layernorm",
         agent=agent,
-        utterance_hook=utter_hook
+        response_hook=resp_hook
     )
-    utter_hook.register(agent.base_model)
-    rep_hook.register(agent.base_model)
+    resp_hook.register(agent.base_model)
+    act_hook.register(agent.base_model)
 
-    utter_hook.new_utterance_event(agent.memory.copy())
+    resp_hook.response_begin(agent.memory_dump())
     agent("Hello world!")
-    utter_hook.end_utterance_event()
+    resp_hook.response_end()
 
-    # Cached target activations for first (and only) utterance:
-    acts = agent.representation_cache[0]["my_target"][0]  # utterance index 0, token index 0
+    # Cached target activations for first (and only) response
+    acts = agent._hook_response_act[0]["my_target"][0]  # response index 0, token index 0
 
     print(acts)
     # Output:
     # tensor([[ 0.1182,  0.1152, -0.0045,  ...,  0.1836, -0.0549, -0.1924]], dtype=torch.bfloat16)
     ```
     """
-    def __init__(self, cache_key, layer_key, agent, utterance_hook,
+    def __init__(self, cache_key, layer_key, agent, response_hook,
                  steering_function=None, steering_interval=(0, -1)):
         """
         :param cache_key: Key under which layer outputs will be stored.
         :type cache_key: Union[str, int]
         :param layer_key: Layer name (found in model.named_modules()).
         :type layer_key: str
-        :param agent: Agent holding the representation_cache.
+        :param agent: the target Agent object.
         :type agent: Any
-        :param utterance_hook: UtteranceTokenHook instance (for current utterance index).
-        :type utterance_hook: UtteranceTokenHook
+        :param response_hook: ResponseHook instance (for current response index).
+        :type response_hook: ResponseHook
         :param steering_function: Optional single function or list applied in-place to last token activation.
         :type steering_function: Optional[Union[Callable, List[Callable]]]
         :param steering_interval: (min_token, max_token) steering window (max=-1 => unbounded).
@@ -388,14 +387,14 @@ class RepresentationHook(BaseHook):
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.agent = agent
-        self.utterance_hook = utterance_hook
+        self.response_hook = response_hook
         self.steering_function = steering_function  # Store the optional function
         self.steering_interval = steering_interval
         self._token_counter_steering = 0
         self.register(agent.base_model)
 
         # Initialize the nested cache
-        _ = self.agent.representation_cache[len(self.utterance_hook.utterance_list)][self.cache_key]
+        _ = self.agent._hook_response_act[len(self.response_hook.responses)][self.cache_key]
 
     def _hook(self, module, input, output):
         """
@@ -411,7 +410,7 @@ class RepresentationHook(BaseHook):
         :rtype: Union[torch.Tensor, tuple]
         :raises TypeError: If output main tensor is not a torch.Tensor.
         """
-        utterance_index = len(self.utterance_hook.utterance_list) - 1
+        response_index = len(self.response_hook.responses) - 1
 
         # Extract the main tensor from output if it's a tuple or list
         output_tensor = output[0] if isinstance(output, (tuple, list)) else output
@@ -430,7 +429,7 @@ class RepresentationHook(BaseHook):
                 and (max_token == -1 or self._token_counter_steering < max_token)
             )
 
-            self.agent.representation_cache[utterance_index][self.cache_key].append(
+            self.agent._hook_response_act[response_index][self.cache_key].append(
                 output_tensor[:, -1, :].detach().cpu()
             )
 
@@ -466,16 +465,16 @@ class Inspector:
     insp = Inspector(target='model.layers.2.post_attention_layernorm')
     agent = agent | insp  # pipe attach
 
-    agent("Explain gravity briefly.")  # Generates first utterance
-    agent("Sounds cool!")  # Generates second utterance
+    agent("Explain gravity briefly.")  # Generates first response
+    agent("Sounds cool!")  # Generates second response
 
-    print("Num utterances captured:", len(insp))
-    print("Last utterance, first token string:", insp[-1][0])
-    print("Last utterance, first token activation:", insp[-1][0].act)
+    print("Num responses captured:", len(insp))
+    print("Last response, first token string:", insp[-1][0])
+    print("Last response, first token activation:", insp[-1][0].act)
     # Output:
-    # Num utterances captured: 2
-    # Last utterance, first token string: ĊĊ
-    # Last utterance, first token activation: tensor([[-0.0109, -0.1128, -0.1216,  ..., -0.0157,  0.2100, -0.2637]])
+    # Num responses captured: 2
+    # Last response, first token string: ĊĊ
+    # Last response, first token activation: tensor([[-0.0109, -0.1128, -0.1216,  ..., -0.0157,  0.2100, -0.2637]])
     ```
     """
     def __init__(self,
@@ -510,26 +509,26 @@ class Inspector:
         self.steering_interval = steering_interval
 
         if self.agent is not None and self.target:
-            self.agent.add_hooks(self.target, steering_function=self.steering_function,
-                                 steering_interval=self.steering_interval)
+            self.agent._add_activation_hooks(self.target, steering_function=self.steering_function,
+                                             steering_interval=self.steering_interval)
 
     def __len__(self):
-        """Return number of completed utterances captured so far."""
-        return len(self.agent.utterance_list)
+        """Return number of completed responses captured so far."""
+        return len(self.agent._hooked_responses)
 
     def __iter__(self):
-        """Iterate over InspectionUtterance objects (one per utterance)."""
-        return (utt['output_tokens'][0] for utt in self.agent.utterance_list)
+        """Iterate over InspectionResponse objects (one per response)."""
+        return (utt['output'][0] for utt in self.agent._hooked_responses)
 
     def __getitem__(self, index):
-        """Return the InspectionUtterance at given index.
+        """Return the InspectionResponse at given index.
 
-        :param index: Utterance index (0-based).
+        :param index: Response index (0-based).
         :type index: int
-        :return: The InspectionUtterance object.
-        :rtype: InspectionUtterance
+        :return: The InspectionResponse object.
+        :rtype: InspectionResponse
         """
-        return self.agent.utterance_list[index]['output_tokens'][0]
+        return self.agent._hooked_responses[index]['output'][0]
 
     def __add__(self, other):
         """
@@ -621,9 +620,9 @@ class Inspector:
         """
         self.agent = agent
         if self.target:
-            self.agent.add_hooks(self.target,
-                                 steering_function=self.steering_function,
-                                 steering_interval=self.steering_interval)
+            self.agent._add_activation_hooks(self.target,
+                                             steering_function=self.steering_function,
+                                             steering_interval=self.steering_interval)
 
     def add_steering_function(self, steering_function):
         """
@@ -655,23 +654,23 @@ class Inspector:
         # Append to existing target instead of replacing
         self.target.update(target)
 
-        self.agent.add_hooks(target, steering_function=self.steering_function)
+        self.agent._add_activation_hooks(target, steering_function=self.steering_function)
 
     def recap(self):
         """
         Prints and returns the current hooks assigned to the inspector's agent.
         Also prints the 'target' mapping in a clean, readable format.
-        Includes any found instructions across utterances.
+        Includes any found instructions across responses.
         """
         if self.agent is None:
             logger.warning("No agent is currently assigned.")
             return None
 
-        num_utterances = len(self.agent.utterance_list)
-        if num_utterances == 0:
+        num_responses = len(self.agent._hooked_responses)
+        if num_responses == 0:
             logger.info(f"  {self.agent.name} has not spoken yet.")
         else:
-            logger.info(f"  {self.agent.name} has spoken for {num_utterances} utterance(s).")
+            logger.info(f"  {self.agent.name} has spoken for {num_responses} response(s).")
 
         if self.target:
             logger.info("   Watching the following layers:\n")
@@ -685,12 +684,12 @@ class Inspector:
         logger.info(f"  Found {num_instructs} instruction(s) in the system messages.")
 
         for match in instruction_recap:
-            logger.info(f"\nInstruction found at utterance index {match['index']}:\n{match['content']}\n")
+            logger.info(f"\nInstruction found at response index {match['index']}:\n{match['content']}\n")
 
     def find_instructs(self, verbose=False):
         """
         Return list with 'index' and 'content' for each SystemMessage (excluding first memory)
-        found in the agent's utterance_list. If verbose is True, also print each.
+        found in the agent's memory. If verbose is True, also print each.
 
         :param verbose: If True, logs each found instruction.
         :type verbose: bool
@@ -699,96 +698,96 @@ class Inspector:
         """
         matches = []
 
-        if not self.agent or not self.agent.utterance_list:
+        if not self.agent or not self.agent._hooked_responses:
             return matches
 
-        for utt_data in self.agent.utterance_list:
-            utt = utt_data['output_tokens'][0]
+        for utt_data in self.agent._hooked_responses:
+            utt = utt_data['output'][0]
             mem = utt_data.get('mem', [])[1:]  # Skip the first memory item
 
             for msg in mem:
                 if isinstance(msg, SystemMessage):
-                    match = {"index": utt.utterance_index, "content": msg.content}
+                    match = {"index": utt.response_index, "content": msg.content}
                     if verbose:
-                        logger.info(f"\n[SystemMessage in utterance index {match['index']}]:\n{match['content']}\n")
+                        logger.info(f"\n[SystemMessage in response index {match['index']}]:\n{match['content']}\n")
                     matches.append(match)
-                    break  # Only one SystemMessage per utterance is sufficient
+                    break  # Only one SystemMessage per response is sufficient
 
         return matches
 
 
-class InspectionUtterance:
+class InspectionResponse:
     """
-    Container exposing tokens of a single generated utterance for per-token inspection.
-    This class is not meant to be used directly, but rather used by the `UtteranceTokenHook` class.
+    Container exposing tokens of a single generated response for per-token inspection.
+    This class is not meant to be used directly, but rather used by the `ResponseHook` class.
     """
-    def __init__(self, utterance, agent):
+    def __init__(self, response, agent):
         """
-        :param utterance: Dict with keys (tokens, text, input_ids, utterance_index).
-        :type utterance: dict
+        :param response: Dict with keys (tokens, text, input_ids, response_index).
+        :type response: dict
         :param agent: Parent agent.
         :type agent: Any
         """
-        self.utterance = utterance
-        self.tokens = utterance['tokens']
-        self.text = utterance['text']
+        self.response = response
+        self.tokens = response['tokens']
+        self.text = response['text']
         self.agent = agent
-        # Store utterance_index if present
-        self.utterance_index = utterance.get('utterance_index', 0)
+        # Store response_index if present
+        self.response_index = response.get('response_index', 0)
 
     def __iter__(self):
-        """Yield InspectionUnit objects for each token."""
+        """Yield InspectionToken objects for each token."""
         for idx, token in enumerate(self.tokens):
-            yield InspectionUnit(token, self.agent, self, idx, utterance_index=self.utterance_index)
+            yield InspectionToken(token, self.agent, self, idx, response_index=self.response_index)
 
     def __str__(self):
-        """Return decoded utterance text."""
+        """Return decoded response text."""
         return self.text
 
     def __len__(self):
-        """Number of tokens in this utterance."""
-        # Return the number of tokens in the utterance
+        """Number of tokens in this response."""
+        # Return the number of tokens in the response
         return len(self.tokens)
 
     def __getitem__(self, index):
-        """Return token InspectionUnit or list of them (slice).
+        """Return token InspectionToken or list of them (slice).
         :param index: Token index or slice.
         :type index: Union[int, slice]
-        :rtype: Union[InspectionUnit, List[InspectionUnit]]
+        :rtype: Union[InspectionToken, List[InspectionToken]]
         """
         if isinstance(index, slice):
             return [
-                InspectionUnit(token, self.agent, self, i, utterance_index=self.utterance_index)
+                InspectionToken(token, self.agent, self, i, response_index=self.response_index)
                 for i, token in enumerate(self.tokens[index])
             ]
-        return InspectionUnit(
-            self.tokens[index], self.agent, self, index, utterance_index=self.utterance_index
+        return InspectionToken(
+            self.tokens[index], self.agent, self, index, response_index=self.response_index
         )
 
 
-class InspectionUnit:
+class InspectionToken:
     """
-    Represents a single token inside an utterance; accessor for its layer activations.
-    This class is not meant to be used directly, but rather used by the `InspectionUtterance` class.
+    Represents a single token inside a response; accessor for its layer activations.
+    This class is not meant to be used directly, but rather used by the `InspectionResponse` class.
     """
-    def __init__(self, token, agent, utterance, token_index, utterance_index):
+    def __init__(self, token, agent, response, token_index, response_index):
         """
         :param token: Token string (or id) at this position.
         :type token: Union[str, int]
         :param agent: Parent Agent.
         :type agent: Any
-        :param utterance: Parent InspectionUtterance.
-        :type utterance: InspectionUtterance
-        :param token_index: Position of token in utterance.
+        :param response: Parent InspectionResponse.
+        :type response: InspectionResponse
+        :param token_index: Position of token in response.
         :type token_index: int
-        :param utterance_index: Index of utterance in dialogue sequence.
-        :type utterance_index: int
+        :param response_index: Index of response in dialogue sequence.
+        :type response_index: int
         """
         self.token = token
         self.token_index = token_index
-        self.utterance = utterance  # Reference to parent utterance
+        self.response = response  # Reference to parent response
         self.agent = agent
-        self.utterance_index = utterance_index
+        self.response_index = response_index
 
     @property
     def act(self):
@@ -800,15 +799,15 @@ class InspectionUnit:
           - Single cache key => returns activation tensor.
         :raises KeyError: If representation cache missing.
         """
-        if not hasattr(self.agent, 'representation_cache'):
-            raise KeyError("Agent has no representation_cache.")
-        # Directly use utterance_index (assume always populated)
-        rep_tensor = self.agent.representation_cache[self.utterance_index]
+        if not hasattr(self.agent, '_hook_response_act'):
+            raise KeyError("Agent has no _hook_response_act.")
+        # Directly use response_index (assume always populated)
+        rep_tensor = self.agent._hook_response_act[self.response_index]
         return self if len(rep_tensor) > 1 else self[next(iter(rep_tensor))]
 
     def __iter__(self):
         """Not iterable (single token)."""
-        raise TypeError("InspectionUnit is not iterable")
+        raise TypeError("InspectionToken is not iterable")
 
     def __str__(self):
         """Return the token as string."""
@@ -824,12 +823,12 @@ class InspectionUnit:
         :rtype: torch.Tensor
         :raises KeyError: If cache or key missing.
         """
-        # Fetch the representation for this token from self.agent.representation_cache
-        if not hasattr(self.agent, 'representation_cache'):
-            raise KeyError("Agent has no representation_cache.")
-        rep_cache = self.agent.representation_cache
-        # Directly use utterance_index (assume always populated)
-        rep_tensor = rep_cache[self.utterance_index][key]
+        # Fetch the representation for this token from self.agent._hook_response_act
+        if not hasattr(self.agent, '_hook_response_act'):
+            raise KeyError("Agent has no _hook_response_act.")
+        rep_cache = self.agent._hook_response_act
+        # Directly use response_index (assume always populated)
+        rep_tensor = rep_cache[self.response_index][key]
         if hasattr(rep_tensor, '__getitem__'):
             return rep_tensor[self.token_index]
         return rep_tensor
