@@ -399,8 +399,7 @@ class Agent:
         :type steering_interval: Tuple[int, int]
         """
         # Get the model (assume HuggingFace pipeline)
-        model = self.base_model
-        if model is self.llm:
+        if self.base_model is self.llm:
             raise RuntimeError("Base model not found or not a HuggingFace pipeline.")
 
         # Always re-initialize cache and hooks
@@ -416,7 +415,6 @@ class Agent:
                 steering_function=steering_function,  # pass the function here,
                 steering_interval=steering_interval
             )
-            hook.register(model)
             self.rep_hooks.append(hook)
 
     def clear_orchestrators(self):
@@ -451,9 +449,6 @@ class Agent:
         # Register UtteranceTokenHook and expose utterance_list
         if self.utterance_hook is None:
             self.utterance_hook = UtteranceTokenHook(agent=self)
-        self.utterance_hook.register(self.base_model)
-        # Automatically set the tokenizer in the hook
-        self.utterance_hook.hook_state['tokenizer'] = self.tokenizer
 
     def instruct(self, instruction: str, persist: bool = False):
         """

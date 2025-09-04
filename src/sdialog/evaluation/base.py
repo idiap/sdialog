@@ -1,14 +1,14 @@
 """
-evaluation.base: Base Evaluation Components for sdialog
+evaluation.base: Base evaluation components for synthetic dialog workflows.
 
-This module provides abstract base classes and utilities for:
-  * Metric definitions (BaseMetric)
-  * Dialog embedding (BaseDialogEmbedder)
-  * Per-dialog scoring (BaseDialogScore / BaseDialogFlowScore)
-  * Dataset-level evaluators for scores and embeddings
-  * LLM-based judging interfaces (BaseLLMJudge)
+Provides abstract interfaces and utilities to:
+  * Embed a dialog (BaseDialogEmbedder)
+  * Score a single dialog (BaseDialogScore / BaseDialogFlowScore)
+  * Aggregate dialog scores across datasets (BaseDatasetScoreEvaluator)
+  * Aggregate dialog embeddings-based scores across datasets (BaseDatasetEmbeddingEvaluator)
+  * Judge dialogs with an LLM (BaseLLMJudge)
 
-These abstractions standardize evaluation workflows for synthetic dialogue generation.
+These abstractions standardize evaluation pipelines for synthetic dialog generation.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -39,34 +39,29 @@ CacheDialogScore.init(config["cache"]["path"], enable_cache=config["cache"]["ena
 logger = logging.getLogger(__name__)
 
 
-class BaseMetric(ABC):
-    """
-    Base class for metrics.
-    """
-
-    def __init__(self):
-        """
-        Initialize the metric (no-op base initializer).
-        """
-        pass
-
-    @abstractmethod
-    def compute(self, input: Union[Dialog, List[Dialog]]) -> Union[dict, float]:
-        """
-        Compute the metric for a single Dialog or a list of Dialogs.
-
-        :param input: A single Dialog or a list of Dialog instances.
-        :type input: Union[Dialog, List[Dialog]]
-        :return: A numeric score or a dictionary of metric components.
-        :rtype: Union[float, dict]
-        :raises NotImplementedError: If not implemented in subclass.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-
 class BaseDialogEmbedder(ABC):
     """
     Base class for dialog embedding models.
+
+    Example:
+    ```python
+    from sdialog.evaluation.base import BaseDialogEmbedder
+    import numpy as np
+
+    # Custom embedder to embed dialogues as random N-d embeddings
+    class RndEmbedder(BaseDialogEmbedder):
+        def __init__(self, n=256):
+            self.n = n
+
+        def embed(self, dialog):
+            return np.random.rand(self.n)
+
+    # Create a new embedder for 128-d embeddings and embed some dialogues
+    rnd_embedder = RndEmbedder(n=128)
+    for d in dialogues:
+        emb = rnd_embedder(d)
+        print(emb.shape)  # (128,)
+    ```
     """
 
     def __init__(self, name: Optional[str] = None):
@@ -105,7 +100,26 @@ class BaseDialogEmbedder(ABC):
 
 class BaseDialogScore(ABC):
     """
-    Base class for single-dialog scoring components.
+    Base class for computing a scalar score for a single dialog.
+
+    Example:
+    ```python
+    from sdialog.evaluation.base import BaseDialogScore
+    from sdialog import Dialog, Turn
+
+    # Custom score class to count the number of turns in a dialogue
+    class TurnCountScore(BaseDialogScore):
+        def score(self, dialog):
+            return len(dialog.turns)
+
+    # Create a new instance of our score
+    turn_counter = TurnCountScore()
+
+    d = Dialog(turns=[Turn(speaker="u", text="Hi"),
+                      Turn(speaker="s", text="Hello")])
+
+    print(turn_counter(d))  # Outputs: 2
+    ```
     """
 
     def __init__(self, name: Optional[str] = None, ai_speaker: str = None):
@@ -147,25 +161,12 @@ class BaseDialogScore(ABC):
 
 class BaseDialogFlowScore(BaseDialogScore):
     """
-    Base class for flow-based dialog scores using a reference dialog graph.
+    Base class for flow‑based dialog scores using a reference dialog graph.
 
-    Builds a graph (or reuses a provided one) from reference dialogues, encodes turns,
-    retrieves nearest nodes, and computes node sequence probabilities.
-
-    :ivar reference_dialogues: List of reference Dialog objects used to build the flow graph.
-    :vartype reference_dialogues: List[Dialog]
-    :ivar use_softmax: Whether to weight neighbor distances via softmax (vs hard 1-NN).
-    :vartype use_softmax: bool
-    :ivar k_neighbors: Number of neighbors considered for softmax weighting.
-    :vartype k_neighbors: int
-    :ivar graph: The constructed dialog flow graph (networkx-like).
-    :vartype graph: Any
-    :ivar nodes: Node metadata including embeddings and speaker mapping.
-    :vartype nodes: dict
-    :ivar encoder: Sentence embedding model.
-    :vartype encoder: SentenceTransformer
-    :ivar knn_models: Separate KNN models for 'user' and 'system' speakers.
-    :vartype knn_models: dict[str, KNNModel]
+    Builds (or reuses) a flow graph from reference dialogs, encodes turns,
+    retrieves nearest nodes, and derives transition probabilities.
+    Serves as the foundation for perplexity / likelihood style scores
+    (e.g., DialogFlowPPL, DialogFlowScore).
     """
 
     def __init__(self,
@@ -179,26 +180,17 @@ class BaseDialogFlowScore(BaseDialogScore):
                  verbose: bool = False,
                  **d2f_kwargs):
         """
-        Initialize the flow score model.
+        Initialize the flow score model by Building or loading a dialog flow graph from reference dialogs.
 
-        :param reference_dialogues: List of reference Dialog objects or a path to a serialized dialog file.
-        :type reference_dialogues: Union[str, List[Dialog]]
-        :param ai_speaker: If set, consider only system/AI speaker turns for scoring.
-        :type ai_speaker: Optional[str]
-        :param k_neighbors: Number of neighbors used in softmax neighbor probability computation.
-        :type k_neighbors: int
-        :param use_softmax: If True, aggregate neighbor distances with softmax; else hard selection.
-        :type use_softmax: bool
-        :param graph: Precomputed dialog flow graph (bypass construction).
-        :type graph: Any
-        :param nodes: Precomputed node metadata (bypass construction).
-        :type nodes: dict
-        :param name: Optional score name override (default auto).
-        :type name: Optional[str]
-        :param verbose: Verbosity flag passed to dialog2graph.
-        :type verbose: bool
-        :param d2f_kwargs: Extra keyword arguments forwarded to dialog2graph.
-        :type d2f_kwargs: dict
+        :param reference_dialogues: List of Dialog objects or path to a serialized dialog file.
+        :param ai_speaker: If provided, only system/AI speaker turns are considered in scoring.
+        :param k_neighbors: Number of neighbors for softmax aggregation.
+        :param use_softmax: If True, weight neighbor probabilities via softmax, else pick top-1.
+        :param graph: Optional precomputed graph object to reuse (bypasses construction).
+        :param nodes: Optional precomputed node metadata dictionary.
+        :param name: Optional score name override (auto if None).
+        :param verbose: Verbosity flag forwarded to graph construction.
+        :param d2f_kwargs: Additional dialog2graph customization parameters.
         :raises ValueError: If reference_dialogues is invalid.
         """
         super().__init__(name=name if name else "dfs" + ("" if use_softmax else "-hard"), ai_speaker=ai_speaker)
@@ -243,7 +235,7 @@ class BaseDialogFlowScore(BaseDialogScore):
 
     def get_node_sequence(self, dialog: Dialog, probs: bool = False) -> List[str]:
         """
-        Map each dialog turn to the nearest node (by embedding) and optionally compute transition probabilities.
+        Map each turn to its nearest node and optionally return transition probabilities.
 
         :param dialog: Dialog to map.
         :type dialog: Dialog
@@ -278,13 +270,13 @@ class BaseDialogFlowScore(BaseDialogScore):
 
     def compute_dialog_log_likelihood(self, dialog: Dialog) -> Tuple[float, int]:
         """
-        Compute (restricted and full) cumulative log-probability statistics for a dialog.
+        Compute cumulative log-probability statistics for a dialog.
 
-        Returns:
-          sum_log_p_known: Sum of log probabilities over edges that exist.
-          n_turns_known: Count of turns contributing known edges.
-          sum_log_p: Sum including unknown edges (assigned uniform probability).
-          n_turns: Total counted turns (respecting ai_speaker filtering if applicable).
+        Returns four values:
+          sum_log_p_known: Sum of log probabilities only over known edges.
+          n_turns_known: Count of contributing turns with known edges (includes initial offset).
+          sum_log_p: Sum over all considered turns (unknown edges use uniform fallback).
+          n_turns: Total counted turns (includes initial offset; respects ai_speaker filtering).
 
         :param dialog: Dialog to evaluate.
         :type dialog: Dialog
@@ -336,14 +328,35 @@ class BaseDialogFlowScore(BaseDialogScore):
 
 
 class BaseDatasetEvaluator(ABC):
-    """ Base class for dataset evaluators."""
+    """ Base class for dataset evaluators.
+
+    Dataset evaluators take a set of dialogs and return an evaluation.
+    Typically, Dataset evaluator subclasses will take a dialogue score (BaseDialogScore object) when
+    created and will return an aggregate of the per-dialog scores.
+
+    Example:
+    ```python
+    from sdialog.evaluation.base import BaseDatasetEvaluator
+    from sdialog import Dialog, Turn
+
+    class CountDialogsEvaluator(BaseDatasetEvaluator):
+        def __call__(self, dialogues, dataset_name=None):
+            return len(dialogues)
+
+    dialog_counter = CountDialogsEvaluator()
+
+    dialogs = [Dialog(turns=[Turn(speaker="u", text="Hi")]) for _ in range(3)]
+
+    print(dialog_counter(dialogs))  # Outputs: 3
+    ```
+    """
     @abstractmethod
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
                  dataset_name: str = None,
                  **kwargs) -> Union[dict, float]:
         """
-        Evaluate a dataset of dialogues.
+        Evaluate a collection of dialogues.
 
         :param dialogues: List of Dialog objects or a path to a serialized file.
         :type dialogues: Union[str, List[Dialog]]
@@ -355,12 +368,36 @@ class BaseDatasetEvaluator(ABC):
         :rtype: Union[float, dict]
         :raises NotImplementedError: If not implemented in subclass.
         """
-        raise NotImplementedError("Subclasses should implement this method.")
+        raise NotImplementedError
 
 
 class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     """
-    Base class for score-based dataset evaluators.
+    Base class for dataset-level aggregation of per-dialog scores.
+
+    Dataset score evaluators take a dialog score (BaseDialogScore object) when created
+    and given a collection of dialogs, aggregate their individual scores to return a single
+    value for the collection.
+
+    Example:
+    ```python
+    import numpy as np
+    from sdialog.evaluation import LinguisticFeatureScore
+    from sdialog.evaluation.base import BaseDatasetScoreEvaluator
+
+    # Let's create our average score evaluator
+    # (in practice, use the built-in MeanEvaluator!)
+    class AverageEvaluator(BaseDatasetScoreEvaluator):
+        def __plot__(self, dialog_scores, plot=None): pass  # no-op
+
+        def eval(self, dialog_scores):
+            return np.mean(dialog_scores)
+
+    avg_evaluator = AverageEvaluator(
+        dialog_score=LinguisticFeatureScore(name="hesitation-rate")
+    )
+    print(avg_evaluator(dialogs))  # Outputs average hesitation rate over the dialogs
+    ```
     """
 
     def __init__(self,
@@ -394,7 +431,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                  dataset_name: str = None,
                  return_scores: bool = False) -> Union[dict, float]:
         """
-        Compute dialog scores for a dataset and aggregate them.
+        Compute per-dialog scores then aggregate.
 
         :param dialogues: Iterable of Dialog objects or path.
         :type dialogues: Union[str, List[Dialog]]
@@ -442,7 +479,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     @abstractmethod
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
         """
-        Plot the scores for multiple datasets.
+        Plot stored per-dataset scores.
 
         :param dialog_scores: Mapping dataset_name -> array of scores.
         :type dialog_scores: Dict[str, np.ndarray]
@@ -450,7 +487,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :type plot: Optional[plt.Axes]
         :raises NotImplementedError: If not implemented in subclass.
         """
-        raise NotImplementedError("Subclasses should implement this method.")
+        raise NotImplementedError
 
     def clear(self):
         """
@@ -500,7 +537,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     @abstractmethod
     def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         """
-        Aggregate an array of dialog-level scores.
+        Aggregate a collection of per-dialog scores.
 
         :param dialog_scores: List or array of numeric scores.
         :type dialog_scores: List[Union[float, int]]
@@ -508,12 +545,42 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :rtype: Union[float, dict]
         :raises NotImplementedError: If not implemented in subclass.
         """
-        raise NotImplementedError("Subclasses should implement this method.")
+        raise NotImplementedError
 
 
 class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
     """
-    Base class for dataset embedding evaluators.
+    Base class for dataset-level evaluation using dialog embeddings.
+
+    It takes a dialog embedder (BaseDialogEmbedder object) when created
+    and given a collection of dialogs, computes their embeddings and returns a single value for the collection.
+
+    Example:
+    ```python
+    from sdialog import SentenceTransformerDialogEmbedder
+    from sdialog.evaluation.base import BaseDatasetEmbeddingEvaluator
+
+    # Evaluator that computes the average centroid cosine distance to a reference centroid
+    # (in practice, use the built-in ReferenceCentroidEmbeddingEvaluator!)
+    class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
+        def __plot__(self, dialog_embs): pass  # no-op
+
+        def __init__(self, dialog_embedder, reference_dialogs):
+            self.reference_centroid = np.mean(
+                [dialog_embedder(dialog) for dialog in reference_dialogs], axis=0
+            )
+
+        def eval(self, dialog_embs):
+            centroid = np.mean(dialog_embs, axis=0)
+            return cosine(centroid, self.reference_centroid)
+
+    dialog_embedder = SentenceTransformerDialogEmbedder(model_name="sentence-transformers/LaBSE")
+    centroid_evaluator = ReferenceCentroidEmbeddingEvaluator(dialog_embedder=dialog_embedder,
+                                                             reference_dialogs=reference_dialogs)
+
+    print(centroid_evaluator(dialogs))  # distance between candidate and reference dialogues
+                                        # (cosine distance between their centroids)
+    ```
     """
 
     def __init__(self,
@@ -547,7 +614,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
                  dataset_name: str = None,
                  return_embs: bool = False) -> Union[dict, float]:
         """
-        Compute embeddings for a dataset and evaluate them.
+        Embed dialogs and aggregate their embeddings to a single score.
 
         :param dialogues: Iterable of Dialogs or path.
         :type dialogues: Union[str, List[Dialog]]
@@ -634,6 +701,23 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
 class BaseLLMJudge(ABC):
     """
     Base class for LLM-based evaluation judges that render a prompt and parse model output.
+    This is the base class of built-in judges like LLMJudgeRealDialog or LLMJudgeRefusal.
+
+    Example:
+    ```python
+    from sdialog.evaluation.base import BaseLLMJudge
+    from sdialog import Dialog, Turn
+
+    class MagicJudge(BaseLLMJudge):
+        def judge(self, dialog):
+            # Render prompt (dialog -> text)
+            prompt = self.prompt_template.render(dialog=dialog)
+            raw = self(prompt)  # call underlying LLM
+            return raw  # normally you'd parse into structured output
+
+    magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\\n{{ dialog }}")
+    print(magic_judge.judge(dialog))  # Outputs raw LLM response
+    ```
     """
 
     def __init__(self,

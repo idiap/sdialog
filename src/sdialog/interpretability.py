@@ -16,8 +16,8 @@ Classes:
     - InspectionUtterance: Represents a single utterance, exposing its tokens for inspection.
     - InspectionUnit: Represents a single token within an utterance, allowing access to its representations.
 
-Typical usage involves attaching hooks to a model, accumulating utterance and token data during inference,
-and providing interfaces for downstream interpretability and analysis tasks.
+Typical usage involves attaching one or more `Inspector` objects to an agent, accumulating utterance and token data
+during inference, and providing interfaces for downstream interpretability and analysis tasks.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Séverin Baroudi <severin.baroudi@lis-lab.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -68,8 +68,13 @@ def default_steering_function(activation, direction, strength=1, op="+"):
         return activation + direction * strength
 
 
-class Steerer(ABC):
-    """Abstract helper enabling operator overloading for adding steering functions to an Inspector."""
+class BaseSteerer(ABC):
+    """
+    Abstract helper enabling operator overloading for adding steering functions to an Inspector.
+
+    This class can be used to create concrete steerers that bind specific directions or
+    strengths for steering functions. For instance, the built-int `DirectionSteerer` inherits from this class.
+    """
     inspector = None
     strength = None
 
@@ -126,8 +131,30 @@ class Steerer(ABC):
         return self
 
 
-class DirectionSteerer(Steerer):
-    """Concrete Steerer binding a direction vector for additive or subtractive steering."""
+class DirectionSteerer(BaseSteerer):
+    """Concrete Steerer binding a direction vector for additive or subtractive steering.
+
+    Example:
+    ```python
+    import torch
+    from sdialog.agents import Agent
+    from sdialog.interpretability import Inspector, DirectionSteerer
+
+    agent = Agent()
+    insp = Inspector(target='model.layers.5.post_attention_layernorm')
+    agent = agent | insp
+
+    direction = torch.randn(4096)  # Random direction in activation space
+    steer = DirectionSteerer(direction)
+
+    # Add the direction (push activations along vector)
+    insp = steer + insp
+    # Or remove its projection:
+    insp = steer - insp
+
+    agent("Test prompt")  # steering applied during generation
+    ```
+    """
     def __init__(self, direction, inspector=None):
         """
         :param direction: Direction vector (torch.Tensor or numpy array).
@@ -164,6 +191,7 @@ class DirectionSteerer(Steerer):
 class BaseHook:
     """
     Base class for registering and managing PyTorch forward hooks on model layers.
+    This class is used to create specific hook classes, like `UtteranceTokenHook` and `RepresentationHook`.
     """
     def __init__(self, layer_key, hook_fn, agent):
         """
@@ -207,7 +235,29 @@ class BaseHook:
 
 class UtteranceTokenHook(BaseHook):
     """
-    A BaseHook for the utterance_token_hook, always used on the embedding layer.
+    A hook class for capturing utterance-level information.
+    This class is not meant to be used directly, but rather used by the `Inspector` class.
+
+    Example:
+    ```python
+    from sdialog.agents import Agent
+    from sdialog.interpretability import UtteranceTokenHook
+
+    agent = Agent()
+    uth = UtteranceTokenHook(agent)
+
+    uth.new_utterance_event(agent.memory.copy())
+    agent("Hi there")
+    uth.end_utterance_event()
+
+    print("Generation info:", uth.utterance_list[-1]['output_tokens'][0].utterance)
+    # Output:
+    # {'input_ids': tensor([ 271, 9906,   11, 1268,  649]),
+    # 'text': '\\n\\nHello, how can',
+    # 'tokens': ['ĊĊ', 'Hello', ',', 'Ġhow', 'Ġcan'],
+    # 'utterance_index': 0}
+    uth.remove()
+    ```
     """
     def __init__(self, agent):
         """
@@ -216,11 +266,9 @@ class UtteranceTokenHook(BaseHook):
         """
         super().__init__('model.embed_tokens', self._hook, agent=agent)
         self.utterance_list = []
-        self.current_utterance_ids = None  # Now a tensor
-        self.hook_state = {
-            'tokenizer': None,
-        }
+        self.current_utterance_ids = None
         self.agent = agent
+        self.register(agent.base_model)
 
     def reset(self):
         """Clears utterance list, representation cache and current token accumulator."""
@@ -270,12 +318,10 @@ class UtteranceTokenHook(BaseHook):
         """
         Finalizes current utterance: decodes tokens, creates InspectionUtterance, stores it.
         """
-        tokenizer = self.hook_state.get('tokenizer')
-
         token_list = self.current_utterance_ids.squeeze()
         token_list = token_list.tolist()
-        text = tokenizer.decode(token_list, skip_special_tokens=False)
-        tokens = tokenizer.convert_ids_to_tokens(token_list)
+        text = self.agent.tokenizer.decode(token_list, skip_special_tokens=False)
+        tokens = self.agent.tokenizer.convert_ids_to_tokens(token_list)
 
         # No longer create an InspectionUnit here; just store the tokens list
         utterance_dict = {
@@ -292,6 +338,36 @@ class UtteranceTokenHook(BaseHook):
 class RepresentationHook(BaseHook):
     """
     A BaseHook for capturing representations from a specific model layer.
+    This class is not meant to be used directly, but rather used by the `Inspector` class.
+
+    Example:
+    ```python
+    from sdialog.agents import Agent
+    from sdialog.interpretability import UtteranceTokenHook, RepresentationHook
+
+    agent = Agent()
+
+    utter_hook = UtteranceTokenHook(agent)
+    rep_hook = RepresentationHook(
+        cache_key="my_target",
+        layer_key="model.layers.10.post_attention_layernorm",
+        agent=agent,
+        utterance_hook=utter_hook
+    )
+    utter_hook.register(agent.base_model)
+    rep_hook.register(agent.base_model)
+
+    utter_hook.new_utterance_event(agent.memory.copy())
+    agent("Hello world!")
+    utter_hook.end_utterance_event()
+
+    # Cached target activations for first (and only) utterance:
+    acts = agent.representation_cache[0]["my_target"][0]  # utterance index 0, token index 0
+
+    print(acts)
+    # Output:
+    # tensor([[ 0.1182,  0.1152, -0.0045,  ...,  0.1836, -0.0549, -0.1924]], dtype=torch.bfloat16)
+    ```
     """
     def __init__(self, cache_key, layer_key, agent, utterance_hook,
                  steering_function=None, steering_interval=(0, -1)):
@@ -316,6 +392,7 @@ class RepresentationHook(BaseHook):
         self.steering_function = steering_function  # Store the optional function
         self.steering_interval = steering_interval
         self._token_counter_steering = 0
+        self.register(agent.base_model)
 
         # Initialize the nested cache
         _ = self.agent.representation_cache[len(self.utterance_hook.utterance_list)][self.cache_key]
@@ -377,13 +454,38 @@ class RepresentationHook(BaseHook):
 
 
 class Inspector:
-    """Manages layer hooks, cached activations, and optional steering functions for an Agent."""
+    """
+    Main class to manage layer hooks, cached activations, and optional steering functions for an Agent.
+
+    Example:
+    ```python
+    from sdialog.agents import Agent
+    from sdialog.interpretability import Inspector
+
+    agent = Agent()
+    insp = Inspector(target='model.layers.2.post_attention_layernorm')
+    agent = agent | insp  # pipe attach
+
+    agent("Explain gravity briefly.")  # Generates first utterance
+    agent("Sounds cool!")  # Generates second utterance
+
+    print("Num utterances captured:", len(insp))
+    print("Last utterance, first token string:", insp[-1][0])
+    print("Last utterance, first token activation:", insp[-1][0].act)
+    # Output:
+    # Num utterances captured: 2
+    # Last utterance, first token string: ĊĊ
+    # Last utterance, first token activation: tensor([[-0.0109, -0.1128, -0.1216,  ..., -0.0157,  0.2100, -0.2637]])
+    ```
+    """
     def __init__(self,
                  target: Union[Dict, List[str], str] = None,
                  agent=None,
                  steering_function: Callable = None,
                  steering_interval: Tuple[int, int] = (0, -1)):
         """
+        Initializes the Inspector with optional target layers, agent, and steering functions.
+
         :param target: Mapping (cache_key->layer_name) or list / single layer name.
         :type target: Union[Dict, List[str], str, None]
         :param agent: Agent instance to attach to.
@@ -615,8 +717,11 @@ class Inspector:
         return matches
 
 
-class InspectionUtterance(Inspector):
-    """Container exposing tokens of a single generated utterance for per-token inspection."""
+class InspectionUtterance:
+    """
+    Container exposing tokens of a single generated utterance for per-token inspection.
+    This class is not meant to be used directly, but rather used by the `UtteranceTokenHook` class.
+    """
     def __init__(self, utterance, agent):
         """
         :param utterance: Dict with keys (tokens, text, input_ids, utterance_index).
@@ -624,7 +729,6 @@ class InspectionUtterance(Inspector):
         :param agent: Parent agent.
         :type agent: Any
         """
-        super().__init__(target=None)
         self.utterance = utterance
         self.tokens = utterance['tokens']
         self.text = utterance['text']
@@ -662,8 +766,11 @@ class InspectionUtterance(Inspector):
         )
 
 
-class InspectionUnit(Inspector):
-    """Represents a single token inside an utterance; accessor for its layer activations."""
+class InspectionUnit:
+    """
+    Represents a single token inside an utterance; accessor for its layer activations.
+    This class is not meant to be used directly, but rather used by the `InspectionUtterance` class.
+    """
     def __init__(self, token, agent, utterance, token_index, utterance_index):
         """
         :param token: Token string (or id) at this position.
@@ -677,8 +784,6 @@ class InspectionUnit(Inspector):
         :param utterance_index: Index of utterance in dialogue sequence.
         :type utterance_index: int
         """
-        super().__init__(target=None)
-        """ Represents a single token at the utterance level """
         self.token = token
         self.token_index = token_index
         self.utterance = utterance  # Reference to parent utterance
