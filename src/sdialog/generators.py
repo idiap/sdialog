@@ -26,7 +26,8 @@ from .agents import Agent
 from .config import config
 from .personas import BasePersona, Persona
 from .base import Metadata, BaseAttributeModel
-from .util import get_llm_model, set_generator_seed, set_ollama_model_defaults, get_universal_id, is_ollama_model_name
+from .util import get_universal_id, get_timestamp, set_generator_seed
+from .util import get_llm_model, get_llm_default_params, is_ollama_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -341,7 +342,7 @@ class BaseAttributeModelGenerator(ABC):
 
                 llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
                 llm_kwargs = {**llm_config_params, **self.llm_kwargs}
-                llm_kwargs = set_ollama_model_defaults(self.llm_model, llm_kwargs)
+                llm_kwargs = get_llm_default_params(self.llm_model, llm_kwargs)
                 if temperature is not None:
                     llm_kwargs["temperature"] = temperature
                 llm_kwargs["seed"] = seed + attempt
@@ -349,6 +350,7 @@ class BaseAttributeModelGenerator(ABC):
                 llm = get_llm_model(model_name=self.llm_model,
                                     output_format=schema,
                                     **llm_kwargs)
+                model_info = {"name": str(self.llm_model), **llm_kwargs}
 
                 messages = [SystemMessage(self.system_prompt), HumanMessage(prompt)]
 
@@ -384,7 +386,7 @@ class BaseAttributeModelGenerator(ABC):
                     try:
                         instances.append(self._attribute_model.model_validate(object_dict))
                         instances[-1]._metadata = Metadata(
-                            model=str(self.llm_model) if llm else None,
+                            model=model_info if llm else None,
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
@@ -401,7 +403,7 @@ class BaseAttributeModelGenerator(ABC):
                         }
                         instances.append(self._attribute_model.model_validate(object_dict))
                         instances[-1]._metadata = Metadata(
-                            model=str(self.llm_model) if llm else None,
+                            model=model_info if llm else None,
                             seed=seed,
                             id=id if id is not None else get_universal_id(),
                             parentId=parent_id,
@@ -438,7 +440,7 @@ class BaseAttributeModelGenerator(ABC):
             output_object = self._attribute_model.model_validate(random_objects_dict[0])
 
         output_object._metadata = Metadata(
-            model=str(self.llm_model) if llm else None,
+            model=model_info if llm else None,
             seed=seed,
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,
@@ -505,9 +507,11 @@ class DialogGenerator:
 
         self.output_format = output_format
 
-        self.llm = get_llm_model(model_name=model,
-                                 output_format=self.output_format,
-                                 **llm_kwargs)
+        self.llm, llm_kwargs = get_llm_model(model_name=model,
+                                             output_format=self.output_format,
+                                             return_model_params=True,
+                                             **llm_kwargs)
+        self.model_info = {"name": str(model), **llm_kwargs}
 
         with open(config["prompts"]["dialog_generator"], encoding="utf-8") as f:
             self.system_prompt_template = Template(f.read())
@@ -516,7 +520,6 @@ class DialogGenerator:
         self.context = context
         self.example_dialogs = example_dialogs
         self.dialogue_details = dialogue_details
-        self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.scenario = scenario
         self.messages = [SystemMessage(""), HumanMessage("")]
 
@@ -599,7 +602,7 @@ class DialogGenerator:
                 context = context or self.context
                 return Dialog(id=id if id is not None else get_universal_id(),
                               parentId=parent_id,
-                              model=self.model_name,
+                              model=self.model_info,
                               seed=seed,
                               personas=self._personas,
                               context=context.json() if context and isinstance(context, Context) else context,
@@ -912,9 +915,11 @@ class Paraphraser:
 
         self.model = model
         self.output_format = Turn if turn_by_turn else LLMDialogOutput
-        self.llm = get_llm_model(model_name=model,
-                                 output_format=self.output_format,
-                                 **llm_kwargs)
+        self.llm, llm_kwargs = get_llm_model(model_name=model,
+                                             output_format=self.output_format,
+                                             return_model_params=True,
+                                             **llm_kwargs)
+        self.model_info = {"name": str(model), **llm_kwargs}
         self.extra_instructions = extra_instructions
         self.target_speaker = target_speaker
 
@@ -928,7 +933,6 @@ class Paraphraser:
             with open(config["prompts"]["paraphraser"], encoding="utf-8") as f:
                 self.instruction_template = Template(f.read())
 
-        self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.messages = [SystemMessage(system_message), HumanMessage("")]
 
     def __call__(self,
@@ -982,6 +986,10 @@ class Paraphraser:
                     new_dialog.turns[-1].text = output.text
 
         new_dialog.events = None  # TODO: replace each "utt" event by the new paraphrased utterance
+        # Update metadata
+        new_dialog.seed = seed
+        new_dialog.timestamp = get_timestamp()
+        new_dialog.model = self.model_info
         if len(new_dialog) != len(dialog):
             logger.warning("Number of turns in the new paraphrased dialog does not match the original!")
 

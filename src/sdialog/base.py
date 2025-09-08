@@ -16,8 +16,8 @@ import inspect
 
 from abc import ABC
 
-from typing import Union, Optional
 from print_color import print as cprint
+from typing import Union, Optional, Dict
 from pydantic import BaseModel, Field, ConfigDict
 
 from .util import _get_dynamic_version, get_timestamp, get_universal_id, camel_or_snake_to_words, remove_newlines
@@ -87,7 +87,7 @@ class Metadata(BaseModel):
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
     timestamp: Optional[str] = Field(default_factory=get_timestamp)
-    model: Optional[str] = None
+    model: Optional[Union[str, Dict]] = None
     seed: Optional[int] = None
     id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)
     parentId: Optional[Union[int, str]] = None

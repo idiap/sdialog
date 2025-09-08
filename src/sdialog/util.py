@@ -166,13 +166,11 @@ def get_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
-def set_ollama_model_defaults(model_name: str, llm_params: dict) -> float:
+def get_llm_default_params(model_name: str, llm_params: dict) -> float:
     """
-    Set default parameters for an Ollama model if not already specified.
+    Get the default parameters for the model if not already specified, and merges them into `llm_params`.
 
-    Queries local Ollama for model parameter defaults and merges them into llm_params.
-
-    :param model_name: Ollama model name (may be prefixed with 'ollama:').
+    :param model_name: LLM model name.
     :type model_name: str
     :param llm_params: Existing LLM parameter dictionary to update in-place.
     :type llm_params: dict
@@ -297,6 +295,7 @@ def is_huggingface_model_name(model_name: str) -> bool:
 
 def get_llm_model(model_name: str,
                   output_format: Union[dict, BaseModel] = None,
+                  return_model_params: bool = False,
                   **llm_kwargs):
     """
     Instantiate a LangChain chat model (OpenAI, AWS, Google, Ollama, Hugging Face).
@@ -308,6 +307,8 @@ def get_llm_model(model_name: str,
     :type model_name: Union[str, Any]
     :param output_format: Pydantic model class or JSON schema dict for structured output.
     :type output_format: Union[dict, BaseModel, type[BaseModel]]
+    :param return_model_params: If True, return (model, llm_kwargs) tuple instead of just model.
+    :type return_model_params: bool
     :param llm_kwargs: Additional backend-specific model kwargs.
     :type llm_kwargs: dict
     :return: Configured LangChain model (possibly wrapped for structured output).
@@ -316,6 +317,8 @@ def get_llm_model(model_name: str,
     """
     # If model name has a slash, assume it's a Hugging Face model
     # Otherwise, assume it's an Ollama model
+    llm_kwargs = get_llm_default_params(model_name, llm_kwargs)
+
     if not isinstance(model_name, str):
         if hasattr(model_name, "invoke") and callable(model_name.invoke):
             llm = model_name
@@ -353,7 +356,6 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading Ollama model: {model_name}")
 
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
-        llm_kwargs = set_ollama_model_defaults(model_name, llm_kwargs)
         llm = ChatOllama(model=model_name, **llm_kwargs)
     else:
         if model_name.startswith("huggingface:"):
@@ -390,7 +392,7 @@ def get_llm_model(model_name: str,
         else:
             logger.error(f"The given model '{model_name}' does not support structured output. ")
 
-    return llm
+    return llm if not return_model_params else (llm, llm_kwargs)
 
 
 def set_generator_seed(generator, seed):

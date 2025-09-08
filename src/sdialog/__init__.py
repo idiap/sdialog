@@ -28,7 +28,7 @@ import importlib
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
 from print_color import print as cprint
-from typing import List, Union, Optional, Any, Pattern
+from typing import List, Union, Optional, Any, Pattern, Dict
 
 from .base import BaseAttributeModel
 from .util import __version__, make_serializable, get_timestamp, remove_newlines, get_universal_id, _get_dynamic_version
@@ -133,7 +133,7 @@ class Dialog(BaseModel):
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
     timestamp: Optional[str] = Field(default_factory=get_timestamp)
-    model: Optional[str] = None  # the model used to generate the dialogue
+    model: Optional[Union[str, Dict]] = None  # the model used to generate the dialogue
     seed: Optional[int] = None  # the seed used to generate the dialogue
     id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)  # Unique ID for the dialogue
     parentId: Optional[Union[int, str]] = None  # ID of the parent dialogue, if any

@@ -146,10 +146,10 @@ class Agent:
         self._hook_response_act = defaultdict(lambda: defaultdict(list))
 
         # Public attributes
-        self.llm = get_llm_model(model_name=model, **llm_kwargs)
+        self.llm, llm_kwargs = get_llm_model(model_name=model, return_model_params=True, **llm_kwargs)
+        self.model_info = {"name": str(model), **llm_kwargs}
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
-        self.model_name = str(model)  # TODO: improve by adding llm params str(self.llm)
         self.memory = [SystemMessage(self._system_prompt_template.render(
             persona=self.persona.prompt(),
             context=self._context,
@@ -160,7 +160,7 @@ class Agent:
             stop_word=self._STOP_WORD
         ))]
 
-        logger.debug(f"Initialized agent '{self.name}' with model '{self.model_name}' "
+        logger.debug(f"Initialized agent '{self.name}' with model '{str(model)}' "
                      f"using prompt from '{config['prompts']['persona_agent']}'.")
         logger.debug("Prompt: " + self.prompt())
 
@@ -514,7 +514,7 @@ class Agent:
         data = {}
         if self.name:
             data["name"] = self.get_name()
-        data["model_name"] = self.model_name
+        data["model"] = self.model_info
         if self._first_utterances:
             data["first_utterances"] = self._first_utterances
         data["persona"] = self.persona.json()
@@ -648,7 +648,7 @@ class Agent:
             id=id if id is not None else get_universal_id(),
             parentId=parent_id,
             complete=completion,  # incomplete if ran out of iterations (reached max_iteration number)
-            model=self.model_name,
+            model=self.model_info,
             seed=seed,
             personas={
                 self.get_name(): self.persona.json(),
