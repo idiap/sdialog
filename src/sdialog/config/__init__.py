@@ -100,8 +100,16 @@ def set_cache(path, enable=True):
     :param enable: Whether to enable caching or not.
     :type enable: bool
     """
-    set_cache_path(path)
-    set_cache_enabled(enable)
+    cache(path)
+    cache_path(enable)
+
+
+def clear_cache():
+    """
+    Clear the cache by deleting all files in the cache directory.
+    """
+    CacheDialogScore.clear_cache()
+    logger.info("Cache cleared.")
 
 
 # Prompt setters for each prompt type in config.yaml
