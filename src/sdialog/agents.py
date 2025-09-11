@@ -9,6 +9,7 @@ hooks for token- and layer-level analysis and optional representation steering.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import re
 import json
 import random
 import logging
@@ -81,12 +82,13 @@ class Agent:
                  dialogue_details: str = "",
                  response_details: str = ("Unless necessary, responses SHOULD be only one utterance long, and SHOULD "
                                           "NOT contain many questions or topics in one single turn."),
-                 system_prompt: Optional[str] = None,
                  can_finish: bool = True,
                  orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
                  inspectors: Optional[Union['Inspector', List['Inspector']]] = None,
+                 thinking_pattern: Optional[str] = r"<think>(.*?)</think>",
                  preprocessing_fn: Optional[callable] = None,
                  postprocess_fn: Optional[callable] = None,
+                 system_prompt: Optional[str] = None,
                  model: Union[str, BaseLanguageModel] = None,
                  **llm_kwargs):
         """
@@ -104,20 +106,22 @@ class Agent:
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
-        :param system_prompt: Custom system prompt (optional, otherwise loaded from config).
-        :type system_prompt: Optional[str]
         :param can_finish: If True, agent can end the conversation.
         :type can_finish: bool
         :param orchestrators: Orchestrators for agent behavior.
         :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
         :param inspectors: Inspector(s) to add to the agent.
         :type inspectors: Optional[Union[Inspector, List[Inspector]]]
+        :param thinking_pattern: Regex pattern to identify "thinking" segments in responses.
+        :type thinking_pattern: Optional[str]
         :param preprocessing_fn: Optional function to preprocess each input utterance before calling the LLM
                                  (input string, output string).
         :type preprocessing_fn: Optional[callable]
         :param postprocess_fn: Optional function to postprocess each output utterance after calling the LLM
                                (input string, output string).
         :type postprocess_fn: Optional[callable]
+        :param system_prompt: Custom system prompt (optional, otherwise loaded from config).
+        :type system_prompt: Optional[str]
         :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
         :type model: Union[str, BaseLanguageModel], optional
         :param **llm_kwargs: Additional parameters for the LLM.
@@ -138,6 +142,7 @@ class Agent:
 
         # Private attributes
         self._system_prompt_template = system_prompt_template
+        self._thinking_pattern = thinking_pattern
         self._model_uri = model
         self._context = context
         self._example_dialogs = example_dialogs
@@ -301,6 +306,16 @@ class Agent:
 
         if self._postprocess_fn:
             response.content = self._postprocess_fn(response.content)
+
+        if self._thinking_pattern:
+            thinks = re.findall(self._thinking_pattern, response.content, flags=re.DOTALL)
+            for think in thinks:
+                if return_events:
+                    events.append(Event(agent=self.get_name(),
+                                        action="think",
+                                        text=think.strip(),
+                                        timestamp=int(time())))
+            response.content = re.sub(self._thinking_pattern, "", response.content, flags=re.DOTALL).strip()
 
         if self._orchestrators:
             self.memory[:] = [msg for msg in self.memory
