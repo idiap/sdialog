@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sdialog"
-version = "0.1.0"
 authors = [
   { name="Sergio Burdisso", email="sergio.burdisso@gmail.com" }
 ]
@@ -30,7 +29,7 @@ classifiers = [
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
-dynamic = ["dependencies"]
+dynamic = ["version", "dependencies"]
 
 [project.urls]
 Homepage = "https://sdialog.readthedocs.io"
@@ -39,6 +38,7 @@ Source = "https://github.com/idiap/sdialog"
 Documentation = "https://sdialog.readthedocs.io"
 
 [tool.setuptools.dynamic]
+version = {attr = "sdialog.util.__version__"}
 dependencies = {file = ["requirements.txt"]}
 
 

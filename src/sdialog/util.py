@@ -31,31 +31,7 @@ from sentence_transformers.util import get_device_name, batch_to_device
 
 logger = logging.getLogger(__name__)
 
-
-def _fetch_version_from_metadata() -> str:
-    """
-    Read package version from installed metadata or fallback to parsing pyproject.toml.
-    """
-    # (If cloned) read version from pyproject.toml at repository root
-    try:
-        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        pyproject_path = os.path.join(root_dir, "pyproject.toml")
-        with open(pyproject_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        m = re.search(r'^\[project\][\s\S]*?^version\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
-        if m:
-            return m.group(1)
-    except Exception:
-        pass
-
-    # (If installed) Try installed package metadata first
-    try:
-        from importlib import metadata as importlib_metadata
-        return importlib_metadata.version("sdialog")
-    except Exception:
-        logger.error("Could not read version from pyproject.toml or package metadata.")
-
-    return "unknown"
+__version__ = "0.1.0"
 
 
 def _get_dynamic_version() -> str:
@@ -908,6 +884,3 @@ class CacheDialogScore:
         """
         CacheDialogScore._cache = {}
         CacheDialogScore.save()
-
-
-__version__ = _fetch_version_from_metadata()
