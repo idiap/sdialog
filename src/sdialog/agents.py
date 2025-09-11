@@ -85,6 +85,7 @@ class Agent:
                  can_finish: bool = True,
                  orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
                  inspectors: Optional[Union['Inspector', List['Inspector']]] = None,
+                 preprocessing_fn: Optional[callable] = None,
                  postprocess_fn: Optional[callable] = None,
                  model: Union[str, BaseLanguageModel] = None,
                  **llm_kwargs):
@@ -111,7 +112,11 @@ class Agent:
         :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
         :param inspectors: Inspector(s) to add to the agent.
         :type inspectors: Optional[Union[Inspector, List[Inspector]]]
-        :param postprocess_fn: Optional function to postprocess each utterance (input string, output string).
+        :param preprocessing_fn: Optional function to preprocess each input utterance before calling the LLM
+                                 (input string, output string).
+        :type preprocessing_fn: Optional[callable]
+        :param postprocess_fn: Optional function to postprocess each output utterance after calling the LLM
+                               (input string, output string).
         :type postprocess_fn: Optional[callable]
         :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
         :type model: Union[str, BaseLanguageModel], optional
@@ -124,6 +129,8 @@ class Agent:
             model = config["llm"]["model"]
         if postprocess_fn is not None and not callable(postprocess_fn):
             raise ValueError("postprocess_fn must be a callable function that takes a string and outputs a string.")
+        if preprocessing_fn is not None and not callable(preprocessing_fn):
+            raise ValueError("preprocessing_fn must be a callable function that takes a string and outputs a string.")
 
         if not system_prompt:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
@@ -142,6 +149,7 @@ class Agent:
         self._orchestrators = None
         self._inspectors = None
         self._postprocess_fn = postprocess_fn
+        self._preprocessing_fn = preprocessing_fn
         self._hook_response_data = None
         self._hook_response_act = defaultdict(lambda: defaultdict(list))
 
@@ -235,6 +243,7 @@ class Agent:
             return None
 
         if utterance:
+            utterance = self._preprocessing_fn(utterance) if self._preprocessing_fn else utterance
             self.memory.append(HumanMessage(content=utterance))
 
         if return_events:
