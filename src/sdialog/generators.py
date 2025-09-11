@@ -27,7 +27,7 @@ from .config import config
 from .personas import BasePersona, Persona
 from .base import Metadata, BaseAttributeModel
 from .util import get_universal_id, get_timestamp, set_generator_seed
-from .util import get_llm_model, get_llm_default_params, is_ollama_model_name
+from .util import get_llm_model, get_llm_default_params, is_ollama_model_name, is_openai_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +338,8 @@ class BaseAttributeModelGenerator(ABC):
                     )
 
                 schema = self._attribute_model.model_json_schema()
+                if is_openai_model_name(self.llm_model):
+                    schema["description"] = schema["description"][:1024]  # To avoid API string maximum length error
                 filtered_properties = schema
                 if n > 1:
                     if is_ollama_model_name(self.llm_model):
