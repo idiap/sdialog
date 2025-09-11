@@ -79,8 +79,8 @@ class ExtendedPersona(BasePersona):
         race (str): Race or ethnicity.
         gender (str): Gender identity.
         language (str): Preferred language.
-        weight (str): Weight (value + unit or descriptive).
-        height (str | float): Height (value + unit or descriptive).
+        weight (Union[str, int, float]): Weight (value + unit or descriptive).
+        height (Union[str, int, float]): Height (value + unit or descriptive).
         voice_characteristics (str): Voice/accent/tone/pacing notes.
         occupation (str): Current occupation.
         education (str): Education level / academic background.
@@ -106,9 +106,9 @@ class ExtendedPersona(BasePersona):
     :ivar language: Preferred language.
     :vartype language: str
     :ivar weight: Weight (numeric with unit or descriptive string).
-    :vartype weight: str
+    :vartype weight: Union[str, int, float]
     :ivar height: Height (numeric with unit or descriptive string).
-    :vartype height: Union[str, float]
+    :vartype height: Union[str, int, float]
     :ivar voice_characteristics: Voice, accent, tone, pacing, etc.
     :vartype voice_characteristics: str
     :ivar occupation: Current occupation or professional role.
@@ -143,8 +143,8 @@ class ExtendedPersona(BasePersona):
     race: str = Field("", description="Race or ethnicity.")
     gender: str = Field("", description="Gender identity.")
     language: str = Field("English", description="Preferred language.")
-    weight: str = Field("", description="Weight (value with unit or descriptive text).")
-    height: Union[str, float] = Field("", description="Height (value with unit or descriptive text).")
+    weight: Union[str, int, float] = Field("", description="Weight (value with unit or descriptive text).")
+    height: Union[str, int, float] = Field("", description="Height (value with unit or descriptive text).")
     voice_characteristics: str = Field("", description="Voice characteristics (accent, tone, pacing).")
     # Background
     occupation: str = Field("", description="Current occupation or professional role.")
@@ -178,15 +178,16 @@ class Patient(BasePersona):
         formality (str | float): Formality in speech.
         hurriedness (str | float): Impatience / urgency level.
         openness (str | float): Willingness to share information.
-        height (int | str): Height descriptor or value.
-        weight (int | str): Weight descriptor or value.
+        height (str | int | float): Height descriptor or value.
+        weight (str | int | float): Weight descriptor or value.
         occupation (str): Occupation or employment status.
         marital_status (str): Marital status.
         insurance (str): Insurance status/provider.
         reason_for_visit (str): Chief complaint.
+        symptoms (str | list[str]): Reported symptoms.
         medical_history (str | list[str]): Past medical history.
         medical_conditions (str | list[str]): Diagnosed conditions.
-        medications_current (str | list[str]): Current medications.
+        medications (str | list[str]): Current medications.
         allergies (str | list[str]): Known allergies.
         family_history (str | list[str]): Family medical history.
 
@@ -209,9 +210,9 @@ class Patient(BasePersona):
     :ivar openness: Openness to share information.
     :vartype openness: Union[str, float]
     :ivar height: Height (numeric with unit or descriptive).
-    :vartype height: Union[int, str]
+    :vartype height: Union[str, int, float]
     :ivar weight: Weight (numeric with unit or descriptive).
-    :vartype weight: Union[int, str]
+    :vartype weight: Union[str, int, float]
     :ivar occupation: Occupation or employment status.
     :vartype occupation: str
     :ivar marital_status: Marital status.
@@ -220,12 +221,14 @@ class Patient(BasePersona):
     :vartype insurance: str
     :ivar reason_for_visit: Chief complaint / presenting problem.
     :vartype reason_for_visit: str
+    :ivar symptoms: Reported symptoms.
+    :vartype symptoms: Union[str, List[str]]
     :ivar medical_history: Past medical history (string or list of conditions).
     :vartype medical_history: Union[str, List[str]]
     :ivar medical_conditions: Known diagnosed conditions (string or list).
     :vartype medical_conditions: Union[str, List[str]]
-    :ivar medications_current: Current medications (string or list).
-    :vartype medications_current: Union[str, List[str]]
+    :ivar medications: Current medications (string or list).
+    :vartype medications: Union[str, List[str]]
     :ivar allergies: Known allergies (string or list).
     :vartype allergies: Union[str, List[str]]
     :ivar family_history: Family medical history (string or list).
@@ -241,15 +244,16 @@ class Patient(BasePersona):
     formality: Union[str, float] = Field("", description="Formality of speech.")
     hurriedness: Union[str, float] = Field("", description="Degree of impatience or hurriedness.")
     openness: Union[str, float] = Field("", description="Openness to share information.")
-    height: Union[int, str] = Field("", description="Height (value with unit or descriptive).")
-    weight: Union[int, str] = Field("", description="Weight (value with unit or descriptive).")
+    height: Union[str, int, float] = Field("", description="Height (value with unit or descriptive).")
+    weight: Union[str, int, float] = Field("", description="Weight (value with unit or descriptive).")
     occupation: str = Field("", description="Occupation or employment status.")
     marital_status: str = Field("", description="Marital status.")
     insurance: str = Field("", description="Insurance provider or status.")
     reason_for_visit: str = Field("", description="Chief complaint or presenting problem.")
+    symptoms: Union[str, List[str]] = Field("", description="Reported symptoms.")
     medical_history: Union[str, List[str]] = Field("", description="Past medical history.")
     medical_conditions: Union[str, List[str]] = Field("", description="Known diagnosed conditions.")
-    medications_current: Union[str, List[str]] = Field("", description="Current medications.")
+    medications: Union[str, List[str]] = Field("", description="Current medications.")
     allergies: Union[str, List[str]] = Field("", description="Known allergies.")
     family_history: Union[str, List[str]] = Field("", description="Family medical history.")
 
@@ -261,40 +265,40 @@ class ExtendedPatient(ExtendedPersona):
 
     Attributes:
         reason_for_visit (str): Chief complaint.
-        symptoms (str): Reported symptoms.
+        symptoms (str | list[str]): Reported symptoms.
         vital_signs (str): Vital signs summary.
         health_literacy (str): Health literacy descriptor.
-        medical_conditions (str): Chronic/known conditions summary.
-        medications (str): Current medication summary.
-        allergies (str): Allergy summary.
-        family_history (str): Family medical history summary.
+        medical_conditions (str | list[str]): Chronic/known conditions summary.
+        medications (str | list[str]): Current medications summary.
+        allergies (str | list[str]): Allergy summary.
+        family_history (str | list[str]): Family medical history summary.
 
     :ivar reason_for_visit: Chief complaint or reason for consultation.
     :vartype reason_for_visit: str
     :ivar symptoms: Reported symptoms (free text or summarized list).
-    :vartype symptoms: str
+    :vartype symptoms: Union[str, List[str]]
     :ivar vital_signs: Vital signs summary (e.g., "BP 120/80, HR 72").
     :vartype vital_signs: str
     :ivar health_literacy: Health literacy level descriptor.
     :vartype health_literacy: str
     :ivar medical_conditions: Known or chronic conditions (free text summary).
-    :vartype medical_conditions: str
+    :vartype medical_conditions: Union[str, List[str]]
     :ivar medications: Current medications summary.
-    :vartype medications: str
+    :vartype medications: Union[str, List[str]]
     :ivar allergies: Allergy list / summary.
-    :vartype allergies: str
+    :vartype allergies: Union[str, List[str]]
     :ivar family_history: Family medical history summary.
-    :vartype family_history: str
+    :vartype family_history: Union[str, List[str]]
     """
 
     reason_for_visit: str = Field("", description="Chief complaint or reason for consultation.")
-    symptoms: str = Field("", description="Reported symptoms.")
+    symptoms: Union[str, List[str]] = Field("", description="Reported symptoms.")
     vital_signs: str = Field("", description="Vital signs summary (e.g., 'BP 120/80, HR 72').")
     health_literacy: str = Field("", description="Health literacy level.")
-    medical_conditions: str = Field("", description="Known or chronic conditions summary.")
-    medications: str = Field("", description="Current medications summary.")
-    allergies: str = Field("", description="Allergy list or summary.")
-    family_history: str = Field("", description="Family medical history summary.")
+    medical_conditions: Union[str, List[str]] = Field("", description="Known or chronic conditions summary.")
+    medications: Union[str, List[str]] = Field("", description="Current medications summary.")
+    allergies: Union[str, List[str]] = Field("", description="Allergy list or summary.")
+    family_history: Union[str, List[str]] = Field("", description="Family medical history summary.")
 
 
 class Doctor(BasePersona):
@@ -385,10 +389,10 @@ class Customer(BasePersona):
     Attributes (grouped):
         Identification:
             name (str), age (int | str), gender (str), language (str),
-            customer_id (str), occupation (str)
+            customer_id (Union[str, int]), occupation (str)
         Loyalty:
             account_tenure (str), membership_level (str),
-            loyalty_status (str), fidelity_score (str | float | int)
+            loyalty_status (str), fidelity_score (Union[str, float, int])
         Issue Context:
             issue (str), issue_category (str), issue_description (str),
             issue_history (str), desired_outcome (str)
@@ -413,7 +417,7 @@ class Customer(BasePersona):
     :ivar language: Preferred language.
     :vartype language: str
     :ivar customer_id: Internal customer identifier.
-    :vartype customer_id: str
+    :vartype customer_id: Union[str, int]
     :ivar occupation: Customer occupation.
     :vartype occupation: str
     :ivar account_tenure: How long they have been a customer (e.g., "2 years").
@@ -471,7 +475,7 @@ class Customer(BasePersona):
     age: Union[int, str] = Field("", description="Customer age (numeric or descriptive).")
     gender: str = Field("", description="Customer gender.")
     language: str = Field("English", description="Preferred language.")
-    customer_id: str = Field("", description="Internal customer identifier.")
+    customer_id: Union[str, int] = Field("", description="Internal customer identifier.")
     occupation: str = Field("", description="Customer occupation.")
 
     # Loyalty / tenure
@@ -518,9 +522,9 @@ class SupportAgent(BasePersona):
     Attributes:
         name (str): Agent name.
         language (str): Working language.
-        agent_id (str): Internal agent ID.
+        agent_id (str | int): Internal agent ID.
         role (str): Role / queue designation.
-        experience_years (str): Support experience duration.
+        experience_years (int | str): Support experience duration.
         product_scope (str): Products / domains covered.
         product_knowledge_level (str): Knowledge depth level.
         communication_style (str): Communication style.
@@ -528,7 +532,7 @@ class SupportAgent(BasePersona):
         politeness (str): Politeness level.
         resolution_authority_level (str): Resolution authority level.
         escalation_policy (str): Escalation process summary.
-        average_handle_time (str): Typical handling time (e.g., '6m').
+        average_handle_time (str | int | float): Typical handling time (e.g., '6m').
         adherence_notes (str): Notes on policy/process adherence.
         stress_tolerance (str): Stress handling capability.
         performance_notes (str): Performance KPIs / notes.
@@ -539,11 +543,11 @@ class SupportAgent(BasePersona):
     :ivar language: Working language.
     :vartype language: str
     :ivar agent_id: Internal agent identifier.
-    :vartype agent_id: str
+    :vartype agent_id: Union[str, int]
     :ivar role: Agent role or queue designation.
     :vartype role: str
     :ivar experience_years: Years (or range) of support experience.
-    :vartype experience_years: str
+    :vartype experience_years: Union[int, str]
     :ivar product_scope: Products or domains covered.
     :vartype product_scope: str
     :ivar product_knowledge_level: Knowledge depth (e.g., basic, expert).
@@ -559,7 +563,7 @@ class SupportAgent(BasePersona):
     :ivar escalation_policy: Summary of escalation criteria/process.
     :vartype escalation_policy: str
     :ivar average_handle_time: Typical handling time (e.g., "6m").
-    :vartype average_handle_time: str
+    :vartype average_handle_time: Union[int, float, str]
     :ivar adherence_notes: Notes on process or QA adherence.
     :vartype adherence_notes: str
     :ivar stress_tolerance: Stress handling capability descriptor.
@@ -572,9 +576,9 @@ class SupportAgent(BasePersona):
 
     name: str = Field("", description="Agent name.")
     language: str = Field("English", description="Working language.")
-    agent_id: str = Field("", description="Internal agent identifier.")
+    agent_id: Union[str, int] = Field("", description="Internal agent identifier.")
     role: str = Field("Customer Support Agent", description="Agent role or queue designation.")
-    experience_years: str = Field("", description="Years (or range) of support experience.")
+    experience_years: Union[int, str] = Field("", description="Years (or range) of support experience.")
     product_scope: str = Field("", description="Products or domains covered.")
     product_knowledge_level: str = Field("", description="Knowledge depth (e.g., basic, expert).")
     communication_style: str = Field("", description="Communication style (e.g., concise, empathetic).")
@@ -582,7 +586,7 @@ class SupportAgent(BasePersona):
     politeness: str = Field("", description="Politeness level descriptor.")
     resolution_authority_level: str = Field("", description="Authority for resolutions/escalations.")
     escalation_policy: str = Field("", description="Escalation criteria / process summary.")
-    average_handle_time: str = Field("", description="Typical handling time (e.g., '6m').")
+    average_handle_time: Union[int, float, str] = Field("", description="Typical handling time (e.g., '6m').")
     adherence_notes: str = Field("", description="Process adherence / QA notes.")
     stress_tolerance: str = Field("", description="Stress handling capability descriptor.")
     performance_notes: str = Field("", description="Performance KPIs or evaluation notes.")

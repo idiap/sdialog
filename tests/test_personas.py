@@ -117,7 +117,7 @@ def test_patient_fields_and_description():
         reason_for_visit="Routine checkup",
         medical_history="No major illnesses",
         medical_conditions="None",
-        medications_current="None",
+        medications="None",
         allergies="None",
         family_history="No significant history",
         marital_status="single",
@@ -147,7 +147,7 @@ def test_patient_fields_and_description():
     assert js["reason_for_visit"] == "Routine checkup"
     assert js["medical_history"] == "No major illnesses"
     assert js["medical_conditions"] == "None"
-    assert js["medications_current"] == "None"
+    assert js["medications"] == "None"
     assert js["allergies"] == "None"
     assert js["family_history"] == "No significant history"
 
