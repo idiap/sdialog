@@ -390,12 +390,12 @@ class Dialog(BaseModel):
 
         :param scenario: If True, prints scenario information.
         :type scenario: bool
-        :param orchestration: If True, prints orchestration events.
+        :param orchestration: If True, prints also orchestration events.
         :type orchestration: bool
-        :param a: Additional positional arguments (unused).
-        :type a: tuple
-        :param kw: Additional keyword arguments (supports 'scenario' and 'orchestration').
-        :type kw: dict
+        :param think: If True, prints "thinking" events.
+        :type think: bool
+        :param all: If True, prints all types of events.
+        :type all: bool
         """
         _print_dialog(self, *a, **kw)
 
@@ -842,7 +842,11 @@ class Context(BaseAttributeModel):
     notes: Optional[str] = Field(default=None, description="Additional free-form contextual notes.")
 
 
-def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestration: bool = False):
+def _print_dialog(dialog: Union[Dialog, dict],
+                  scenario: bool = False,
+                  orchestration: bool = False,
+                  think: bool = False,
+                  all: bool = False):
     """
     Pretty-prints a dialogue to the console, with optional scenario and orchestration details.
 
@@ -852,6 +856,10 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
     :type scenario: bool
     :param orchestration: If True, prints also orchestration events.
     :type orchestration: bool
+    :param think: If True, prints "thinking" events.
+    :type think: bool
+    :param all: If True, prints all types of events.
+    :type all: bool
     """
     if type(dialog) is dict:
         dialog = Dialog.model_validate(dialog)
@@ -877,15 +885,33 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
 
     cprint("--- Dialogue Begins ---", color="magenta", format="bold")
     speakers = sorted(list(set(turn.speaker for turn in dialog.turns)))
-    if orchestration:
+
+    if all or orchestration or think:
         dialog = dialog.model_copy()
-        dialog.turns = [Turn(speaker=e.agent, text=e.text) if e.action == "utter"
-                        else (
-                            Turn(speaker=e.agent,
-                                 text=f"[pick_suggestion] {remove_newlines(e.text)}") if e.action == "pick_suggestion"
-                            else
-                            Turn(speaker=e.action, text=f"({e.agent}) {remove_newlines(e.text)}"))
-                        for e in dialog.events]
+        events = dialog.events or []
+
+        if all:
+            filtered_events = events
+        else:
+            filtered_events = []
+            for e in events:
+                act = (e.action or "").lower()
+                if act in "utter" or (orchestration and act.startswith("instruct")) or (think and act == "think"):
+                    filtered_events.append(e)
+
+        dialog.turns = [
+            Turn(speaker=e.agent, text=e.text) if e.action == "utter"
+            else (
+                Turn(speaker=e.agent,
+                     text=f"[pick_suggestion] {remove_newlines(e.text)}") if e.action == "pick_suggestion"
+                else
+                    (Turn(speaker=e.agent,
+                     text=f"(thinking) {remove_newlines(e.text)}") if e.action == "think"
+                     else Turn(speaker=e.action, text=f"({e.agent}) {remove_newlines(e.text)}")))
+            for e in filtered_events
+        ]
+        # Recompute speakers after transforming events
+        speakers = sorted(list(set(turn.speaker for turn in dialog.turns)))
 
     for ix, turn in enumerate(dialog.turns):
         speaker = turn.speaker
@@ -895,7 +921,10 @@ def _print_dialog(dialog: Union[Dialog, dict], scenario: bool = False, orchestra
             color = "purple"
         else:
             tag_color = speaker_tag_colors[speakers.index(speaker) % len(speaker_tag_colors)]
-            color = speaker_utt_colors[speakers.index(speaker) % len(speaker_utt_colors)]
+            if turn.text.startswith("(thinking) "):
+                color = "purple"
+            else:
+                color = speaker_utt_colors[speakers.index(speaker) % len(speaker_utt_colors)]
 
         cprint(remove_newlines(turn.text),
                tag=speaker,
