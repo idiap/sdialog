@@ -77,6 +77,7 @@ class BaseAttributeModelGenerator(ABC):
     def __init__(self,
                  attribute_model: BaseAttributeModel,
                  generated_attributes: str = "all",
+                 extra_instructions: str = "",
                  model: str = None,
                  system_prompt: str = None,
                  llm_prompt: str = None,
@@ -89,6 +90,8 @@ class BaseAttributeModelGenerator(ABC):
         :type attribute_model: BaseAttributeModel
         :param generated_attributes: Attribute selection strategy ("all", iterable, or dict of rules).
         :type generated_attributes: Union[str, list, dict]
+        :param extra_instructions: Additional instructions to include in the LLM prompt.
+        :type extra_instructions: str
         :param model: LLM model name (overrides config if provided).
         :type model: str
         :param system_prompt: Override system prompt for generation.
@@ -116,6 +119,14 @@ class BaseAttributeModelGenerator(ABC):
                                                "for synthetic dialogue workflows.")
         self.llm_prompt = llm_prompt
         self.llm_prompt_n = llm_prompt_n
+
+        if extra_instructions:
+            lines = [ln.strip(" •-\t") for ln in str(extra_instructions).splitlines() if ln.strip()]
+            if len(lines) == 1:
+                extra_block = f"Additional instructions: {lines[0]}"
+            else:
+                extra_block = "Additional instructions:\n" + "\n".join(f"- {ln}" for ln in lines)
+            self.system_prompt = f"{self.system_prompt}\n\n{extra_block}"
 
     def _check_attributes(self, attribute_keys):
         """
@@ -776,6 +787,7 @@ class PersonaGenerator(BaseAttributeModelGenerator):
     def __init__(self,
                  persona: BasePersona,
                  generated_attributes: str = "all",
+                 extra_instructions: str = "Attributes must be in English",
                  model: str = None,
                  **llm_kwargs):
         """
@@ -785,6 +797,8 @@ class PersonaGenerator(BaseAttributeModelGenerator):
         :type persona: BasePersona
         :param generated_attributes: Strategy specifying which attributes to fill ("all", list, or dict).
         :type generated_attributes: Union[str, list, dict]
+        :param extra_instructions: Additional instructions to include in the LLM prompt.
+        :type extra_instructions: str
         :param model: LLM model name (optional).
         :type model: str
         :param llm_kwargs: Extra LLM keyword arguments.
@@ -803,6 +817,7 @@ class PersonaGenerator(BaseAttributeModelGenerator):
             llm_prompt_n = f.read()
         super().__init__(attribute_model=persona_instance,
                          generated_attributes=generated_attributes,
+                         extra_instructions=extra_instructions,
                          model=model,
                          system_prompt=system_prompt,
                          llm_prompt=llm_prompt,
@@ -835,6 +850,7 @@ class ContextGenerator(BaseAttributeModelGenerator):
     def __init__(self,
                  context: Context,
                  generated_attributes: str = "all",
+                 extra_instructions: str = "Attributes must be in English",
                  model: str = None,
                  **llm_kwargs):
         """
@@ -844,6 +860,8 @@ class ContextGenerator(BaseAttributeModelGenerator):
         :type context: Context
         :param generated_attributes: Attribute selection strategy ("all", list, or dict).
         :type generated_attributes: Union[str, list, dict]
+        :param extra_instructions: Additional instructions to include in the LLM prompt.
+        :type extra_instructions: str
         :param model: LLM model name (optional).
         :type model: str
         :param llm_kwargs: Extra LLM keyword arguments.
@@ -864,6 +882,7 @@ class ContextGenerator(BaseAttributeModelGenerator):
             llm_prompt_n = f.read()
         super().__init__(attribute_model=context,
                          generated_attributes=generated_attributes,
+                         extra_instructions=extra_instructions,
                          model=model,
                          system_prompt=system_prompt,
                          llm_prompt=llm_prompt,
