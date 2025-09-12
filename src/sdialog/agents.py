@@ -351,7 +351,7 @@ class Agent:
         response = self.llm.invoke(messages)
         thinking = None
         if hasattr(response, "additional_kwargs") and response.additional_kwargs:
-            thinking = response.additional_kwargs
+            thinking = response.additional_kwargs.get("reasoning_content", None)
 
         if self._thinking_pattern:
             think_segments = re.findall(self._thinking_pattern, response.content, flags=re.DOTALL)
