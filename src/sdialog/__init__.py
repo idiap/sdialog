@@ -81,15 +81,15 @@ class Event(BaseModel):
     :vartype action: str
     :ivar actionLabel: A label describing the action (e.g., type of instruction).
     :vartype actionLabel: Optional[str]
-    :ivar text: The content of the event.
-    :vartype text: str
+    :ivar content: The content of the event.
+    :vartype content: Union[str, Dict, List]
     :ivar timestamp: The Unix timestamp of the event.
     :vartype timestamp: int
     """
     agent: Optional[str] = None  # "user", "system"
     action: str  # "utter", "instruct"
     actionLabel: Optional[str] = None  # action label (e.g. type of instruct)
-    text: str  # the content of the event
+    content: Union[str, Dict, List]  # the content of the event
     timestamp: int  # timestamp
 
     def model_post_init(self, context: Any, /) -> None:
@@ -864,6 +864,20 @@ def _print_dialog(dialog: Union[Dialog, dict],
     if type(dialog) is dict:
         dialog = Dialog.model_validate(dialog)
 
+    def _get_turn_from_event(e: Event) -> Turn:
+        if e.action == "utter":
+            speaker, text = e.agent, e.content
+        elif e.action == "pick_suggestion":
+            speaker, text = e.agent, f"[pick_suggestion] {e.content}"
+        elif e.action == "think":
+            speaker, text = e.agent, f"(thinking) {e.content}"
+        elif e.action == "tool" and e.actionLabel != "call":
+            speaker, text = f"{e.action}-{e.actionLabel}", e.content
+        else:
+            speaker, text = f"{e.action}-{e.actionLabel}" if e.actionLabel else e.action, f"({e.agent}) {e.content}"
+
+        return Turn(speaker=speaker, text=remove_newlines(str(text)))
+
     speaker_tag_colors = ["red", "blue", "yellow", "cyan", "green", "magenta", "purple"]
     speaker_utt_colors = ["grey", "white"]
     # speaker_utt_colors = ["black", "grey"]
@@ -899,19 +913,7 @@ def _print_dialog(dialog: Union[Dialog, dict],
                 if act in "utter" or (orchestration and act.startswith("instruct")) or (think and act == "think"):
                     filtered_events.append(e)
 
-        dialog.turns = [
-            Turn(speaker=e.agent, text=e.text) if e.action == "utter"
-            else (
-                Turn(speaker=e.agent,
-                     text=f"[pick_suggestion] {remove_newlines(e.text)}") if e.action == "pick_suggestion"
-                else
-                    (Turn(speaker=e.agent,
-                     text=f"(thinking) {remove_newlines(e.text)}") if e.action == "think"
-                     else Turn(speaker=e.action, text=f"({e.agent}) {remove_newlines(e.text)}")))
-            for e in filtered_events
-        ]
-        # Recompute speakers after transforming events
-        speakers = sorted(list(set(turn.speaker for turn in dialog.turns)))
+        dialog.turns = [_get_turn_from_event(e) for e in filtered_events]
 
     for ix, turn in enumerate(dialog.turns):
         speaker = turn.speaker

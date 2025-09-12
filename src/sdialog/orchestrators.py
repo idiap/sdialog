@@ -553,9 +553,9 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
         events = [Event(agent=agent.get_name(),
                         action="request_suggestions",
                         actionLabel=self.get_event_label(),
-                        text=f'Previous response: "{response}"'
-                             if agent_last_turn
-                             else f'Lookahead response: "{response}"',
+                        content=f'Previous response: "{response}"'
+                                if agent_last_turn
+                                else f'Lookahead response: "{response}"',
                         timestamp=int(time()))]
 
         sims = self.sent_encoder.similarity(self.sent_encoder.encode(response), self.resp_utt_embs)[0]
@@ -569,7 +569,7 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
             events.append(Event(agent=agent.get_name(),
                                 action="request_suggestions",
                                 actionLabel=self.get_event_label(),
-                                text="Actions for the response: " + ", ".join(action for action in next_actions),
+                                content="Actions for the response: " + ", ".join(action for action in next_actions),
                                 timestamp=int(time())))
             if agent_last_turn:
                 next_actions = [self.graph[action] if action in self.graph else action
@@ -577,7 +577,7 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
                 events.append(Event(agent=agent.get_name(),
                                     action="request_suggestions",
                                     actionLabel=self.get_event_label(),
-                                    text="Graph next actions: " + ", ".join(action for action in next_actions),
+                                    content="Graph next actions: " + ", ".join(action for action in next_actions),
                                     timestamp=int(time())))
 
             # TODO: remove repeated actions! (make it a set()?)

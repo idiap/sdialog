@@ -19,10 +19,10 @@ def test_turn_and_event():
     assert turn.speaker == "Alice"
     assert turn.text == "Hello!"
 
-    event = Event(agent="system", action="utter", text="Hi", timestamp=123)
+    event = Event(agent="system", action="utter", content="Hi", timestamp=123)
     assert event.agent == "system"
     assert event.action == "utter"
-    assert event.text == "Hi"
+    assert event.content == "Hi"
     assert event.timestamp == 123
 
 
@@ -56,7 +56,7 @@ def test_dialog_to_file_and_from_file(tmp_path):
 
 
 def test_instruction_event():
-    event = Event(agent="user", action="instruct", text="Do this", timestamp=1)
+    event = Event(agent="user", action="instruct", content="Do this", timestamp=1)
     instr = Instruction(text="Do this", events=event)
     assert instr.text == "Do this"
     assert instr.events == event
@@ -168,8 +168,8 @@ def test_dialog_rename_speaker():
     turns = [Turn(speaker="Alice", text="Hello!"),
              Turn(speaker="Bob", text="Hi Alice!"),
              Turn(speaker="Alice", text="How are you?")]
-    events = [Event(agent="Alice", action="utter", text="Hello!", timestamp=1),
-              Event(agent="Bob", action="utter", text="Hi Alice!", timestamp=2)]
+    events = [Event(agent="Alice", action="utter", content="Hello!", timestamp=1),
+              Event(agent="Bob", action="utter", content="Hi Alice!", timestamp=2)]
     dialog = Dialog(turns=turns, events=events)
 
     # Rename Alice to Carol (case-sensitive)

@@ -25,9 +25,12 @@ from pydantic import BaseModel
 from typing import Union, List, Tuple
 from sklearn.neighbors import NearestNeighbors
 from transformers import AutoTokenizer, AutoModel
-from langchain_ollama.chat_models import ChatOllama
 from torch.utils.data import DataLoader, TensorDataset
 from sentence_transformers.util import get_device_name, batch_to_device
+
+from langchain_ollama.chat_models import ChatOllama
+from langchain_core.runnables.base import RunnableBinding
+from langchain_core.language_models.base import BaseLanguageModel
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +300,7 @@ def get_llm_model(model_name: str,
                   output_format: Union[dict, BaseModel] = None,
                   return_model_params: bool = False,
                   think: bool = False,
+                  tools: List = None,
                   **llm_kwargs):
     """
     Instantiate a LangChain chat model (OpenAI, AWS, Google, Ollama, Hugging Face).
@@ -312,6 +316,8 @@ def get_llm_model(model_name: str,
     :type return_model_params: bool
     :param think: If True, enables "thinking" segments in responses.
     :type think: bool
+    :param tools: Optional list of tool functions to enable.
+    :type tools: List[langchain_core.tools.structured.StructuredTool]
     :param llm_kwargs: Additional backend-specific model kwargs.
     :type llm_kwargs: dict
     :return: Configured LangChain model (possibly wrapped for structured output).
@@ -395,6 +401,9 @@ def get_llm_model(model_name: str,
         else:
             logger.error(f"The given model '{model_name}' does not support structured output. ")
 
+    if tools:
+        llm = llm.bind_tools(tools)
+
     return llm if not return_model_params else (llm, llm_kwargs)
 
 
@@ -415,8 +424,10 @@ def set_generator_seed(generator, seed):
     llm = generator.llm
     base_model = None
     try:
-        if hasattr(llm, "seed"):
+        if isinstance(llm, BaseLanguageModel):
             base_model = llm
+        elif isinstance(llm, RunnableBinding):
+            base_model = llm.bound
         else:
             base_model = llm.steps[0].bound
         base_model.seed = seed

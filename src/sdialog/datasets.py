@@ -127,7 +127,7 @@ class STAR:
                     agent=e["Agent"],
                     action=e["Action"],
                     actionLabel=e["ActionLabel"] if "ActionLabel" in e else None,
-                    text=e["Text"],
+                    content=e["Text"],
                     timestamp=e["UnixTime"],
                 )
                 for e in dialog["Events"]

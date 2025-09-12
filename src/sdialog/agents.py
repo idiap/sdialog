@@ -19,6 +19,7 @@ from tqdm.auto import tqdm
 from collections import defaultdict
 from typing import List, Union, Optional, Tuple
 
+from langchain_core.tools import tool
 from langchain_core.messages.base import messages_to_dict
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -77,11 +78,13 @@ class Agent:
     def __init__(self,
                  persona: BasePersona = Persona(),
                  name: Optional[str] = None,
-                 example_dialogs: Optional[List['Dialog']] = None,
                  context: Optional[Union[str, Context]] = None,
+                 first_utterance: Optional[Union[str, List[str]]] = None,
                  dialogue_details: str = "",
                  response_details: str = ("Unless necessary, responses SHOULD be only one utterance long, and SHOULD "
                                           "NOT contain many questions or topics in one single turn."),
+                 example_dialogs: Optional[List['Dialog']] = None,
+                 tools: Optional[List] = None,
                  think: bool = False,
                  thinking_pattern: Optional[str] = r"<think>(.*?)</think>",
                  can_finish: bool = True,
@@ -99,14 +102,18 @@ class Agent:
         :type persona: BasePersona
         :param name: Name of the agent (defaults to persona.name if not provided).
         :type name: Optional[str]
-        :param example_dialogs: Optional list of default example dialogues as a reference for the agent.
-        :type example_dialogs: Optional[List[Dialog]]
         :param context: Optional default context for the agent's conversations.
         :type context: Optional[Union[str, Context]]
+        :param first_utterance: Optional fixed first utterance or list of possible first utterances.
+        :type first_utterance: Optional[Union[str, List[str]]]
         :param dialogue_details: Additional details about the dialogue.
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
+        :param example_dialogs: Optional list of default example dialogues as a reference for the agent.
+        :type example_dialogs: Optional[List[Dialog]]
+        :param tools: List of functions to be used as tools by the agent (if supported by the LLM).
+        :type tools: Optional[List[callable]]
         :param think: If True, enables "thinking" segments in responses.
         :type think: bool
         :param thinking_pattern: Regex pattern to identify "thinking" segments in responses.
@@ -146,13 +153,14 @@ class Agent:
         # Private attributes
         self._system_prompt_template = system_prompt_template
         self._thinking_pattern = thinking_pattern
+        self._tools = {fn.__name__: tool(fn) for fn in tools} if tools else None
         self._model_uri = model
         self._context = context
         self._example_dialogs = example_dialogs
         self._dialogue_details = dialogue_details
         self._response_details = response_details
         self._can_finish = can_finish
-        self._first_utterances = None
+        self._first_utterances = first_utterance
         self._finished = False
         self._orchestrators = None
         self._inspectors = None
@@ -162,7 +170,11 @@ class Agent:
         self._hook_response_act = defaultdict(lambda: defaultdict(list))
 
         # Public attributes
-        self.llm, llm_kwargs = get_llm_model(model_name=model, return_model_params=True, think=think, **llm_kwargs)
+        self.llm, llm_kwargs = get_llm_model(model_name=model,
+                                             return_model_params=True,
+                                             think=think,
+                                             tools=list(self._tools.values()) if self._tools else None,
+                                             **llm_kwargs)
         self.model_info = {"name": str(model), **llm_kwargs}
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
@@ -275,7 +287,7 @@ class Agent:
                         events.append(Event(agent=self.get_name(),
                                             action="instruct" + ("-persist" if persist else ""),
                                             actionLabel=orchestrator.get_event_label(),
-                                            text=instruction,
+                                            content=instruction,
                                             timestamp=int(time())))
 
         if len(self.memory) <= 1 and self._first_utterances:
@@ -283,6 +295,7 @@ class Agent:
                         if type(self._first_utterances) is list
                         else self._first_utterances)
             response = AIMessage(content=response)
+            response_events = None
         else:
             if self._inspectors:
                 self._hook_response_data.response_begin(self.memory_dump())
@@ -294,7 +307,7 @@ class Agent:
                 # or "Last message must be a HumanMessage!" (huggingface)
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
                 # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
-                response, thinking = self._get_llm_response(self.memory + [HumanMessage(
+                response, response_events = self._get_llm_response(self.memory + [HumanMessage(
                     content="" if is_huggingface_model_name(self._model_uri) else ".")
                 ])
                 logger.warning(
@@ -302,7 +315,7 @@ class Agent:
                     "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
                 )
             else:
-                response, thinking = self._get_llm_response(self.memory)
+                response, response_events = self._get_llm_response(self.memory)
 
             if self._inspectors:
                 self._hook_response_data.response_end()
@@ -310,11 +323,8 @@ class Agent:
         if self._postprocess_fn:
             response.content = self._postprocess_fn(response.content)
 
-        if thinking and return_events:
-            events.append(Event(agent=self.get_name(),
-                                action="think",
-                                text=thinking,
-                                timestamp=int(time())))
+        if return_events and response_events:
+            events.extend(response_events)
 
         if self._orchestrators:
             self.memory[:] = [msg for msg in self.memory
@@ -333,23 +343,29 @@ class Agent:
             if response:
                 events.append(Event(agent=self.get_name(),
                                     action="utter",
-                                    text=response,
+                                    content=response,
                                     timestamp=int(time())))
             return events
         else:
             return response if response else ""
 
-    def _get_llm_response(self, messages) -> Tuple[AIMessage, str]:  # (response, thinking)
+    def _get_llm_response(self, messages, update_tool_memory: bool = False) -> Tuple[AIMessage, List[Event]]:
         """
-        Invokes the LLM with the given messages and extracts "thinking" content if available.
+        Generate a single LLM turn from the given message history, handling tool-calls and
+        extracting optional "thinking" traces.
 
-        :param messages: List of messages (conversation history).
+        :param messages: The message history to send to the LLM.
         :type messages: List[BaseMessage]
-        :return: Tuple of (AIMessage response, thinking content or None).
-        :rtype: Tuple[AIMessage, Optional[str]]
+        :param update_tool_memory: If True, appends tool results to the agent's memory.
+        :type update_tool_memory: bool
+        :return: The LLM response and list of events.
+        :rtype: Tuple[AIMessage, List[Event]]
         """
-        response = self.llm.invoke(messages)
+        events = []
         thinking = None
+
+        response = self.llm.invoke(messages)
+
         if hasattr(response, "additional_kwargs") and response.additional_kwargs:
             thinking = response.additional_kwargs.get("reasoning_content", None)
 
@@ -363,10 +379,48 @@ class Agent:
                     thinking = think_segments
                 response.content = re.sub(self._thinking_pattern, "", response.content, flags=re.DOTALL).strip()
 
+        if thinking:
+            events.append(Event(agent=self.get_name(),
+                                action="think",
+                                content=thinking,
+                                timestamp=int(time())))
+
+        if hasattr(response, "tool_calls") and response.tool_calls and self._tools:
+            messages_n = len(messages)
+            for tool_call in response.tool_calls:
+                events.append(Event(agent=self.get_name(),
+                                    action="tool",
+                                    actionLabel="call",
+                                    content={"name": tool_call["name"],
+                                             "args": tool_call["args"],
+                                             "id": tool_call["id"]},
+                                    timestamp=int(time())))
+                if tool_call["name"] in self._tools:
+                    selected_tool = self._tools[tool_call["name"]]
+                    tool_msg = selected_tool.invoke(tool_call)
+                    messages.append(tool_msg)
+                    if update_tool_memory:
+                        self.memory.append(tool_msg)
+                    events.append(Event(agent=self.get_name(),
+                                        action="tool",
+                                        actionLabel="output",
+                                        content={"name": tool_msg.name,
+                                                 "output": tool_msg.content,
+                                                 "call_id": tool_msg.tool_call_id},
+                                        timestamp=int(time())))
+                else:
+                    logger.warning(f"Tool '{tool_call['name']}' not found among bound tools.")
+
+            # If tools were called, re-query the LLM with the updated messages
+            if messages_n != len(messages):
+                response, new_events = self._get_llm_response(messages, update_tool_memory)
+                events.extend(new_events)
+                return response, events
+
         if self._postprocess_fn:
             response.content = self._postprocess_fn(response.content)
 
-        return response, thinking
+        return response, events
 
     def __or__(self, other):
         """
@@ -441,10 +495,11 @@ class Agent:
         :rtype: str
         """
         if not utterance:
-            response, _ = self._get_llm_response(self.memory)
+            response, _ = self._get_llm_response(self.memory, update_tool_memory=False)
             return response.content
 
-        response, _ = self._get_llm_response(self.memory + [HumanMessage(utterance)])
+        response, _ = self._get_llm_response(self.memory + [HumanMessage(utterance)],
+                                             update_tool_memory=False)
         return response.content
 
     def add_orchestrators(self, orchestrators):
@@ -664,9 +719,9 @@ class Agent:
             utt_events = self(utter, return_events=True)
 
             if utt_events and utt_events[-1].action == "utter":
-                utter = utt_events[-1].text
-                utt_events[-1].text = utter.replace(self._STOP_WORD_TEXT, "").strip()
-                if not utt_events[-1].text:
+                utter = utt_events[-1].content
+                utt_events[-1].content = utter.replace(self._STOP_WORD_TEXT, "").strip()
+                if not utt_events[-1].content:
                     break
             else:
                 completion = True
@@ -674,16 +729,16 @@ class Agent:
 
             dialog.append(Turn(
                 speaker=self.get_name(),
-                text=utt_events[-1].text
+                text=utt_events[-1].content
             ))
             events.extend(utt_events)
             pbar.update(1)
 
             utt_events = agent(utter, return_events=True)
             if utt_events and utt_events[-1].action == "utter":
-                utter = utt_events[-1].text
-                utt_events[-1].text = utter.replace(self._STOP_WORD_TEXT, "").strip()
-                if not utt_events[-1].text:
+                utter = utt_events[-1].content
+                utt_events[-1].content = utter.replace(self._STOP_WORD_TEXT, "").strip()
+                if not utt_events[-1].content:
                     break
             else:
                 completion = True
@@ -691,7 +746,7 @@ class Agent:
 
             dialog.append(Turn(
                 speaker=agent.get_name(default="Other"),
-                text=utt_events[-1].text
+                text=utt_events[-1].content
             ))
             events.extend(utt_events)
             pbar.update(1)
