@@ -17,7 +17,7 @@ import logging
 from time import time
 from tqdm.auto import tqdm
 from collections import defaultdict
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
 
 from langchain_core.messages.base import messages_to_dict
 from langchain_core.language_models.base import BaseLanguageModel
@@ -82,10 +82,11 @@ class Agent:
                  dialogue_details: str = "",
                  response_details: str = ("Unless necessary, responses SHOULD be only one utterance long, and SHOULD "
                                           "NOT contain many questions or topics in one single turn."),
+                 think: bool = False,
+                 thinking_pattern: Optional[str] = r"<think>(.*?)</think>",
                  can_finish: bool = True,
                  orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]] = None,
                  inspectors: Optional[Union['Inspector', List['Inspector']]] = None,
-                 thinking_pattern: Optional[str] = r"<think>(.*?)</think>",
                  preprocessing_fn: Optional[callable] = None,
                  postprocess_fn: Optional[callable] = None,
                  system_prompt: Optional[str] = None,
@@ -106,14 +107,16 @@ class Agent:
         :type dialogue_details: str
         :param response_details: Instructions for response style.
         :type response_details: str
+        :param think: If True, enables "thinking" segments in responses.
+        :type think: bool
+        :param thinking_pattern: Regex pattern to identify "thinking" segments in responses.
+        :type thinking_pattern: Optional[str]
         :param can_finish: If True, agent can end the conversation.
         :type can_finish: bool
         :param orchestrators: Orchestrators for agent behavior.
         :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
         :param inspectors: Inspector(s) to add to the agent.
         :type inspectors: Optional[Union[Inspector, List[Inspector]]]
-        :param thinking_pattern: Regex pattern to identify "thinking" segments in responses.
-        :type thinking_pattern: Optional[str]
         :param preprocessing_fn: Optional function to preprocess each input utterance before calling the LLM
                                  (input string, output string).
         :type preprocessing_fn: Optional[callable]
@@ -159,7 +162,7 @@ class Agent:
         self._hook_response_act = defaultdict(lambda: defaultdict(list))
 
         # Public attributes
-        self.llm, llm_kwargs = get_llm_model(model_name=model, return_model_params=True, **llm_kwargs)
+        self.llm, llm_kwargs = get_llm_model(model_name=model, return_model_params=True, think=think, **llm_kwargs)
         self.model_info = {"name": str(model), **llm_kwargs}
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
@@ -291,7 +294,7 @@ class Agent:
                 # or "Last message must be a HumanMessage!" (huggingface)
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
                 # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
-                response = self.llm.invoke(self.memory + [HumanMessage(
+                response, thinking = self._get_llm_response(self.memory + [HumanMessage(
                     content="" if is_huggingface_model_name(self._model_uri) else ".")
                 ])
                 logger.warning(
@@ -299,7 +302,7 @@ class Agent:
                     "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
                 )
             else:
-                response = self.llm.invoke(self.memory)
+                response, thinking = self._get_llm_response(self.memory)
 
             if self._inspectors:
                 self._hook_response_data.response_end()
@@ -307,15 +310,11 @@ class Agent:
         if self._postprocess_fn:
             response.content = self._postprocess_fn(response.content)
 
-        if self._thinking_pattern:
-            thinks = re.findall(self._thinking_pattern, response.content, flags=re.DOTALL)
-            for think in thinks:
-                if return_events:
-                    events.append(Event(agent=self.get_name(),
-                                        action="think",
-                                        text=think.strip(),
-                                        timestamp=int(time())))
-            response.content = re.sub(self._thinking_pattern, "", response.content, flags=re.DOTALL).strip()
+        if thinking and return_events:
+            events.append(Event(agent=self.get_name(),
+                                action="think",
+                                text=thinking,
+                                timestamp=int(time())))
 
         if self._orchestrators:
             self.memory[:] = [msg for msg in self.memory
@@ -339,6 +338,35 @@ class Agent:
             return events
         else:
             return response if response else ""
+
+    def _get_llm_response(self, messages) -> Tuple[AIMessage, str]:  # (response, thinking)
+        """
+        Invokes the LLM with the given messages and extracts "thinking" content if available.
+
+        :param messages: List of messages (conversation history).
+        :type messages: List[BaseMessage]
+        :return: Tuple of (AIMessage response, thinking content or None).
+        :rtype: Tuple[AIMessage, Optional[str]]
+        """
+        response = self.llm.invoke(messages)
+        thinking = None
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            thinking = response.additional_kwargs
+
+        if self._thinking_pattern:
+            think_segments = re.findall(self._thinking_pattern, response.content, flags=re.DOTALL)
+            if think_segments:
+                think_segments = "\n".join(think_segments)
+                if thinking:
+                    thinking += "\n" + think_segments
+                else:
+                    thinking = think_segments
+                response.content = re.sub(self._thinking_pattern, "", response.content, flags=re.DOTALL).strip()
+
+        if self._postprocess_fn:
+            response.content = self._postprocess_fn(response.content)
+
+        return response, thinking
 
     def __or__(self, other):
         """
@@ -413,8 +441,11 @@ class Agent:
         :rtype: str
         """
         if not utterance:
-            return self.llm.invoke(self.memory).content
-        return self.llm.invoke(self.memory + [HumanMessage(utterance)]).content
+            response, _ = self._get_llm_response(self.memory)
+            return response.content
+
+        response, _ = self._get_llm_response(self.memory + [HumanMessage(utterance)])
+        return response.content
 
     def add_orchestrators(self, orchestrators):
         """

@@ -296,6 +296,7 @@ def is_huggingface_model_name(model_name: str) -> bool:
 def get_llm_model(model_name: str,
                   output_format: Union[dict, BaseModel] = None,
                   return_model_params: bool = False,
+                  think: bool = False,
                   **llm_kwargs):
     """
     Instantiate a LangChain chat model (OpenAI, AWS, Google, Ollama, Hugging Face).
@@ -309,6 +310,8 @@ def get_llm_model(model_name: str,
     :type output_format: Union[dict, BaseModel, type[BaseModel]]
     :param return_model_params: If True, return (model, llm_kwargs) tuple instead of just model.
     :type return_model_params: bool
+    :param think: If True, enables "thinking" segments in responses.
+    :type think: bool
     :param llm_kwargs: Additional backend-specific model kwargs.
     :type llm_kwargs: dict
     :return: Configured LangChain model (possibly wrapped for structured output).
@@ -356,7 +359,7 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading Ollama model: {model_name}")
 
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
-        llm = ChatOllama(model=model_name, **llm_kwargs)
+        llm = ChatOllama(model=model_name, reasoning=think, **llm_kwargs)
     else:
         if model_name.startswith("huggingface:"):
             model_name = model_name.split(":", 1)[-1]

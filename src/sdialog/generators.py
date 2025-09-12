@@ -372,11 +372,11 @@ class BaseAttributeModelGenerator(ABC):
                         llm_output = llm.invoke(messages)
                         if not is_ollama_model_name(self.llm_model):
                             llm_output = llm_output["objects"]
-                        if isinstance(llm_output, list):
+                        if isinstance(llm_output, list) and all(isinstance(obj, dict) for obj in llm_output):
                             break
-                        logger.warning("LLM output is not a list, retrying "
+                        logger.warning("LLM output is not a list of objects, retrying "
                                        f"((attempt {ix + 1} out of {max_attempts}))...")
-                    if isinstance(llm_output, list):
+                    if isinstance(llm_output, list) and all(isinstance(obj, dict) for obj in llm_output):
                         llm_output = llm_output[:n]
                         for ix in range(len(llm_output)):
                             llm_output[ix] = {
