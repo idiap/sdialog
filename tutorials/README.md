@@ -12,13 +12,13 @@
 
 Tutorials have only **one** requirement: Apptainer. So, make sure you have installed [Apptainer](https://apptainer.org/docs/user/main/introduction.html) on your machine.
 
-Once you have Apptainer running, the only thing needed is to download our Apptainer `jsalt.sif` file from HuggingFace by clicking [here](https://huggingface.co/Play-Your-Part/tutorials-apptainer-sif-file/resolve/main/jsalt.sif).
+Once you have Apptainer running, the only thing needed is to download our Apptainer `sdialog.sif` file from HuggingFace by clicking [here](https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif).
 This file contains everything we need inside.
 
 Finally, let's check if our Apptainer is working:
 _(if you have a cluster, don't forget to connect to a node with GPU first, e.g. `salloc -A YOUR_USER -p gpu -t 08:00:00 --gpus rtx3090:1`)_
 ```bash
-apptainer run --nv jsalt.sif
+apptainer run --nv sdialog.sif
 ```
 You should see you're now connected to `Apptainer>` in the terminal.
 If we do:
@@ -31,7 +31,7 @@ Let's close it with Ctrl+D and call run but with the `-H` flag to set the apptai
 ```bash
 cd to/your/tutorials
 
-apptainer run -H $(pwd) --nv jsalt.sif
+apptainer run -H $(pwd) --nv sdialog.sif
 
 ls -lh
 ```
@@ -98,7 +98,7 @@ Make sure you end up with the STAR dataset in `datasets/STAR` with `dialogues` a
 Run the Jupyter server inside the apptainer first:
 
 ```bash
-apptainer run -H $(pwd) --nv jsalt.sif
+apptainer run -H $(pwd) --nv sdialog.sif
 
 exec jupyter lab --no-browser --ip 0.0.0.0 --port 3300
 ```
@@ -144,14 +144,14 @@ Press Ctrl+D to close our apptainer. Now try running the `test_chatollama.py` as
 # we can disable it with:
 # unset DBUS_SESSION_BUS_ADDRESS
 
-apptainer instance start --nv jsalt.sif jsalt
-apptainer exec instance://jsalt ollama serve &
+apptainer instance start --nv sdialog.sif sdialog
+apptainer exec instance://sdialog ollama serve &
 
 # run all the scripts we want to
-apptainer exec instance://jsalt python3 test_chatollama.py
+apptainer exec instance://sdialog python3 test_chatollama.py
 
 # once finished, we can stop the background instance
-apptainer instance stop jsalt
+apptainer instance stop sdialog
 ```
 > JSALTワークショップ大好きです
 

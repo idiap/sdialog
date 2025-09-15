@@ -120,7 +120,7 @@ Built-in personas include `Persona` (generic) and typed ones like `Doctor`, `Pat
 from sdialog.personas import Customer, SupportAgent
 
 customer_persona = Customer(customer_id="12345",
-                            issue="",
+                            issue="Cannot log in to my account",
                             anger_level="high")
 support_persona = SupportAgent(politeness="high")
 
@@ -152,9 +152,9 @@ Agents are persona-conditioned conversational actors; they take a persona object
 ```python
 from sdialog.agents import Agent
 
-# Two simple (mock) tools our support agent can call
+# As example, let's define wwo simple (mock) tools our support agent can call
 # 1) Fake RAG-like tool
-def get_product_documentation(product: str, model: str, k: int = 5) -> dict:
+def get_product_documentation(product: str, model: str) -> dict:
     """Retrieve product documentation for a specific product and model."""
     # In a real tool, query your documentation store and return top-k snippets.
     snippets = [
@@ -162,7 +162,7 @@ def get_product_documentation(product: str, model: str, k: int = 5) -> dict:
         f"Troubleshooting guide for {product} {model}",
         f"FAQ for {product} {model}"
     ]
-    return {"snippets": snippets[:k]}
+    return {"snippets": snippets}
 
 # 2) Fake verification account tool
 def verify_account(customer_id: str) -> dict:
@@ -170,8 +170,8 @@ def verify_account(customer_id: str) -> dict:
   return {"customer_id": customer_id, "exists": True}
 
 support_agent = Agent(persona=support_persona,
-                      think=True,
-                      tools=[get_product_documentation, verify_account],
+                      think=True,  # Enable reasoning
+                      tools=[get_product_documentation, verify_account],  # And tools!
                       name="AGENT")
 customer = Agent(persona=customer_persona,
                  first_utterance="Hi there!",
@@ -359,9 +359,9 @@ agent_steered = agent | intruder - anger_direction  # ablate the anger direction
 agent_steered("You are an extremely upset assistant")  # anger is no longer part of the activation space
 ```
 
-Notes
-- Use these tools for research and safety improvements only; do not attempt to bypass model safety mechanisms.
-- See tutorials for worked examples: our [demo notebook](tutorials/0.demo.ipynb) (Mechanistic Interpretability example) and the [tutorial to remove refusal capacity from Llama 3](tutorials/6.agent+inspector_refusal.ipynb).
+See tutorials for worked examples: our [demo notebook](tutorials/0.demo.ipynb) (Mechanistic Interpretability example) and the [tutorial to remove refusal capacity from Llama 3](tutorials/6.agent+inspector_refusal.ipynb).
+
+**Notes:** Use these tools for research and safety improvements only; do not attempt to bypass model safety mechanisms.
 
 ## 📖 Documentation and tutorials
 
