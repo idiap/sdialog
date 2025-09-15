@@ -312,7 +312,7 @@ class Doctor(BasePersona):
         gender (str): Gender identity.
         language (str): Working language.
         years_of_experience (int | str): Clinical experience duration.
-        speciality (str): Medical speciality (note spelling).
+        specialty (str): Medical specialty (note spelling).
         forgetfulness (str): Forgetfulness tendency.
         formality (str): Communication formality.
         hurriedness (str): Time pressure / pace.
@@ -330,8 +330,8 @@ class Doctor(BasePersona):
     :vartype language: str
     :ivar years_of_experience: Years (or range) of medical practice.
     :vartype years_of_experience: Union[int, str]
-    :ivar speciality: Medical speciality (as spelled in this class).
-    :vartype speciality: str
+    :ivar specialty: Medical specialty (as spelled in this class).
+    :vartype specialty: str
     :ivar forgetfulness: Forgetfulness tendency.
     :vartype forgetfulness: str
     :ivar formality: Formality level in communication.
@@ -348,7 +348,7 @@ class Doctor(BasePersona):
     gender: str = Field("", description="Gender identity.")
     language: str = Field("English", description="Working language.")
     years_of_experience: Union[int, str] = Field("", description="Years or range of medical practice.")
-    speciality: str = Field("", description="Medical speciality.")
+    specialty: str = Field("", description="Medical specialty.")
     forgetfulness: str = Field("", description="Forgetfulness tendency.")
     formality: str = Field("", description="Formality level in communication.")
     hurriedness: str = Field("", description="Degree of time pressure or haste.")

@@ -156,7 +156,7 @@ def test_doctor_fields_and_description():
     d = Doctor(
         name="Dr. Jane",
         age=45,
-        speciality="Pediatrics",
+        specialty="Pediatrics",
         years_of_experience=20,
         race="Caucasian",
         gender="female",
@@ -172,7 +172,7 @@ def test_doctor_fields_and_description():
     assert "Pediatrics" in desc
     js = d.json()
     assert isinstance(js, dict)
-    assert js["speciality"] == "Pediatrics"
+    assert js["specialty"] == "Pediatrics"
     assert js["years_of_experience"] == 20
     assert js["race"] == "Caucasian"
     assert js["gender"] == "female"

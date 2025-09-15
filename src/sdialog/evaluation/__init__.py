@@ -798,7 +798,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
     from sdialog.personas import Doctor
     from sdialog.evaluation import LLMJudgePersonaAttributes
 
-    reference_persona = Doctor(name="Dr. Smith", speciality="cardiology")
+    reference_persona = Doctor(name="Dr. Smith", specialty="cardiology")
     judge_persona = LLMJudgePersonaAttributes(persona=reference_persona,
                                               speaker="Doctor",
                                               feedback=True)

@@ -773,7 +773,7 @@ class PersonaGenerator(BaseAttributeModelGenerator):
         from sdialog.personas import Doctor
         from sdialog.generators import PersonaGenerator
 
-        base_persona = Doctor(speciality="Cardiology")
+        base_persona = Doctor(specialty="Cardiology")
 
         doctor_generator = PersonaGenerator(base_persona)
 
