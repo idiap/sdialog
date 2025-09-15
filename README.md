@@ -18,12 +18,12 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 
 The purpose of this project is to make synthetic dialogue generation practical—built with and for the community—by enabling:
 
-- Standardization and reproducibility: a well-defined schema for Dialog, Personas, Context, Agents, etc., with JSON import/export serialization for auditability, sharing, and benchmarking.
-- Abstractions: simple, composable building blocks for personas, agents, orchestrators, generators, evaluation, and interpretability.
-- Interoperability: the same code works with multiple LLM backends (Ollama, HuggingFace, OpenAI, Google Generative AI, AWS, etc.).
-- Controllability: persona-, context-, and orchestration-driven generation for targeted scenarios and long-tail distribution exploration.
-- Evaluation loop: built-in metrics and LLM-as-judge interfaces to compare synthetic against reference data and guide iteration.
-- Interpretability and safety: native mechanistic interpretability to inspect and steer activations/tokens; supports debugging, bias mitigation, and safe behavior adjustments.
+- **Standardization and reproducibility:** a well-defined schema for Dialog, Personas, Context, Agents, etc., with JSON import/export serialization for auditability, sharing, and benchmarking.
+- **Abstractions:** simple, composable building blocks for personas, agents, orchestrators, generators, evaluation, and interpretability.
+- **Interoperability:** the same code works with multiple LLM backends (Ollama, HuggingFace, OpenAI, Google Generative AI, AWS, etc.).
+- **Controllability:** persona-, context-, and orchestration-driven generation for targeted scenarios and long-tail distribution exploration.
+- **Evaluation loop:** built-in metrics and LLM-as-judge interfaces to compare synthetic against reference data and guide iteration.
+- **Interpretability and safety:** native mechanistic interpretability to inspect and steer activations/tokens; supports debugging, bias mitigation, and safe behavior adjustments.
 
 See the quick examples below and our [demo notebook](tutorials/0.demo.ipynb) for a simple demo of the core workflow and basic capabilities. For task-focused guides, see the [Tutorials folder](tutorials).
 
@@ -153,8 +153,7 @@ Agents are persona-conditioned conversational actors; they take a persona object
 from sdialog.agents import Agent
 
 # Two simple (mock) tools our support agent can call
-# RAG-like tool
-
+# 1) Fake RAG-like tool
 def get_product_documentation(product: str, model: str, k: int = 5) -> dict:
     """Retrieve product documentation for a specific product and model."""
     # In a real tool, query your documentation store and return top-k snippets.
@@ -165,7 +164,7 @@ def get_product_documentation(product: str, model: str, k: int = 5) -> dict:
     ]
     return {"snippets": snippets[:k]}
 
-
+# 2) Fake verification account tool
 def verify_account(customer_id: str) -> dict:
   """Verify customer account and return minimal details."""
   return {"customer_id": customer_id, "exists": True}
