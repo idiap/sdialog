@@ -173,7 +173,7 @@ class BaseAttributeModelGenerator(ABC):
         """
         return self.llm_prompt
 
-    def set_attribute_generators(self, **attributes):
+    def set(self, **attributes):
         """
         Define per-attribute randomization / generation specifications.
 
@@ -461,6 +461,8 @@ class BaseAttributeModelGenerator(ABC):
             notes=notes
         )
         return output_object
+
+    set_attribute_generators = set  # alias for set method
 
 
 class DialogGenerator:

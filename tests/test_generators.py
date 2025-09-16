@@ -152,8 +152,7 @@ def test_persona_generator_function_dependency(monkeypatch):
         return "Dancying"
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona)
-    gen.set_attribute_generators(name=["Loco Polaco", "Loca Polaca"],
-                                 hobby=get_hobby)
+    gen.set(name=["Loco Polaco", "Loca Polaca"], hobby=get_hobby)
 
     p = gen.generate()
     assert (p.name[-1] == "a" and p.hobby == "Party") or (p.name[-1] == "o" and p.hobby == "Dancying")
@@ -187,7 +186,7 @@ def test_persona_generator_csv_template(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.csv")
     gen = PersonaGenerator(DummyPersona)
-    gen.set_attribute_generators(
+    gen.set(
         name="{{csv:name:%s}}" % csv_path,
         age="{{20-30}}"
     )
@@ -201,7 +200,7 @@ def test_persona_generator_tsv_template(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.tsv")
     gen = PersonaGenerator(DummyPersona)
-    gen.set_attribute_generators(
+    gen.set(
         name="{{tsv:name:%s}}" % csv_path,
         age="{{20-30}}"
     )
@@ -279,12 +278,12 @@ def test_context_generator_basic(monkeypatch):
 
 def test_context_generator_attribute_overrides(monkeypatch):
     """
-    Verify that set_attribute_generators works (list / LLM delegation) and fills values.
+    Verify that set works (list / LLM delegation) and fills values.
     """
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
     ctx = Context()
     gen = ContextGenerator(context=ctx)
-    gen.set_attribute_generators(
+    gen.set(
         location=["Cafe", "Library"],
         # Delegate goals to LLM ("*" means fill via LLM) so DummyContextLLM sets it
         goals="*"
