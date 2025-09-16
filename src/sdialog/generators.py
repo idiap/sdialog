@@ -654,8 +654,8 @@ class PersonaDialogGenerator(DialogGenerator):
     def __init__(self,
                  persona_a: Union[Persona, Agent],
                  persona_b: Union[Persona, Agent],
-                 speaker_a: str = "Speaker1",
-                 speaker_b: str = "Speaker2",
+                 speaker_a: str = "SPEAKER_1",
+                 speaker_b: str = "SPEAKER_2",
                  context: Optional[Union[str, Context]] = None,
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
@@ -670,6 +670,10 @@ class PersonaDialogGenerator(DialogGenerator):
         :type persona_a: Union[Persona, Agent]
         :param persona_b: The second persona or an Agent containing one.
         :type persona_b: Union[Persona, Agent]
+        :param speaker_a: Name/ID of the first speaker in the dialogue.
+        :type speaker_a: str
+        :param speaker_b: Name/ID of the second speaker in the dialogue.
+        :type speaker_b: str
         :param context: Default context for the dialogue (optional).
         :type context: Optional[Union[str, Context]]
         :param example_dialogs: Optional list of example dialogues for guidance.
