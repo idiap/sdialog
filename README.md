@@ -10,7 +10,7 @@
 ---
 **SDialog** is a modular Python library for dialogue modeling, generation, evaluation, and analysis with LLMs. It provides a standard Dialog format with rich metadata, persona-driven multi-agent simulation, orchestration for fine control, evaluation metrics, and built-in mechanistic interpretability support.
 
-Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/index.html) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/index.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## 🚀 Motivation
 
