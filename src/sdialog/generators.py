@@ -654,6 +654,8 @@ class PersonaDialogGenerator(DialogGenerator):
     def __init__(self,
                  persona_a: Union[Persona, Agent],
                  persona_b: Union[Persona, Agent],
+                 speaker_a: str = "Speaker1",
+                 speaker_b: str = "Speaker2",
                  context: Optional[Union[str, Context]] = None,
                  example_dialogs: List['Dialog'] = None,
                  dialogue_details: str = "",
@@ -698,6 +700,8 @@ class PersonaDialogGenerator(DialogGenerator):
         dialogue_details = dialogue_details_template.render(
             persona_a=persona_a.prompt(),
             persona_b=persona_b.prompt(),
+            speaker_a=speaker_a,
+            speaker_b=speaker_b,
             context=context,
             dialogue_details=dialogue_details,
             response_details=response_details
@@ -706,8 +710,8 @@ class PersonaDialogGenerator(DialogGenerator):
         super().__init__(dialogue_details=dialogue_details,
                          example_dialogs=example_dialogs,
                          personas={
-                             persona_a.name: persona_a.json(),
-                             persona_b.name: persona_b.json()
+                             speaker_a: persona_a.json(),
+                             speaker_b: persona_b.json()
                          },
                          scenario=scenario,
                          model=model,

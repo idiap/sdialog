@@ -13,3 +13,14 @@ Here are example dialogues that illustrate the expected style, tone, and format.
 {% endfor %}
 ---
 {% endif %}
+
+---
+Output format requirement:
+Return ONLY a single valid JSON object with the following structure. Do not include any explanations, headers, markdown/code fences, or extra text.
+
+JSON structure:
+- Top-level object with a single property "dialog".
+- "dialog" is an ordered array representing the conversation turns from start to finish.
+- Each item in "dialog" is an object with:
+  - "text" (string, required): the utterance for that turn.
+  - "speaker" (string, required): the name or role of the speaker.

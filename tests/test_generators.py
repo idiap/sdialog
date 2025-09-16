@@ -110,7 +110,7 @@ def test_persona_dialog_generator(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
+    gen = PersonaDialogGenerator(persona_a=persona_a, persona_b=persona_b, model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
 
@@ -119,17 +119,21 @@ def test_persona_dialog_generator_personas(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
+    gen = PersonaDialogGenerator(persona_a=persona_a,
+                                 speaker_a="Speaker1",
+                                 persona_b=persona_b,
+                                 speaker_b="Speaker2",
+                                 model=MODEL)
     dialog = gen()
-    assert "A" in dialog.personas
-    assert "B" in dialog.personas
+    assert "A" == dialog.personas["Speaker1"]["name"]
+    assert "B" == dialog.personas["Speaker2"]["name"]
 
 
 def test_persona_dialog_generator_with_agents(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
     persona_a = Agent(Persona(), "A", model=DummyLLM())
     persona_b = Agent(Persona(), "B", model=DummyLLM())
-    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
+    gen = PersonaDialogGenerator(persona_a=persona_a, persona_b=persona_b, model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
     assert "A" in dialog.personas
