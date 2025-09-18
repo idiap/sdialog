@@ -44,7 +44,7 @@ User Guide
    :maxdepth: 2
    :caption: API Documentation
 
-   api/index
+   api/sdialog
 
 .. toctree::
    :maxdepth: 2

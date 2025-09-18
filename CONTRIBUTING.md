@@ -19,7 +19,7 @@ python -m sphinx -T -b html -d _build/doctrees -D language=en . ../docs_html
 In case we need to re-generate the API Reference:
 ```bash
 cd docs/api
-sphinx-apidoc -f --ext-autodoc -o . ../src/sdialog
+sphinx-apidoc -f --ext-autodoc -o api ../src/sdialog
 ```
 
 Link to our ReadTheDocs [here](https://app.readthedocs.org/projects/sdialog/builds/28462329/).
