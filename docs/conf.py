@@ -24,8 +24,17 @@ sys.path.insert(0, os.path.abspath('../src/'))
 
 # Mock imports for Sphinx documentation generation
 autodoc_mock_imports = [
-    'pandas', 'numpy', 'langchain_ollama', 'langchain_core', 'langchain_openai',
-    'langchain_aws', 'langchain_google_genai', 'langchain_huggingface',
+    # Heavy / optional scientific stack
+    'numpy', 'pandas', 'scipy', 'torch', 'transformers', 'sklearn', 'matplotlib', 'networkx',
+    # Embedding / NLP helper libs
+    'sentence_transformers', 'simpleneighbors', 'syllables',
+    # LangChain ecosystem
+    'langchain_core', 'langchain_ollama', 'langchain_openai', 'langchain_aws',
+    'langchain_google_genai', 'langchain_huggingface',
+    # Model / orchestration related
+    'ollama', 'openai',
+    # Utility libs
+    'tqdm', 'print_color', 'pydantic', 'jinja2', 'yaml', 'graphviz', 'PIL', 'tenacity', 'joblib'
 ]
 
 
