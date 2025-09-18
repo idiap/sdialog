@@ -23,8 +23,11 @@ sys.path.insert(0, os.path.abspath('../src/'))
 
 
 # Mock imports for Sphinx documentation generation
-autodoc_mock_imports = ['pydantic', 'print_color', 'tqdm', 'langchain', 'langchain_core',
-                        'langchain_ollama', 'langchain_huggingface', 'numpy', 'sentence_transformers']
+autodoc_mock_imports = [
+    'pandas', 'numpy', 'langchain_ollama', 'langchain_core', 'langchain_openai',
+    'langchain_aws', 'langchain_google_genai', 'langchain_huggingface',
+]
+
 
 # -- Project version ---------------------------------------------------------
 
