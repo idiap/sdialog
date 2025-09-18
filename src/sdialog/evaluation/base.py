@@ -43,25 +43,26 @@ class BaseDialogEmbedder(ABC):
     """
     Base class for dialog embedding models.
 
-    Example:
-    ```python
-    from sdialog.evaluation.base import BaseDialogEmbedder
-    import numpy as np
+    Example::
 
-    # Custom embedder to embed dialogues as random N-d embeddings
-    class RndEmbedder(BaseDialogEmbedder):
-        def __init__(self, n=256):
-            self.n = n
+        .. code-block:: python
 
-        def embed(self, dialog):
-            return np.random.rand(self.n)
+            from sdialog.evaluation.base import BaseDialogEmbedder
+            import numpy as np
 
-    # Create a new embedder for 128-d embeddings and embed some dialogues
-    rnd_embedder = RndEmbedder(n=128)
-    for d in dialogues:
-        emb = rnd_embedder(d)
-        print(emb.shape)  # (128,)
-    ```
+            # Custom embedder to embed dialogues as random N-d embeddings
+            class RndEmbedder(BaseDialogEmbedder):
+                def __init__(self, n=256):
+                    self.n = n
+
+                def embed(self, dialog):
+                    return np.random.rand(self.n)
+
+            # Create a new embedder for 128-d embeddings and embed some dialogues
+            rnd_embedder = RndEmbedder(n=128)
+            for d in dialogues:
+                emb = rnd_embedder(d)
+                print(emb.shape)  # (128,)
     """
 
     def __init__(self, name: Optional[str] = None):
@@ -102,24 +103,25 @@ class BaseDialogScore(ABC):
     """
     Base class for computing a scalar score for a single dialog.
 
-    Example:
-    ```python
-    from sdialog.evaluation.base import BaseDialogScore
-    from sdialog import Dialog, Turn
+    Example::
 
-    # Custom score class to count the number of turns in a dialogue
-    class TurnCountScore(BaseDialogScore):
-        def score(self, dialog):
-            return len(dialog.turns)
+        .. code-block:: python
 
-    # Create a new instance of our score
-    turn_counter = TurnCountScore()
+            from sdialog.evaluation.base import BaseDialogScore
+            from sdialog import Dialog, Turn
 
-    d = Dialog(turns=[Turn(speaker="u", text="Hi"),
-                      Turn(speaker="s", text="Hello")])
+            # Custom score class to count the number of turns in a dialogue
+            class TurnCountScore(BaseDialogScore):
+                def score(self, dialog):
+                    return len(dialog.turns)
 
-    print(turn_counter(d))  # Outputs: 2
-    ```
+            # Create a new instance of our score
+            turn_counter = TurnCountScore()
+
+            d = Dialog(turns=[Turn(speaker="u", text="Hi"),
+                              Turn(speaker="s", text="Hello")])
+
+            print(turn_counter(d))  # Outputs: 2
     """
 
     def __init__(self, name: Optional[str] = None, ai_speaker: str = None):
@@ -334,21 +336,22 @@ class BaseDatasetEvaluator(ABC):
     Typically, Dataset evaluator subclasses will take a dialogue score (BaseDialogScore object) when
     created and will return an aggregate of the per-dialog scores.
 
-    Example:
-    ```python
-    from sdialog.evaluation.base import BaseDatasetEvaluator
-    from sdialog import Dialog, Turn
+    Example::
 
-    class CountDialogsEvaluator(BaseDatasetEvaluator):
-        def __call__(self, dialogues, dataset_name=None):
-            return len(dialogues)
+        .. code-block:: python
 
-    dialog_counter = CountDialogsEvaluator()
+            from sdialog.evaluation.base import BaseDatasetEvaluator
+            from sdialog import Dialog, Turn
 
-    dialogs = [Dialog(turns=[Turn(speaker="u", text="Hi")]) for _ in range(3)]
+            class CountDialogsEvaluator(BaseDatasetEvaluator):
+                def __call__(self, dialogues, dataset_name=None):
+                    return len(dialogues)
 
-    print(dialog_counter(dialogs))  # Outputs: 3
-    ```
+            dialog_counter = CountDialogsEvaluator()
+
+            dialogs = [Dialog(turns=[Turn(speaker="u", text="Hi")]) for _ in range(3)]
+
+            print(dialog_counter(dialogs))  # Outputs: 3
     """
     @abstractmethod
     def __call__(self,
@@ -379,25 +382,26 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     and given a collection of dialogs, aggregate their individual scores to return a single
     value for the collection.
 
-    Example:
-    ```python
-    import numpy as np
-    from sdialog.evaluation import LinguisticFeatureScore
-    from sdialog.evaluation.base import BaseDatasetScoreEvaluator
+    Example::
 
-    # Let's create our average score evaluator
-    # (in practice, use the built-in MeanEvaluator!)
-    class AverageEvaluator(BaseDatasetScoreEvaluator):
-        def __plot__(self, dialog_scores, plot=None): pass  # no-op
+        .. code-block:: python
 
-        def eval(self, dialog_scores):
-            return np.mean(dialog_scores)
+            import numpy as np
+            from sdialog.evaluation import LinguisticFeatureScore
+            from sdialog.evaluation.base import BaseDatasetScoreEvaluator
 
-    avg_evaluator = AverageEvaluator(
-        dialog_score=LinguisticFeatureScore(name="hesitation-rate")
-    )
-    print(avg_evaluator(dialogs))  # Outputs average hesitation rate over the dialogs
-    ```
+            # Let's create our average score evaluator
+            # (in practice, use the built-in MeanEvaluator!)
+            class AverageEvaluator(BaseDatasetScoreEvaluator):
+                def __plot__(self, dialog_scores, plot=None): pass  # no-op
+
+                def eval(self, dialog_scores):
+                    return np.mean(dialog_scores)
+
+            avg_evaluator = AverageEvaluator(
+                dialog_score=LinguisticFeatureScore(name="hesitation-rate")
+            )
+            print(avg_evaluator(dialogs))  # Outputs average hesitation rate over the dialogs
     """
 
     def __init__(self,
@@ -555,32 +559,33 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
     It takes a dialog embedder (BaseDialogEmbedder object) when created
     and given a collection of dialogs, computes their embeddings and returns a single value for the collection.
 
-    Example:
-    ```python
-    from sdialog import SentenceTransformerDialogEmbedder
-    from sdialog.evaluation.base import BaseDatasetEmbeddingEvaluator
+    Example::
 
-    # Evaluator that computes the average centroid cosine distance to a reference centroid
-    # (in practice, use the built-in ReferenceCentroidEmbeddingEvaluator!)
-    class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
-        def __plot__(self, dialog_embs): pass  # no-op
+        .. code-block:: python
 
-        def __init__(self, dialog_embedder, reference_dialogs):
-            self.reference_centroid = np.mean(
-                [dialog_embedder(dialog) for dialog in reference_dialogs], axis=0
-            )
+            from sdialog import SentenceTransformerDialogEmbedder
+            from sdialog.evaluation.base import BaseDatasetEmbeddingEvaluator
 
-        def eval(self, dialog_embs):
-            centroid = np.mean(dialog_embs, axis=0)
-            return cosine(centroid, self.reference_centroid)
+            # Evaluator that computes the average centroid cosine distance to a reference centroid
+            # (in practice, use the built-in ReferenceCentroidEmbeddingEvaluator!)
+            class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
+                def __plot__(self, dialog_embs): pass  # no-op
 
-    dialog_embedder = SentenceTransformerDialogEmbedder(model_name="sentence-transformers/LaBSE")
-    centroid_evaluator = ReferenceCentroidEmbeddingEvaluator(dialog_embedder=dialog_embedder,
-                                                             reference_dialogs=reference_dialogs)
+                def __init__(self, dialog_embedder, reference_dialogs):
+                    self.reference_centroid = np.mean(
+                        [dialog_embedder(dialog) for dialog in reference_dialogs], axis=0
+                    )
 
-    print(centroid_evaluator(dialogs))  # distance between candidate and reference dialogues
-                                        # (cosine distance between their centroids)
-    ```
+                def eval(self, dialog_embs):
+                    centroid = np.mean(dialog_embs, axis=0)
+                    return cosine(centroid, self.reference_centroid)
+
+            dialog_embedder = SentenceTransformerDialogEmbedder(model_name="sentence-transformers/LaBSE")
+            centroid_evaluator = ReferenceCentroidEmbeddingEvaluator(dialog_embedder=dialog_embedder,
+                                                                     reference_dialogs=reference_dialogs)
+
+            print(centroid_evaluator(dialogs))  # distance between candidate and reference dialogues
+                                                # (cosine distance between their centroids)
     """
 
     def __init__(self,
@@ -703,21 +708,22 @@ class BaseLLMJudge(ABC):
     Base class for LLM-based evaluation judges that render a prompt and parse model output.
     This is the base class of built-in judges like LLMJudgeRealDialog or LLMJudgeRefusal.
 
-    Example:
-    ```python
-    from sdialog.evaluation.base import BaseLLMJudge
-    from sdialog import Dialog, Turn
+    Example::
 
-    class MagicJudge(BaseLLMJudge):
-        def judge(self, dialog):
-            # Render prompt (dialog -> text)
-            prompt = self.prompt_template.render(dialog=dialog)
-            raw = self(prompt)  # call underlying LLM
-            return raw  # normally you'd parse into structured output
+        .. code-block:: python
 
-    magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\\n{{ dialog }}")
-    print(magic_judge.judge(dialog))  # Outputs raw LLM response
-    ```
+            from sdialog.evaluation.base import BaseLLMJudge
+            from sdialog import Dialog, Turn
+
+            class MagicJudge(BaseLLMJudge):
+                def judge(self, dialog):
+                    # Render prompt (dialog -> text)
+                    prompt = self.prompt_template.render(dialog=dialog)
+                    raw = self(prompt)  # call underlying LLM
+                    return raw  # normally you'd parse into structured output
+
+            magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\n{{ dialog }}")
+            print(magic_judge.judge(dialog))  # Outputs raw LLM response
     """
 
     def __init__(self,

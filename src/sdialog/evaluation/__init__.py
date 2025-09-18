@@ -23,7 +23,7 @@ from scipy.stats import gaussian_kde
 from pydantic import BaseModel, Field
 from sklearn.cluster import MiniBatchKMeans
 from typing import Union, List, Dict, Tuple
-from typing import Optional, Annotated, Literal
+from typing import Optional, Literal
 from sentence_transformers import SentenceTransformer
 from langchain_core.language_models.base import BaseLanguageModel
 
@@ -119,16 +119,17 @@ class LinguisticFeatureScore(BaseDialogScore):
     Compute linguistic features for a dialogue: mean turn length, hesitation rate,
     Gunning Fog index, and Flesch Reading Ease score.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LinguisticFeatureScore
+    Example::
 
-    scorer_all_feat = LinguisticFeatureScore()
-    scorer_hesit = LinguisticFeatureScore(feature="hesitation-rate")
+        .. code-block:: python
 
-    print(scorer_all_feat(dialog))  # dict of values for all linguistic features
-    print(scorer_hesit(dialog))     # single float value for hesitation rate
-    ```
+            from sdialog.evaluation import LinguisticFeatureScore
+
+            scorer_all_feat = LinguisticFeatureScore()
+            scorer_hesit = LinguisticFeatureScore(feature="hesitation-rate")
+
+            print(scorer_all_feat(dialog))  # dict of values for all linguistic features
+            print(scorer_hesit(dialog))     # single float value for hesitation rate
     """
     def __init__(self,
                  feature: Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"] = None,
@@ -243,17 +244,18 @@ class DialogFlowPPL(BaseDialogFlowScore):
     represent them. Then, given a candidate dialogue, it computes a flow perplexity-like score
     (i.e. "how well it fits on the reference graph").
 
-    Example:
-    ```python
-    from sdialog.evaluation import DialogFlowPPL
+    Example::
 
-    # reference_dialogs = [...]
-    flow_ppl = DialogFlowPPL(reference_dialogs)
+        .. code-block:: python
 
-    value = flow_ppl(candidate_dialog)
+            from sdialog.evaluation import DialogFlowPPL
 
-    print("Flow Perplexity:", value)
-    ```
+            # reference_dialogs = [...]
+            flow_ppl = DialogFlowPPL(reference_dialogs)
+
+            value = flow_ppl(candidate_dialog)
+
+            print("Flow Perplexity:", value)
     """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -331,14 +333,15 @@ class DialogFlowScore(BaseDialogFlowScore):
     represent them. Then, given a candidate dialogue, it computes a flow likelihood score
     (i.e. "how well it fits on the reference graph").
 
-    Example:
-    ```python
-    from sdialog.evaluation import DialogFlowScore
+    Example::
 
-    flow_score = DialogFlowScore(reference_dialogs)
+        .. code-block:: python
 
-    print(flow_score(candidate_dialog))
-    ```
+            from sdialog.evaluation import DialogFlowScore
+
+            flow_score = DialogFlowScore(reference_dialogs)
+
+            print(flow_score(candidate_dialog))
     """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -419,18 +422,19 @@ class DialogFlowScore(BaseDialogFlowScore):
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
     """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeYesNo
+    Example::
 
-    magic_judge = LLMJudgeYesNo("Is the following dialogue magical?\\n{{ dialog }}",
-                                feedback=True)
+        .. code-block:: python
 
-    result = magic_judge.judge(dialog)
+            from sdialog.evaluation import LLMJudgeYesNo
 
-    print(result.yes)
-    print(result.feedback)
-    ```
+            magic_judge = LLMJudgeYesNo("Is the following dialogue magical?\n{{ dialog }}",
+                                        feedback=True)
+
+            result = magic_judge.judge(dialog)
+
+            print(result.yes)
+            print(result.feedback)
     """
     def __init__(self,
                  prompt_template: str,
@@ -500,18 +504,19 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
     """LLM judge for scoring a dialogue with a numerical score and optional feedback.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeScore
+    Example::
 
-    magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue?\\n{{ dialog }}",
-                                feedback=True)
+        .. code-block:: python
 
-    result = magic_judge.judge(dialog)
+            from sdialog.evaluation import LLMJudgeScore
 
-    print(result.score)
-    print(result.feedback)
-    ```
+            magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue?\n{{ dialog }}",
+                                        feedback=True)
+
+            result = magic_judge.judge(dialog)
+
+            print(result.score)
+            print(result.feedback)
     """
     def __init__(self,
                  prompt_template: str,
@@ -549,10 +554,8 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             )
 
         class LLMJudgeScoreOutput(BaseModel):
-            score: Annotated[
-                score_type,
-                Field(ge=min_score, le=max_score)
-            ]
+            # Accept int or float per configuration; Field enforces range.
+            score: Union[int, float] = Field(ge=min_score, le=max_score)
             feedback: Optional[str] = None
 
         BaseDialogScore.__init__(self,
@@ -610,9 +613,9 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             # Clamp score to [min_score, max_score] if out of bounds
             if score < self.min_score or score > self.max_score:
                 old_score = score
-                score = max(self.score_min, min(score, self.max_score))
+                score = max(self.min_score, min(score, self.max_score))
                 logger.warning(
-                    f"Generated score {old_score} is out of bounds [{self.score_min}, {self.max_score}]. "
+                    f"Generated score {old_score} is out of bounds [{self.min_score}, {self.max_score}]. "
                     f"Clamping to valid range: {score}."
                 )
             return score
@@ -626,17 +629,18 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
     LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and feedback.
     Returns an instance of LLMJudgeYesNoOutput.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeRealDialog
+    Example::
 
-    judge_real = LLMJudgeRealDialog(feedback=True)
+        .. code-block:: python
 
-    result = judge_real.judge(dialog)
+            from sdialog.evaluation import LLMJudgeRealDialog
 
-    print("Real?", result.yes)
-    print("Reason:", result.feedback)
-    ```
+            judge_real = LLMJudgeRealDialog(feedback=True)
+
+            result = judge_real.judge(dialog)
+
+            print("Real?", result.yes)
+            print("Reason:", result.feedback)
     """  # noqa: E501
     def __init__(self,
                  feedback: bool = False,
@@ -665,18 +669,19 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
     LLM judge for evaluating whether a dialogue appears real (human) or synthetic (machine-generated),
     providing a Likert score between 1 (definitely synthetic) and 5 (definitely real), with optional feedback.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeRealDialogLikertScore
+    Example::
 
-    judge_real = LLMJudgeRealDialogLikertScore(feedback=True)
+        .. code-block:: python
 
-    result = judge_real.judge(dialog)
-    # score = judge_real(dialog)
+            from sdialog.evaluation import LLMJudgeRealDialogLikertScore
 
-    print("Likert Score:", result.score)  # score from 1 to 5
-    print("Reason:", result.feedback)
-    ```
+            judge_real = LLMJudgeRealDialogLikertScore(feedback=True)
+
+            result = judge_real.judge(dialog)
+            # score = judge_real(dialog)
+
+            print("Likert Score:", result.score)  # score from 1 to 5
+            print("Reason:", result.feedback)
     """
     def __init__(self,
                  feedback: bool = False,
@@ -697,7 +702,7 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
         super().__init__(prompt_template,
                          model=model,
                          score_type=int,
-                         score_min=1,
+                         min_score=1,
                          max_score=5,
                          feedback=feedback,
                          **llm_kwargs)
@@ -708,18 +713,19 @@ class LLMJudgeRealDialogScore(LLMJudgeScore):
     LLM judge for evaluating how "real" (human-like) or "synthetic" a dialogue appears
     on a configurable numeric range.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeRealDialogScore
+    Example::
 
-    judge_real = LLMJudgeRealDialogScore(min_score=0, max_score=10, feedback=True)
+        .. code-block:: python
 
-    result = judge_real.judge(dialog)
-    # score = judge_real(dialog)
+            from sdialog.evaluation import LLMJudgeRealDialogScore
 
-    print("Score:", result.score)  # score from 0 to 10
-    print("Reason:", result.feedback)
-    ```
+            judge_real = LLMJudgeRealDialogScore(min_score=0, max_score=10, feedback=True)
+
+            result = judge_real.judge(dialog)
+            # score = judge_real(dialog)
+
+            print("Score:", result.score)  # score from 0 to 10
+            print("Reason:", result.feedback)
     """
     def __init__(self,
                  min_score: int = 0,
@@ -756,17 +762,18 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
     """
     LLM judge for evaluating if a dialogue contains a refusal response.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeRefusal
+    Example::
 
-    judge_refusal = LLMJudgeRefusal(feedback=True)
+        .. code-block:: python
 
-    result = judge_refusal.judge(dialog)
+            from sdialog.evaluation import LLMJudgeRefusal
 
-    print("Refused?", result.yes)
-    print("Reason:", result.feedback)
-    ```
+            judge_refusal = LLMJudgeRefusal(feedback=True)
+
+            result = judge_refusal.judge(dialog)
+
+            print("Refused?", result.yes)
+            print("Reason:", result.feedback)
     """
     def __init__(self,
                  feedback: bool = False,
@@ -793,20 +800,21 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
 class LLMJudgePersonaAttributes(LLMJudgeYesNo):
     """LLM judge for evaluating if a speaker follows the persona attributes in a dialogue.
 
-    Example:
-    ```python
-    from sdialog.personas import Doctor
-    from sdialog.evaluation import LLMJudgePersonaAttributes
+    Example::
 
-    reference_persona = Doctor(name="Dr. Smith", specialty="cardiology")
-    judge_persona = LLMJudgePersonaAttributes(persona=reference_persona,
-                                              speaker="Doctor",
-                                              feedback=True)
-    result = judge_persona.judge(dialog)
+        .. code-block:: python
 
-    print("Matches persona?", result.yes)
-    print("Reason:", result.feedback)
-    ```
+            from sdialog.personas import Doctor
+            from sdialog.evaluation import LLMJudgePersonaAttributes
+
+            reference_persona = Doctor(name="Dr. Smith", specialty="cardiology")
+            judge_persona = LLMJudgePersonaAttributes(persona=reference_persona,
+                                                      speaker="Doctor",
+                                                      feedback=True)
+            result = judge_persona.judge(dialog)
+
+            print("Matches persona?", result.yes)
+            print("Reason:", result.feedback)
     """
     def __init__(self,
                  persona: BasePersona,
@@ -844,16 +852,17 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
     Dialog embedder using SentenceTransformer.
     Can embed a dialog as the mean of turn embeddings or as a single embedding of the whole dialog text.
 
-    Example:
-    ```python
-    from sdialog.evaluation import SentenceTransformerDialogEmbedder
+    Example::
 
-    dialog_embedder = SentenceTransformerDialogEmbedder(model_name="sentence-transformers/LaBSE")
+        .. code-block:: python
 
-    emb = dialog_embedder(dialog)
+            from sdialog.evaluation import SentenceTransformerDialogEmbedder
 
-    print(emb.shape)
-    ```
+            dialog_embedder = SentenceTransformerDialogEmbedder(model_name="sentence-transformers/LaBSE")
+
+            emb = dialog_embedder(dialog)
+
+            print(emb.shape)
     """
     def __init__(self,
                  model_name: str = "sentence-transformers/LaBSE",
@@ -905,18 +914,19 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
     """
     Evaluator comparing candidate centroid to a reference centroid via cosine similarity.
 
-    Example:
-    ```python
-    from sdialog.evaluation import SentenceTransformerDialogEmbedder
-    from sdialog.evaluation import ReferenceCentroidEmbeddingEvaluator
+    Example::
 
-    dialog_embedder = SentenceTransformerDialogEmbedder()
+        .. code-block:: python
 
-    evaluator = ReferenceCentroidEmbeddingEvaluator(dialog_embedder, reference_dialogs)
+            from sdialog.evaluation import SentenceTransformerDialogEmbedder
+            from sdialog.evaluation import ReferenceCentroidEmbeddingEvaluator
 
-    # How far are the candidate dialogs from the reference dialogues? (centroid-wise)
-    print(evaluator(candidate_dialogs))
-    ```
+            dialog_embedder = SentenceTransformerDialogEmbedder()
+
+            evaluator = ReferenceCentroidEmbeddingEvaluator(dialog_embedder, reference_dialogs)
+
+            # How far are the candidate dialogs from the reference dialogues? (centroid-wise)
+            print(evaluator(candidate_dialogs))
     """
     def __init__(self,
                  dialog_embedder: BaseDialogEmbedder,
@@ -1028,16 +1038,17 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
     """
     Evaluate distribution divergence between reference and candidate dialog scores using KDE.
 
-    Example:
-    ```python
-    from sdialog.evaluation import KDEDistanceEvaluator, LinguisticFeatureScore
+    Example::
 
-    gunning_fog = LinguisticFeatureScore(feature="gunning-fog")
-    kde_eval = KDEDistanceEvaluator(dialog_score=gunning_fog,
-                                    reference_dialogues=reference_dialogs)
+        .. code-block:: python
 
-    print("KL divergence:", kde_eval(candidate_dialogs))
-    ```
+            from sdialog.evaluation import KDEDistanceEvaluator, LinguisticFeatureScore
+
+            gunning_fog = LinguisticFeatureScore(feature="gunning-fog")
+            kde_eval = KDEDistanceEvaluator(dialog_score=gunning_fog,
+                                            reference_dialogues=reference_dialogs)
+
+            print("KL divergence:", kde_eval(candidate_dialogs))
     """
     def __init__(self,
                  dialog_score: BaseDialogScore,
@@ -1136,16 +1147,17 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
     """
     Evaluate Frechet distance between Gaussian fits of reference and candidate score distributions.
 
-    Example:
-    ```python
-    from sdialog.evaluation import FrechetDistanceEvaluator, LinguisticFeatureScore
+    Example::
 
-    turn_length = LinguisticFeatureScore(feature="mean-turn-length")
-    fd_eval = FrechetDistanceEvaluator(dialog_score=turn_length,
-                                       reference_dialogues=reference_dialogs)
+        .. code-block:: python
 
-    print("Frechet distance:", fd_eval(candidate_dialogs))
-    ```
+            from sdialog.evaluation import FrechetDistanceEvaluator, LinguisticFeatureScore
+
+            turn_length = LinguisticFeatureScore(feature="mean-turn-length")
+            fd_eval = FrechetDistanceEvaluator(dialog_score=turn_length,
+                                               reference_dialogues=reference_dialogs)
+
+            print("Frechet distance:", fd_eval(candidate_dialogs))
     """
     def __init__(self,
                  dialog_score: BaseDialogScore,
@@ -1228,14 +1240,15 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
     Frechet distance evaluator based on BERT sentence-pair embeddings.
     See: https://aclanthology.org/2021.findings-acl.193/
 
-    Example:
-    ```python
-    from sdialog.evaluation import FrechetBERTDistanceEvaluator
+    Example::
 
-    fb_distance = FrechetBERTDistanceEvaluator(reference_dialogs)
+        .. code-block:: python
 
-    print(fb_distance(candidate_dialogs))
-    ```
+            from sdialog.evaluation import FrechetBERTDistanceEvaluator
+
+            fb_distance = FrechetBERTDistanceEvaluator(reference_dialogs)
+
+            print(fb_distance(candidate_dialogs))
     """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -1396,14 +1409,15 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
     Precision-Recall distance evaluator based on BERT embeddings.
     See: https://aclanthology.org/2021.findings-acl.193/
 
-    Example:
-    ```python
-    from sdialog.evaluation import PrecisionRecallDistanceEvaluator
+    Example::
 
-    pr_distance = PrecisionRecallDistanceEvaluator(reference_dialogs)
+        .. code-block:: python
 
-    print(pr_distance(candidate_dialogs))
-    ```
+            from sdialog.evaluation import PrecisionRecallDistanceEvaluator
+
+            pr_distance = PrecisionRecallDistanceEvaluator(reference_dialogs)
+
+            print(pr_distance(candidate_dialogs))
     """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
@@ -1565,18 +1579,19 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
 class StatsEvaluator(BaseDatasetScoreEvaluator):
     """Statistics evaluator (mean/std/min/max/median).
 
-    Example:
-    ```python
-    from sdialog.evaluation import StatsEvaluator, LinguisticFeatureScore
+    Example::
 
-    hesitation_rate = LinguisticFeatureScore(feature="hesitation-rate")
-    stats_eval = StatsEvaluator(hesitation_rate)
+        .. code-block:: python
 
-    stats = stats_eval(candidate_dialogs)
+            from sdialog.evaluation import StatsEvaluator, LinguisticFeatureScore
 
-    # Print descriptive statistics for hesitation rate
-    print(stats)  # {'mean': ..., 'std': ..., ...}
-    ```
+            hesitation_rate = LinguisticFeatureScore(feature="hesitation-rate")
+            stats_eval = StatsEvaluator(hesitation_rate)
+
+            stats = stats_eval(candidate_dialogs)
+
+            # Print descriptive statistics for hesitation rate
+            print(stats)  # {'mean': ..., 'std': ..., ...}
     """
     def __init__(self,
                  dialog_score: BaseDialogScore,
@@ -1641,16 +1656,17 @@ class MeanEvaluator(StatsEvaluator):
     """
     Evaluator for computing the mean of dialog scores.
 
-    Example:
-    ```python
-    from sdialog.evaluation import MeanEvaluator, LinguisticFeatureScore
+    Example::
 
-    flesch_score = LinguisticFeatureScore(feature="flesch-reading-ease")
+        .. code-block:: python
 
-    mean_eval = MeanEvaluator(flesch_score)
+            from sdialog.evaluation import MeanEvaluator, LinguisticFeatureScore
 
-    print("Average Flesch reading ease:", mean_eval(candidate_dialogs))
-    ```
+            flesch_score = LinguisticFeatureScore(feature="flesch-reading-ease")
+
+            mean_eval = MeanEvaluator(flesch_score)
+
+            print("Average Flesch reading ease:", mean_eval(candidate_dialogs))
     """
     def __init__(self,
                  dialog_score: BaseDialogScore,
@@ -1687,16 +1703,17 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
     """
     Evaluator for computing the frequency or percentage of dialogues matching a condition (e.g., refusal responses).
 
-    Example:
-    ```python
-    from sdialog.evaluation import FrequencyEvaluator, LLMJudgeRealDialog
+    Example::
 
-    judge_real = LLMJudgeRealDialog()
+        .. code-block:: python
 
-    freq = FrequencyEvaluator(judge_real)
+            from sdialog.evaluation import FrequencyEvaluator, LLMJudgeRealDialog
 
-    print(freq(dialogs))  # Outputs proportion of realistic dialogues
-    ```
+            judge_real = LLMJudgeRealDialog()
+
+            freq = FrequencyEvaluator(judge_real)
+
+            print(freq(dialogs))  # Outputs proportion of realistic dialogues
     """
     def __init__(self,
                  dialog_score: BaseDialogScore,
@@ -1761,28 +1778,29 @@ class DatasetComparator:
     """
     Run multiple evaluators over several dialog datasets and collect results.
 
-    Example:
-    ```python
-    from sdialog.evaluation import LLMJudgeRealDialog, DialogFlowPPL
-    from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator
-    from sdialog.evaluation import DatasetComparator
+    Example::
 
-    # Dialog scores
-    judge_real = LLMJudgeRealDialog()
-    flow_score = DialogFlowScore(reference_dialogs)
+        .. code-block:: python
 
-    # Comparator with two evaluators
-    comparator = DatasetComparator(evaluators=[FrequencyEvaluator(judge_real),
-                                               MeanEvaluator(flow_score)])
+            from sdialog.evaluation import LLMJudgeRealDialog, DialogFlowPPL
+            from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator
+            from sdialog.evaluation import DatasetComparator
 
-    comparator({"modelA": modelA_dialogs,  # print table by default
-                "modelB": modelB_dialogs})
-    # results = comparator({"modelA": modelA_dialogs,
-    #                       "modelB": modelB_dialogs},
-    #                      output="dict")  # return results as dict
+            # Dialog scores
+            judge_real = LLMJudgeRealDialog()
+            flow_score = DialogFlowScore(reference_dialogs)
 
-    comparator.plot()  # plot results for each evaluator that support it
-    ```
+            # Comparator with two evaluators
+            comparator = DatasetComparator(evaluators=[FrequencyEvaluator(judge_real),
+                                                       MeanEvaluator(flow_score)])
+
+            comparator({"modelA": modelA_dialogs,  # print table by default
+                        "modelB": modelB_dialogs})
+            # results = comparator({"modelA": modelA_dialogs,
+            #                       "modelB": modelB_dialogs},
+            #                      output="dict")  # return results as dict
+
+            comparator.plot()  # plot results for each evaluator that support it
     """
     def __init__(self, evaluators: List[BaseDatasetEvaluator]):
         """

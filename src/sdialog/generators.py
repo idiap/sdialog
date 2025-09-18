@@ -474,15 +474,15 @@ class DialogGenerator:
       2. Call generate(...) to produce a Dialog (or raw structured output).
       3. Access system prompt via prompt() for debugging / inspection.
 
-    Example:
-    ```python
-        from sdialog.generators import DialogGenerator
+    Example::
 
-        gen = DialogGenerator("Generate a short friendly greeting between two speakers")
+        .. code-block:: python
+            from sdialog.generators import DialogGenerator
 
-        dialog = gen.generate()
-        dialog.print()
-    ```
+            gen = DialogGenerator("Generate a short friendly greeting between two speakers")
+
+            dialog = gen.generate()
+            dialog.print()
     """
     def __init__(self,
                  dialogue_details: str,
@@ -634,19 +634,20 @@ class PersonaDialogGenerator(DialogGenerator):
     """
     Generates dialogues between two personas (or Agents wrapping personas) using an LLM.
 
-    Example:
-    ```python
-        from sdialog.personas import Persona
-        from sdialog.generators import PersonaDialogGenerator
+    Example::
 
-        p1 = Persona(name="Alice", role="Curious student")
-        p2 = Persona(name="Mentor", role="Helpful tutor")
+        .. code-block:: python
 
-        gen = PersonaDialogGenerator(p1, p2, dialogue_details="Explain one concept briefly.")
+            from sdialog.personas import Persona
+            from sdialog.generators import PersonaDialogGenerator
 
-        dialog = gen()
-        dialog.print()
-    ```
+            p1 = Persona(name="Alice", role="Curious student")
+            p2 = Persona(name="Mentor", role="Helpful tutor")
+
+            gen = PersonaDialogGenerator(p1, p2, dialogue_details="Explain one concept briefly.")
+
+            dialog = gen()
+            dialog.print()
     """
     _agent_a = None
     _agent_b = None
@@ -778,23 +779,24 @@ class PersonaGenerator(BaseAttributeModelGenerator):
     """
     Generates persona objects (Persona subclasses of BaseAttributeModel) with randomized or LLM-populated attributes.
 
-    Example:
-    ```python
-        from sdialog.personas import Doctor
-        from sdialog.generators import PersonaGenerator
+    Example::
 
-        base_persona = Doctor(specialty="Cardiology")
+        .. code-block:: python
 
-        doctor_generator = PersonaGenerator(base_persona)
+            from sdialog.personas import Doctor
+            from sdialog.generators import PersonaGenerator
 
-        doctor_generator.set_attribute_generators(
-            years_of_experience="{4-10}",
-            gender=["male", "female", "non-binary"]
-        )
+            base_persona = Doctor(specialty="Cardiology")
 
-        doctor = doctor_generator.generate()
-        doctor.print()
-    ```
+            doctor_generator = PersonaGenerator(base_persona)
+
+            doctor_generator.set_attribute_generators(
+                years_of_experience="{4-10}",
+                gender=["male", "female", "non-binary"]
+            )
+
+            doctor = doctor_generator.generate()
+            doctor.print()
     """
     def __init__(self,
                  persona: BasePersona,
@@ -841,23 +843,24 @@ class ContextGenerator(BaseAttributeModelGenerator):
     """
     Generates Context objects with randomized or LLM-populated attributes.
 
-    Example:
-    ```python
-        from sdialog import Context
-        from sdialog.generators import ContextGenerator
+    Example::
 
-        base_context = Context(location="Mars Forward Base Alpha")
+        .. code-block:: python
 
-        ctx_generator = ContextGenerator(base_context)
+            from sdialog import Context
+            from sdialog.generators import ContextGenerator
 
-        ctx_generator.set_attribute_generators(
-            environment=["Pressurized dome", "Dusty lab", "Airlock staging zone"],
-            topics=["terraforming", "resource logistics", "crew morale"]
-        )
+            base_context = Context(location="Mars Forward Base Alpha")
 
-        ctx = ctx_generator.generate()
-        ctx.print()
-    ```
+            ctx_generator = ContextGenerator(base_context)
+
+            ctx_generator.set_attribute_generators(
+                environment=["Pressurized dome", "Dusty lab", "Airlock staging zone"],
+                topics=["terraforming", "resource logistics", "crew morale"]
+            )
+
+            ctx = ctx_generator.generate()
+            ctx.print()
     """
     def __init__(self,
                  context: Context,
@@ -910,16 +913,17 @@ class Paraphraser:
       * Whole dialogue paraphrasing (default, returns full set of possibly modified turns).
       * Turn-by-turn paraphrasing (stream-like, for smaller LLMs).
 
-    Example:
-    ```python
-        from sdialog.generators import Paraphraser
+    Example::
 
-        # Assume 'original_dialog' is an existing `Dialog` with one of the speaker being "Bot"
-        paraphraser = Paraphraser(target_speaker="Bot")
+        .. code-block:: python
 
-        new_dialog = paraphraser(original_dialog)
-        new_dialog.print()
-    ```
+            from sdialog.generators import Paraphraser
+
+            # Assume 'original_dialog' is an existing `Dialog` with one of the speaker being "Bot"
+            paraphraser = Paraphraser(target_speaker="Bot")
+
+            new_dialog = paraphraser(original_dialog)
+            new_dialog.print()
     """
     def __init__(self,
                  extra_instructions: str = "Keep entities and values identical while making it sound more natural",

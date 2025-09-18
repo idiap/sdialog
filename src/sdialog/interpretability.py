@@ -178,26 +178,27 @@ class BaseHook(ABC):
 class DirectionSteerer(BaseSteerer):
     """Concrete Steerer binding a direction vector for additive or subtractive steering.
 
-    Example:
-    ```python
-    import torch
-    from sdialog.agents import Agent
-    from sdialog.interpretability import Inspector, DirectionSteerer
+    Example::
 
-    agent = Agent()
-    insp = Inspector(target='model.layers.5.post_attention_layernorm')
-    agent = agent | insp
+        .. code-block:: python
 
-    direction = torch.randn(4096)  # Random direction in activation space
-    steer = DirectionSteerer(direction)
+            import torch
+            from sdialog.agents import Agent
+            from sdialog.interpretability import Inspector, DirectionSteerer
 
-    # Add the direction (push activations along vector)
-    insp = steer + insp
-    # Or remove its projection:
-    insp = steer - insp
+            agent = Agent()
+            insp = Inspector(target='model.layers.5.post_attention_layernorm')
+            agent = agent | insp
 
-    agent("Test prompt")  # steering applied during generation
-    ```
+            direction = torch.randn(4096)  # Random direction in activation space
+            steer = DirectionSteerer(direction)
+
+            # Add the direction (push activations along vector)
+            insp = steer + insp
+            # Or remove its projection:
+            insp = steer - insp
+
+            agent("Test prompt")  # steering applied during generation
     """
     def __init__(self, direction, inspector=None):
         """
@@ -237,26 +238,27 @@ class ResponseHook(BaseHook):
     A hook class for capturing response-level information.
     This class is not meant to be used directly, but rather used by the `Inspector` class.
 
-    Example:
-    ```python
-    from sdialog.agents import Agent
-    from sdialog.interpretability import ResponseHook
+    Example::
 
-    agent = Agent()
-    hook = ResponseHook(agent)
+        .. code-block:: python
 
-    hook.response_begin(agent.memory_dump())
-    agent("Hi there")
-    hook.response_end()
+            from sdialog.agents import Agent
+            from sdialog.interpretability import ResponseHook
 
-    print("Generation info:", hook.responses[-1]['output'][0].response)
-    # Output:
-    # {'input_ids': tensor([ 271, 9906,   11, 1268,  649]),
-    # 'text': '\\n\\nHello, how can',
-    # 'tokens': ['ĊĊ', 'Hello', ',', 'Ġhow', 'Ġcan'],
-    # 'response_index': 0}
-    hook.remove()
-    ```
+            agent = Agent()
+            hook = ResponseHook(agent)
+
+            hook.response_begin(agent.memory_dump())
+            agent("Hi there")
+            hook.response_end()
+
+            print("Generation info:", hook.responses[-1]['output'][0].response)
+            # Output:
+            # {'input_ids': tensor([ 271, 9906,   11, 1268,  649]),
+            # 'text': '\n\nHello, how can',
+            # 'tokens': ['ĊĊ', 'Hello', ',', 'Ġhow', 'Ġcan'],
+            # 'response_index': 0}
+            hook.remove()
     """
     def __init__(self, agent):
         """
@@ -339,34 +341,35 @@ class ActivationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     This class is not meant to be used directly, but rather used by the `Inspector` class.
 
-    Example:
-    ```python
-    from sdialog.agents import Agent
-    from sdialog.interpretability import ResponseHook, ActivationHook
+    Example::
 
-    agent = Agent()
+        .. code-block:: python
 
-    resp_hook = ResponseHook(agent)
-    act_hook = ActivationHook(
-        cache_key="my_target",
-        layer_key="model.layers.10.post_attention_layernorm",
-        agent=agent,
-        response_hook=resp_hook
-    )
-    resp_hook.register(agent.base_model)
-    act_hook.register(agent.base_model)
+            from sdialog.agents import Agent
+            from sdialog.interpretability import ResponseHook, ActivationHook
 
-    resp_hook.response_begin(agent.memory_dump())
-    agent("Hello world!")
-    resp_hook.response_end()
+            agent = Agent()
 
-    # Cached target activations for first (and only) response
-    acts = agent._hook_response_act[0]["my_target"][0]  # response index 0, token index 0
+            resp_hook = ResponseHook(agent)
+            act_hook = ActivationHook(
+                cache_key="my_target",
+                layer_key="model.layers.10.post_attention_layernorm",
+                agent=agent,
+                response_hook=resp_hook
+            )
+            resp_hook.register(agent.base_model)
+            act_hook.register(agent.base_model)
 
-    print(acts)
-    # Output:
-    # tensor([[ 0.1182,  0.1152, -0.0045,  ...,  0.1836, -0.0549, -0.1924]], dtype=torch.bfloat16)
-    ```
+            resp_hook.response_begin(agent.memory_dump())
+            agent("Hello world!")
+            resp_hook.response_end()
+
+            # Cached target activations for first (and only) response
+            acts = agent._hook_response_act[0]["my_target"][0]  # response index 0, token index 0
+
+            print(acts)
+            # Output:
+            # tensor([[ 0.1182,  0.1152, -0.0045,  ...,  0.1836, -0.0549, -0.1924]], dtype=torch.bfloat16)
     """
     def __init__(self, cache_key, layer_key, agent, response_hook,
                  steering_function=None, steering_interval=(0, -1)):
@@ -456,26 +459,28 @@ class Inspector:
     """
     Main class to manage layer hooks, cached activations, and optional steering functions for an Agent.
 
-    Example:
-    ```python
-    from sdialog.agents import Agent
-    from sdialog.interpretability import Inspector
+    Example::
 
-    agent = Agent()
-    insp = Inspector(target='model.layers.2.post_attention_layernorm')
-    agent = agent | insp  # pipe attach
+        .. code-block:: python
 
-    agent("Explain gravity briefly.")  # Generates first response
-    agent("Sounds cool!")  # Generates second response
+            from sdialog.agents import Agent
+            from sdialog.interpretability import Inspector
 
-    print("Num responses captured:", len(insp))
-    print("Last response, first token string:", insp[-1][0])
-    print("Last response, first token activation:", insp[-1][0].act)
-    # Output:
-    # Num responses captured: 2
-    # Last response, first token string: ĊĊ
-    # Last response, first token activation: tensor([[-0.0109, -0.1128, -0.1216,  ..., -0.0157,  0.2100, -0.2637]])
-    ```
+            agent = Agent()
+            insp = Inspector(target='model.layers.2.post_attention_layernorm')
+            agent = agent | insp  # pipe attach
+
+            agent("Explain gravity briefly.")  # Generates first response
+            agent("Sounds cool!")  # Generates second response
+
+            print("Num responses captured:", len(insp))
+            print("Last response, first token string:", insp[-1][0])
+            print("Last response, first token activation:", insp[-1][0].act)
+            # Output:
+            # Num responses captured: 2
+            # Last response, first token string: ĊĊ
+            # Last response, first token activation:
+            # tensor([[-0.0109, -0.1128, -0.1216,  ..., -0.0157,  0.2100, -0.2637]])
     """
     def __init__(self,
                  target: Union[Dict, List[str], str] = None,

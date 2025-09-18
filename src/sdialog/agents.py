@@ -47,30 +47,31 @@ class Agent:
     - Interpretability hooks (token / layer events, steering)
     - Simple dialogue loop utilities (dialog_with)
 
-    Example:
-    ```python
-        from sdialog import Persona, Context
-        from sdialog.agents import Agent
+    Example::
 
-        # Create two agents
-        user = Agent(persona=Persona(name="Dr. Nebula",
-                                     role="Astrobotanist seeking alien spores"),
-                     name="Scientist")
-        bot = Agent(persona=Persona(name="StationCore",
-                                    role="Sarcastic habitat control AI"),
-                    name="Bot")
+        .. code-block:: python
 
-        # Create an (optional) context for the conversation
-        context = Context(location="Orbiting Research Station Theta-9",
-                          environment="Zero-gravity greenhouse",
-                          objects=["alien spores", "hydroponic garden", "research equipment"])
+            from sdialog import Persona, Context
+            from sdialog.agents import Agent
 
-        # Create a dialogue
-        dialog = user.dialog_with(bot, context=context)
+            # Create two agents
+            user = Agent(persona=Persona(name="Dr. Nebula",
+                                         role="Astrobotanist seeking alien spores"),
+                         name="Scientist")
+            bot = Agent(persona=Persona(name="StationCore",
+                                        role="Sarcastic habitat control AI"),
+                        name="Bot")
 
-        # Print dialog
-        dialog.print()
-    ```
+            # Create an (optional) context for the conversation
+            context = Context(location="Orbiting Research Station Theta-9",
+                              environment="Zero-gravity greenhouse",
+                              objects=["alien spores", "hydroponic garden", "research equipment"])
+
+            # Create a dialogue
+            dialog = user.dialog_with(bot, context=context)
+
+            # Print dialog
+            dialog.print()
     """
     _STOP_WORD = "STOP"
     _STOP_WORD_TEXT = "(bye bye!)"
