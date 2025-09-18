@@ -30,7 +30,7 @@ autodoc_mock_imports = ['pydantic', 'print_color', 'tqdm', 'langchain', 'langcha
 
 _version_re__ = r"__version__\s*=\s*['\"]([^'\"]+)['\"]"
 __cwd__ = path.abspath(path.dirname(__file__))
-__init_file__ = path.join(__cwd__, '../src/sdialog/__init__.py')
+__init_file__ = path.join(__cwd__, '../src/sdialog/util.py')
 with open(__init_file__, encoding="utf-8") as __init__py:
     __version__ = re.search(_version_re__, __init__py.read()).group(1)
 
