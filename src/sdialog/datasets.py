@@ -77,6 +77,7 @@ class STAR:
         :rtype: Union[dict, str]
         """
         with open(os.path.join(STAR._path, f"tasks/{task_name}/responses.json")) as reader:
+            responses = json.load(reader)
             responses = {key: re.sub(r"{(.+?)(?::\w+?)?}", lambda m: m.group(1).upper(), value)
                          for key, value in responses.items()
                          if key != "out_of_scope"}
