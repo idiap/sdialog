@@ -115,10 +115,10 @@ class Dialog(BaseModel):
     :vartype model: Optional[str]
     :ivar seed: The random seed used for generation.
     :vartype seed: Optional[int]
-    :ivar dialogId: Unique identifier for the dialogue.
-    :vartype dialogId: Optional[int]
-    :ivar dialogIdParent: ID of the parent dialogue, if any.
-    :vartype dialogIdParent: Optional[int]
+    :ivar id: Unique identifier for the dialogue.
+    :vartype id: Optional[int]
+    :ivar idParent: ID of the parent dialogue, if any.
+    :vartype idParent: Optional[int]
     :ivar complete: Whether the dialogue is complete.
     :vartype complete: Optional[bool]
     :ivar personas: Personas used in the dialogue, mapping speaker names to their attributes.
