@@ -97,43 +97,48 @@ html_theme = 'sphinx_rtd_theme'  # 'nature'
 html_static_path = ['_static']
 
 
-# -- Post-build hook: generate llm.txt from api/sdialog.html --------------
-def _extract_text_from_html(html: str) -> str:
-    """Extract readable text from HTML.
+# -- Post-build hook: generate llm.txt (Markdown) from api/sdialog.html -----
+def _extract_markdown_from_html(html: str) -> str:
+    """Convert HTML to Markdown, preserving structure when possible.
 
-    Tries BeautifulSoup if available; falls back to a simple tag-strip regex.
+    Uses `markdownify` if available; otherwise falls back to a naive tag-strip.
     """
-    # Prefer BeautifulSoup when available for better structure handling
     try:
-        from bs4 import BeautifulSoup  # type: ignore
+        from markdownify import markdownify as md  # type: ignore
 
-        soup = BeautifulSoup(html, "html.parser")
-        # Remove script/style to avoid noise
-        for tag in soup(["script", "style"]):
-            tag.decompose()
-        text = soup.getText()
+        # Strip noisy tags and prefer ATX (#) headings
+        md_text = md(
+            html,
+            heading_style="ATX",
+            strip=["script", "style", "a"],
+        )
     except Exception:
-        # Very naive fallback: strip tags and collapse whitespace
-        text = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", "", html, flags=re.I)
-        text = re.sub(r"<[^>]+>", "\n", text)
-        text = re.sub(r"\s+", " ", text)
-        # Re-introduce minimal line breaks
-        text = text.replace(" . ", ". ")
-    # Normalize consecutive blank lines
-    lines = [ln.strip() for ln in text.splitlines()]
+        # Fallback: remove script/style, strip tags, collapse whitespace
+        md_text = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", "", html, flags=re.I)
+        md_text = re.sub(r"<[^>]+>", "\n", md_text)
+        # Collapse space but keep some line breaks
+        md_text = re.sub(r"\r?\n\s*\r?\n\s*\r?\n+", "\n\n", md_text)
+        md_text = re.sub(r"[ \t]+", " ", md_text)
+
+    # Normalize consecutive blank lines to max 2 and trim
+    lines = [ln.rstrip() for ln in md_text.splitlines()]
     compact = []
-    last_blank = False
+    blank_count = 0
     for ln in lines:
-        blank = (ln == "")
-        if blank and last_blank:
-            continue
-        compact.append(ln)
-        last_blank = blank
-    return "\n".join(compact).strip() + "\n"
+        if ln.strip() == "":
+            blank_count += 1
+            if blank_count > 2:
+                continue
+            compact.append("")
+        else:
+            blank_count = 0
+            compact.append(ln)
+    out = "\n".join(compact).strip()
+    return (out + "\n") if out else ""
 
 
 def _write_llm_txt(app, exception):  # noqa: D401
-    """Sphinx build-finished hook to emit llm.txt from api/sdialog.html."""
+    """Sphinx build-finished hook to emit Markdown llm.txt from api/sdialog.html."""
     # Only run on successful HTML builds
     if exception is not None:
         return
@@ -156,11 +161,11 @@ def _write_llm_txt(app, exception):  # noqa: D401
     try:
         with open(html_path, "r", encoding="utf-8") as f:
             html = f.read()
-        text = _extract_text_from_html(html)
+        md_text = _extract_markdown_from_html(html)
 
         llm_txt_path = os.path.join(outdir, "llm.txt")
         with open(llm_txt_path, "w", encoding="utf-8") as f:
-            f.write(text)
+            f.write(md_text)
         logger.info("llm.txt: generated at %s", llm_txt_path)
     except Exception as e:
         logger.warning("llm.txt: failed to generate (%s)", e)
