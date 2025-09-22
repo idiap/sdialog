@@ -15,16 +15,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 
-from scipy import linalg
 from tqdm.auto import tqdm
-from scipy.stats import norm
 from math import exp, log, sqrt
+from pydantic import BaseModel, Field, create_model
+from typing import Optional, Literal, Union, List, Dict, Tuple
+
+from scipy import linalg
+from scipy.stats import norm, gaussian_kde
 from sklearn.manifold import TSNE
-from scipy.stats import gaussian_kde
-from pydantic import BaseModel, Field
 from sklearn.cluster import MiniBatchKMeans
-from typing import Union, List, Dict, Tuple
-from typing import Optional, Literal
 from sentence_transformers import SentenceTransformer
 from langchain_core.language_models.base import BaseLanguageModel
 
@@ -113,6 +112,19 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     yes: Union[bool, List[bool]]
     feedback: Optional[Union[str, List[str]]] = None
+
+
+class LLMJudgeScoreOutput(BaseModel):
+    """
+    Structured output used by numeric score LLM judgments.
+
+    :param score: Numeric score (int or float).
+    :type score: Union[int, float]
+    :param feedback: Optional explanatory feedback.
+    :type feedback: Optional[str]
+    """
+    score: Union[int, float] = None
+    feedback: Optional[str] = None
 
 
 class LinguisticFeatureScore(BaseDialogScore):
@@ -574,16 +586,18 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                 "Consider using int for discrete scales."
             )
 
-        class LLMJudgeScoreOutput(BaseModel):
-            # Accept int or float per configuration; Field enforces range.
-            score: Union[int, float] = Field(ge=min_score, le=max_score)
-            feedback: Optional[str] = None
+        # Build the model dynamically with the user provided score_type and range (min_score, max_score)
+        LLMJudgeScoreRangeOutput = create_model(
+            "LLMJudgeScoreRangeOutput",
+            __base__=LLMJudgeScoreOutput,
+            score=(score_type, Field(ge=min_score, le=max_score)),
+        )
 
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
         BaseLLMJudge.__init__(self,
                               model=model,
-                              output_format=LLMJudgeScoreOutput,
+                              output_format=LLMJudgeScoreRangeOutput,
                               prompt_template=prompt_template,
                               **llm_kwargs)
 
