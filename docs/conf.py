@@ -95,3 +95,79 @@ html_theme = 'sphinx_rtd_theme'  # 'nature'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+# -- Post-build hook: generate llm.txt from api/sdialog.html --------------
+def _extract_text_from_html(html: str) -> str:
+    """Extract readable text from HTML.
+
+    Tries BeautifulSoup if available; falls back to a simple tag-strip regex.
+    """
+    # Prefer BeautifulSoup when available for better structure handling
+    try:
+        from bs4 import BeautifulSoup  # type: ignore
+
+        soup = BeautifulSoup(html, "html.parser")
+        # Remove script/style to avoid noise
+        for tag in soup(["script", "style"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+    except Exception:
+        # Very naive fallback: strip tags and collapse whitespace
+        import re as _re
+
+        text = _re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", "", html, flags=_re.I)
+        text = _re.sub(r"<[^>]+>", "\n", text)
+        text = _re.sub(r"\s+", " ", text)
+        # Re-introduce minimal line breaks
+        text = text.replace(" . ", ". ")
+    # Normalize consecutive blank lines
+    lines = [ln.strip() for ln in text.splitlines()]
+    compact = []
+    last_blank = False
+    for ln in lines:
+        blank = (ln == "")
+        if blank and last_blank:
+            continue
+        compact.append(ln)
+        last_blank = blank
+    return "\n".join(compact).strip() + "\n"
+
+
+def _write_llm_txt(app, exception):  # noqa: D401
+    """Sphinx build-finished hook to emit llm.txt from api/sdialog.html."""
+    # Only run on successful HTML builds
+    if exception is not None:
+        return
+    if getattr(app, "builder", None) is None or getattr(app.builder, "name", "") != "html":
+        return
+
+    from sphinx.util import logging as sphinx_logging
+
+    logger = sphinx_logging.getLogger(__name__)
+    outdir = getattr(app.builder, "outdir", None)
+    if not outdir:
+        logger.warning("llm.txt: output directory not found; skipping.")
+        return
+
+    html_path = os.path.join(outdir, "api", "sdialog.html")
+    if not os.path.exists(html_path):
+        logger.warning("llm.txt: '%s' not found; skipping.", html_path)
+        return
+
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        text = _extract_text_from_html(html)
+
+        llm_txt_path = os.path.join(outdir, "llm.txt")
+        with open(llm_txt_path, "w", encoding="utf-8") as f:
+            f.write(text)
+        logger.info("llm.txt: generated at %s", llm_txt_path)
+    except Exception as e:
+        logger.warning("llm.txt: failed to generate (%s)", e)
+
+
+def setup(app):  # noqa: D401
+    """Sphinx entry point: register build-finished hook."""
+    app.connect('build-finished', _write_llm_txt)
