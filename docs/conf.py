@@ -111,14 +111,12 @@ def _extract_text_from_html(html: str) -> str:
         # Remove script/style to avoid noise
         for tag in soup(["script", "style"]):
             tag.decompose()
-        text = soup.get_text(separator="\n", strip=True)
+        text = soup.getText()
     except Exception:
         # Very naive fallback: strip tags and collapse whitespace
-        import re as _re
-
-        text = _re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", "", html, flags=_re.I)
-        text = _re.sub(r"<[^>]+>", "\n", text)
-        text = _re.sub(r"\s+", " ", text)
+        text = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", "", html, flags=re.I)
+        text = re.sub(r"<[^>]+>", "\n", text)
+        text = re.sub(r"\s+", " ", text)
         # Re-introduce minimal line breaks
         text = text.replace(" . ", ". ")
     # Normalize consecutive blank lines
