@@ -13,6 +13,7 @@ import syllables
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import warnings
 
 from scipy import linalg
 from tqdm.auto import tqdm
@@ -1589,14 +1590,21 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
             # Any dialog score can be used, let's use `LinguisticFeatureScore` as an example
             hesitation_rate = LinguisticFeatureScore(feature="hesitation-rate")
             stats_eval = StatsEvaluator(hesitation_rate)
+            mean_eval = StatsEvaluator(hesitation_rate, stat="mean")
 
             stats = stats_eval(candidate_dialogs)
+            mean = mean_eval(candidate_dialogs)
 
             # Print descriptive statistics for hesitation rate
             print(stats)  # {'mean': ..., 'std': ..., ...}
+            print("Mean hesitation rate:", mean)  # Mean hesitation rate: ...
 
     :param dialog_score: Dialog scoring component.
     :type dialog_score: BaseDialogScore
+    :param stat: Target statistic to return (one of 'mean', 'std', 'min', 'max', 'median'). If None, return all.
+    :type stat: Optional[Literal["mean", "std", "min", "max", "median"]]
+    :param metric: Deprecated alias for `stat`.
+    :type metric: Optional[Literal["mean", "std", "min", "max", "median"]]
     :param name: Evaluator name.
     :type name: Optional[str]
     :param enable_plotting: Keep per-dataset scores for plotting.
@@ -1606,11 +1614,23 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
     """
     def __init__(self,
                  dialog_score: BaseDialogScore,
+                 stat: Optional[Literal["mean", "std", "min", "max", "median"]] = None,
+                 metric: Optional[Literal["mean", "std", "min", "max", "median"]] = None,
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
-        """Initialize statistics evaluator (mean/std/min/max/median)."""
+        """Initialize statistics evaluator (mean/std/min/max/median).
+        If `stat` is provided, only that value is returned. `metric` is deprecated and kept for backward compatibility.
+        """
+        valid = {"mean", "std", "min", "max", "median"}
+        if stat is not None and stat not in valid:
+            raise ValueError(f"Invalid stat: {stat}. Must be one of 'mean', 'std', 'min', 'max', 'median'.")
+        if metric is not None:
+            warnings.warn("`metric` is deprecated; use `stat` instead.", DeprecationWarning)
+            if stat is None:
+                stat = metric
         super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+        self.stat = stat
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
         """
@@ -1626,7 +1646,7 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         :rtype: None
         """
         # Plot box plots for each dataset
-        name = metric or self.name
+        name = metric or self.name or self.stat
         title = name or f"{self.dialog_score.name} scores"
         plot.title(f"Boxplot of {title}")
         plot.boxplot(list(dialog_scores.values()),
@@ -1640,21 +1660,23 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
 
         :param dialog_scores: List/array of numeric scores.
         :type dialog_scores: List[Union[float, int]]
-        :return: Dict of statistics.
-        :rtype: dict
+        :return: Dict of statistics, or a single value if a target statistic was specified.
+        :rtype: Union[dict, float]
         """
-        return {
+        stats = {
             "mean": np.mean(dialog_scores),
             "std": np.std(dialog_scores),
             "min": np.min(dialog_scores),
             "max": np.max(dialog_scores),
             "median": np.median(dialog_scores)
         }
+        return stats[self.stat] if self.stat in stats else stats
 
 
 class MeanEvaluator(StatsEvaluator):
     """
     Evaluator for computing the mean of dialog scores.
+    This class is a thin wrapper around `StatsEvaluator` with `stat="mean"`.
 
     Example:
 
@@ -1682,19 +1704,12 @@ class MeanEvaluator(StatsEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
-        """Initialize mean-only evaluator."""
-        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
-
-    def __eval__(self, dialog_scores: List[Union[float, int]]) -> float:
-        """
-        Compute mean value of scores.
-
-        :param dialog_scores: Numeric scores list.
-        :type dialog_scores: List[Union[float, int]]
-        :return: Mean score.
-        :rtype: float
-        """
-        return np.mean(dialog_scores)
+        """Initialize mean-only evaluator using parent `stat` mechanism."""
+        super().__init__(dialog_score,
+                         stat="mean",
+                         name=name,
+                         enable_plotting=enable_plotting,
+                         verbose=verbose)
 
 
 class FrequencyEvaluator(BaseDatasetScoreEvaluator):
