@@ -40,6 +40,32 @@ CacheDialogScore.init(config["cache"]["path"], enable_cache=config["cache"]["ena
 logger = logging.getLogger(__name__)
 
 
+class LLMJudgeYesNoOutput(BaseModel):
+    """
+    Structured output used by yes/no LLM judgments.
+
+    :param yes: Boolean (or list of booleans) indicating classification outcome(s).
+    :type yes: Union[bool, List[bool]]
+    :param feedback: Optional explanatory feedback (string or list).
+    :type feedback: Optional[Union[str, List[str]]]
+    """
+    yes: Union[bool, List[bool]]
+    feedback: Optional[Union[str, List[str]]] = None
+
+
+class LLMJudgeScoreOutput(BaseModel):
+    """
+    Structured output used by numeric score LLM judgments.
+
+    :param score: Numeric score (int or float).
+    :type score: Union[int, float]
+    :param feedback: Optional explanatory feedback.
+    :type feedback: Optional[str]
+    """
+    score: Union[int, float] = None
+    feedback: Optional[str] = None
+
+
 class BaseDialogEmbedder(ABC):
     """
     Base class for dialog embedding models.

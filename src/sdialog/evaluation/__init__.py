@@ -17,7 +17,7 @@ import warnings
 
 from tqdm.auto import tqdm
 from math import exp, log, sqrt
-from pydantic import BaseModel, Field, create_model
+from pydantic import Field, create_model
 from typing import Optional, Literal, Union, List, Dict, Tuple
 
 from scipy import linalg
@@ -32,6 +32,8 @@ from ..config import config
 from ..personas import BasePersona
 from ..util import SentencePairTransformer
 from ..util import dict_to_table, upper_camel_to_dash, dialogs_to_utt_pairs
+
+from .base import LLMJudgeYesNoOutput, LLMJudgeScoreOutput
 from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEmbeddingEvaluator
 from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
 
@@ -99,32 +101,6 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     p2_vals = np.clip(p2_vals, eps, None)
 
     return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
-
-
-class LLMJudgeYesNoOutput(BaseModel):
-    """
-    Structured output used by yes/no LLM judgments.
-
-    :param yes: Boolean (or list of booleans) indicating classification outcome(s).
-    :type yes: Union[bool, List[bool]]
-    :param feedback: Optional explanatory feedback (string or list).
-    :type feedback: Optional[Union[str, List[str]]]
-    """
-    yes: Union[bool, List[bool]]
-    feedback: Optional[Union[str, List[str]]] = None
-
-
-class LLMJudgeScoreOutput(BaseModel):
-    """
-    Structured output used by numeric score LLM judgments.
-
-    :param score: Numeric score (int or float).
-    :type score: Union[int, float]
-    :param feedback: Optional explanatory feedback.
-    :type feedback: Optional[str]
-    """
-    score: Union[int, float] = None
-    feedback: Optional[str] = None
 
 
 class LinguisticFeatureScore(BaseDialogScore):
@@ -608,7 +584,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
     def judge(self,
               dialogs: Union[Dialog, List[Dialog]],
-              feedback: bool = None):
+              feedback: bool = None) -> LLMJudgeScoreOutput:
         """
         Produce a numeric judgment for one or more dialogues.
 
