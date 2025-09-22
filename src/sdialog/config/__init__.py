@@ -1,12 +1,5 @@
 """
 This module loads and processes the configuration for the sdialog package.
-
-It reads a YAML configuration file named 'config.yaml' located in the same directory,
-loads its contents, and ensures that all prompt file paths specified in the configuration
-are converted to absolute paths if they are not already.
-
-Attributes:
-    config (dict): The loaded configuration dictionary with absolute prompt paths.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -44,7 +37,7 @@ def llm(llm_name, **llm_kwargs):
     config["llm"]["model"] = llm_name
 
     if llm_kwargs:
-        set_llm_params(**llm_kwargs)
+        llm_params(**llm_kwargs)
 
 
 def llm_params(**params):
@@ -155,9 +148,3 @@ def set_persona_agent_prompt(path):
 
 # Make sure all default prompt paths are absolute
 _make_cfg_absolute_path(config["prompts"])
-
-# Aliases for convenience
-set_cache_enabled = cache
-set_cache_path = cache_path
-set_llm = llm
-set_llm_params = llm_params

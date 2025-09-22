@@ -1,6 +1,4 @@
 """
-agents: Agent Definitions for Synthetic Dialogue Generation
-
 This module provides classes for Agents and related utilities for simulating persona-conditioned dialogue
 with Large Language Models (LLMs). Agents maintain structured conversation memory, integrate orchestrators
 that inject dynamic (persistent or ephemeral) system instructions, and expose inspection / interpretability
@@ -41,13 +39,14 @@ class Agent:
     Agent that simulates a persona-driven conversational actor using an LLM.
 
     This class wraps:
-    - A persona (traits / role)
-    - Optional context + exemplar dialogues
-    - Orchestrators (dynamic / persistent injected instructions)
-    - Interpretability hooks (token / layer events, steering)
-    - Simple dialogue loop utilities (dialog_with)
 
-    Example::
+     * A persona (traits / role)
+     * Optional context + exemplar dialogues
+     * Orchestrators (dynamic / persistent injected instructions)
+     * Interpretability hooks (token / layer events, steering)
+     * Simple dialogue loop utilities (dialog_with)
+
+    Example:
 
         .. code-block:: python
 
@@ -72,6 +71,45 @@ class Agent:
 
             # Print dialog
             dialog.print()
+
+    :param persona: The persona to role-play.
+    :type persona: BasePersona
+    :param name: Name of the agent (defaults to persona.name if not provided).
+    :type name: Optional[str]
+    :param context: Optional default context for the agent's conversations.
+    :type context: Optional[Union[str, Context]]
+    :param first_utterance: Optional fixed first utterance or list of possible first utterances.
+    :type first_utterance: Optional[Union[str, List[str]]]
+    :param dialogue_details: Additional details about the dialogue.
+    :type dialogue_details: str
+    :param response_details: Instructions for response style.
+    :type response_details: str
+    :param example_dialogs: Optional list of default example dialogues as a reference for the agent.
+    :type example_dialogs: Optional[List[Dialog]]
+    :param tools: List of functions to be used as tools by the agent (if supported by the LLM).
+    :type tools: Optional[List[callable]]
+    :param think: If True, enables "thinking" segments in responses (if supported by the LLM).
+    :type think: bool
+    :param thinking_pattern: Regex pattern to manually identify "thinking" segments in responses.
+    :type thinking_pattern: Optional[str]
+    :param can_finish: If True, agent can end the conversation.
+    :type can_finish: bool
+    :param orchestrators: Orchestrators for agent behavior.
+    :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
+    :param inspectors: Inspector(s) to add to the agent.
+    :type inspectors: Optional[Union[Inspector, List[Inspector]]]
+    :param preprocessing_fn: Optional function to preprocess each input utterance before calling the LLM
+                                (input string, output string).
+    :type preprocessing_fn: Optional[callable]
+    :param postprocess_fn: Optional function to postprocess each output utterance after calling the LLM
+                            (input string, output string).
+    :type postprocess_fn: Optional[callable]
+    :param system_prompt: Custom system prompt (optional, otherwise loaded from config).
+    :type system_prompt: Optional[str]
+    :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
+    :type model: Union[str, BaseLanguageModel], optional
+    :param **llm_kwargs: Additional parameters for the LLM.
+    :type llm_kwargs: dict
     """
     _STOP_WORD = "STOP"
     _STOP_WORD_TEXT = "(bye bye!)"
@@ -98,45 +136,6 @@ class Agent:
                  **llm_kwargs):
         """
         Initializes an Agent for role-play dialogue.
-
-        :param persona: The persona to role-play.
-        :type persona: BasePersona
-        :param name: Name of the agent (defaults to persona.name if not provided).
-        :type name: Optional[str]
-        :param context: Optional default context for the agent's conversations.
-        :type context: Optional[Union[str, Context]]
-        :param first_utterance: Optional fixed first utterance or list of possible first utterances.
-        :type first_utterance: Optional[Union[str, List[str]]]
-        :param dialogue_details: Additional details about the dialogue.
-        :type dialogue_details: str
-        :param response_details: Instructions for response style.
-        :type response_details: str
-        :param example_dialogs: Optional list of default example dialogues as a reference for the agent.
-        :type example_dialogs: Optional[List[Dialog]]
-        :param tools: List of functions to be used as tools by the agent (if supported by the LLM).
-        :type tools: Optional[List[callable]]
-        :param think: If True, enables "thinking" segments in responses.
-        :type think: bool
-        :param thinking_pattern: Regex pattern to identify "thinking" segments in responses.
-        :type thinking_pattern: Optional[str]
-        :param can_finish: If True, agent can end the conversation.
-        :type can_finish: bool
-        :param orchestrators: Orchestrators for agent behavior.
-        :type orchestrators: Optional[Union[BaseOrchestrator, List[BaseOrchestrator]]]
-        :param inspectors: Inspector(s) to add to the agent.
-        :type inspectors: Optional[Union[Inspector, List[Inspector]]]
-        :param preprocessing_fn: Optional function to preprocess each input utterance before calling the LLM
-                                 (input string, output string).
-        :type preprocessing_fn: Optional[callable]
-        :param postprocess_fn: Optional function to postprocess each output utterance after calling the LLM
-                               (input string, output string).
-        :type postprocess_fn: Optional[callable]
-        :param system_prompt: Custom system prompt (optional, otherwise loaded from config).
-        :type system_prompt: Optional[str]
-        :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
-        :type model: Union[str, BaseLanguageModel], optional
-        :param **llm_kwargs: Additional parameters for the LLM.
-        :type llm_kwargs: dict
         """
         llm_config_params = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
         llm_kwargs = {**llm_config_params, **llm_kwargs}
@@ -486,20 +485,28 @@ class Agent:
         if self._hook_response_data is None:
             self._hook_response_data = ResponseHook(agent=self)
 
-    def response_lookahead(self, utterance: str = None):
+    def response_lookahead(self, message: str = None):
         """
-        Generates a response to a hypothetical next utterance without updating memory.
+        Generates a response without updating the agent's memory.
 
-        :param utterance: The hypothetical next utterance.
-        :type utterance: str
-        :return: The predicted response.
+        - If message is None, predicts the next reply given current memory.
+        - If message is provided, predicts a reply to that hypothetical input.
+
+        Notes:
+        - Orchestrators and inspectors are not invoked.
+        - Tools may be called, but their outputs are not persisted.
+        - Only postprocess_fn is applied (no preprocessing).
+
+        :param message: The hypothetical message to reply to (optional).
+        :type message: Optional[str]
+        :return: The predicted response text.
         :rtype: str
         """
-        if not utterance:
+        if not message:
             response, _ = self._get_llm_response(self.memory, update_tool_memory=False)
             return response.content
 
-        response, _ = self._get_llm_response(self.memory + [HumanMessage(utterance)],
+        response, _ = self._get_llm_response(self.memory + [HumanMessage(message)],
                                              update_tool_memory=False)
         return response.content
 
@@ -782,4 +789,5 @@ class Agent:
         """
         return messages_to_dict(self.memory) if as_dict else self.memory.copy()
 
+    #: Alias for :func:`Agent.dialog_with`.
     talk_with = dialog_with

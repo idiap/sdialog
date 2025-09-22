@@ -1,6 +1,4 @@
 """
-generators: Dialogue Generation Utilities for sdialog
-
 This module provides classes for generating synthetic dialogues using LLMs, including support for persona-based
 role-play and context-driven dialogue generation.
 """
@@ -36,8 +34,10 @@ class LLMDialogOutput(BaseModel):
     """
     Pydantic model for LLM-generated dialogue output.
 
-    :ivar dialog: Ordered list of generated dialogue turns.
-    :vartype dialog: List[Turn]
+    :param dialog: Ordered list of generated dialogue turns.
+    :type dialog: List[Turn]
+
+    :meta private:
     """
     dialog: List[Turn]
 
@@ -46,8 +46,10 @@ class AttributeObject(BaseAttributeModel):
     """
     Generic attribute object used for structured generation of placeholder-bearing entities.
 
-    :ivar placeholder: placeholder attribute to be removed and replaced by real attributes at generation time.
-    :vartype placeholder: str
+    :param placeholder: placeholder attribute to be removed and replaced by real attributes at generation time.
+    :type placeholder: str
+
+    :meta private:
     """
     placeholder: str = None
 
@@ -56,8 +58,10 @@ class ListOfAttributeObjects(BaseModel):
     """
     Container model for validating a list of AttributeObject instances.
 
-    :ivar objects: Collection of attribute objects.
-    :vartype objects: List[AttributeObject]
+    :param objects: Collection of attribute objects.
+    :type objects: List[AttributeObject]
+
+    :meta private:
     """
     objects: List[AttributeObject]
 
@@ -70,9 +74,27 @@ class BaseAttributeModelGenerator(ABC):
     Abstract class to create subclasses for generators with randomized and/or LLM-populated attributes.
 
     Workflow:
+
       1. Provide a target attribute model instance or class.
-      2. Configure attribute generation rules (set_attribute_generators or generated_attributes='all').
-      3. Call generate(n=...) to produce validated instances.
+      2. Configure attribute generation rules (e.g. ``.set(...)`` or ``generated_attributes='all'``).
+      3. Call ``generate(n=...)`` to produce validated instances.
+
+    :param attribute_model: Instance or subclass of BaseAttributeModel to generate.
+    :type attribute_model: BaseAttributeModel
+    :param generated_attributes: Attribute selection strategy ("all", iterable, or dict of rules).
+    :type generated_attributes: Union[str, list, dict]
+    :param extra_instructions: Additional instructions to include in the LLM prompt.
+    :type extra_instructions: str
+    :param model: LLM model name (overrides config if provided).
+    :type model: str
+    :param system_prompt: Override system prompt for generation.
+    :type system_prompt: str
+    :param llm_prompt: Template for single-object generation.
+    :type llm_prompt: str
+    :param llm_prompt_n: Template for multi-object generation (n > 1).
+    :type llm_prompt_n: str
+    :param llm_kwargs: Extra LLM instantiation parameters.
+    :type llm_kwargs: dict
     """
     def __init__(self,
                  attribute_model: BaseAttributeModel,
@@ -83,26 +105,7 @@ class BaseAttributeModelGenerator(ABC):
                  llm_prompt: str = None,
                  llm_prompt_n: str = None,
                  **llm_kwargs):
-        """
-        Initialize a BaseAttributeModelGenerator.
-
-        :param attribute_model: Instance or subclass of BaseAttributeModel to generate.
-        :type attribute_model: BaseAttributeModel
-        :param generated_attributes: Attribute selection strategy ("all", iterable, or dict of rules).
-        :type generated_attributes: Union[str, list, dict]
-        :param extra_instructions: Additional instructions to include in the LLM prompt.
-        :type extra_instructions: str
-        :param model: LLM model name (overrides config if provided).
-        :type model: str
-        :param system_prompt: Override system prompt for generation.
-        :type system_prompt: str
-        :param llm_prompt: Template for single-object generation.
-        :type llm_prompt: str
-        :param llm_prompt_n: Template for multi-object generation (n > 1).
-        :type llm_prompt_n: str
-        :param llm_kwargs: Extra LLM instantiation parameters.
-        :type llm_kwargs: dict
-        """
+        """Initializes a BaseAttributeModelGenerator."""
         if isinstance(attribute_model, BaseAttributeModel):
             self._attribute_model = attribute_model
         elif isinstance(attribute_model, type) and issubclass(attribute_model, BaseAttributeModel):
@@ -175,24 +178,43 @@ class BaseAttributeModelGenerator(ABC):
 
     def set(self, **attributes):
         """
-        Define per-attribute randomization / generation specifications.
+        Define per-attribute randomization / generation specifications as ``attribute_name=<value>``.
 
-        Specification value semantics:
+        Where ``<value>`` can be:
+
           * "*": Defer to LLM.
-          * callable: Invoked (with current partial object as kwargs if compatible).
-          * list: Random element chosen.
-          * fixed scalar / str: Assigned directly.
-          * templated string "{...}":
-              "{min-max}": Random int in inclusive range.
-              "{txt:PATH}": Random non-empty line from file.
-              "{csv:COLUMN:PATH}": Random value from CSV column (name or index).
-              "{tsv:COLUMN:PATH}": Same for TSV.
-              "{llm}": Defer to LLM.
-              "{llm:INSTRUCTION}": Defer with custom instruction.
+          * A callable: Invoked (with current partial object as kwargs if compatible).
+          * A list: Random element chosen.
+          * A fixed scalar / str: Assigned directly.
+          * A templated string ``"{...}"``:
+
+            * ``"{min-max}"``: Random int in inclusive range.
+            * ``"{txt:PATH}"``: Random non-empty line from file.
+            * ``"{csv:COLUMN:PATH}"``: Random value from CSV column (name or index).
+            * ``"{tsv:COLUMN:PATH}"``: Same for TSV.
+            * ``"{llm}"``: Defer to LLM.
+            * ``"{llm:INSTRUCTION}"``: Defer with custom instruction.
+
+        Example:
+
+            .. code-block:: python
+
+                from sdialog.generators import ContextGenerator
+
+                ctx_gen = ContextGenerator()
+
+                ctx_gen.set(
+                    location=["office", "home", "school"],
+                    objects=get_objects_from_db,  # callable function
+                    circumstances="{csv:circumstances:./data/circumstances.csv}",
+                    goals="{llm:Suggest a realistic goal for the context}"
+                )
+
+                my_context = ctx_gen.generate()
+                my_context.print()
 
         :param attributes: Mapping of attribute name -> generation rule.
-        :type attributes: dict
-        :raises ValueError: If an attribute key is not valid.
+        :raises ValueError: If any attribute is not defined on the target model.
         """
         self._check_attributes(attributes)
         self._rnd_attributes = attributes
@@ -462,27 +484,43 @@ class BaseAttributeModelGenerator(ABC):
         )
         return output_object
 
-    set_attribute_generators = set  # alias for set method
-
 
 class DialogGenerator:
     """
     Base class for generating synthetic dialogues using an LLM.
 
     Typical workflow:
+
       1. Instantiate with default dialogue instructions and optional context / examples.
       2. Call generate(...) to produce a Dialog (or raw structured output).
-      3. Access system prompt via prompt() for debugging / inspection.
 
-    Example::
+    Example:
 
         .. code-block:: python
+
             from sdialog.generators import DialogGenerator
 
             gen = DialogGenerator("Generate a short friendly greeting between two speakers")
 
             dialog = gen.generate()
             dialog.print()
+
+    :param dialogue_details: Instructions or details for the dialogue.
+    :type dialogue_details: str
+    :param context: The default context for the dialogue (optional).
+    :type context: Optional[Union[str, Context]]
+    :param example_dialogs: Optional default list of example dialogues to guide the generation.
+    :type example_dialogs: List[Dialog]
+    :param scenario: Default scenario metadata for the dialogue.
+    :type scenario: Optional[Union[dict, str]]
+    :param personas: Optional personas (serialized) involved in the dialogue (e.g., for logging).
+    :type personas: dict[str, dict[str, Any]]
+    :param output_format: Output schema / model used to parse LLM output (or None for raw text).
+    :type output_format: Union[dict, BaseModel]
+    :param model: The LLM instance or model name to use.
+    :type model: Union[BaseLanguageModel, str]
+    :param llm_kwargs: Additional keyword arguments for the LLM (override config).
+    :type llm_kwargs: dict
     """
     def __init__(self,
                  dialogue_details: str,
@@ -493,26 +531,7 @@ class DialogGenerator:
                  output_format: Union[dict, BaseModel] = LLMDialogOutput,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
-        """
-        Initializes a DialogGenerator.
-
-        :param dialogue_details: Instructions or details for the dialogue.
-        :type dialogue_details: str
-        :param context: The default context for the dialogue (optional).
-        :type context: Optional[Union[str, Context]]
-        :param example_dialogs: Optional default list of example dialogues to guide the generation.
-        :type example_dialogs: List[Dialog]
-        :param scenario: Default scenario metadata for the dialogue.
-        :type scenario: Optional[Union[dict, str]]
-        :param personas: Optional personas (serialized) involved in the dialogue (e.g., for logging).
-        :type personas: dict[str, dict[str, Any]]
-        :param output_format: Output schema / model used to parse LLM output (pass falsy to return raw text).
-        :type output_format: Union[dict, BaseModel]
-        :param model: The LLM instance or model name to use.
-        :type model: Union[BaseLanguageModel, str]
-        :param llm_kwargs: Additional keyword arguments for the LLM (override config).
-        :type llm_kwargs: dict
-        """
+        """Initializes a DialogGenerator."""
         if model is None:
             model = config["llm"]["model"]
 
@@ -634,7 +653,7 @@ class PersonaDialogGenerator(DialogGenerator):
     """
     Generates dialogues between two personas (or Agents wrapping personas) using an LLM.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -648,6 +667,29 @@ class PersonaDialogGenerator(DialogGenerator):
 
             dialog = gen()
             dialog.print()
+
+    :param persona_a: The first persona or an Agent containing one.
+    :type persona_a: Union[Persona, Agent]
+    :param persona_b: The second persona or an Agent containing one.
+    :type persona_b: Union[Persona, Agent]
+    :param speaker_a: Name/ID of the first speaker in the dialogue.
+    :type speaker_a: str
+    :param speaker_b: Name/ID of the second speaker in the dialogue.
+    :type speaker_b: str
+    :param context: Default context for the dialogue (optional).
+    :type context: Optional[Union[str, Context]]
+    :param example_dialogs: Optional list of example dialogues for guidance.
+    :type example_dialogs: List[Dialog]
+    :param dialogue_details: Additional dialogue-level instructions.
+    :type dialogue_details: str
+    :param response_details: Style / formatting instructions for responses.
+    :type response_details: str
+    :param scenario: Default scenario metadata.
+    :type scenario: Optional[Union[dict, str]]
+    :param model: LLM instance or model name.
+    :type model: Union[BaseLanguageModel, str]
+    :param llm_kwargs: Extra LLM keyword arguments (override config).
+    :type llm_kwargs: dict
     """
     _agent_a = None
     _agent_b = None
@@ -664,32 +706,7 @@ class PersonaDialogGenerator(DialogGenerator):
                  scenario: Optional[Union[dict, str]] = None,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
-        """
-        Initializes a PersonaDialogGenerator.
-
-        :param persona_a: The first persona or an Agent containing one.
-        :type persona_a: Union[Persona, Agent]
-        :param persona_b: The second persona or an Agent containing one.
-        :type persona_b: Union[Persona, Agent]
-        :param speaker_a: Name/ID of the first speaker in the dialogue.
-        :type speaker_a: str
-        :param speaker_b: Name/ID of the second speaker in the dialogue.
-        :type speaker_b: str
-        :param context: Default context for the dialogue (optional).
-        :type context: Optional[Union[str, Context]]
-        :param example_dialogs: Optional list of example dialogues for guidance.
-        :type example_dialogs: List[Dialog]
-        :param dialogue_details: Additional dialogue-level instructions.
-        :type dialogue_details: str
-        :param response_details: Style / formatting instructions for responses.
-        :type response_details: str
-        :param scenario: Default scenario metadata.
-        :type scenario: Optional[Union[dict, str]]
-        :param model: LLM instance or model name.
-        :type model: Union[BaseLanguageModel, str]
-        :param llm_kwargs: Extra LLM keyword arguments (override config).
-        :type llm_kwargs: dict
-        """
+        """Initializes a PersonaDialogGenerator."""
         if isinstance(persona_a, Agent) and isinstance(persona_b, Agent):
             self._agent_a = persona_a
             self._agent_b = persona_b
@@ -777,9 +794,10 @@ class PersonaDialogGenerator(DialogGenerator):
 
 class PersonaGenerator(BaseAttributeModelGenerator):
     """
-    Generates persona objects (Persona subclasses of BaseAttributeModel) with randomized or LLM-populated attributes.
+    Generates persona objects (subclasses of :class:`sdialog.personas.BasePersona`) with randomized or
+    LLM-populated attributes (see :class:`sdialog.generators.BaseAttributeModelGenerator` for more information).
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -790,13 +808,24 @@ class PersonaGenerator(BaseAttributeModelGenerator):
 
             doctor_generator = PersonaGenerator(base_persona)
 
-            doctor_generator.set_attribute_generators(
+            doctor_generator.set(
                 years_of_experience="{4-10}",
                 gender=["male", "female", "non-binary"]
             )
 
             doctor = doctor_generator.generate()
             doctor.print()
+
+    :param persona: Persona instance or class to generate.
+    :type persona: BasePersona
+    :param generated_attributes: Strategy specifying which attributes to fill ("all", list, or dict).
+    :type generated_attributes: Union[str, list, dict]
+    :param extra_instructions: Additional instructions to include in the LLM prompt.
+    :type extra_instructions: str
+    :param model: LLM model name (optional).
+    :type model: str
+    :param llm_kwargs: Extra LLM keyword arguments.
+    :type llm_kwargs: dict
     """
     def __init__(self,
                  persona: BasePersona,
@@ -804,20 +833,7 @@ class PersonaGenerator(BaseAttributeModelGenerator):
                  extra_instructions: str = "Attributes must be in English",
                  model: str = None,
                  **llm_kwargs):
-        """
-        Initialize a PersonaGenerator.
-
-        :param persona: Persona instance or class to generate.
-        :type persona: BasePersona
-        :param generated_attributes: Strategy specifying which attributes to fill ("all", list, or dict).
-        :type generated_attributes: Union[str, list, dict]
-        :param extra_instructions: Additional instructions to include in the LLM prompt.
-        :type extra_instructions: str
-        :param model: LLM model name (optional).
-        :type model: str
-        :param llm_kwargs: Extra LLM keyword arguments.
-        :type llm_kwargs: dict
-        """
+        """Initialize a PersonaGenerator."""
         if isinstance(persona, BasePersona):
             persona_instance = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
@@ -841,9 +857,10 @@ class PersonaGenerator(BaseAttributeModelGenerator):
 
 class ContextGenerator(BaseAttributeModelGenerator):
     """
-    Generates Context objects with randomized or LLM-populated attributes.
+    Generates Context objects with randomized or LLM-populated attributes
+    (see :class:`sdialog.generators.BaseAttributeModelGenerator` for more information).
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -854,13 +871,24 @@ class ContextGenerator(BaseAttributeModelGenerator):
 
             ctx_generator = ContextGenerator(base_context)
 
-            ctx_generator.set_attribute_generators(
+            ctx_generator.set(
                 environment=["Pressurized dome", "Dusty lab", "Airlock staging zone"],
                 topics=["terraforming", "resource logistics", "crew morale"]
             )
 
             ctx = ctx_generator.generate()
             ctx.print()
+
+    :param context: Context instance or subclass to generate.
+    :type context: Context
+    :param generated_attributes: Attribute selection strategy ("all", list, or dict).
+    :type generated_attributes: Union[str, list, dict]
+    :param extra_instructions: Additional instructions to include in the LLM prompt.
+    :type extra_instructions: str
+    :param model: LLM model name (optional).
+    :type model: str
+    :param llm_kwargs: Extra LLM keyword arguments.
+    :type llm_kwargs: dict
     """
     def __init__(self,
                  context: Context,
@@ -871,16 +899,6 @@ class ContextGenerator(BaseAttributeModelGenerator):
         """
         Initialize a ContextGenerator.
 
-        :param context: Context instance or subclass to generate.
-        :type context: Context
-        :param generated_attributes: Attribute selection strategy ("all", list, or dict).
-        :type generated_attributes: Union[str, list, dict]
-        :param extra_instructions: Additional instructions to include in the LLM prompt.
-        :type extra_instructions: str
-        :param model: LLM model name (optional).
-        :type model: str
-        :param llm_kwargs: Extra LLM keyword arguments.
-        :type llm_kwargs: dict
         :raises ValueError: If context is not a Context or subclass.
         """
         if isinstance(context, type) and issubclass(context, Context):
@@ -910,20 +928,33 @@ class Paraphraser:
     Paraphrases dialogue turns while preserving semantic entities/values.
 
     Usage modes:
+
       * Whole dialogue paraphrasing (default, returns full set of possibly modified turns).
       * Turn-by-turn paraphrasing (stream-like, for smaller LLMs).
 
-    Example::
+    Example:
 
         .. code-block:: python
 
             from sdialog.generators import Paraphraser
 
             # Assume 'original_dialog' is an existing `Dialog` with one of the speaker being "Bot"
-            paraphraser = Paraphraser(target_speaker="Bot")
+            paraphraser = Paraphraser("Make the text sound more natural and less robotic",
+                                      target_speaker="Bot")
 
             new_dialog = paraphraser(original_dialog)
             new_dialog.print()
+
+    :param extra_instructions: Additional style or behavior instructions for the paraphrase.
+    :type extra_instructions: str
+    :param target_speaker: If provided, only paraphrases turns spoken by this speaker.
+    :type target_speaker: Optional[str]
+    :param turn_by_turn: Whether to paraphrase one turn at a time.
+    :type turn_by_turn: bool
+    :param model: The LLM instance or model name to use (falls back to config if None).
+    :type model: Union[str, BaseLanguageModel]
+    :param llm_kwargs: Additional keyword arguments for the LLM.
+    :type llm_kwargs: dict
     """
     def __init__(self,
                  extra_instructions: str = "Keep entities and values identical while making it sound more natural",
@@ -931,20 +962,7 @@ class Paraphraser:
                  turn_by_turn: bool = False,
                  model: Union[str, BaseLanguageModel] = None,
                  **llm_kwargs):
-        """
-        Initializes a Paraphraser that rewrites dialog turns while preserving entities and values.
-
-        :param extra_instructions: Additional style or behavior instructions for the paraphrase.
-        :type extra_instructions: str
-        :param target_speaker: If provided, only paraphrases turns spoken by this speaker.
-        :type target_speaker: Optional[str]
-        :param turn_by_turn: Whether to paraphrase one turn at a time.
-        :type turn_by_turn: bool
-        :param model: The LLM instance or model name to use (falls back to config if None).
-        :type model: Union[str, BaseLanguageModel]
-        :param llm_kwargs: Additional keyword arguments for the LLM.
-        :type llm_kwargs: dict
-        """
+        """Initializes a Paraphraser that rewrites dialog turns while preserving entities and values."""
         if model is None:
             model = config["llm"]["model"]
 

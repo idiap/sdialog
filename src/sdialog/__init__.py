@@ -1,6 +1,4 @@
 """
-sdialog: Synthetic Dialogue Generation Toolkit
-
 This package provides utilities for generating synthetic dialogues using instruction-tuned large language models (LLMs).
 Dialogues are generated primarily via role-playing, where each agent is defined by a Persona object. The package
 supports dialogue orchestration, context management, and flexible serialization for downstream tasks.
@@ -52,10 +50,10 @@ class Turn(BaseModel):
     """
     Represents a single turn in a dialogue.
 
-    :ivar speaker: The name or role of the speaker.
-    :vartype speaker: Optional[str]
-    :ivar text: The utterance text for this turn.
-    :vartype text: str
+    :param speaker: The name or role of the speaker.
+    :type speaker: Optional[str]
+    :param text: The utterance text for this turn.
+    :type text: str
     """
     speaker: Optional[str] = None
     text: str
@@ -75,16 +73,16 @@ class Event(BaseModel):
     """
     Represents an event in a dialogue, which may be an utterance, instruction, or other action.
 
-    :ivar agent: The agent responsible for the event (e.g., "user", "system").
-    :vartype agent: Optional[str]
-    :ivar action: The type of event (e.g., "utter", "instruct").
-    :vartype action: str
-    :ivar actionLabel: A label describing the action (e.g., type of instruction).
-    :vartype actionLabel: Optional[str]
-    :ivar content: The content of the event.
-    :vartype content: Union[str, Dict, List]
-    :ivar timestamp: The Unix timestamp of the event.
-    :vartype timestamp: int
+    :param agent: The agent responsible for the event (e.g., "user", "system").
+    :type agent: Optional[str]
+    :param action: The type of event (e.g., "utter", "instruct").
+    :type action: str
+    :param actionLabel: A label describing the action (e.g., type of instruction).
+    :type actionLabel: Optional[str]
+    :param content: The content of the event.
+    :type content: Union[str, Dict, List]
+    :param timestamp: The Unix timestamp of the event.
+    :type timestamp: int
     """
     agent: Optional[str] = None  # "user", "system"
     action: str  # "utter", "instruct"
@@ -99,52 +97,59 @@ class Event(BaseModel):
 
         :param context: Internal pydantic context (unused).
         :type context: Any
+
+        :meta private:
         """
         logger.log(level=logging.DEBUG, msg=f"Event: {self}")
 
 
 class Dialog(BaseModel):
     """
-    Represents a full dialogue, including turns, events, and scenario metadata.
+    A pydantic model representing a conversational dialogue with rich metadata,
+    container-like access to turns, text utilities, analytics, and I/O helpers.
 
-    :ivar version: Version of the dialogue format (sdialog version).
-    :vartype version: Optional[str]
-    :ivar timestamp: Timestamp of dialogue creation (e.g., "2025-01-01T12:00:00Z").
-    :vartype timestamp: Optional[str]
-    :ivar model: The model used to generate the dialogue.
-    :vartype model: Optional[str]
-    :ivar seed: The random seed used for generation.
-    :vartype seed: Optional[int]
-    :ivar id: Unique identifier for the dialogue.
-    :vartype id: Optional[int]
-    :ivar idParent: ID of the parent dialogue, if any.
-    :vartype idParent: Optional[int]
-    :ivar complete: Whether the dialogue is complete.
-    :vartype complete: Optional[bool]
-    :ivar personas: Personas used in the dialogue, mapping speaker names to their attributes.
-    :ivar scenario: Scenario description or metadata.
-    :vartype scenario: Optional[Union[dict, str]]
-    :ivar turns: List of dialogue turns.
-    :vartype turns: List[Turn]
-    :ivar events: List of dialogue events (optional).
-    :vartype events: Optional[List[Event]]
-    :ivar notes: Free-text notes or comments about the dialogue.
-    :vartype notes: Optional[str]
+    :param version: Version of the dialogue format.
+    :type version: Optional[str]
+    :param timestamp: Timestamp of dialogue creation.
+    :type timestamp: Optional[str]
+    :param model: The model used to generate the dialogue.
+    :type model: Optional[Union[str, Dict]]
+    :param seed: The random seed used for generation.
+    :type seed: Optional[int]
+    :param id: Unique ID for the dialogue.
+    :type id: Optional[Union[int, str]]
+    :param parentId: ID of the parent dialogue, if any.
+    :type parentId: Optional[Union[int, str]]
+    :param complete: Whether the dialogue is complete.
+    :type complete: Optional[bool]
+    :param personas: Any is a subclass of MetaPersona.
+    :type personas: Optional[dict[str, Any]]
+    :param context: Shared context for the dialogue.
+    :type context: Optional[Union[str, dict[str, Any]]]
+    :param scenario: Scenario description or metadata.
+    :type scenario: Optional[Union[dict, str]]
+    :param turns: List of dialogue turns.
+    :type turns: Optional[List[Turn]]
+    :param events: List of dialogue events (optional).
+    :type events: Optional[List[Event]]
+    :param notes: Free-text notes or comments about the dialogue.
+    :type notes: Optional[str]
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
     timestamp: Optional[str] = Field(default_factory=get_timestamp)
-    model: Optional[Union[str, Dict]] = None  # the model used to generate the dialogue
-    seed: Optional[int] = None  # the seed used to generate the dialogue
-    id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)  # Unique ID for the dialogue
-    parentId: Optional[Union[int, str]] = None  # ID of the parent dialogue, if any
+    model: Optional[Union[str, Dict]] = None
+    seed: Optional[int] = None
+    id: Optional[Union[int, str]] = Field(default_factory=get_universal_id)
+    parentId: Optional[Union[int, str]] = None
     complete: Optional[bool] = None
-    personas: Optional[dict[str, Any]] = None  # Any is a subclass of MetaPersona
-    context: Optional[Union[str, dict[str, Any]]] = None  # Shared context for the dialogue
-    scenario: Optional[Union[dict, str]] = None  # the scenario used to generated the dialogue
-    turns: Optional[List[Turn]] = Field(default_factory=list)  # the list of turns of the conversation
-    events: Optional[List[Event]] = None  # the list of events of the conversation (optional)
-    notes: Optional[str] = None  # Free-text notes or comments about the dialogue
-    _path: Optional[str] = None  # Path to the file where the dialogue was loaded or saved
+    personas: Optional[dict[str, Any]] = None
+    context: Optional[Union[str, dict[str, Any]]] = None
+    scenario: Optional[Union[dict, str]] = None
+    turns: Optional[List[Turn]] = Field(default_factory=list)
+    events: Optional[List[Event]] = None
+    notes: Optional[str] = None
+
+    _path: Optional[str] = None
 
     def __len__(self):
         """
@@ -314,7 +319,7 @@ class Dialog(BaseModel):
         :param mode: The mode for measuring length. Options:
             - "turns": Number of turns (default)
             - "words": Total number of words in all turns
-            - "minutes" / "time": Approximate duration in minutes (`words_per_minute`/minute)
+            - "minutes" / "time": Approximate duration in minutes (``words_per_minute``/minute)
         :type mode: str
         :param words_per_minute: Words per minute for "minutes" mode (default is 130, which is a common estimate).
         :type words_per_minute: int
@@ -747,58 +752,32 @@ class Dialog(BaseModel):
     __str__ = description
 
 
-class Instruction(BaseModel):
-    """
-    Represents an instruction to an agent, optionally with associated events.
-
-    :ivar text: The instruction text.
-    :vartype text: str
-    :ivar events: Associated event(s), either a single Event or a list of Events.
-    :vartype events: Optional[Union[Event, List[Event]]]
-    """
-    text: str = None
-    events: Optional[Union[Event, List[Event]]] = None  # extra events
-
-
 class Context(BaseAttributeModel):
     """
     Dialogue-shared context class.
 
-    Attributes (grouped for IDEs):
-        location (str | None): Physical or virtual location of the dialogue.
-        datetime (str | None): Temporal context or timestamp reference.
-        environment (str | None): Description of ambient or situational environment.
-        objects (str | list[str] | None): Relevant objects (single value or list).
-        participants_shared_knowledge (str | None): Assumed shared knowledge among participants.
-        circumstances (str | list[str] | None): Situational circumstances influencing interaction.
-        goals (str | list[str] | None): Stated or implicit participant goals.
-        constraints (str | list[str] | None): Limitations impacting behavior or content.
-        topics (str | list[str] | None): Current or intended discussion topics.
-        style_guidelines (str | list[str] | None): Style or formatting guidelines to follow.
-        notes (str | None): Additional free-form contextual notes.
-
-    :ivar location: Physical or virtual location where the dialogue occurs.
-    :vartype location: Optional[str]
-    :ivar datetime: Timestamp or temporal setting relevant to the dialogue.
-    :vartype datetime: Optional[str]
-    :ivar environment: Physical environment description, environmental conditions, or contextual atmosphere.
-    :vartype environment: Optional[str]
-    :ivar objects: Relevant objects (single value or list of values).
-    :vartype objects: Optional[Union[str, List[str]]]
-    :ivar participants_shared_knowledge: Information all participants are assumed to know.
-    :vartype participants_shared_knowledge: Optional[str]
-    :ivar circumstances: Situational circumstances impacting the dialogue.
-    :vartype circumstances: Optional[Union[str, List[str]]]
-    :ivar goals: Stated or implicit goals of the participants.
-    :vartype goals: Optional[Union[str, List[str]]]
-    :ivar constraints: Limitations or constraints affecting actions or dialogue.
-    :vartype constraints: Optional[Union[str, List[str]]]
-    :ivar topics: Main topics or themes (single or list).
-    :vartype topics: Optional[Union[str, List[str]]]
-    :ivar style_guidelines: Stylistic or formatting guidelines to follow.
-    :vartype style_guidelines: Optional[Union[str, List[str]]]
-    :ivar notes: Additional free-form contextual notes.
-    :vartype notes: Optional[str]
+    :param location: Physical or virtual location where the dialogue occurs.
+    :type location: Optional[str]
+    :param datetime: Timestamp or temporal setting relevant to the dialogue.
+    :type datetime: Optional[str]
+    :param environment: Physical environment description, environmental conditions, or contextual atmosphere.
+    :type environment: Optional[str]
+    :param objects: Relevant objects (single value or list of values).
+    :type objects: Optional[Union[str, List[str]]]
+    :param participants_shared_knowledge: Information all participants are assumed to know.
+    :type participants_shared_knowledge: Optional[str]
+    :param circumstances: Situational circumstances impacting the dialogue.
+    :type circumstances: Optional[Union[str, List[str]]]
+    :param goals: Stated or implicit goals of the participants.
+    :type goals: Optional[Union[str, List[str]]]
+    :param constraints: Limitations or constraints affecting actions or dialogue.
+    :type constraints: Optional[Union[str, List[str]]]
+    :param topics: Main topics or themes (single or list).
+    :type topics: Optional[Union[str, List[str]]]
+    :param style_guidelines: Stylistic or formatting guidelines to follow.
+    :type style_guidelines: Optional[Union[str, List[str]]]
+    :param notes: Additional free-form contextual notes.
+    :type notes: Optional[str]
     """
 
     # Time / place
@@ -829,7 +808,7 @@ class Context(BaseAttributeModel):
         default=None,
         description="Limitations or constraints affecting actions or dialogue."
     )
-    # Topics (unified)
+    # Topics
     topics: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Main topics or themes (single or list)."
@@ -933,3 +912,16 @@ def _print_dialog(dialog: Union[Dialog, dict],
                tag_color=tag_color,
                color=color)
     cprint("--- Dialogue Ends ---", color="magenta", format="bold")
+
+
+class Instruction(BaseModel):
+    """
+    Represents an instruction to an agent, optionally with associated events.
+
+    :param text: The instruction text.
+    :type text: str
+    :param events: Associated event(s), either a single Event or a list of Events.
+    :type events: Optional[Union[Event, List[Event]]]
+    """
+    text: str = None
+    events: Optional[Union[Event, List[Event]]] = None  # extra events

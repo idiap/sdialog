@@ -2,8 +2,8 @@ import pytest
 import numpy as np
 
 from sdialog.evaluation import (
-    cs_divergence,
-    kl_divergence,
+    _cs_divergence,
+    _kl_divergence,
     LLMJudgeYesNoOutput,
     SentenceTransformerDialogEmbedder,
     ReferenceCentroidEmbeddingEvaluator,
@@ -19,12 +19,12 @@ dummy_dialog = Dialog(
 
 def test_cs_divergence_identical():
     arr = np.random.normal(0, 1, 100)
-    assert cs_divergence(arr, arr) == pytest.approx(0, abs=1e-6)
+    assert _cs_divergence(arr, arr) == pytest.approx(0, abs=1e-6)
 
 
 def test_kl_divergence_identical():
     arr = np.random.normal(0, 1, 100)
-    assert kl_divergence(arr, arr) == pytest.approx(0, abs=1e-6)
+    assert _kl_divergence(arr, arr) == pytest.approx(0, abs=1e-6)
 
 
 def test_llmjudgeyesno_output():
@@ -65,7 +65,7 @@ def test_reference_centroid_embedding_evaluator(monkeypatch):
     evaluator = ReferenceCentroidEmbeddingEvaluator(embedder, dialogs)
     # Centroid similarity with itself should be 1.0
     embs = np.array([embedder.embed(d) for d in dialogs])
-    sim = evaluator.eval(embs)
+    sim = evaluator.__eval__(embs)
     assert sim == pytest.approx(1.0)
 
 

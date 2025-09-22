@@ -1,6 +1,4 @@
 """
-orchestrators: Dialogue Orchestration Utilities for sdialog
-
 This module provides base and concrete classes for orchestrating agent behavior during synthetic dialogue generation.
 Orchestrators can inject instructions, control agent responses, and manage dialogue flow for more complex scenarios.
 """
@@ -32,7 +30,7 @@ class BaseOrchestrator(ABC):
       * Optionally emit events describing guidance injected.
       * Support persistence across turns when marked persistent.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -57,6 +55,13 @@ class BaseOrchestrator(ABC):
 
             dialog = bob.talk_with(alice)
             dialog.print(orchestration=True)
+
+    :param target_agent: Agent instance to orchestrate (can be set later).
+    :type target_agent: Agent
+    :param persistent: Whether produced instructions should persist each turn automatically.
+    :type persistent: bool
+    :param event_label: Optional label to tag generated events; defaults to class name.
+    :type event_label: str
     """
 
     _target = None
@@ -64,16 +69,7 @@ class BaseOrchestrator(ABC):
     _persistent = False
 
     def __init__(self, target_agent=None, persistent: bool = None, event_label: str = None):
-        """
-        Initialize the orchestrator.
-
-        :param target_agent: Agent instance to orchestrate (can be set later).
-        :type target_agent: Agent
-        :param persistent: Whether produced instructions should persist each turn automatically.
-        :type persistent: bool
-        :param event_label: Optional label to tag generated events; defaults to class name.
-        :type event_label: str
-        """
+        """Initialize the orchestrator."""
         self._target = target_agent
         self._persistent = persistent
         self._event_label = event_label
@@ -188,7 +184,9 @@ class BaseOrchestrator(ABC):
     @abstractmethod
     def instruct(self, dialog: List[Turn], utterance: str) -> str:
         """
-        Produce an instruction given the current dialog and (optionally) the last user utterance.
+        *Abstract method:* Subclasses are expected to implement this method.
+        Implementations should analyze the dialog state and optionally the most recent utterance
+        to produce an instruction for the target agent.
 
         :param dialog: Current reconstructed dialog (list of turns).
         :type dialog: List[Turn]
@@ -216,7 +214,7 @@ class BasePersistentOrchestrator(BaseOrchestrator):
     Automatically sets persistence to True; intended for orchestrators that maintain state
     across the whole dialogue unless explicitly removed.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -250,7 +248,7 @@ class BasePersistentOrchestrator(BaseOrchestrator):
     @abstractmethod
     def instruct(self, dialog: List[Turn], utterance: str) -> str:
         """
-        See BaseOrchestrator.instruct; persistent variant.
+        Persistent variant of :func:`BaseOrchestrator.instruct`.
 
         :param dialog: Current dialog state.
         :type dialog: List[Turn]
@@ -275,7 +273,7 @@ class SimpleReflexOrchestrator(BaseOrchestrator):
     """
     Simple reflex orchestrator that provides fixed instructions when a condition matches.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -293,21 +291,19 @@ class SimpleReflexOrchestrator(BaseOrchestrator):
             alice = Agent(persona=Persona(name="Alice", role="daughter"))
             dialog = bob.talk_with(alice)
             dialog.print(orchestration=True)
+
+    :param condition: Predicate function receiving the last utterance; returns True to trigger.
+    :type condition: callable
+    :param instruction: Instruction text to return when condition is satisfied.
+    :type instruction: str
+    :param persistent: Whether orchestrator persists across turns.
+    :type persistent: bool
+    :param event_label: Optional event label override.
+    :type event_label: str
     """
 
     def __init__(self, condition: callable, instruction: str, persistent: bool = False, event_label: str = None):
-        """
-        Initialize SimpleReflexOrchestrator.
-
-        :param condition: Predicate function receiving the last utterance; returns True to trigger.
-        :type condition: callable
-        :param instruction: Instruction text to return when condition is satisfied.
-        :type instruction: str
-        :param persistent: Whether orchestrator persists across turns.
-        :type persistent: bool
-        :param event_label: Optional event label override.
-        :type event_label: str
-        """
+        """Initialize SimpleReflexOrchestrator."""
         super().__init__(persistent=persistent, event_label=event_label)
         self.condition = condition
         self.instruction = instruction
@@ -331,7 +327,7 @@ class LengthOrchestrator(BaseOrchestrator):
     """
     Orchestrator that encourages continuation or termination based on current number of turns.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -350,21 +346,19 @@ class LengthOrchestrator(BaseOrchestrator):
 
             dialog = planner.dialog_with(guest)
             dialog.print(orchestration=True)
+
+    :param min: Minimum turns before allowing termination (encourages continuation if not reached).
+    :type min: int
+    :param max: Maximum turns threshold after which termination is enforced.
+    :type max: int
+    :param persistent: Whether orchestrator persists.
+    :type persistent: bool
+    :param event_label: Optional event label.
+    :type event_label: str
     """
 
     def __init__(self, min: int = None, max: int = None, persistent: bool = False, event_label: str = None):
-        """
-        Initialize LengthOrchestrator.
-
-        :param min: Minimum turns before allowing termination (encourages continuation if not reached).
-        :type min: int
-        :param max: Maximum turns threshold after which termination is enforced.
-        :type max: int
-        :param persistent: Whether orchestrator persists.
-        :type persistent: bool
-        :param event_label: Optional event label.
-        :type event_label: str
-        """
+        """Initialize LengthOrchestrator."""
         super().__init__(persistent=persistent, event_label=event_label)
         self.max = max
         self.min = min
@@ -390,7 +384,7 @@ class ChangeMindOrchestrator(BaseOrchestrator):
     """
     Orchestrator that probabilistically injects a 'change your mind' instruction a limited number of times.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -411,6 +405,17 @@ class ChangeMindOrchestrator(BaseOrchestrator):
 
             dialog = alice.dialog_with(bob)
             dialog.print(orchestration=True)
+
+    :param probability: Probability (0-1) each eligible turn to trigger a mind-change.
+    :type probability: float
+    :param reasons: Optional reason(s) appended; single string or list.
+    :type reasons: Union[str, List[str]]
+    :param max_times: Maximum number of injections allowed.
+    :type max_times: int
+    :param persistent: Persistence flag.
+    :type persistent: bool
+    :param event_label: Event label override.
+    :type event_label: str
     """
 
     def __init__(self, probability: float = 0.3,
@@ -418,20 +423,7 @@ class ChangeMindOrchestrator(BaseOrchestrator):
                  max_times: int = 1,
                  persistent: bool = False,
                  event_label: str = None):
-        """
-        Initialize ChangeMindOrchestrator.
-
-        :param probability: Probability (0-1) each eligible turn to trigger a mind-change.
-        :type probability: float
-        :param reasons: Optional reason(s) appended; single string or list.
-        :type reasons: Union[str, List[str]]
-        :param max_times: Maximum number of injections allowed.
-        :type max_times: int
-        :param persistent: Persistence flag.
-        :type persistent: bool
-        :param event_label: Event label override.
-        :type event_label: str
-        """
+        """Initialize ChangeMindOrchestrator."""
         super().__init__(persistent=persistent, event_label=event_label)
         self.probability = probability
         self.reasons = [reasons] if type(reasons) is str else reasons
@@ -473,7 +465,7 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
     """
     Orchestrator that suggests next responses based on semantic similarity against a response set (or action graph).
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -499,6 +491,15 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
 
             dialog = guide.dialog_with(user)
             dialog.print(orchestration=True)
+
+    :param responses: List (plain strings) or dict (action -> response) entries.
+    :type responses: List[Union[str, Dict[str, str]]]
+    :param graph: Optional action transition graph (current_action -> next_action).
+    :type graph: Dict[str, str]
+    :param sbert_model: SentenceTransformer model name.
+    :type sbert_model: str
+    :param top_k: Number of top similar responses/actions to surface.
+    :type top_k: int
     """
 
     def __init__(self,
@@ -507,18 +508,7 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
                  #  sbert_model: str = "sentence-transformers/LaBSE",
                  sbert_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
                  top_k: int = 5):
-        """
-        Initialize SimpleResponseOrchestrator.
-
-        :param responses: List (plain strings) or dict (action -> response) entries.
-        :type responses: List[Union[str, Dict[str, str]]]
-        :param graph: Optional action transition graph (current_action -> next_action).
-        :type graph: Dict[str, str]
-        :param sbert_model: SentenceTransformer model name.
-        :type sbert_model: str
-        :param top_k: Number of top similar responses/actions to surface.
-        :type top_k: int
-        """
+        """Initialize SimpleResponseOrchestrator."""
         self.sent_encoder = SentenceTransformer(sbert_model)
         self.responses = responses
         self.top_k = top_k
@@ -601,7 +591,7 @@ class InstructionListOrchestrator(BaseOrchestrator):
     """
     Orchestrator that dispenses predefined instructions sequentially or by turn index mapping.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -624,19 +614,17 @@ class InstructionListOrchestrator(BaseOrchestrator):
 
             dialog = coach.dialog_with(client)
             dialog.print(orchestration=True)
+
+    :param instructions: Either list (indexed per agent turn) or dict mapping agent turn index -> instruction.
+    :type instructions: List[Union[str, Dict[int, str]]]
+    :param persistent: Persistence flag.
+    :type persistent: bool
     """
 
     def __init__(self,
                  instructions: List[Union[str, Dict[int, str]]],
                  persistent: bool = False):
-        """
-        Initialize InstructionListOrchestrator.
-
-        :param instructions: Either list (indexed per agent turn) or dict mapping agent turn index -> instruction.
-        :type instructions: List[Union[str, Dict[int, str]]]
-        :param persistent: Persistence flag.
-        :type persistent: bool
-        """
+        """Initialize InstructionListOrchestrator."""
         super().__init__(persistent=persistent)
         self.instructions = instructions
 

@@ -1,95 +1,103 @@
-sdialog package
-===============
-
-Module contents
----------------
+sdialog
+-------
 
 .. automodule:: sdialog
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-Submodules
-----------
+sdialog.base
+^^^^^^^^^^^^
 
+.. automodule:: sdialog.base
+   :member-order: bysource
+   :members:
+   :show-inheritance:
 
-sdialog.personas module
------------------------
+sdialog.personas
+----------------
 
 .. automodule:: sdialog.personas
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.agents module
----------------------
+sdialog.agents
+--------------
 
 .. automodule:: sdialog.agents
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.orchestrators module
-----------------------------
+sdialog.orchestrators
+---------------------
 
 .. automodule:: sdialog.orchestrators
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.generators module
--------------------------
+sdialog.generators
+------------------
 
 .. automodule:: sdialog.generators
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.interpretability module
--------------------------------
+sdialog.interpretability
+------------------------
 
 .. automodule:: sdialog.interpretability
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.evaluation module
------------------------
+sdialog.evaluation
+------------------
 
 .. automodule:: sdialog.evaluation
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
+sdialog.evaluation.base
+^^^^^^^^^^^^^^^^^^^^^^^
 
-sdialog.datasets module
------------------------
+.. automodule:: sdialog.evaluation.base
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.datasets
+----------------
 
 .. automodule:: sdialog.datasets
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.config module
--------------------
+sdialog.config
+--------------
 
 .. automodule:: sdialog.config
+   :member-order: bysource
    :members:
-   :undoc-members:
    :show-inheritance:
 
 
-sdialog.util module
--------------------
+sdialog.util
+------------
 
 .. automodule:: sdialog.util
+   :member-order: groupwise
    :members:
-   :undoc-members:
    :show-inheritance:

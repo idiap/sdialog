@@ -1,7 +1,8 @@
 """
-base: model foundations for sdialog root module.
+Model foundations for sdialog root module.
 
 Provides:
+
   - Metadata: common provenance fields (version, timestamp, ids).
   - BaseAttributeModel: pydantic-based abstract base for persona/context-like objects
     with cloning, serialization, and dynamic subclass discovery utilities.
@@ -68,22 +69,22 @@ class Metadata(BaseModel):
     """
     Metadata class for object, context and other objects.
 
-    :ivar version: Version of the object format (matches sdialog version).
-    :vartype version: Optional[str]
-    :ivar timestamp: Timestamp of when the object was generated.
-    :vartype timestamp: Optional[str]
-    :ivar model: The model used to generate the object.
-    :vartype model: Optional[str]
-    :ivar seed: The random seed used for object generation.
-    :vartype seed: Optional[int]
-    :ivar id: Unique identifier for the object.
-    :vartype id: Optional[Union[int, str]]
-    :ivar parentId: ID of the parent object, if any.
-    :vartype parentId: Optional[Union[int, str]]
-    :ivar notes: Free-text notes or comments about the generated object.
-    :vartype notes: Optional[str]
-    :ivar className: The class name of the object (a subclass of BaseAttributeModel).
-    :vartype className: str
+    :param version: Version of the object format (matches sdialog version).
+    :type version: Optional[str]
+    :param timestamp: Timestamp of when the object was generated.
+    :type timestamp: Optional[str]
+    :param model: The model used to generate the object.
+    :type model: Optional[str]
+    :param seed: The random seed used for object generation.
+    :type seed: Optional[int]
+    :param id: Unique identifier for the object.
+    :type id: Optional[Union[int, str]]
+    :param parentId: ID of the parent object, if any.
+    :type parentId: Optional[Union[int, str]]
+    :param notes: Free-text notes or comments about the generated object.
+    :type notes: Optional[str]
+    :param className: The class name of the object (a subclass of BaseAttributeModel).
+    :type className: str
     """
     version: Optional[str] = Field(default_factory=_get_dynamic_version)
     timestamp: Optional[str] = Field(default_factory=get_timestamp)
@@ -100,6 +101,7 @@ class BaseAttributeModel(BaseModel, ABC):
     Base class for defining an attribute-based object.
 
     Features:
+
       - Strict field control.
       - Automatic static attributes() helper listing declared fields.
       - Metadata tracking (id, parentId, version, timestamp).
@@ -144,6 +146,7 @@ class BaseAttributeModel(BaseModel, ABC):
         Create a deep copy of this object with optional attribute overrides.
 
         Metadata handling:
+
           - parentId of clone = original id (if present).
           - id of clone = new_id if provided else a new universal id.
           - Other metadata fields are copied.
@@ -275,6 +278,7 @@ class BaseAttributeModel(BaseModel, ABC):
         Create an object instance from a dictionary.
 
         Dispatch rules:
+
           - If object_class is provided and is a BaseAttributeModel subclass, it is used directly.
           - Else uses _metadata.className to resolve a registered subclass.
 
@@ -286,7 +290,7 @@ class BaseAttributeModel(BaseModel, ABC):
         :rtype: BaseAttributeModel
         :raises ValueError: If className missing or cannot be resolved.
         """
-        # Assign to "object" the instance of the right class using the `className`
+        # Assign to "object" the instance of the right class using the ``className``
         if "_metadata" in data and "className" in data["_metadata"] and data["_metadata"]["className"]:
             object_class_name = data["_metadata"]["className"]
             metadata = Metadata(**data["_metadata"])

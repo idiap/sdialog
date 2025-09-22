@@ -1,5 +1,5 @@
 """
-util: Utility Functions for sdialog
+Utility Functions for sdialog
 
 This module provides helper functions for the sdialog package, including serialization utilities to ensure
 objects can be safely converted to JSON for storage or transmission.
@@ -613,24 +613,15 @@ class SentencePairTransformer:  # As opposed to SentenceTransformer
     """
     Transformer wrapper producing CLS embeddings for paired sentences (similar to NLI encoding).
 
-    :ivar tokenizer: Hugging Face tokenizer instance.
-    :vartype tokenizer: AutoTokenizer
-    :ivar model: Hugging Face transformer model.
-    :vartype model: AutoModel
-    :ivar verbose: Whether to leave tqdm progress bars.
-    :vartype verbose: bool
+    :param model_name: Hugging Face model name.
+    :type model_name: str
+    :param device: Explicit device (cpu / cuda:*); auto-detected if None.
+    :type device: str
+    :param verbose: Enable verbose progress display.
+    :type verbose: bool
     """
     def __init__(self, model_name: str = "roberta-base", device: str = None, verbose: bool = True):
-        """
-        Initialize sentence pair encoder.
-
-        :param model_name: Hugging Face model name.
-        :type model_name: str
-        :param device: Explicit device (cpu / cuda:*); auto-detected if None.
-        :type device: str
-        :param verbose: Enable verbose progress display.
-        :type verbose: bool
-        """
+        """Initialize sentence pair encoder."""
         if device is None:
             device = get_device_name()
             logger.info(f"Use pytorch device_name: {device}")
@@ -682,20 +673,13 @@ class KNNModel:
     """
     Thin wrapper around sklearn NearestNeighbors for cosine similarity retrieval.
 
-    :ivar model: Fitted NearestNeighbors instance.
-    :vartype model: NearestNeighbors
-    :ivar k: Default number of neighbors.
-    :vartype k: int
+    :param items: Iterable of (item_id, embedding_vector) pairs.
+    :type items: Iterable[Tuple[Any, Sequence[float]]]
+    :param k: Default number of neighbors to retrieve.
+    :type k: int
     """
     def __init__(self, items, k=3):
-        """
-        Initialize KNN index.
-
-        :param items: Iterable of (item_id, embedding_vector) pairs.
-        :type items: Iterable[Tuple[Any, Sequence[float]]]
-        :param k: Default number of neighbors to retrieve.
-        :type k: int
-        """
+        """Initialize KNN index."""
         # items = (item, vector) pair list
         self.model = NearestNeighbors(algorithm='auto',
                                       metric="cosine",
@@ -727,8 +711,8 @@ class KNNModel:
 
 class CacheDialogScore:
     """
-    Caching utility for expensive dialog scoring functions keyed by:
-      (score class name, score object JSON-serializable attributes, dialog._path).
+    Static class for caching utility for dialog scoring functions keyed by:
+    (score class name, score object JSON-serializable attributes, dialog._path).
 
     Provides static methods to initialize, enable/disable, persist, and clear cache.
     """

@@ -34,9 +34,12 @@ autodoc_mock_imports = [
     # Model / orchestration related
     'ollama', 'openai',
     # Utility libs
-    'tqdm', 'print_color', 'jinja2', 'yaml', 'graphviz', 'PIL', 'tenacity', 'joblib'
+    'tqdm', 'print_color', 'jinja2', 'graphviz', 'PIL', 'tenacity', 'joblib'
 ]
 
+autodoc_default_options = {
+    'exclude-members': ','.join(['model_post_init', 'model_config'])
+}
 
 # -- Project version ---------------------------------------------------------
 

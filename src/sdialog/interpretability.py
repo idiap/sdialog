@@ -1,19 +1,10 @@
 """
-interpretability.py
-
 This submodule provides classes and hooks for inspecting and interpreting the internal representations
 of PyTorch-based language models during forward passes. It enables the registration of hooks on specific
 model layers to capture token-level and response-level information, facilitating analysis of model behavior
 and interpretability. The module is designed to work with conversational agents and integrates with
 tokenizers and memory structures, supporting the extraction and inspection of tokens, representations,
 and system instructions across responses.
-
-Classes:
-    - Inspector: Main class for managing hooks, extracting representations, and providing utilities for analysis.
-    - ResponseHook: Captures token IDs at the embedding layer for each response.
-    - ActivationHook: Captures intermediate representations from specified model layers.
-    - InspectionResponse: Represents a single response, exposing its tokens for inspection.
-    - InspectionToken: Represents a single token within a response, allowing access to its representations.
 
 Typical usage involves attaching one or more `Inspector` objects to an agent, accumulating response and token data
 during inference, and providing interfaces for downstream interpretability and analysis tasks.
@@ -27,6 +18,7 @@ import numpy as np
 
 from abc import ABC
 from functools import partial
+from typing import Optional, Any
 from collections import defaultdict
 from langchain_core.messages import SystemMessage
 from typing import Dict, List, Union, Callable, Tuple
@@ -35,11 +27,12 @@ from typing import Dict, List, Union, Callable, Tuple
 logger = logging.getLogger(__name__)
 
 
-def default_steering_function(activation, direction, strength=1, op="+"):
+def _default_steering_function(activation, direction, strength=1, op="+"):
     """
     Default steering function applied to token-level activations.
 
     Behavior:
+
       - op="+" : additive shift along direction (scaled by strength).
       - op="-" : removes (projects out) the component of activation along direction.
 
@@ -73,6 +66,16 @@ class BaseSteerer(ABC):
 
     This class can be used to create concrete steerers that bind specific directions or
     strengths for steering functions. For instance, the built-int `DirectionSteerer` inherits from this class.
+
+    :param inspector: Target Inspector instance.
+    :type inspector: Inspector
+    :param function: Base steering callable.
+    :type function: Callable
+    :param kwargs: Extra keyword arguments passed to function (e.g., direction, op, strength).
+    :type kwargs: Any
+    :return: The inspector (for chaining).
+    :rtype: Inspector
+    :meta private:
     """
     inspector = None
     strength = None
@@ -80,15 +83,6 @@ class BaseSteerer(ABC):
     def _add_steering_function(self, inspector, function, **kwargs):
         """
         Internal utility to attach a steering function (with deferred strength if set via * operator).
-
-        :param inspector: Target Inspector instance.
-        :type inspector: Inspector
-        :param function: Base steering callable.
-        :type function: Callable
-        :param kwargs: Extra keyword arguments passed to function (e.g., direction, op, strength).
-        :type kwargs: Any
-        :return: The inspector (for chaining).
-        :rtype: Inspector
         """
         if type(inspector) is Inspector:
             if self.strength is not None:
@@ -134,16 +128,16 @@ class BaseHook(ABC):
     """
     Base class for registering and managing PyTorch forward hooks on model layers.
     This class is used to create specific hook classes, like `ResponseHook` and `ActivationHook`.
+
+    :param layer_key: Dotted module path in model.named_modules().
+    :type layer_key: str
+    :param hook_fn: Callable with signature (module, input, output).
+    :type hook_fn: Callable
+    :param agent: Owning agent (may be None for generic hooks).
+    :type agent: Any
+    :meta private:
     """
     def __init__(self, layer_key, hook_fn, agent):
-        """
-        :param layer_key: Dotted module path in model.named_modules().
-        :type layer_key: str
-        :param hook_fn: Callable with signature (module, input, output).
-        :type hook_fn: Callable
-        :param agent: Owning agent (may be None for generic hooks).
-        :type agent: Any
-        """
         self.layer_key = layer_key
         self.hook_fn = hook_fn
         self.handle = None
@@ -178,7 +172,7 @@ class BaseHook(ABC):
 class DirectionSteerer(BaseSteerer):
     """Concrete Steerer binding a direction vector for additive or subtractive steering.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -199,14 +193,13 @@ class DirectionSteerer(BaseSteerer):
             insp = steer - insp
 
             agent("Test prompt")  # steering applied during generation
+
+    :param direction: Direction vector (torch.Tensor or numpy array).
+    :type direction: Union[torch.Tensor, np.ndarray]
+    :param inspector: Optional Inspector to bind immediately.
+    :type inspector: Optional[Inspector]
     """
     def __init__(self, direction, inspector=None):
-        """
-        :param direction: Direction vector (torch.Tensor or numpy array).
-        :type direction: Union[torch.Tensor, np.ndarray]
-        :param inspector: Optional Inspector to bind immediately.
-        :type inspector: Optional[Inspector]
-        """
         self.direction = direction
         self.inspector = inspector
 
@@ -218,7 +211,7 @@ class DirectionSteerer(BaseSteerer):
         :return: The inspector (for chaining).
         :rtype: Inspector
         """
-        return self._add_steering_function(inspector, default_steering_function,
+        return self._add_steering_function(inspector, _default_steering_function,
                                            direction=self.direction, op="+")
 
     def __sub__(self, inspector):
@@ -229,7 +222,7 @@ class DirectionSteerer(BaseSteerer):
         :return: The inspector (for chaining).
         :rtype: Inspector
         """
-        return self._add_steering_function(inspector, default_steering_function,
+        return self._add_steering_function(inspector, _default_steering_function,
                                            direction=self.direction, op="-")
 
 
@@ -238,7 +231,7 @@ class ResponseHook(BaseHook):
     A hook class for capturing response-level information.
     This class is not meant to be used directly, but rather used by the `Inspector` class.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -255,16 +248,16 @@ class ResponseHook(BaseHook):
             print("Generation info:", hook.responses[-1]['output'][0].response)
             # Output:
             # {'input_ids': tensor([ 271, 9906,   11, 1268,  649]),
-            # 'text': '\n\nHello, how can',
-            # 'tokens': ['ĊĊ', 'Hello', ',', 'Ġhow', 'Ġcan'],
+            # 'text': 'Hello, how can',
+            # 'tokens': ['<bos>', 'Hello', ',', 'how', 'can'],
             # 'response_index': 0}
             hook.remove()
+
+    :param agent: Agent instance owning this hook.
+    :type agent: Any
+    :meta private:
     """
     def __init__(self, agent):
-        """
-        :param agent: Agent instance owning this hook.
-        :type agent: Any
-        """
         super().__init__('model.embed_tokens', self._hook, agent=agent)
         self.responses = []
         self.current_response_ids = None
@@ -341,7 +334,7 @@ class ActivationHook(BaseHook):
     A BaseHook for capturing representations from a specific model layer.
     This class is not meant to be used directly, but rather used by the `Inspector` class.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -370,23 +363,23 @@ class ActivationHook(BaseHook):
             print(acts)
             # Output:
             # tensor([[ 0.1182,  0.1152, -0.0045,  ...,  0.1836, -0.0549, -0.1924]], dtype=torch.bfloat16)
+
+    :param cache_key: Key under which layer outputs will be stored.
+    :type cache_key: Union[str, int]
+    :param layer_key: Layer name (found in model.named_modules()).
+    :type layer_key: str
+    :param agent: the target Agent object.
+    :type agent: Any
+    :param response_hook: ResponseHook instance (for current response index).
+    :type response_hook: ResponseHook
+    :param steering_function: Optional single function or list applied in-place to last token activation.
+    :type steering_function: Optional[Union[Callable, List[Callable]]]
+    :param steering_interval: (min_token, max_token) steering window (max=-1 => unbounded).
+    :type steering_interval: Tuple[int, int]
+    :meta private:
     """
     def __init__(self, cache_key, layer_key, agent, response_hook,
                  steering_function=None, steering_interval=(0, -1)):
-        """
-        :param cache_key: Key under which layer outputs will be stored.
-        :type cache_key: Union[str, int]
-        :param layer_key: Layer name (found in model.named_modules()).
-        :type layer_key: str
-        :param agent: the target Agent object.
-        :type agent: Any
-        :param response_hook: ResponseHook instance (for current response index).
-        :type response_hook: ResponseHook
-        :param steering_function: Optional single function or list applied in-place to last token activation.
-        :type steering_function: Optional[Union[Callable, List[Callable]]]
-        :param steering_interval: (min_token, max_token) steering window (max=-1 => unbounded).
-        :type steering_interval: Tuple[int, int]
-        """
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.agent = agent
@@ -459,7 +452,7 @@ class Inspector:
     """
     Main class to manage layer hooks, cached activations, and optional steering functions for an Agent.
 
-    Example::
+    Example:
 
         .. code-block:: python
 
@@ -478,26 +471,30 @@ class Inspector:
             print("Last response, first token activation:", insp[-1][0].act)
             # Output:
             # Num responses captured: 2
-            # Last response, first token string: ĊĊ
+            # Last response, first token string: <bos>
             # Last response, first token activation:
             # tensor([[-0.0109, -0.1128, -0.1216,  ..., -0.0157,  0.2100, -0.2637]])
+
+    :param target: Mapping (cache_key->layer_name) or list / single layer name (optional).
+                   If None, no hooks are added until add_hooks/add_agent is called. Defaults to None.
+    :type target: Union[Dict, List[str], str, None]
+    :param agent: Agent instance to attach to (optional). If provided with a non-empty target,
+                  hooks are registered immediately. Defaults to None.
+    :type agent: Optional[Agent]
+    :param steering_function: Initial steering function or list of functions (optional).
+                              Applied to token activations during generation. Defaults to None.
+    :type steering_function: Optional[Union[Callable, List[Callable]]]
+    :param steering_interval: (min_token, max_token) steering window (optional). Defaults to (0, -1),
+                              where -1 means no upper bound.
+    :type steering_interval: Optional[Tuple[int, int]]
     """
     def __init__(self,
                  target: Union[Dict, List[str], str] = None,
-                 agent=None,
-                 steering_function: Callable = None,
-                 steering_interval: Tuple[int, int] = (0, -1)):
+                 agent: Optional[Any] = None,
+                 steering_function: Optional[Callable] = None,
+                 steering_interval: Optional[Tuple[int, int]] = (0, -1)):
         """
         Initializes the Inspector with optional target layers, agent, and steering functions.
-
-        :param target: Mapping (cache_key->layer_name) or list / single layer name.
-        :type target: Union[Dict, List[str], str, None]
-        :param agent: Agent instance to attach to.
-        :type agent: Any
-        :param steering_function: Initial steering function or list of functions.
-        :type steering_function: Optional[Union[Callable, List[Callable]]]
-        :param steering_interval: (min_token, max_token) steering window.
-        :type steering_interval: Tuple[int, int]
         """
         if target is None:
             target = {}
@@ -613,7 +610,7 @@ class Inspector:
         }
         if self._steering_strength is not None:
             kwargs["strength"] = self._steering_strength
-        self.add_steering_function(partial(default_steering_function, **kwargs))
+        self.add_steering_function(partial(_default_steering_function, **kwargs))
         return self
 
     def add_agent(self, agent):
@@ -621,7 +618,7 @@ class Inspector:
         Attach an Agent after construction and (re)register hooks if target specified.
 
         :param agent: Agent instance.
-        :type agent: Any
+        :type agent: Agent
         """
         self.agent = agent
         if self.target:
@@ -725,14 +722,14 @@ class InspectionResponse:
     """
     Container exposing tokens of a single generated response for per-token inspection.
     This class is not meant to be used directly, but rather used by the `ResponseHook` class.
+
+    :param response: Dict with keys (tokens, text, input_ids, response_index).
+    :type response: dict
+    :param agent: Parent agent.
+    :type agent: Any
+    :meta private:
     """
     def __init__(self, response, agent):
-        """
-        :param response: Dict with keys (tokens, text, input_ids, response_index).
-        :type response: dict
-        :param agent: Parent agent.
-        :type agent: Any
-        """
         self.response = response
         self.tokens = response['tokens']
         self.text = response['text']
@@ -773,21 +770,21 @@ class InspectionResponse:
 class InspectionToken:
     """
     Represents a single token inside a response; accessor for its layer activations.
-    This class is not meant to be used directly, but rather used by the `InspectionResponse` class.
+    This class is not meant to be used directly, but rather used by the :class:`InspectionResponse` class.
+
+    :param token: Token string (or id) at this position.
+    :type token: Union[str, int]
+    :param agent: Parent Agent.
+    :type agent: Any
+    :param response: Parent InspectionResponse.
+    :type response: InspectionResponse
+    :param token_index: Position of token in response.
+    :type token_index: int
+    :param response_index: Index of response in dialogue sequence.
+    :type response_index: int
+    :meta private:
     """
     def __init__(self, token, agent, response, token_index, response_index):
-        """
-        :param token: Token string (or id) at this position.
-        :type token: Union[str, int]
-        :param agent: Parent Agent.
-        :type agent: Any
-        :param response: Parent InspectionResponse.
-        :type response: InspectionResponse
-        :param token_index: Position of token in response.
-        :type token_index: int
-        :param response_index: Index of response in dialogue sequence.
-        :type response_index: int
-        """
         self.token = token
         self.token_index = token_index
         self.response = response  # Reference to parent response

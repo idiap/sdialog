@@ -84,17 +84,17 @@ def test_dialog_length():
 
 
 def test_set_llm():
-    from sdialog.config import config, set_llm
-    set_llm("test-model")
+    from sdialog.config import config, llm
+    llm("test-model")
     assert config["llm"]["model"] == "test-model"
 
 
 def test_set_llm_params():
-    from sdialog.config import config, set_llm_params, set_llm
-    set_llm_params(temperature=0.5, seed=42)
+    from sdialog.config import config, llm_params, llm
+    llm_params(temperature=0.5, seed=42)
     assert config["llm"]["temperature"] == 0.5
     assert config["llm"]["seed"] == 42
-    set_llm("test-model", temperature=0.3, seed=33)
+    llm("test-model", temperature=0.3, seed=33)
     assert config["llm"]["temperature"] == 0.3
     assert config["llm"]["seed"] == 33
 

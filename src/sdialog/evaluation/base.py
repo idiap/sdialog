@@ -1,7 +1,8 @@
 """
-evaluation.base: Base evaluation components for synthetic dialog workflows.
+Base and abstract evaluation components.
 
 Provides abstract interfaces and utilities to:
+
   * Embed a dialog (BaseDialogEmbedder)
   * Score a single dialog (BaseDialogScore / BaseDialogFlowScore)
   * Aggregate dialog scores across datasets (BaseDatasetScoreEvaluator)
@@ -43,7 +44,11 @@ class BaseDialogEmbedder(ABC):
     """
     Base class for dialog embedding models.
 
-    Example::
+    Abstract:
+    - This is an abstract class.
+    - Subclasses must implement: embed(dialog: Dialog) -> np.ndarray
+
+    Example:
 
         .. code-block:: python
 
@@ -63,15 +68,12 @@ class BaseDialogEmbedder(ABC):
             for d in dialogues:
                 emb = rnd_embedder(d)
                 print(emb.shape)  # (128,)
+
+    :param name: Optional name identifier for the embedder.
+    :type name: Optional[str]
     """
-
     def __init__(self, name: Optional[str] = None):
-        """
-        Initialize the dialog embedder.
-
-        :param name: Optional name identifier for the embedder.
-        :type name: Optional[str]
-        """
+        """Initialize the dialog embedder."""
         self.name = name
 
     def __call__(self, dialog: Dialog) -> np.ndarray:
@@ -103,7 +105,11 @@ class BaseDialogScore(ABC):
     """
     Base class for computing a scalar score for a single dialog.
 
-    Example::
+    Abstract:
+    - This is an abstract class.
+    - Subclasses must implement: score(dialog: Dialog) -> float
+
+    Example:
 
         .. code-block:: python
 
@@ -122,17 +128,14 @@ class BaseDialogScore(ABC):
                               Turn(speaker="s", text="Hello")])
 
             print(turn_counter(d))  # Outputs: 2
+
+    :param name: Name of the score (used in reporting).
+    :type name: Optional[str]
+    :param ai_speaker: If provided, restrict scoring to turns spoken by this AI speaker (case-insensitive).
+    :type ai_speaker: Optional[str]
     """
-
     def __init__(self, name: Optional[str] = None, ai_speaker: str = None):
-        """
-        Initialize the dialog score object.
-
-        :param name: Name of the score (used in reporting).
-        :type name: Optional[str]
-        :param ai_speaker: If provided, restrict scoring to turns spoken by this AI speaker (case-insensitive).
-        :type ai_speaker: Optional[str]
-        """
+        """Initialize the dialog score object."""
         self.name = name
         self.ai_speaker = ai_speaker
 
@@ -169,8 +172,22 @@ class BaseDialogFlowScore(BaseDialogScore):
     retrieves nearest nodes, and derives transition probabilities.
     Serves as the foundation for perplexity / likelihood style scores
     (e.g., DialogFlowPPL, DialogFlowScore).
-    """
 
+    Abstract:
+    - This is an abstract class (extends BaseDialogScore).
+    - Subclasses must implement: score(dialog: Dialog) -> float
+
+    :param reference_dialogues: List of Dialog objects or path to a serialized dialog file.
+    :param ai_speaker: If provided, only system/AI speaker turns are considered in scoring.
+    :param k_neighbors: Number of neighbors for softmax aggregation.
+    :param use_softmax: If True, weight neighbor probabilities via softmax, else pick top-1.
+    :param graph: Optional precomputed graph object to reuse (bypasses construction).
+    :param nodes: Optional precomputed node metadata dictionary.
+    :param name: Optional score name override (auto if None).
+    :param verbose: Verbosity flag forwarded to graph construction.
+    :param d2f_kwargs: Additional dialog2graph customization parameters.
+    :raises ValueError: If reference_dialogues is invalid.
+    """
     def __init__(self,
                  reference_dialogues: Union[str, List[Dialog]],
                  ai_speaker: str = None,
@@ -181,20 +198,7 @@ class BaseDialogFlowScore(BaseDialogScore):
                  name: str = None,
                  verbose: bool = False,
                  **d2f_kwargs):
-        """
-        Initialize the flow score model by Building or loading a dialog flow graph from reference dialogs.
-
-        :param reference_dialogues: List of Dialog objects or path to a serialized dialog file.
-        :param ai_speaker: If provided, only system/AI speaker turns are considered in scoring.
-        :param k_neighbors: Number of neighbors for softmax aggregation.
-        :param use_softmax: If True, weight neighbor probabilities via softmax, else pick top-1.
-        :param graph: Optional precomputed graph object to reuse (bypasses construction).
-        :param nodes: Optional precomputed node metadata dictionary.
-        :param name: Optional score name override (auto if None).
-        :param verbose: Verbosity flag forwarded to graph construction.
-        :param d2f_kwargs: Additional dialog2graph customization parameters.
-        :raises ValueError: If reference_dialogues is invalid.
-        """
+        """Initialize the flow score model by Building or loading a dialog flow graph from reference dialogs."""
         super().__init__(name=name if name else "dfs" + ("" if use_softmax else "-hard"), ai_speaker=ai_speaker)
 
         d2f_kwargs = {"node_llm_labels_enabled": False,
@@ -336,7 +340,11 @@ class BaseDatasetEvaluator(ABC):
     Typically, Dataset evaluator subclasses will take a dialogue score (BaseDialogScore object) when
     created and will return an aggregate of the per-dialog scores.
 
-    Example::
+    Abstract:
+    - This is an abstract class.
+    - Subclasses must implement: __call__(dialogues, dataset_name: Optional[str] = None, **kwargs) -> Union[dict, float]
+
+    Example:
 
         .. code-block:: python
 
@@ -382,7 +390,12 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     and given a collection of dialogs, aggregate their individual scores to return a single
     value for the collection.
 
-    Example::
+    Abstract:
+    - This is an abstract class.
+    - Subclasses must implement: __eval__(dialog_scores: List[Union[float, int]]) -> Union[dict, float]
+      and __plot__(dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None) -> None
+
+    Example:
 
         .. code-block:: python
 
@@ -391,36 +404,34 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             from sdialog.evaluation.base import BaseDatasetScoreEvaluator
 
             # Let's create our average score evaluator
-            # (in practice, use the built-in MeanEvaluator!)
+            # We need to implement only the __eval__ method (and optionally the __plot__ method)
+            # In practice, don't use this example class for average, but better use the built-in `MeanEvaluator`!
             class AverageEvaluator(BaseDatasetScoreEvaluator):
                 def __plot__(self, dialog_scores, plot=None): pass  # no-op
 
-                def eval(self, dialog_scores):
+                def __eval__(self, dialog_scores):
                     return np.mean(dialog_scores)
 
             avg_evaluator = AverageEvaluator(
                 dialog_score=LinguisticFeatureScore(name="hesitation-rate")
             )
             print(avg_evaluator(dialogs))  # Outputs average hesitation rate over the dialogs
-    """
 
+    :param dialog_score: Dialog-level scoring component.
+    :type dialog_score: BaseDialogScore
+    :param name: Optional evaluator name (auto-derived if None).
+    :type name: Optional[str]
+    :param enable_plotting: Whether to keep per-dataset scores for plotting.
+    :type enable_plotting: bool
+    :param verbose: Whether to keep tqdm bars visible.
+    :type verbose: bool
+    """
     def __init__(self,
                  dialog_score: BaseDialogScore,
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
-        """
-        Initialize the score evaluator.
-
-        :param dialog_score: Dialog-level scoring component.
-        :type dialog_score: BaseDialogScore
-        :param name: Optional evaluator name (auto-derived if None).
-        :type name: Optional[str]
-        :param enable_plotting: Whether to keep per-dataset scores for plotting.
-        :type enable_plotting: bool
-        :param verbose: Whether to keep tqdm bars visible.
-        :type verbose: bool
-        """
+        """Initialize the score evaluator."""
         self.dialog_score = dialog_score
         if not name:
             self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
@@ -469,14 +480,14 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             metrics = scores[0].keys()
             scores = {metric: np.array([s[metric] for s in scores if s[metric] is not None])
                       for metric in metrics}
-            results = {metric: self.eval(scores[metric]) for metric in metrics}
+            results = {metric: self.__eval__(scores[metric]) for metric in metrics}
             for metric in metrics:
                 if metric not in self.datasets_scores:
                     self.datasets_scores[metric] = {}
                 self.datasets_scores[metric][dataset_name] = scores[metric]
         else:
             scores = np.array([s for s in scores if s is not None])  # Filter out None scores
-            results = self.eval(scores)
+            results = self.__eval__(scores)
             self.datasets_scores[dataset_name] = scores  # Store the scores for later use
         return (results, scores) if return_scores else results
 
@@ -489,6 +500,19 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :type dialog_scores: Dict[str, np.ndarray]
         :param plot: Optional matplotlib object to use (plt or Axes).
         :type plot: Optional[plt.Axes]
+        :raises NotImplementedError: If not implemented in subclass.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def __eval__(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
+        """
+        Aggregate a collection of per-dialog scores.
+
+        :param dialog_scores: List or array of numeric scores.
+        :type dialog_scores: List[Union[float, int]]
+        :return: Aggregated scalar or dict of metrics.
+        :rtype: Union[float, dict]
         :raises NotImplementedError: If not implemented in subclass.
         """
         raise NotImplementedError
@@ -538,19 +562,6 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             if show:
                 plt.show()
 
-    @abstractmethod
-    def eval(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
-        """
-        Aggregate a collection of per-dialog scores.
-
-        :param dialog_scores: List or array of numeric scores.
-        :type dialog_scores: List[Union[float, int]]
-        :return: Aggregated scalar or dict of metrics.
-        :rtype: Union[float, dict]
-        :raises NotImplementedError: If not implemented in subclass.
-        """
-        raise NotImplementedError
-
 
 class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
     """
@@ -559,7 +570,12 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
     It takes a dialog embedder (BaseDialogEmbedder object) when created
     and given a collection of dialogs, computes their embeddings and returns a single value for the collection.
 
-    Example::
+    Abstract:
+    - This is an abstract class.
+    - Subclasses must implement: __eval__(dialog_embs: List[np.ndarray]) -> Union[dict, float]
+      and __plot__(dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]) -> None
+
+    Example:
 
         .. code-block:: python
 
@@ -567,6 +583,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
             from sdialog.evaluation.base import BaseDatasetEmbeddingEvaluator
 
             # Evaluator that computes the average centroid cosine distance to a reference centroid
+            # We need to implement only the __eval__ method (and optionally the __plot__ method)
             # (in practice, use the built-in ReferenceCentroidEmbeddingEvaluator!)
             class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                 def __plot__(self, dialog_embs): pass  # no-op
@@ -576,7 +593,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
                         [dialog_embedder(dialog) for dialog in reference_dialogs], axis=0
                     )
 
-                def eval(self, dialog_embs):
+                def __eval__(self, dialog_embs):
                     centroid = np.mean(dialog_embs, axis=0)
                     return cosine(centroid, self.reference_centroid)
 
@@ -586,25 +603,21 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
 
             print(centroid_evaluator(dialogs))  # distance between candidate and reference dialogues
                                                 # (cosine distance between their centroids)
+    :param dialog_embedder: Dialog embedding component.
+    :type dialog_embedder: BaseDialogEmbedder
+    :param name: Optional evaluator name (auto-derived if None).
+    :type name: Optional[str]
+    :param enable_plotting: Whether to store embeddings for plotting.
+    :type enable_plotting: bool
+    :param verbose: Verbosity flag for progress bars.
+    :type verbose: bool
     """
-
     def __init__(self,
                  dialog_embedder: BaseDialogEmbedder,
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False):
-        """
-        Initialize the embedding evaluator.
-
-        :param dialog_embedder: Dialog embedding component.
-        :type dialog_embedder: BaseDialogEmbedder
-        :param name: Optional evaluator name (auto-derived if None).
-        :type name: Optional[str]
-        :param enable_plotting: Whether to store embeddings for plotting.
-        :type enable_plotting: bool
-        :param verbose: Verbosity flag for progress bars.
-        :type verbose: bool
-        """
+        """Initialize the embedding evaluator."""
         self.dialog_embedder = dialog_embedder
         if not name:
             self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "")
@@ -627,7 +640,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
         :type dataset_name: Optional[str]
         :param return_embs: If True return (results, embeddings_array).
         :type return_embs: bool
-        :return: Aggregated evaluation or (results, embeddings).
+        :return: Aggregated evaluation or (results, embeddings) if return_embs.
         :rtype: Union[dict, float, Tuple[Union[dict, float], np.ndarray]]
         """
         dataset_name = dataset_name or "candidate"
@@ -641,10 +654,38 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
 
         if self.enable_plotting:
             self.datasets_embs[dataset_name] = embs  # Store the embeddings for later use
-        results = self.eval(embs)
+        results = self.__eval__(embs)
         return (results, embs) if return_embs else results
 
-    def clear_history(self):
+    @abstractmethod
+    def __plot__(self, dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]):
+        """
+        Plot embeddings from multiple datasets.
+
+        :param dialog_embs: Mapping dataset_name -> embeddings array.
+        :type dialog_embs: Dict[str, np.ndarray]
+        :param tsne_model: t-SNE model used for dimensionality reduction.
+        :type tsne_model: TSNE
+        :param plot: Matplotlib handle (plt module or Axes).
+        :type plot: Optional[plt.Axes]
+        :raises NotImplementedError: If not implemented in subclass.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    @abstractmethod
+    def __eval__(self, dialog_embs: List[np.ndarray]) -> Union[dict, float]:
+        """
+        Evaluate a collection of dialog embeddings.
+
+        :param dialog_embs: List or array of per-dialog embedding vectors.
+        :type dialog_embs: List[np.ndarray]
+        :return: Aggregated evaluation (scalar or dict).
+        :rtype: Union[dict, float]
+        :raises NotImplementedError: If not implemented in subclass.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    def clear(self):
         """
         Clear stored per-dataset embeddings.
         """
@@ -674,41 +715,17 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
         if show:
             plt.show()
 
-    @abstractmethod
-    def __plot__(self, dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]):
-        """
-        Plot embeddings from multiple datasets.
-
-        :param dialog_embs: Mapping dataset_name -> embeddings array.
-        :type dialog_embs: Dict[str, np.ndarray]
-        :param tsne_model: t-SNE model used for dimensionality reduction.
-        :type tsne_model: TSNE
-        :param plot: Matplotlib handle (plt module or Axes).
-        :type plot: Optional[plt.Axes]
-        :raises NotImplementedError: If not implemented in subclass.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
-    @abstractmethod
-    def eval(self, dialog_embs: List[np.ndarray]) -> Union[dict, float]:
-        """
-        Evaluate a collection of dialog embeddings.
-
-        :param dialog_embs: List or array of per-dialog embedding vectors.
-        :type dialog_embs: List[np.ndarray]
-        :return: Aggregated evaluation (scalar or dict).
-        :rtype: Union[dict, float]
-        :raises NotImplementedError: If not implemented in subclass.
-        """
-        raise NotImplementedError("Subclasses should implement this method.")
-
 
 class BaseLLMJudge(ABC):
     """
-    Base class for LLM-based evaluation judges that render a prompt and parse model output.
-    This is the base class of built-in judges like LLMJudgeRealDialog or LLMJudgeRefusal.
+    Base class for all LLM-based evaluation judges that render a prompt and return an output.
+    This is the base class of built-in base judges like ``LLMJudgeYesNo`` or ``LLMJudgeScore``.
 
-    Example::
+    Abstract:
+    - This is an abstract class.
+    - Subclasses must implement: judge(dialogs: Union[Dialog, List[Dialog]]) -> dict
+
+    Example:
 
         .. code-block:: python
 
@@ -724,25 +741,22 @@ class BaseLLMJudge(ABC):
 
             magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\n{{ dialog }}")
             print(magic_judge.judge(dialog))  # Outputs raw LLM response
-    """
 
+    :param model: Model instance or model name (falls back to config if None).
+    :type model: Union[BaseLanguageModel, str]
+    :param prompt_template: Jinja2 template string used to build the human prompt.
+    :type prompt_template: str
+    :param output_format: Optional Pydantic schema or JSON schema dict for structured output.
+    :type output_format: Union[dict, BaseModel]
+    :param llm_kwargs: Additional model instantiation parameters overriding config.
+    :type llm_kwargs: dict
+    """
     def __init__(self,
                  model: Union[BaseLanguageModel, str] = None,
                  prompt_template: str = "",
                  output_format: Union[dict, BaseModel] = None,
                  **llm_kwargs):
-        """
-        Initialize the LLM judge.
-
-        :param model: Model instance or model name (falls back to config if None).
-        :type model: Union[BaseLanguageModel, str]
-        :param prompt_template: Jinja2 template string used to build the human prompt.
-        :type prompt_template: str
-        :param output_format: Optional Pydantic schema or JSON schema dict for structured output.
-        :type output_format: Union[dict, BaseModel]
-        :param llm_kwargs: Additional model instantiation parameters overriding config.
-        :type llm_kwargs: dict
-        """
+        """Initialize the LLM judge."""
         if model is None:
             model = config["llm"]["model"]
 

@@ -1,10 +1,7 @@
 """
-datasets: Dataset Utilities for Synthetic Dialogue Generation
-
 This module provides utilities for loading, parsing, and describing dialogue datasets, including the STAR dataset.
-It supports extracting scenarios, flowcharts, personas, and constructing Agent objects for simulation.
+It supports extracting scenarios, flowcharts, personas, and constructing dataset-specific Agent objects for simulation.
 """
-
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
@@ -23,6 +20,9 @@ from .orchestrators import InstructionListOrchestrator, SimpleResponseOrchestrat
 class STAR:
     """
     Utility class for interacting with the STAR dialogue dataset.
+
+        - Paper: https://arxiv.org/abs/2010.11853
+        - Github: https://github.com/RasaHQ/STAR
 
     Provides methods for loading dialogues, extracting scenarios, flowcharts, responses, and constructing
     Agent objects for simulation and evaluation.
