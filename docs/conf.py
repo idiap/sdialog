@@ -222,7 +222,8 @@ def _prebuild_about_from_md(app):  # noqa: D401
             if write:
                 with open(dst_rst, "w", encoding="utf-8") as f:
                     f.write(rst_text)
-                logger.info("pre-build: generated %s from %s", os.path.relpath(dst_rst, docs_dir), os.path.relpath(src_md, repo_root))
+                logger.info("pre-build: generated %s from %s",
+                            os.path.relpath(dst_rst, docs_dir), os.path.relpath(src_md, repo_root))
             else:
                 logger.info("pre-build: up-to-date %s", os.path.relpath(dst_rst, docs_dir))
         except Exception as e:

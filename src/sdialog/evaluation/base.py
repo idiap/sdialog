@@ -372,7 +372,8 @@ class BaseDatasetEvaluator(ABC):
     Abstract:
 
     - This is an abstract class.
-    - Subclasses must implement: ``__call__(dialogues, dataset_name: Optional[str] = None, **kwargs) -> Union[dict, float]``
+    - Subclasses must implement:
+    ``__call__(dialogues, dataset_name: Optional[str] = None, **kwargs) -> Union[dict, float]``
 
     Example:
 
