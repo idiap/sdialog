@@ -71,8 +71,9 @@ class BaseDialogEmbedder(ABC):
     Base class for dialog embedding models.
 
     Abstract:
+
     - This is an abstract class.
-    - Subclasses must implement: embed(dialog: Dialog) -> np.ndarray
+    - Subclasses must implement: ``embed(dialog: Dialog) -> np.ndarray``
 
     Example:
 
@@ -132,8 +133,9 @@ class BaseDialogScore(ABC):
     Base class for computing a scalar score for a single dialog.
 
     Abstract:
+
     - This is an abstract class.
-    - Subclasses must implement: score(dialog: Dialog) -> float
+    - Subclasses must implement: ``score(dialog: Dialog) -> float``
 
     Example:
 
@@ -200,8 +202,9 @@ class BaseDialogFlowScore(BaseDialogScore):
     (e.g., DialogFlowPPL, DialogFlowScore).
 
     Abstract:
-    - This is an abstract class (extends BaseDialogScore).
-    - Subclasses must implement: score(dialog: Dialog) -> float
+
+    - This is an abstract class (extends ``BaseDialogScore``).
+    - Subclasses must implement: ``score(dialog: Dialog) -> float``
 
     :param reference_dialogues: List of Dialog objects or path to a serialized dialog file.
     :param ai_speaker: If provided, only system/AI speaker turns are considered in scoring.
@@ -367,8 +370,9 @@ class BaseDatasetEvaluator(ABC):
     created and will return an aggregate of the per-dialog scores.
 
     Abstract:
+
     - This is an abstract class.
-    - Subclasses must implement: __call__(dialogues, dataset_name: Optional[str] = None, **kwargs) -> Union[dict, float]
+    - Subclasses must implement: ``__call__(dialogues, dataset_name: Optional[str] = None, **kwargs) -> Union[dict, float]``
 
     Example:
 
@@ -417,9 +421,10 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     value for the collection.
 
     Abstract:
+
     - This is an abstract class.
-    - Subclasses must implement: __eval__(dialog_scores: List[Union[float, int]]) -> Union[dict, float]
-      and __plot__(dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None) -> None
+    - Subclasses must implement: ``__eval__(dialog_scores: List[Union[float, int]]) -> Union[dict, float]``
+      and ``__plot__(dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None) -> None``
 
     Example:
 
@@ -597,9 +602,10 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
     and given a collection of dialogs, computes their embeddings and returns a single value for the collection.
 
     Abstract:
+
     - This is an abstract class.
-    - Subclasses must implement: __eval__(dialog_embs: List[np.ndarray]) -> Union[dict, float]
-      and __plot__(dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]) -> None
+    - Subclasses must implement: ``__eval__(dialog_embs: List[np.ndarray]) -> Union[dict, float]```
+      and ``__plot__(dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]) -> None``
 
     Example:
 
@@ -748,8 +754,9 @@ class BaseLLMJudge(ABC):
     This is the base class of built-in base judges like ``LLMJudgeYesNo`` or ``LLMJudgeScore``.
 
     Abstract:
+
     - This is an abstract class.
-    - Subclasses must implement: judge(dialogs: Union[Dialog, List[Dialog]]) -> dict
+    - Subclasses must implement: ``judge(dialogs: Union[Dialog, List[Dialog]]) -> dict``
 
     Example:
 

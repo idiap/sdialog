@@ -108,7 +108,7 @@ class Agent:
     :type system_prompt: Optional[str]
     :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
     :type model: Union[str, BaseLanguageModel], optional
-    :param **llm_kwargs: Additional parameters for the LLM.
+    :param llm_kwargs: Additional parameters for the LLM.
     :type llm_kwargs: dict
     """
     _STOP_WORD = "STOP"
