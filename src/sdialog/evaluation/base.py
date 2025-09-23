@@ -70,10 +70,8 @@ class BaseDialogEmbedder(ABC):
     """
     Base class for dialog embedding models.
 
-    Abstract:
-
-    - This is an abstract class.
-    - Subclasses must implement: ``embed(dialog: Dialog) -> np.ndarray``
+    Subclasses must implement the abstract method:
+    ``embed(dialog: Dialog) -> np.ndarray``
 
     Example:
 
@@ -132,10 +130,8 @@ class BaseDialogScore(ABC):
     """
     Base class for computing a scalar score for a single dialog.
 
-    Abstract:
-
-    - This is an abstract class.
-    - Subclasses must implement: ``score(dialog: Dialog) -> float``
+    Subclasses must implement the abstract method:
+    ``score(dialog: Dialog) -> float``
 
     Example:
 
@@ -201,10 +197,8 @@ class BaseDialogFlowScore(BaseDialogScore):
     Serves as the foundation for perplexity / likelihood style scores
     (e.g., DialogFlowPPL, DialogFlowScore).
 
-    Abstract:
-
-    - This is an abstract class (extends ``BaseDialogScore``).
-    - Subclasses must implement: ``score(dialog: Dialog) -> float``
+    This is an abstract class (extends ``BaseDialogScore``) and cannot be instantiated directly.
+    Subclasses must implement the abstract method: ``score(dialog: Dialog) -> float``
 
     :param reference_dialogues: List of Dialog objects or path to a serialized dialog file.
     :param ai_speaker: If provided, only system/AI speaker turns are considered in scoring.
@@ -369,10 +363,7 @@ class BaseDatasetEvaluator(ABC):
     Typically, Dataset evaluator subclasses will take a dialogue score (BaseDialogScore object) when
     created and will return an aggregate of the per-dialog scores.
 
-    Abstract:
-
-    - This is an abstract class.
-    - Subclasses must implement:
+    Subclasses must implement the abstract method:
     ``__call__(dialogues, dataset_name: Optional[str] = None, **kwargs) -> Union[dict, float]``
 
     Example:
@@ -421,11 +412,10 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
     and given a collection of dialogs, aggregate their individual scores to return a single
     value for the collection.
 
-    Abstract:
+    Subclasses must implement the abstract methods:
 
-    - This is an abstract class.
-    - Subclasses must implement: ``__eval__(dialog_scores: List[Union[float, int]]) -> Union[dict, float]``
-      and ``__plot__(dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None) -> None``
+        - ``__eval__(dialog_scores: List[Union[float, int]]) -> Union[dict, float]``
+        - (Optional) ``__plot__(dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None) -> None``
 
     Example:
 
@@ -602,10 +592,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
     It takes a dialog embedder (BaseDialogEmbedder object) when created
     and given a collection of dialogs, computes their embeddings and returns a single value for the collection.
 
-    Abstract:
-
-    - This is an abstract class.
-    - Subclasses must implement: ``__eval__(dialog_embs: List[np.ndarray]) -> Union[dict, float]```
+    Subclasses must implement: ``__eval__(dialog_embs: List[np.ndarray]) -> Union[dict, float]```
       and ``__plot__(dialog_embs: Dict[str, np.ndarray], tsne_model: TSNE, plot: Optional[plt.Axes]) -> None``
 
     Example:
@@ -636,6 +623,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
 
             print(centroid_evaluator(dialogs))  # distance between candidate and reference dialogues
                                                 # (cosine distance between their centroids)
+
     :param dialog_embedder: Dialog embedding component.
     :type dialog_embedder: BaseDialogEmbedder
     :param name: Optional evaluator name (auto-derived if None).
@@ -754,10 +742,8 @@ class BaseLLMJudge(ABC):
     Base class for all LLM-based evaluation judges that render a prompt and return an output.
     This is the base class of built-in base judges like ``LLMJudgeYesNo`` or ``LLMJudgeScore``.
 
-    Abstract:
-
-    - This is an abstract class.
-    - Subclasses must implement: ``judge(dialogs: Union[Dialog, List[Dialog]]) -> dict``
+    Subclasses must implement the abstract method:
+    ``judge(dialogs: Union[Dialog, List[Dialog]]) -> dict``
 
     Example:
 
@@ -773,7 +759,7 @@ class BaseLLMJudge(ABC):
                     raw = self(prompt)  # call underlying LLM
                     return raw  # normally you'd parse into structured output
 
-            magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\n{{ dialog }}")
+            magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\\n{{ dialog }}")
             print(magic_judge.judge(dialog))  # Outputs raw LLM response
 
     :param model: Model instance or model name (falls back to config if None).

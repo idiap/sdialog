@@ -615,7 +615,7 @@ class SentencePairTransformer:  # As opposed to SentenceTransformer
 
     :param model_name: Hugging Face model name.
     :type model_name: str
-    :param device: Explicit device (cpu / cuda:*); auto-detected if None.
+    :param device: Explicit device (``"cpu"`` / ``"cuda:*"``); auto-detected if None.
     :type device: str
     :param verbose: Enable verbose progress display.
     :type verbose: bool
@@ -827,11 +827,12 @@ class CacheDialogScore:
         Decorator adding disk-backed caching for dialog scoring functions.
 
         Cache key includes:
+
           * score object class name
           * JSON-serializable attributes of score object
           * dialog._path (must exist)
 
-        :param func: Target scoring function (score_obj, dialog, *args, **kwargs).
+        :param func: Target scoring function ``(score_obj, dialog, *args, **kwargs)``.
         :type func: callable
         :return: Wrapped function with caching logic.
         :rtype: callable

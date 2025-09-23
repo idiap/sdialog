@@ -29,6 +29,7 @@ Multi-Agent Dialogue with Orchestration
 This example shows how to add orchestration to the dialogue generation process. Orchestrators can control aspects such as dialogue length or simulate behaviors like an agent changing its mind. Here, we use both a length orchestrator and a mind-changing orchestrator to influence the assistant agent's behavior.
 
 .. code-block:: python
+
     from sdialog.personas import Persona
     from sdialog.agents import Agent
     from sdialog.orchestrators import LengthOrchestrator, ChangeMindOrchestrator
