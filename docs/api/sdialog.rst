@@ -6,7 +6,6 @@ sdialog
    :members:
    :show-inheritance:
 
-
 sdialog.base
 ^^^^^^^^^^^^
 
@@ -14,6 +13,9 @@ sdialog.base
    :member-order: bysource
    :members:
    :show-inheritance:
+
+
+----
 
 sdialog.personas
 ----------------
@@ -24,6 +26,8 @@ sdialog.personas
    :show-inheritance:
 
 
+----
+
 sdialog.agents
 --------------
 
@@ -33,6 +37,8 @@ sdialog.agents
    :show-inheritance:
 
 
+----
+
 sdialog.orchestrators
 ---------------------
 
@@ -41,6 +47,16 @@ sdialog.orchestrators
    :members:
    :show-inheritance:
 
+sdialog.orchestrators.base
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.orchestrators.base
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+
+----
 
 sdialog.generators
 ------------------
@@ -50,6 +66,16 @@ sdialog.generators
    :members:
    :show-inheritance:
 
+sdialog.generators.base
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.generators.base
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+
+----
 
 sdialog.interpretability
 ------------------------
@@ -59,6 +85,16 @@ sdialog.interpretability
    :members:
    :show-inheritance:
 
+.. sdialog.interpretability.base
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. .. automodule:: sdialog.interpretability.base
+..    :member-order: bysource
+..    :members:
+..    :show-inheritance:
+
+
+----
 
 sdialog.evaluation
 ------------------
@@ -76,6 +112,9 @@ sdialog.evaluation.base
    :members:
    :show-inheritance:
 
+
+----
+
 sdialog.datasets
 ----------------
 
@@ -85,6 +124,8 @@ sdialog.datasets
    :show-inheritance:
 
 
+----
+
 sdialog.config
 --------------
 
@@ -93,6 +134,8 @@ sdialog.config
    :members:
    :show-inheritance:
 
+
+----
 
 sdialog.util
 ------------
