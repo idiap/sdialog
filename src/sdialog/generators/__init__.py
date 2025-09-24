@@ -412,12 +412,14 @@ class ContextGenerator(BaseAttributeModelGenerator):
             ctx_generator = ContextGenerator(base_context)
 
             ctx_generator.set(
-                environment=["Pressurized dome", "Dusty lab", "Airlock staging zone"],
+                objects=get_objects_from_db,  # callable function
                 topics=["terraforming", "resource logistics", "crew morale"]
+                circumstances="{csv:circumstances:./data/circumstances.csv}",
+                goals="{llm:Suggest a realistic goal for the context}"
             )
 
-            ctx = ctx_generator.generate()
-            ctx.print()
+            my_context = ctx_generator.generate()
+            my_context.print()
 
     :param context: Context instance or subclass to generate.
     :type context: Context
@@ -431,7 +433,7 @@ class ContextGenerator(BaseAttributeModelGenerator):
     :type llm_kwargs: dict
     """
     def __init__(self,
-                 context: Context,
+                 context: Context = None,
                  generated_attributes: str = "all",
                  extra_instructions: str = "Attributes must be in English",
                  model: str = None,
@@ -441,6 +443,8 @@ class ContextGenerator(BaseAttributeModelGenerator):
 
         :raises ValueError: If context is not a Context or subclass.
         """
+        if context is None:
+            context = Context()
         if isinstance(context, type) and issubclass(context, Context):
             context = context()
         elif not isinstance(context, Context):

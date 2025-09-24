@@ -1870,6 +1870,7 @@ class DatasetComparator:
         else:
             raise ValueError(f"Unsupported output format: {output}. Supported formats are "
                              "'dict', 'markdown', and 'table'.")
+        return results
 
     def plot(self, show: bool = True, save_folder_path: str = None):
         """

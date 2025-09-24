@@ -2,6 +2,24 @@
 
 All notable changes to SDialog will be documented here.
 
+## [0.1.0] 2025-08-05
+
+### Added
+- Multi-backend support (Hugging Face, Ollama, OpenAI, AWS)
+- Enhanced persona generation (beyond initial `PersonaDialogGenerator`)
+- Interpretability module (`sdialog.interpretability`): inspectors, steerers, hooks, intruders
+- Evaluation module (`sdialog.evaluation`): metrics, LLM-as-a-judge scoring, evaluators, dataset comparators
+
+### Changed
+- Standardized / improved dialog format
+
+### Notes
+- >500 commits since 0.0.2 (post-JSALT 2025 consolidation)
+
+### Pending
+- Audio module (`sdialog.audio`) integration
+- Documentation updates
+
 ## [0.0.2] 2025-06-03
 
 ### Added
