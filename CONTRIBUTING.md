@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in the project — you're ![awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)! 🎉
+Thanks for your interest in the project — you're awesome! 😎🎉
 
 Any kind of help is welcome (Code, Bug reports, Content, Data, Documentation, Design, Examples, Ideas, Feedback, etc.). Issues and Pull Requests are encouraged: from a tiny typo fix to a new feature. Help us make SDialog better 👍
 

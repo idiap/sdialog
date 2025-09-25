@@ -74,7 +74,7 @@ for ix in range(3):
 ```
 > [!NOTE]
 > - See [orchestration tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/3.multi-agent%2Borchestrator_generation.ipynb) and [agents with tools/thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb).
-> - Dialogs are [rich objects](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#sdialog.Dialog) with helper methods (filter, slice, export, scoring, etc.) that can be easily exported and loaded.
+> - Dialogs are [rich objects](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#sdialog.Dialog) with helper methods (filter, slice, transform, etc.) that can be easily exported and loaded.
 
 Load a saved dialog later:
 ```python
@@ -104,7 +104,8 @@ ctx_gen.set(
 )
 ctx = ctx_gen.generate()
 ```
-🕹️ 👉 Check out [our demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) in Colab to play around with sdialog.
+> [!TIP]
+> 🕹️ 👉 Check out [our demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) in Colab to play around with sdialog.
 
 ## 📊 Evaluate and compare
 
@@ -131,7 +132,8 @@ results = comparator({"reference": reference, "candidate": candidate})
 # Plot results for each evaluator
 comparator.plot()
 ```
-See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/5.evaluation.ipynb).
+> [!TIP]
+> See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/5.evaluation.ipynb).
 
 ## 🧠 Mechanistic interpretability
 
@@ -151,6 +153,7 @@ agent("Cool!")
 # Let's get the last response's first token activation vector!
 act = inspector[-1][0].act # [response index][token index]
 ```
+
 Steering intervention (subtracting a direction):
 ```python
 anger_direction = torch.load("anger_direction.pt")  # A direction vector (e.g., PCA / difference-in-mean vector)
@@ -158,7 +161,8 @@ agent_steered = agent | inspector - anger_direction  # Ablate the anger directio
 
 agent_steered("You are an extremely upset assistant")  # Agent "can't get angry anymore" :)
 ```
-See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
+> [!TIP]
+> See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
 
 ## 🔧 Interoperability
 
@@ -169,8 +173,10 @@ import sdialog
 
 # Change the default global LLM
 sdialog.config.llm("ollama:qwen3:14b")
-# Any argument supported by the chosen backend/model can also be given
-sdialog.config.llm("huggingface:meta-llama/Llama-3.2-3B-Instruct", temperature=0.7)
+# Any argument supported by the chosen backend/model can also be given, for example
+sdialog.config.llm("ollama:qwen3:14b",
+                   temperature=0.7,
+                   base_url="https://my-ollama-endpoint.com:123")  # Remote Ollama server
 ```
 Any LLM-powered component can also take a specific model and its parameters as argument, to overwrite the default one:
 ```python
