@@ -209,7 +209,7 @@ class BaseAttributeModel(BaseModel, ABC):
             cprint(remove_newlines(value),
                    tag=camel_or_snake_to_words(key).capitalize(),
                    tag_color="red",
-                   color="white")
+                   color="grey")
         cprint(f"--- {object_name} Ends ---", color="magenta", format="bold")
 
     def json(self, string: bool = False, indent=2, output_metadata: bool = True):
