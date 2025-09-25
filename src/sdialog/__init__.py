@@ -858,7 +858,7 @@ def _print_dialog(dialog: Union[Dialog, dict],
         return Turn(speaker=speaker, text=remove_newlines(str(text)))
 
     speaker_tag_colors = ["red", "blue", "yellow", "cyan", "green", "magenta", "purple"]
-    speaker_utt_colors = ["grey", "white"]
+    speaker_utt_colors = ["grey"]  # ["grey", "white"]  white is not seen in light mode...
     # speaker_utt_colors = ["black", "grey"]
 
     if dialog.id:
