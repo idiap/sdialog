@@ -9,7 +9,7 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/idiap/sdialog/)
 
 ---
-SDialog is a modular Python toolkit for synthetic dialog generation, evaluation, and analysis with LLMs. It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation, composable orchestration, built‑in metrics, and mechanistic interpretability—so you can generate reliable, controllable dialog data at scale.
+SDialog is a modular Python toolkit for synthetic dialog generation, evaluation, and analysis. It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability—so you can generate reliable, controllable dialog data at scale.
 
 Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Issues](https://github.com/idiap/sdialog/issues)
 
@@ -21,6 +21,8 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 - Native mechanistic interpretability (inspect and steer activations)
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
 - Interoperability across OpenAI, HuggingFace, Ollama, AWS, and more
+
+If you are building controlled conversational simulations, benchmarking dialog models, producing synthetic training corpora, or probing internal model behavior, SDialog provides an end-to-end workflow.
 
 ## ⚡ Installation
 
@@ -73,7 +75,7 @@ for ix in range(3):
     dialog.to_file(f"dialog_{ix}.json")
 ```
 > [!NOTE]
-> - See [orchestration tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/3.multi-agent%2Borchestrator_generation.ipynb) and [agents with tools/thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb).
+> - See [orchestration tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/3.multi-agent%2Borchestrator_generation.ipynb) and [agents with tools and thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb).
 > - Dialogs are [rich objects](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#sdialog.Dialog) with helper methods (filter, slice, transform, etc.) that can be easily exported and loaded.
 
 Load a saved dialog later:

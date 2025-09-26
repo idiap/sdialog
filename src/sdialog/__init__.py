@@ -317,9 +317,10 @@ class Dialog(BaseModel):
         Returns the length of the dialogue according to the specified mode (number of words by default).
 
         :param mode: The mode for measuring length. Options:
-            - "turns": Number of turns (default)
-            - "words": Total number of words in all turns
-            - "minutes" / "time": Approximate duration in minutes (``words_per_minute``/minute)
+
+            - ``"turns"``: Number of turns (default)
+            - ``"words"``: Total number of words in all turns
+            - ``"minutes"`` / ``"time"``: Approximate duration in minutes (``words_per_minute``/minute)
         :type mode: str
         :param words_per_minute: Words per minute for "minutes" mode (default is 130, which is a common estimate).
         :type words_per_minute: int
@@ -336,7 +337,7 @@ class Dialog(BaseModel):
             total_words = sum(len(turn.text.split()) for turn in self.turns)
             return max(1, int(round(total_words / words_per_minute)))
         else:
-            raise ValueError(f"Unknown mode for get_length: {mode}")
+            raise ValueError(f"Unknown mode for `Dialog.length()`: {mode}")
 
     def clone(self, new_id: int = None) -> "Dialog":
         """
@@ -464,7 +465,7 @@ class Dialog(BaseModel):
         :param path: Path to the dialogue file or directory. In case of a directory, all dialogues in the directory
                      will be loaded and returned as a list of Dialog objects.
         :type path: str
-        :param type: "json", "txt", "csv", "tsv", or "auto" (determined by file extension).
+        :param type: ``"json"``, ``"txt"``, ``"csv"``, ``"tsv"``, or ``"auto"`` (determined by file extension).
         :type type: str
         :param txt_template: Template for parsing text dialogue turns (default "{speaker}: {text}").
         :type txt_template: str
@@ -475,7 +476,7 @@ class Dialog(BaseModel):
         :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker into one
                                               turn.
         :type collapse_consecutive_speakers: bool
-        :param collapse_separator: String used to join texts when collapsing consecutive turns (default: "\\n").
+        :param collapse_separator: String used to join texts when collapsing consecutive turns (default: ``"\\n"``).
         :type collapse_separator: str
         :return: The loaded dialogue object.
         :rtype: Dialog
@@ -657,28 +658,6 @@ class Dialog(BaseModel):
         :rtype: Dialog
         """
         return Dialog.from_dict(json.loads(json_str))
-
-    def get_length(self, mode: str = "turns") -> float:
-        """
-        Returns the length of the dialogue according to the specified mode.
-
-        :param mode: The mode for measuring length. Options are:
-            - "turns": Number of turns (default)
-            - "words": Total number of words in all turns
-            - "minutes": Approximate duration in minutes (assuming 150 words per minute)
-        :type mode: str
-        :return: The length of the dialogue according to the selected mode.
-        :rtype: float
-        """
-        if mode == "turns":
-            return float(len(self.turns))
-        elif mode == "words":
-            return float(sum(len(turn.text.split()) for turn in self.turns))
-        elif mode == "minutes":
-            total_words = sum(len(turn.text.split()) for turn in self.turns)
-            return float(total_words) / 150.0  # 150 words per minute is a common estimate
-        else:
-            raise ValueError(f"Unknown mode '{mode}'. Supported modes: 'turns', 'words', 'minutes'.")
 
     def rename_speaker(self, old_name: str,
                        new_name: str,

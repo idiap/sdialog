@@ -18,6 +18,16 @@ import m2r2
 from os import path
 from codecs import open
 from datetime import datetime
+from sphinx.ext import autodoc
+
+
+class MockedClassDocumenter(autodoc.ClassDocumenter):
+    def add_line(self, line: str, source: str, *lineno: int) -> None:
+        if line == "   Bases: :py:class:`object`":
+            return
+        super().add_line(line, source, *lineno)
+
+autodoc.ClassDocumenter = MockedClassDocumenter
 
 # Ensure the source directory is in sys.path for autodoc to find the modules
 sys.path.insert(0, os.path.abspath('../src/'))
@@ -37,10 +47,6 @@ autodoc_mock_imports = [
     # Utility libs
     'tqdm', 'print_color', 'jinja2', 'graphviz', 'PIL', 'tenacity', 'joblib'
 ]
-
-autodoc_default_options = {
-    'exclude-members': ','.join(['model_post_init', 'model_config'])
-}
 
 # -- Project version ---------------------------------------------------------
 
@@ -82,6 +88,15 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['cmd.py']
 
+# Autodoc settings
+autodoc_default_options = {
+    'members': True,
+    'show-inheritance': True,
+    'special-members': '__call__', # Include __init__ and __call__
+    'exclude-members': ','.join(['model_post_init', 'model_config']),
+    'member-order': 'bysource',
+    'undoc-members': False
+}
 
 # -- Options for HTML output -------------------------------------------------
 
