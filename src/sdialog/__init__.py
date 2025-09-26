@@ -611,8 +611,11 @@ class Dialog(BaseModel):
             # Use the template to extract speaker and text for each turn
             # Build a regex from the template
             regex = re.escape(template)
-            regex = regex.replace(r'\{speaker\}', r'(?P<speaker>.+?)')
-            regex = regex.replace(r'\{text\}', r'(?P<text>.+)')
+            regex = regex.replace(r'\ ', r'\s')
+            regex = regex.replace(r'\{speaker\}', '(?P<speaker>.+?)')
+            regex = regex.replace(r'\{text\}', '(?P<text>.+)')
+            regex = re.sub(r'\{.+\}', '.+', regex)
+            regex = regex.replace(r'\.+', '.+')
             m = re.match(regex, line)
             if m:
                 try:
