@@ -27,6 +27,7 @@ class MockedClassDocumenter(autodoc.ClassDocumenter):
             return
         super().add_line(line, source, *lineno)
 
+
 autodoc.ClassDocumenter = MockedClassDocumenter
 
 # Ensure the source directory is in sys.path for autodoc to find the modules
@@ -92,7 +93,7 @@ exclude_patterns = ['cmd.py']
 autodoc_default_options = {
     'members': True,
     'show-inheritance': True,
-    'special-members': '__call__', # Include __init__ and __call__
+    'special-members': '__call__',  # Include __init__ and __call__
     'exclude-members': ','.join(['model_post_init', 'model_config']),
     'member-order': 'bysource',
     'undoc-members': False
