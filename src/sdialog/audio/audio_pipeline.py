@@ -135,18 +135,35 @@ class AudioPipeline:
             microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED,
             do_step_1: Optional[bool] = True,
             do_step_2: Optional[bool] = True,
-            do_step_3: Optional[bool] = True) -> AudioDialog:
+            do_step_3: Optional[bool] = True,
+            dialog_dir_name: Optional[str] = None) -> AudioDialog:
         """
         Run the audio pipeline.
+        Args:
+            dialog: The text dialog object.
+            room: The room object.
+            do_word_alignments: Whether to do word alignments between the text and the audio.
+            do_snr: Whether to do dynamic SNR prediction.
+            do_room_position: Whether to do room position.
+            microphone_position: The microphone position in the room.
+            do_step_1: Whether to do step 1 (generate the utterances audios).
+            do_step_2: Whether to do step 2 (generate the timeline from the utterances audios).
+            do_step_3: Whether to do step 3 (generate the room accoustic).
+            dialog_dir_name: Override the name of the directory containing the dialog audios.
+        Returns:
+            The audio enriched dialog.
         """
 
         if room is not None:
             dialog.set_room(room)
 
+        # Override the dialog directory name if provided otherwise use the dialog id as the directory name
+        dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
+
         dialog.audio_dir_path = self.dir_audio
         dialog.audio_step_1_filepath = os.path.join(
             dialog.audio_dir_path,
-            f"dialog_{dialog.id}",
+            dialog_directory,
             "exported_audios",
             "audio_pipeline_step1.wav"
         )
@@ -162,7 +179,12 @@ class AudioPipeline:
                 tts_pipeline=self.tts_pipeline
             )
 
-            dialog: AudioDialog = save_utterances_audios(dialog, self.dir_audio)
+            # Save the utterances audios to the project path
+            dialog: AudioDialog = save_utterances_audios(
+                dialog,
+                self.dir_audio,
+                project_path=f"{dialog.audio_dir_path}/{dialog_directory}"
+            )
 
             # Combine the audio segments into a single master audio track as a baseline
             dialog.set_combined_audio(
@@ -186,7 +208,7 @@ class AudioPipeline:
             )
 
             # Load utterances to the dialog turns
-            path_utterances = os.path.join(dialog.audio_dir_path, f"dialog_{dialog.id}", "utterances")
+            path_utterances = os.path.join(dialog.audio_dir_path, dialog_directory, "utterances")
 
             audio_start_time = 0
 
@@ -287,7 +309,7 @@ class AudioPipeline:
         # Save the audio pipeline info to a json file
         with open(os.path.join(
             dialog.audio_dir_path,
-            f"dialog_{dialog.id}",
+            dialog_directory,
             "exported_audios",
             "audio_pipeline_info.json"
         ), "w") as f:

@@ -32,6 +32,7 @@ class KokoroTTS(BaseTTS):
     In order to use mandarin chinese and japanese, you need to install the corresponding package:
         pip install misaki[zh] or pip install misaki[ja]
     More details on: https://github.com/hexgrad/kokoro
+    Supported voices: https://github.com/nazdridoy/kokoro-tts?tab=readme-ov-file#supported-voices
     """
 
     def __init__(
@@ -51,16 +52,16 @@ class KokoroTTS(BaseTTS):
 
         self.pipeline = KPipeline(lang_code=self.lang_code)
 
-    def generate(self, text: str, voice: str) -> np.ndarray:
+    def generate(self, text: str, voice: str, speed: float = 1.0) -> np.ndarray:
         """
         Generate audio from text using the Kokoro model.
         """
 
-        generator = self.pipeline(text, voice=voice)
+        generator = self.pipeline(text, voice=voice, speed=speed)
 
         gs, ps, audio = next(iter(generator))
 
-        return (audio, -1)
+        return (audio, 24000)
 
 
 class IndexTTS(BaseTTS):

@@ -116,19 +116,20 @@ def generate_word_alignments(
 def save_utterances_audios(
         dialog: AudioDialog,
         dir_audio: str,
+        project_path: str,
         sampling_rate: int = 24_000) -> AudioDialog:
     """
     Save the utterances audios to the given path.
     """
 
     dialog.audio_dir_path = dir_audio.rstrip("/")
-    os.makedirs(f"{dialog.audio_dir_path}/dialog_{dialog.id}/utterances", exist_ok=True)
-    os.makedirs(f"{dialog.audio_dir_path}/dialog_{dialog.id}/exported_audios", exist_ok=True)
+    os.makedirs(f"{project_path}/utterances", exist_ok=True)
+    os.makedirs(f"{project_path}/exported_audios", exist_ok=True)
 
     current_time = 0.0
 
     for idx, turn in enumerate(dialog.turns):
-        turn.audio_path = f"{dialog.audio_dir_path}/dialog_{dialog.id}/utterances/{idx}_{turn.speaker}.wav"
+        turn.audio_path = f"{project_path}/utterances/{idx}_{turn.speaker}.wav"
         turn.audio_duration = turn.get_audio().shape[0] / sampling_rate
         turn.audio_start_time = current_time
         current_time += turn.audio_duration
