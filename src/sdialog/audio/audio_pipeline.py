@@ -136,7 +136,8 @@ class AudioPipeline:
             do_step_1: Optional[bool] = True,
             do_step_2: Optional[bool] = True,
             do_step_3: Optional[bool] = True,
-            dialog_dir_name: Optional[str] = None) -> AudioDialog:
+            dialog_dir_name: Optional[str] = None,
+            room_dir_name: Optional[str] = None) -> AudioDialog:
         """
         Run the audio pipeline.
         Args:
@@ -150,6 +151,7 @@ class AudioPipeline:
             do_step_2: Whether to do step 2 (generate the timeline from the utterances audios).
             do_step_3: Whether to do step 3 (generate the room accoustic).
             dialog_dir_name: Override the name of the directory containing the dialog audios.
+            room_dir_name: Override the name of the directory containing the room audios (only for the 3rd step).
         Returns:
             The audio enriched dialog.
         """
@@ -199,6 +201,10 @@ class AudioPipeline:
             )
 
         else:
+
+            ###################
+            # TODO: Change completely this part after the refactoring of the room object serialization.
+            ###################
 
             print(f"Loading utterances and combined audio from dialogue {dialog.id}")
 
@@ -268,11 +274,11 @@ class AudioPipeline:
 
             # Send the utterances to dSCAPER
             print(f"Sending utterances to dSCAPER for dialogue {dialog.id}")
-            dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper)
+            dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
 
             # Generate the timeline from dSCAPER
             print(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
-            dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper)
+            dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper, dialog_directory=dialog_directory)
             print(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
 
         elif do_step_2:
@@ -283,7 +289,11 @@ class AudioPipeline:
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None and do_step_3:
             print(f"Generating room accoustic for dialogue {dialog.id}")
-            dialog: AudioDialog = generate_audio_room_accoustic(dialog, microphone_position)
+            dialog: AudioDialog = generate_audio_room_accoustic(
+                dialog,
+                microphone_position,
+                dialog_directory=dialog_directory
+            )
             print(f"Room accoustic generated for dialogue {dialog.id}!")
         elif do_step_3:
             logging.warning(

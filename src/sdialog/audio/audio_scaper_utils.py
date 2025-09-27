@@ -8,14 +8,17 @@ from sdialog.audio.audio_dialog import AudioDialog
 from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
 
 
-def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) -> AudioDialog:
+def send_utterances_to_dscaper(
+        dialog: AudioDialog,
+        _dscaper: scaper.Dscaper,
+        dialog_directory: str) -> AudioDialog:
     """
     Sends the utterances audio files to dSCAPER database.
     """
 
     for turn in dialog.turns:
         metadata = DscaperAudio(
-            library=f"dialog_{dialog.id}", label=turn.speaker, filename=os.path.basename(turn.audio_path)
+            library=dialog_directory, label=turn.speaker, filename=os.path.basename(turn.audio_path)
         )
 
         resp = _dscaper.store_audio(turn.audio_path, metadata)
@@ -29,8 +32,10 @@ def send_utterances_to_dscaper(dialog: AudioDialog, _dscaper: scaper.Dscaper) ->
 
 
 def generate_dscaper_timeline(
-    dialog: AudioDialog, _dscaper: scaper.Dscaper, sampling_rate: int = 24_000
-) -> AudioDialog:
+        dialog: AudioDialog,
+        _dscaper: scaper.Dscaper,
+        dialog_directory: str,
+        sampling_rate: int = 24_000) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
 
@@ -41,7 +46,7 @@ def generate_dscaper_timeline(
     :return: A Dialog object with dSCAPER timeline.
     :rtype: AudioDialog
     """
-    timeline_name = f"dialog_{dialog.id}"
+    timeline_name = dialog_directory
     total_duration = dialog.get_combined_audio().shape[0] / sampling_rate
     dialog.total_duration = total_duration
     dialog.timeline_name = timeline_name
@@ -129,7 +134,7 @@ def generate_dscaper_timeline(
     # Copy the audio output to the dialog audio directory
     dialog.audio_step_2_filepath = os.path.join(
         dialog.audio_dir_path,
-        f"dialog_{dialog.id}",
+        dialog_directory,
         "exported_audios",
         "audio_pipeline_step2.wav"
     )

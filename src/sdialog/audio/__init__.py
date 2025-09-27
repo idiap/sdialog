@@ -141,7 +141,8 @@ def save_utterances_audios(
 
 def generate_audio_room_accoustic(
         dialog: AudioDialog,
-        microphone_position: MicrophonePosition) -> AudioDialog:
+        microphone_position: MicrophonePosition,
+        dialog_directory: str) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
@@ -162,7 +163,7 @@ def generate_audio_room_accoustic(
     # Save the audio
     dialog.audio_step_3_filepath = os.path.join(
         dialog.audio_dir_path,
-        f"dialog_{dialog.id}",
+        dialog_directory,
         "exported_audios",
         "audio_pipeline_step3.wav"
     )
