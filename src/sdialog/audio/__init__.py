@@ -125,6 +125,7 @@ def save_utterances_audios(
     dialog.audio_dir_path = dir_audio.rstrip("/")
     os.makedirs(f"{project_path}/utterances", exist_ok=True)
     os.makedirs(f"{project_path}/exported_audios", exist_ok=True)
+    os.makedirs(f"{project_path}/exported_audios/rooms", exist_ok=True)
 
     current_time = 0.0
 
@@ -142,7 +143,8 @@ def save_utterances_audios(
 def generate_audio_room_accoustic(
         dialog: AudioDialog,
         microphone_position: MicrophonePosition,
-        dialog_directory: str) -> AudioDialog:
+        dialog_directory: str,
+        room_name: str) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
@@ -165,12 +167,15 @@ def generate_audio_room_accoustic(
         dialog.audio_dir_path,
         dialog_directory,
         "exported_audios",
-        "audio_pipeline_step3.wav"
+        "rooms",
+        f"audio_pipeline_step3-{room_name}.wav"
     )
     sf.write(
         dialog.audio_step_3_filepath,
         _audio_accoustic,
         44_100
     )
+
+    # TODO: Save the room object as room_name in the rooms directory
 
     return dialog

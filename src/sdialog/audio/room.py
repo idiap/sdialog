@@ -5,6 +5,7 @@ This module provides classes for the room specification.
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import time
+import hashlib
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass, field
@@ -347,6 +348,12 @@ class Room:
             "mic_position": self.mic_position.value,
             "furnitures": self.furnitures
         }
+
+    def get_hash(self) -> str:
+        """
+        Get the hash of the room.
+        """
+        return hashlib.sha256(self.get_info().encode()).hexdigest()
 
     def __str__(self):
         return (

@@ -137,7 +137,7 @@ class AudioPipeline:
             do_step_2: Optional[bool] = True,
             do_step_3: Optional[bool] = True,
             dialog_dir_name: Optional[str] = None,
-            room_dir_name: Optional[str] = None) -> AudioDialog:
+            room_name: Optional[str] = None) -> AudioDialog:
         """
         Run the audio pipeline.
         Args:
@@ -151,7 +151,7 @@ class AudioPipeline:
             do_step_2: Whether to do step 2 (generate the timeline from the utterances audios).
             do_step_3: Whether to do step 3 (generate the room accoustic).
             dialog_dir_name: Override the name of the directory containing the dialog audios.
-            room_dir_name: Override the name of the directory containing the room audios (only for the 3rd step).
+            room_name: Override the name of the room (only for the 3rd step).
         Returns:
             The audio enriched dialog.
         """
@@ -288,13 +288,21 @@ class AudioPipeline:
 
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None and do_step_3:
+
             print(f"Generating room accoustic for dialogue {dialog.id}")
+
+            # Override the room name if provided otherwise use the hash of the room
+            room_name = room_name if room_name is not None else room.name
+
             dialog: AudioDialog = generate_audio_room_accoustic(
                 dialog,
                 microphone_position,
-                dialog_directory=dialog_directory
+                dialog_directory=dialog_directory,
+                room_name=room_name
             )
+
             print(f"Room accoustic generated for dialogue {dialog.id}!")
+
         elif do_step_3:
             logging.warning(
                 "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
