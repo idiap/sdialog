@@ -25,7 +25,7 @@ class AudioDialog(Dialog):
     timeline_name: str = None
 
     _combined_audio: np.ndarray = None
-    _audio_sources: List[AudioSource] = []
+    audio_sources: List[AudioSource] = []
 
     audio_step_1_filepath: str = None
     audio_step_2_filepath: str = None

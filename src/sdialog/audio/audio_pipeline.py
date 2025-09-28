@@ -190,6 +190,18 @@ class AudioPipeline:
             "audio_pipeline_step1.wav"
         )
 
+        # Path to save the audio dialog
+        audio_dialog_save_path = os.path.join(
+            dialog.audio_dir_path,
+            dialog_directory,
+            "exported_audios",
+            "audio_dialog.json"
+        )
+
+        if os.path.exists(audio_dialog_save_path):
+            # Load the audio dialog from the existing file
+            dialog = AudioDialog.from_file(audio_dialog_save_path)
+
         if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
 
             logging.info(f"Generating utterances audios from dialogue {dialog.id}")
@@ -219,42 +231,42 @@ class AudioPipeline:
                 self.sampling_rate
             )
 
-        else:
+        # else:
 
-            ###################
-            # TODO: Change completely this part after the refactoring of the room object serialization.
-            ###################
+            # ###################
+            # # TODO: Change completely this part after the refactoring of the room object serialization.
+            # ###################
 
-            # Load combined audio from the exported_audios folder
-            dialog.set_combined_audio(
-                sf.read(dialog.audio_step_1_filepath)[0]  # WARNING: watchout for the sampling rate
-            )
+            # # Load combined audio from the exported_audios folder
+            # dialog.set_combined_audio(
+            #     sf.read(dialog.audio_step_1_filepath)[0]  # WARNING: watchout for the sampling rate
+            # )
 
-            # Load utterances to the dialog turns
-            path_utterances = os.path.join(dialog.audio_dir_path, dialog_directory, "utterances")
+            # # Load utterances to the dialog turns
+            # path_utterances = os.path.join(dialog.audio_dir_path, dialog_directory, "utterances")
 
-            audio_start_time = 0
+            # audio_start_time = 0
 
-            for utterance_audio in os.listdir(path_utterances):
+            # for utterance_audio in os.listdir(path_utterances):
 
-                utterance_id = utterance_audio.split("_")[0]
+            #     utterance_id = utterance_audio.split("_")[0]
 
-                # WARNING: watchout for the sampling rate
-                audio_utterance_filepath = os.path.join(
-                    path_utterances,
-                    utterance_audio
-                )
+            #     # WARNING: watchout for the sampling rate
+            #     audio_utterance_filepath = os.path.join(
+            #         path_utterances,
+            #         utterance_audio
+            #     )
 
-                # Populate the turn audio fields from the audio path
-                _turn = dialog.turns[int(utterance_id)]
-                _turn.audio_path = audio_utterance_filepath
-                _audio, _sampling_rate = sf.read(audio_utterance_filepath)
-                _turn.set_audio(_audio, _sampling_rate)
-                _turn.audio_duration = _audio.shape[0] / _sampling_rate
-                _turn.audio_start_time = audio_start_time
-                audio_start_time += _turn.audio_duration
+            #     # Populate the turn audio fields from the audio path
+            #     _turn = dialog.turns[int(utterance_id)]
+            #     _turn.audio_path = audio_utterance_filepath
+            #     _audio, _sampling_rate = sf.read(audio_utterance_filepath)
+            #     _turn.set_audio(_audio, _sampling_rate)
+            #     _turn.audio_duration = _audio.shape[0] / _sampling_rate
+            #     _turn.audio_start_time = audio_start_time
+            #     audio_start_time += _turn.audio_duration
 
-            logging.info(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
+            # logging.info(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
 
         # TODO: Test this computation of word alignments
         if do_word_alignments:
@@ -271,7 +283,10 @@ class AudioPipeline:
         # # Randomly sample a static microphone position for the whole dialogue
         # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
-        if self._dscaper is not None and do_step_2:
+        if self._dscaper is not None and do_step_2 and len(dialog.audio_step_2_filepath) > 0:
+            logging.info(f"Timeline from dSCAPER loaded for dialogue {dialog.id}")
+
+        elif self._dscaper is not None and do_step_2:
 
             from scaper import Dscaper
 
@@ -297,13 +312,27 @@ class AudioPipeline:
             dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper, dialog_directory=dialog_directory)
             logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
 
-        elif do_step_2:
+        elif do_step_2 and self._dscaper is None:
+
             logging.warning(
                 "The dSCAPER is not set, which make the generation of the timeline impossible"
             )
 
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None and do_step_3:
+
+            # Check if the step 2 is not done
+            if not do_step_2 and len(dialog.audio_step_2_filepath) < 1:
+
+                logging.warning((
+                    "The timeline from dSCAPER is not generated, which"
+                    "make the generation of the room accoustic impossible"
+                ))
+
+                # Save the audio dialog to a json file
+                dialog.to_file(audio_dialog_save_path)
+
+                return dialog
 
             logging.info(f"Generating room accoustic for dialogue {dialog.id}")
 
@@ -326,29 +355,7 @@ class AudioPipeline:
                 "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
             )
 
-        # Save information about the audio pipeline
-        audio_pipeline_info = {
-            "dialog_id": dialog.id,
-            "tts_pipeline": self.tts_pipeline.__class__.__name__,
-            "voice_database": self.voice_database.__class__.__name__,
-            "enricher": self.enricher.__class__.__name__,
-            "dscaper": self._dscaper.__class__.__name__ if self._dscaper is not None else None,
-            "room": room.get_info() if room is not None else None,
-            "microphone_position": microphone_position.value if microphone_position is not None else None,
-            "do_word_alignments": do_word_alignments,
-            "do_snr": do_snr,
-            "do_room_position": do_room_position,
-            "sampling_rate": self.sampling_rate,
-            "dir_audio": self.dir_audio,
-            "personas": dialog.personas,
-        }
-        # Save the audio pipeline info to a json file
-        with open(os.path.join(
-            dialog.audio_dir_path,
-            dialog_directory,
-            "exported_audios",
-            "audio_pipeline_info.json"
-        ), "w") as f:
-            json.dump(audio_pipeline_info, f, indent=4)
+        # Save the audio dialog to a json file
+        dialog.to_file(audio_dialog_save_path)
 
         return dialog
