@@ -16,7 +16,12 @@ def send_utterances_to_dscaper(
     Sends the utterances audio files to dSCAPER database.
     """
 
+    count_audio_added = 0
+    count_audio_present = 0
+    count_audio_error = 0
+
     for turn in dialog.turns:
+
         metadata = DscaperAudio(
             library=dialog_directory, label=turn.speaker, filename=os.path.basename(turn.audio_path)
         )
@@ -24,9 +29,23 @@ def send_utterances_to_dscaper(
         resp = _dscaper.store_audio(turn.audio_path, metadata)
 
         if resp.status != "success":
-            logging.error(f"Problem storing audio for turn {turn.audio_path}")
+            if "File already exists. Use PUT to update it." in resp.content["description"]:
+                count_audio_present += 1
+                turn.is_stored_in_dscaper = True
+            else:
+                logging.error(f"Problem storing audio for turn {turn.audio_path}")
+                count_audio_error += 1
         else:
+            count_audio_added += 1
             turn.is_stored_in_dscaper = True
+
+    logging.info("="*30)
+    logging.info("# Audio sent to dSCAPER")
+    logging.info("="*30)
+    logging.info(f"Already present: {count_audio_present}")
+    logging.info(f"Correctly added: {count_audio_added}")
+    logging.info(f"Errors: {count_audio_error}")
+    logging.info("="*30)
 
     return dialog
 

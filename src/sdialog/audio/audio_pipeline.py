@@ -72,7 +72,9 @@ class AudioPipeline:
             if not isinstance(self._dscaper, Dscaper):
                 raise ValueError("The dSCAPER is not a Dscaper instance")
 
-        n_audio_files = 0
+        count_existing_audio_files = 0
+        count_error_audio_files = 0
+        count_success_audio_files = 0
 
         # For each huggingface dataset, save the audio recordings to the dSCAPER
         for dataset_name in datasets:
@@ -93,16 +95,28 @@ class AudioPipeline:
                     filename=filename
                 )
 
+                # Try to store the audio using the dSCAPER API
                 resp = self._dscaper.store_audio(data["audio"]["path"], metadata)
 
+                # If an error occurs
                 if resp.status != "success":
-                    logging.error(
-                        f"Problem storing audio {data['audio']['path']} (the audio can also be already stored)"
-                    )
-                else:
-                    n_audio_files += 1
 
-        return n_audio_files
+                    # Check if the audio is already stored in the library
+                    if resp.content["description"] == "File already exists. Use PUT to update it.":
+                        count_existing_audio_files += 1
+                    else:
+                        logging.error(
+                            f"Problem storing audio {data['audio']['path']}: {resp.content['description']}"
+                        )
+                        count_error_audio_files += 1
+                else:
+                    count_success_audio_files += 1
+
+        return {
+            "count_existing_audio_files": count_existing_audio_files,
+            "count_error_audio_files": count_error_audio_files,
+            "count_success_audio_files": count_success_audio_files
+        }
 
     def master_audio(
             self,
@@ -163,17 +177,18 @@ class AudioPipeline:
         dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
 
         dialog.audio_dir_path = self.dir_audio
+        logging.info(f"Dialog audio dir path: {dialog.audio_dir_path}")
+
         dialog.audio_step_1_filepath = os.path.join(
             dialog.audio_dir_path,
             dialog_directory,
             "exported_audios",
             "audio_pipeline_step1.wav"
         )
-        print(dialog.audio_step_1_filepath)
 
         if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
 
-            print(f"Generating utterances audios from dialogue {dialog.id}")
+            logging.info(f"Generating utterances audios from dialogue {dialog.id}")
 
             dialog: AudioDialog = generate_utterances_audios(
                 dialog,
@@ -206,8 +221,6 @@ class AudioPipeline:
             # TODO: Change completely this part after the refactoring of the room object serialization.
             ###################
 
-            print(f"Loading utterances and combined audio from dialogue {dialog.id}")
-
             # Load combined audio from the exported_audios folder
             dialog.set_combined_audio(
                 sf.read(dialog.audio_step_1_filepath)[0]  # WARNING: watchout for the sampling rate
@@ -237,7 +250,7 @@ class AudioPipeline:
                 _turn.audio_start_time = audio_start_time
                 audio_start_time += _turn.audio_duration
 
-            print(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
+            logging.info(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
 
         # TODO: Test this computation of word alignments
         if do_word_alignments:
@@ -273,13 +286,12 @@ class AudioPipeline:
             # audio file
 
             # Send the utterances to dSCAPER
-            print(f"Sending utterances to dSCAPER for dialogue {dialog.id}")
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
 
             # Generate the timeline from dSCAPER
-            print(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
+            logging.info(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
             dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper, dialog_directory=dialog_directory)
-            print(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
+            logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
 
         elif do_step_2:
             logging.warning(
@@ -289,7 +301,7 @@ class AudioPipeline:
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None and do_step_3:
 
-            print(f"Generating room accoustic for dialogue {dialog.id}")
+            logging.info(f"Generating room accoustic for dialogue {dialog.id}")
 
             # Override the room name if provided otherwise use the hash of the room
             room_name = room_name if room_name is not None else room.name
@@ -301,7 +313,7 @@ class AudioPipeline:
                 room_name=room_name
             )
 
-            print(f"Room accoustic generated for dialogue {dialog.id}!")
+            logging.info(f"Room accoustic generated for dialogue {dialog.id}!")
 
         elif do_step_3:
             logging.warning(

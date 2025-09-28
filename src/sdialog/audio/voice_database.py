@@ -266,7 +266,6 @@ class DummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
         import pandas as pd
 
         df = pd.read_csv(os.path.join(self.path_dir, "metadata.csv"))
-        print(df)
 
         for index, row in df.iterrows():
 

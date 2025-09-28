@@ -50,10 +50,10 @@ class AudioEventsEnricher:
         Extract the audio events from the dialog.
         """
 
-        print("Generating audio events from dialog...")
+        logging.info("Generating audio events from dialog...")
         dialog = self._enrich(dialog)
 
-        print("Computing alignment...")
+        logging.info("Computing alignment...")
         dialog = self._compute_alignment(dialog)
 
         return dialog

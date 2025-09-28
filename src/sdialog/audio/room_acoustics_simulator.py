@@ -5,6 +5,7 @@ This module provides a class for simulating room acoustics.
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>
 # SPDX-License-Identifier: MIT
 import os
+import logging
 from typing import List, Optional, Union
 import numpy as np
 
@@ -125,7 +126,7 @@ class RoomAcousticsSimulator:
             np.array([self.mic_position.to_list()]).T, self._pyroom.fs
         )
         self._pyroom.add_microphone_array(mic_array)
-        print(f"  Microphone set to position {self.mic_position.to_list()}")
+        logging.info(f"  Microphone set to position {self.mic_position.to_list()}")
 
     def _add_sources(self, audiosources: List[AudioSource]):
         for i, asource in enumerate(audiosources):
@@ -143,18 +144,18 @@ class RoomAcousticsSimulator:
             audio = None
             if hasattr(asource, "_test_audio") and asource._test_audio is not None:
                 audio = asource._test_audio  # Use in-memory test audio data
-                print(
+                logging.info(
                     f"✓ Using in-memory audio for '{asource.name}' with {len(audio)} samples"
                 )
             elif asource.source_file and os.path.exists(asource.source_file):
                 audio, original_fs = sf.read(asource.source_file)
                 if audio.ndim > 1:  # Convert to mono if stereo
                     audio = np.mean(audio, axis=1)
-                print(
+                logging.info(
                     f"✓ Loaded audio file '{asource.source_file}' for '{asource.name}' with {len(audio)} samples"
                 )
             else:
-                print(
+                logging.warning(
                     (
                         f"Warning: No audio data found for '{asource.name}' ",
                         "- file '{asource.source_file}' not found and no test data available.",
@@ -537,64 +538,64 @@ class RoomAcousticsSimulator:
             audio_sources.append(audio_source)
 
         if save_files:
-            print(f"Generated {len(audio_sources)} test audio sources in {temp_dir}")
+            logging.info(f"Generated {len(audio_sources)} test audio sources in {temp_dir}")
         else:
-            print(f"Generated {len(audio_sources)} test audio sources (in-memory)")
+            logging.info(f"Generated {len(audio_sources)} test audio sources (in-memory)")
 
         return audio_sources
 
 
 if __name__ == "__main__":
-    print("Room Acoustics Simulator")
+    logging.info("Room Acoustics Simulator")
     from sdialog.audio.room_generator import RoomGenerator
 
     generator = RoomGenerator()
     room = generator.generate(RoomRole.CONSULTATION)
-    print(f" Room dimensions: {room.dimensions}")
+    logging.info(f" Room dimensions: {room.dimensions}")
 
     print("\n Doctor positions:")
     for doc_pos in DoctorPosition:
         pos_3d = RoomAcousticsSimulator.position_to_room_position(room, doc_pos)
-        print(f"  {doc_pos.value} -> {pos_3d}")
+        logging.info(f"  {doc_pos.value} -> {pos_3d}")
 
     print("\n Patient positions:")
     for pat_pos in PatientPosition:
         pos_3d = RoomAcousticsSimulator.position_to_room_position(room, pat_pos)
-        print(f"  {pat_pos.value} -> {pos_3d}")
+        logging.info(f"  {pat_pos.value} -> {pos_3d}")
 
     print("\n Microphone positions:")
     for mic_pos in MicrophonePosition:
         pos_3d = RoomAcousticsSimulator.microphone_position_to_room_position(
             room, mic_pos
         )
-        print(f"  {mic_pos.value} -> {pos_3d}")
+        logging.info(f"  {mic_pos.value} -> {pos_3d}")
 
     room_acoustics = RoomAcousticsSimulator(room)
-    print(f"\n Default microphone position: {room_acoustics.mic_position}")
+    logging.info(f"\n Default microphone position: {room_acoustics.mic_position}")
 
-    print("\n Testing microphone position: Monitor")
+    logging.info("\n Testing microphone position: Monitor")
     room_acoustics.set_microphone_position(MicrophonePosition.MONITOR)
     # room_acoustics.set_microphone_position([2.0, 1.5, 1.0])  # Explicit coordinates
 
-    print("\nGenerating test audio sources:")
+    logging.info("\nGenerating test audio sources:")
     audio_sources = RoomAcousticsSimulator.generate_test_audio_sources(
         sampling_rate=room_acoustics.sampling_rate,
         duration=1.0,
         save_files=False,  # Use in-memory audio for testing
     )
 
-    print("\nRunning acoustic simulation:")
+    logging.info("\nRunning acoustic simulation:")
     try:
         mixed_audio = room_acoustics.simulate(audio_sources)
         sf.write("test_audio.wav", mixed_audio, room_acoustics.sampling_rate)
 
-        print(f"✓ Simulation complete! Generated {len(mixed_audio)} audio samples")
-        print(
+        logging.info(f"✓ Simulation complete! Generated {len(mixed_audio)} audio samples")
+        logging.info(
             f"  Audio duration: {len(mixed_audio) / room_acoustics.sampling_rate:.2f} seconds"
         )
-        print(f"  Peak level: {np.max(np.abs(mixed_audio)):.3f}")
+        logging.info(f"  Peak level: {np.max(np.abs(mixed_audio)):.3f}")
     except Exception as e:
-        print(f"✗ Simulation failed: {e}")
+        logging.error(f"✗ Simulation failed: {e}")
 
-    print("\n" + "=" * 80)
-    print("✓ Room Acoustics Simulator test completed!")
+    logging.info("\n" + "=" * 80)
+    logging.info("✓ Room Acoustics Simulator test completed!")

@@ -4,6 +4,7 @@ This module provides classes to manage audio events and timelines.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
+import logging
 from typing import List
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -40,9 +41,9 @@ class Timeline(BaseModel):
         """
         Print the timeline.
         """
-        print(f"Timeline with {len(self.events)} events:")
+        logging.info(f"Timeline with {len(self.events)} events:")
         for event in sorted(self.events, key=lambda e: e.start_time):
-            print(event)
+            logging.info(event)
 
     def draw(self, output_file: str, time_scale: float = 1000.0) -> None:
         """
@@ -52,7 +53,7 @@ class Timeline(BaseModel):
         :param time_scale: The scale to convert time units to seconds (default 1000 for ms).
         """
         if not self.events:
-            print("Timeline is empty, nothing to draw.")
+            logging.info("Timeline is empty, nothing to draw.")
             return
 
         fig, ax = plt.subplots(figsize=(20, 10))

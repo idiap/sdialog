@@ -5,6 +5,7 @@ This module provides classes for the room generation.
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import math
+import logging
 from typing import List
 from sdialog.audio.room import Room, Dimensions3D, RoomRole
 
@@ -72,7 +73,7 @@ class RoomGenerator:
 
 
 if __name__ == "__main__":
-    print(" Room Generator creates:")
+    logging.info(" Room Generator creates:")
     generator = RoomGenerator()
     room = generator.generate(RoomRole.CONSULTATION)
-    print(f"  Room {room}")
+    logging.info(f"  Room {room}")
