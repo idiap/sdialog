@@ -8,6 +8,7 @@ import time
 import hashlib
 import numpy as np
 from enum import Enum
+from pydantic import BaseModel, Field
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Union, List, Any
 
@@ -107,7 +108,7 @@ class Dimensions3D:
         )
 
 
-class RoomRole(Enum):
+class RoomRole(str, Enum):
     """
     Defines the functional role of the room and dimentions that comes with it.
     """
@@ -125,7 +126,7 @@ class RoomRole(Enum):
     #     return self.value
 
 
-class SoundEventPosition(Enum):
+class SoundEventPosition(str, Enum):
     BACKGROUND = "no_type"  # background -
     NOT_DEFINED = "soundevent-not_defined"
     DEFINED = "soundevent-defined"  # [0.0 0.1 0.4]
@@ -133,7 +134,7 @@ class SoundEventPosition(Enum):
     # NEXT_TO PATIENT
 
 
-class DoctorPosition(Enum):
+class DoctorPosition(str, Enum):
     """
     Doctor placement locations in examination room
     """
@@ -148,7 +149,7 @@ class DoctorPosition(Enum):
     NEXT_TO_DOOR_STANDING = "doctor-next_to_door_standing"
 
 
-class PatientPosition(Enum):
+class PatientPosition(str, Enum):
     """
     Patient placement locations in examination room
     """
@@ -160,7 +161,7 @@ class PatientPosition(Enum):
     CENTER_ROOM_STANDING = "patient-center_room_standing"
 
 
-class MicrophonePosition(Enum):
+class MicrophonePosition(str, Enum):
     """
     Different microphone placement options
     """
@@ -172,7 +173,7 @@ class MicrophonePosition(Enum):
     CHEST_POCKET = "chest_pocket"
 
 
-class RecordingDevice(Enum):
+class RecordingDevice(str, Enum):
     """
     Types of recording devices with their characteristics
     """
@@ -186,7 +187,7 @@ class RecordingDevice(Enum):
     SHOTGUN_MIC = "shotgun_mic"
 
 
-class WallMaterial(Enum):
+class WallMaterial(str, Enum):
     """
     Common wall materials with typical absorption coefficients
     """
@@ -200,7 +201,7 @@ class WallMaterial(Enum):
     METAL = "metal"
 
 
-class FloorMaterial(Enum):
+class FloorMaterial(str, Enum):
     """
     Floor materials affecting acoustics
     """
@@ -300,69 +301,6 @@ class AudioSource:
 
 
 @dataclass
-class Room:
-    """
-    A room is a place where the dialog takes place.
-    """
-
-    def __init__(
-        self,
-        role: RoomRole,
-        dimensions: Optional[Dimensions3D],
-        name: str = "Room",
-        description: str = "",
-        rt60: float = 0.5,
-        soundsources_position=[],
-        mic_type=RecordingDevice.WEBCAM,
-        mic_position=MicrophonePosition.MONITOR,
-        furnitures=False,
-    ):
-        self.id: str = str(int(time.time()))[-4:]
-        self.name: str = f"{name}_{self.id}"
-        self.description = description
-        self.role: RoomRole = role if role is not None else RoomRole.CONSULTATION
-        self.dimensions: Dimensions3D = (
-            dimensions if dimensions is not None else Dimensions3D(2, 2.5, 3)
-        )
-        self.walls_material: Optional[MaterialProperties] = (
-            None  # absorbion_coefficient
-        )
-        self.rt60: Optional[float] = rt60
-        self.mic_type = mic_type
-        self.mic_position = mic_position
-        self.furnitures = furnitures
-
-    def get_info(self) -> Dict[str, Any]:
-        """
-        Get the information about the room in a format that can be serialized.
-        """
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "role": self.role.value,
-            "dimensions": self.dimensions.to_list(),
-            "walls_material": None,  # TODO: Add walls material in the serialization
-            "rt60": self.rt60,
-            "mic_type": self.mic_type.value,
-            "mic_position": self.mic_position.value,
-            "furnitures": self.furnitures
-        }
-
-    def get_hash(self) -> str:
-        """
-        Get the hash of the room.
-        """
-        return hashlib.sha256(self.get_info().encode()).hexdigest()
-
-    def __str__(self):
-        return (
-            f"{self.id}:  {self.name}, desc: {self.description} "
-            f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60}) role: {self.role})  "
-        )
-
-
-@dataclass
 class RoomLayout:
     """
     Defines the standard layout of furniture in examination room
@@ -376,19 +314,22 @@ class RoomLayout:
     cupboard_position: Optional[Position3D]
 
 
-@dataclass
-class MaterialProperties:
+class MaterialProperties(BaseModel):
     """
     Acoustic properties of materials
     """
 
     material_type: Union[WallMaterial, FloorMaterial, str]
-    absorption_coefficients: Dict[int, float] = field(
+    absorption_coefficients: Dict[int, float] = Field(
         default_factory=dict
     )  # frequency -> coefficient
     scattering_coefficient: float = 0.1
 
-    def __post_init__(self):
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
+
+    def model_post_init(self, __context: Any) -> None:
         # Set default absorption coefficients if not provided
         if not self.absorption_coefficients:
             self.absorption_coefficients = self._get_default_absorption()
@@ -504,6 +445,65 @@ class MaterialProperties:
         )
 
 
+def get_room_id():
+    return str(int(time.time()))[-4:]
+
+
+class Room(BaseModel):
+    """
+    Class to handle a room for audio simulation.
+    """
+    id: str = Field(default_factory=get_room_id)
+    name: str = "Room"
+    description: str = ""
+    rt60: Optional[float] = 0.5
+    furnitures: bool = False
+
+    walls_material: Optional[MaterialProperties] = None  # absorbion_coefficient
+    role: RoomRole = RoomRole.CONSULTATION
+    dimensions: Dimensions3D = Field(default_factory=lambda: Dimensions3D(2, 2.5, 3))
+    mic_type: RecordingDevice = RecordingDevice.WEBCAM
+    mic_position: MicrophonePosition = MicrophonePosition.MONITOR
+
+    model_config = {
+        "arbitrary_types_allowed": True,
+    }
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.name == "Room":
+            self.name = f"{self.name}_{self.id}"
+
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Get the information about the room in a format that can be serialized.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "role": self.role.value,
+            "dimensions": self.dimensions.to_list(),
+            "walls_material": self.walls_material,  # TODO: Add walls material in the serialization
+            "rt60": self.rt60,
+            "mic_type": self.mic_type.value,
+            "mic_position": self.mic_position.value,
+            "furnitures": self.furnitures
+        }
+
+    def get_hash(self) -> str:
+        """
+        Get the hash of the room.
+        """
+        return hashlib.sha256(str(self.get_info()).encode()).hexdigest()
+
+    def __str__(self):
+        return (
+            f"{self.id}:  {self.name}, desc: {self.description} "
+            f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60}) role: {self.role})  "
+        )
+
+
+@dataclass
 class FurnitureType(Enum):
     """
     Types of furniture commonly found in medical rooms

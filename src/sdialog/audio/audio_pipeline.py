@@ -1,3 +1,10 @@
+"""
+This module provides the audio pipeline for generating audio from a dialog.
+"""
+
+# SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-License-Identifier: MIT
 import os
 import json
 import logging

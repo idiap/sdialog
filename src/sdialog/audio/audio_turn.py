@@ -21,15 +21,15 @@ class AudioTurn(Turn):
 
     _audio: np.ndarray = None
     _sampling_rate: int = None
-    audio_path: str = None
-    audio_duration: float = None
-    audio_start_time: float = None
-    snr: float = None
-    alignment: List[dict] = None
-    transcript: str = None
-    voice: str = None
-    position: str = None
-    microphone_position: str = None
+    audio_path: str = ""
+    audio_duration: float = -1.0
+    audio_start_time: float = -1.0
+    snr: float = -1.0
+    alignment: List[dict] = []
+    transcript: str = ""
+    voice: str = ""
+    position: str = ""
+    microphone_position: str = ""
     is_stored_in_dscaper: bool = False
 
     def get_audio(self) -> np.ndarray:
@@ -49,15 +49,15 @@ class AudioTurn(Turn):
     def from_turn(
             turn: Turn,
             audio: np.ndarray = None,
-            audio_path: str = None,
-            audio_duration: float = None,
-            audio_start_time: float = None,
-            snr: float = None,
-            alignment: List[dict] = None,
-            transcript: str = None,
-            voice: str = None,
-            position: str = None,
-            microphone_position: str = None,
+            audio_path: str = "",
+            audio_duration: float = -1.0,
+            audio_start_time: float = -1.0,
+            snr: float = -1.0,
+            alignment: List[dict] = [],
+            transcript: str = "",
+            voice: str = "",
+            position: str = "",
+            microphone_position: str = "",
             is_stored_in_dscaper: bool = False):
         """
         Create an AudioTurn from a Turn object.
