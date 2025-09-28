@@ -201,6 +201,7 @@ class AudioPipeline:
         if os.path.exists(audio_dialog_save_path):
             # Load the audio dialog from the existing file
             dialog = AudioDialog.from_file(audio_dialog_save_path)
+            logging.info(f"Audio dialog loaded from the existing file ({dialog.id}) successfully!")
 
         if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
 
@@ -284,7 +285,7 @@ class AudioPipeline:
         # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
 
         if self._dscaper is not None and do_step_2 and len(dialog.audio_step_2_filepath) > 0:
-            logging.info(f"Timeline from dSCAPER loaded for dialogue {dialog.id}")
+            logging.info(f"Audio sources from dSCAPER loaded in the dialog ({dialog.id}) successfully!")
 
         elif self._dscaper is not None and do_step_2:
 
@@ -331,6 +332,7 @@ class AudioPipeline:
 
                 # Save the audio dialog to a json file
                 dialog.to_file(audio_dialog_save_path)
+                logging.info(f"Audio dialog saved to the existing file ({dialog.id}) successfully!")
 
                 return dialog
 
@@ -357,5 +359,6 @@ class AudioPipeline:
 
         # Save the audio dialog to a json file
         dialog.to_file(audio_dialog_save_path)
+        logging.info(f"Audio dialog saved to the existing file ({dialog.id}) successfully at the end of the pipeline!")
 
         return dialog

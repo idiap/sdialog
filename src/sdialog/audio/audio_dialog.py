@@ -8,6 +8,7 @@ This module provides a dialog class for audio generation.
 import os
 import json
 import numpy as np
+import soundfile as sf
 from sdialog import Dialog
 from typing import List, Union
 from sdialog.audio.room import AudioSource
@@ -20,15 +21,15 @@ class AudioDialog(Dialog):
     """
 
     turns: List[AudioTurn] = []
-    audio_dir_path: str = None
-    total_duration: float = None
-    timeline_name: str = None
+    audio_dir_path: str = ""
+    total_duration: float = -1.0
+    timeline_name: str = ""
 
     _combined_audio: np.ndarray = None
     audio_sources: List[AudioSource] = []
 
-    audio_step_1_filepath: str = None
-    audio_step_2_filepath: str = None
+    audio_step_1_filepath: str = ""
+    audio_step_2_filepath: str = ""
     audio_step_3_filepaths: dict[str, dict] = {}
 
     # Room hash or user input name
@@ -40,19 +41,19 @@ class AudioDialog(Dialog):
         """
         Set the audio sources of the dialog.
         """
-        self._audio_sources = audio_sources
+        self.audio_sources = audio_sources
 
     def add_audio_source(self, audio_source: AudioSource):
         """
         Add an audio source to the dialog.
         """
-        self._audio_sources.append(audio_source)
+        self.audio_sources.append(audio_source)
 
     def get_audio_sources(self) -> List[AudioSource]:
         """
         Get the audio sources of the dialog.
         """
-        return self._audio_sources
+        return self.audio_sources
 
     def set_combined_audio(self, audio: np.ndarray):
         """
@@ -64,6 +65,9 @@ class AudioDialog(Dialog):
         """
         Get the combined audio of the dialog.
         """
+        if self._combined_audio is None:
+            # load the combined audio from the audio_step_1_filepath
+            self._combined_audio = sf.read(self.audio_step_1_filepath)[0]
         return self._combined_audio
 
     @staticmethod

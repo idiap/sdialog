@@ -8,7 +8,7 @@ import time
 import hashlib
 import numpy as np
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Union, List, Any
 
@@ -217,35 +217,43 @@ class FloorMaterial(str, Enum):
 # ------------------------------------------------------------------------------
 
 
-@dataclass
-class AudioSource:
+class AudioSource(BaseModel):
     """
     Represents an object, speaker that makes sounds in the room
     """
 
-    name: str = None
-    position: str = None
+    name: str = ""
+    position: str = "no_type"
     snr: float = 0.0  # dB SPL
-    source_file: str = None  # audio file e.g wav
+    source_file: Optional[str] = "no_file"  # audio file e.g wav
     directivity: Optional[str] = "omnidirectional"
-    _position3d: Position3D = None
-    _is_primary: Optional[bool] = (
-        False  # Primary speaker (doctor) vs secondary (patient)
-    )
 
-    def __post_init__(self):
+    _position3d: Optional[Position3D] = PrivateAttr(default=None)
+    _is_primary: Optional[bool] = PrivateAttr(default=False)
+
+    model_config = {
+        "arbitrary_types_allowed": True,
+    }
+
+    def model_post_init(self, __context: Any) -> None:
         self._is_primary = self._determine_primary_status(self.name)
 
     @property
     def x(self) -> float:
+        if self._position3d is None:
+            raise ValueError("_position3d is not set")
         return self._position3d.x
 
     @property
     def y(self) -> float:
+        if self._position3d is None:
+            raise ValueError("_position3d is not set")
         return self._position3d.y
 
     @property
     def z(self) -> float:
+        if self._position3d is None:
+            raise ValueError("_position3d is not set")
         return self._position3d.z
 
     def distance_to(self, other_position: Tuple[float, float, float]) -> float:
@@ -254,25 +262,6 @@ class AudioSource:
             + (self.y - other_position[1]) ** 2
             + (self.z - other_position[2]) ** 2
         ) ** 0.5
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AudioSource":
-        """
-        Create AudioSource from dictionary data.
-        """
-        if "name" not in data:
-            raise ValueError("Missing required field 'name'")
-
-        if "position" not in data:
-            raise ValueError("Missing required field 'position'")
-
-        return cls(
-            name=data["name"],
-            position=data["position"],
-            snr=data.get("snr", 0.0),
-            directivity=data.get("directivity", "omnidirectional"),
-            source_file=data.get("source_file", ""),
-        )
 
     @staticmethod
     def _determine_primary_status(name: str) -> bool:
