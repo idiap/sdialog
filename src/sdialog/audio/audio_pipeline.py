@@ -170,9 +170,6 @@ class AudioPipeline:
             The audio enriched dialog.
         """
 
-        if room is not None:
-            dialog.set_room(room)
-
         # Override the dialog directory name if provided otherwise use the dialog id as the directory name
         dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
 
@@ -306,9 +303,11 @@ class AudioPipeline:
             # Override the room name if provided otherwise use the hash of the room
             room_name = room_name if room_name is not None else room.name
 
+            # Generate the audio room accoustic from the dialog and room object
             dialog: AudioDialog = generate_audio_room_accoustic(
-                dialog,
-                microphone_position,
+                dialog=dialog,
+                room=room,
+                microphone_position=microphone_position,
                 dialog_directory=dialog_directory,
                 room_name=room_name
             )

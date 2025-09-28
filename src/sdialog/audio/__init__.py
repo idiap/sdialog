@@ -7,6 +7,7 @@ This module provides functionality to generate audio from text utterances in a d
 # SPDX-License-Identifier: MIT
 import os
 import torch
+import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
@@ -14,8 +15,8 @@ from sdialog import Dialog, Turn
 from sdialog.personas import BasePersona
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_utils import AudioUtils
-from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
+from sdialog.audio.room import MicrophonePosition, Room
 from sdialog.audio.voice_database import BaseVoiceDatabase
 from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 
@@ -142,6 +143,7 @@ def save_utterances_audios(
 
 def generate_audio_room_accoustic(
         dialog: AudioDialog,
+        room: Room,
         microphone_position: MicrophonePosition,
         dialog_directory: str,
         room_name: str) -> AudioDialog:
@@ -150,20 +152,18 @@ def generate_audio_room_accoustic(
     """
 
     # Create the room acoustics simulator
-    room_acoustics = RoomAcousticsSimulator(
-        dialog.get_room()
-    )
+    room_acoustics = RoomAcousticsSimulator(room=room)
 
     # Add the microphone to the room acoustics simulator
-    room_acoustics.set_microphone_position(microphone_position)
+    room_acoustics.set_microphone_position(mic_pos=microphone_position)
 
     # Simulate the audio
     _audio_accoustic = room_acoustics.simulate(
-        dialog.get_audio_sources()
+        sources=dialog.get_audio_sources()
     )
 
-    # Save the audio
-    dialog.audio_step_3_filepath = os.path.join(
+    # Save the audio file
+    current_room_audio_path = os.path.join(
         dialog.audio_dir_path,
         dialog_directory,
         "exported_audios",
@@ -171,11 +171,22 @@ def generate_audio_room_accoustic(
         f"audio_pipeline_step3-{room_name}.wav"
     )
     sf.write(
-        dialog.audio_step_3_filepath,
+        current_room_audio_path,
         _audio_accoustic,
         44_100
     )
 
-    # TODO: Save the room object as room_name in the rooms directory
+    # Save the audio path and configuration into the dialog
+    if room_name in dialog.audio_step_3_filepaths:
+        logging.warning(f"Room '{room_name}' already exists in the dialog")
+
+    dialog.audio_step_3_filepaths[room_name] = {
+        "audio_path": current_room_audio_path,
+        "microphone_position": microphone_position,
+        "room_name": room_name,
+        "room": room
+    }
+
+    # TODO: Update the audio dialog file
 
     return dialog
