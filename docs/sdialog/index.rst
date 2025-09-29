@@ -588,8 +588,9 @@ Centralized configuration lives in ``sdialog.config``:
 
 - ``openai:MODEL`` - OpenAI models (GPT-3.5, GPT-4, etc.)
 - ``huggingface:MODEL`` - HuggingFace transformers models
-- ``ollama:MODEL`` - Local Ollama models
-- ``aws:MODEL`` - AWS Bedrock models (Anthropic Claude, etc.)
+- ``ollama:MODEL`` - Local/remote Ollama models
+- ``amazon:MODEL`` - AWS Bedrock models (Anthropic Claude, etc.)
+- ``google:MODEL`` - Google Gen AI models (Gemini, etc.)
 - Local model instances passed directly
 
 **Configuration Examples:**
@@ -608,8 +609,8 @@ Centralized configuration lives in ``sdialog.config``:
     # Use local Ollama model
     config.llm("ollama:llama2")
 
-    # Configure AWS Bedrock
-    config.llm("aws:anthropic.claude-v2")
+    # Configure Amazon Bedrock
+    config.llm("amazon:anthropic.claude-v2")
     config.llm_params(temperature=0.5)
 
 Tools & Function Calling

@@ -240,7 +240,7 @@ def is_ollama_model_name(model_name: str) -> bool:
         or not is_huggingface_model_name(model_name)
         and not is_openai_model_name(model_name)
         and not is_google_genai_model_name(model_name)
-        and not is_aws_model_name(model_name)
+        and not is_amazon_model_name(model_name)
     )
 
 
@@ -258,16 +258,16 @@ def is_openai_model_name(model_name: str) -> bool:
 
 
 @check_valid_model_name
-def is_aws_model_name(model_name: str) -> bool:
+def is_amazon_model_name(model_name: str) -> bool:
     """
-    Check whether the model name targets an AWS Bedrock model (prefix 'aws:').
+    Check whether the model name targets an Amazon Bedrock model (prefix 'aws:' or 'amazon:').
 
     :param model_name: Model name string.
     :type model_name: str
-    :return: True if AWS Bedrock.
+    :return: True if Amazon Bedrock.
     :rtype: bool
     """
-    return model_name.startswith("aws:")
+    return model_name.startswith("aws:") or model_name.startswith("amazon:")
 
 
 @check_valid_model_name
@@ -341,7 +341,7 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading OpenAI model: {model_name}")
 
         llm = ChatOpenAI(model=model_name, **llm_kwargs)
-    elif is_aws_model_name(model_name):
+    elif is_amazon_model_name(model_name):
         from langchain_aws import ChatBedrockConverse
         if ":" in model_name:
             model_name = model_name.split(":", 1)[-1]

@@ -184,7 +184,7 @@ Any LLM-powered component can also take a specific model and its parameters as a
 ```python
 from sdialog.agents import Agent
 
-my_agent = Agent(model="aws:anthropic.claude-3-5-sonnet-20240620-v1:0",
+my_agent = Agent(model="amazon:anthropic.claude-3-5-sonnet-20240620-v1:0",
                  region_name="us-east-1")
 ```
 
@@ -241,7 +241,7 @@ If you use SDialog in academic work, please cite:
 
 ## 🙏 Acknowledgments
 
-This work was supported by the EU Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/) (grant number 101070558).
+This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) (grant number 101070558).
 
 The initial development of this project began in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
 

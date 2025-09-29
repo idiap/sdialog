@@ -29,7 +29,7 @@ from . import Dialog, Turn, Event, Instruction, Context
 from .personas import BasePersona, Persona
 from .orchestrators import BaseOrchestrator
 from .interpretability import ResponseHook, ActivationHook, Inspector
-from .util import get_llm_model, is_aws_model_name, is_huggingface_model_name, set_generator_seed, get_universal_id
+from .util import get_llm_model, is_amazon_model_name, is_huggingface_model_name, set_generator_seed, get_universal_id
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +300,7 @@ class Agent:
             if self._inspectors:
                 self._hook_response_data.response_begin(self.memory_dump())
 
-            if (is_huggingface_model_name(self._model_uri) or is_aws_model_name(self._model_uri)) and \
+            if (is_huggingface_model_name(self._model_uri) or is_amazon_model_name(self._model_uri)) and \
                (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
                 # Ensure that the last message is a HumanMessage to avoid
                 # "A conversation must start with a user message" (aws)
