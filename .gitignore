@@ -28,3 +28,7 @@ misc/audio/Generation/*.json
 misc/audio/Generation/200-dialogues-V0
 old.git
 tutorials/dialog_demo.json
+tutorials/sdialog
+tutorials/sdialog/*
+tutorials/dscaper_data
+tutorials/audio_outputs
