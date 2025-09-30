@@ -18,7 +18,7 @@ Then in your scripts below make sure to set your default LLM backend, model, and
     import sdialog
     sdialog.config.llm("openai:gpt-4.1", temperature=0.7)
 
-(You may substitute any supported backend string: ``huggingface:...``, ``ollama:...``, ``amazon:...``.)
+(You may substitute :ref:`any supported backend string <backend_list>`: ``huggingface:...``, ``ollama:...``, ``amazon:...``, ``google:...``.)
 
 ----------
 Generation

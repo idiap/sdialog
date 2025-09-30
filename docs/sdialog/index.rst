@@ -579,10 +579,11 @@ Configuration Layer
 -------------------
 Centralized configuration lives in ``sdialog.config``:
 
-- :func:`~sdialog.config.llm`: set global backend & hyperparameters.
-- :func:`~sdialog.config.llm_params`: update hyperparameters only.
-- :func:`~sdialog.config.cache` / :func:`~sdialog.config.cache_path` / :func:`~sdialog.config.set_cache`.
+- Default LLM settings: :func:`~sdialog.config.llm`, :func:`~sdialog.config.llm_params`
+- Cache management: :func:`~sdialog.config.cache` / :func:`~sdialog.config.cache_path` / :func:`~sdialog.config.set_cache`.
 - Prompt overrides: :func:`~sdialog.config.set_persona_dialog_generator_prompt`, :func:`~sdialog.config.set_persona_generator_prompt`, :func:`~sdialog.config.set_dialog_generator_prompt`, :func:`~sdialog.config.set_persona_agent_prompt`.
+
+.. _backend_list:
 
 **Supported Backend Formats:**
 
@@ -599,19 +600,24 @@ Centralized configuration lives in ``sdialog.config``:
 
     import sdialog.config as config
 
-    # Set global LLM backend
-    config.llm("openai:gpt-4")
-    config.llm_params(temperature=0.7, max_tokens=1000)
+    # Set global LLM backend and model with specific parameters
+    config.llm("openai:gpt-4",
+               temperature=0.7,
+               max_tokens=1000)
 
-    # Enable caching for expensive operations
-    config.set_cache("/path/to/cache", enable=True)
-
-    # Use local Ollama model
+    # Use local Ollama model with default parameters
     config.llm("ollama:llama2")
 
-    # Configure Amazon Bedrock
-    config.llm("amazon:anthropic.claude-v2")
-    config.llm_params(temperature=0.5)
+    # Configure Amazon Bedrock with default parameters
+    # plus specific temperature value
+    config.llm("amazon:anthropic.claude-v2",
+               temperature=0.5)
+
+    # Enable evaluation caching with default parameters
+    config.cache(True)
+
+    # Enable caching in specific path
+    config.set_cache("/path/to/cache", enable=True)
 
 Tools & Function Calling
 ------------------------
