@@ -87,5 +87,8 @@ Provide:
 ## Communication
 Use GitHub Issues / Discussions for feature proposals. For larger changes, open a draft PR early for feedback.
 
+## AI-assisted development
+This project provides an [llm.txt file](https://sdialog.readthedocs.io/en/latest/llm.txt) following the [llms.txt specification](https://llmstxt.org/) for AI coding assistants. GitHub Copilot and other AI tools can fetch structured project information with: `#fetch https://sdialog.readthedocs.io/en/latest/llm.txt`
+
 ## Thanks
 Your contributions make the project better for everyone. 🙏

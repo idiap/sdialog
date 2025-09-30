@@ -194,6 +194,11 @@ my_agent = Agent(model="amazon:anthropic.claude-3-5-sonnet-20240620-v1:0",
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
 - [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
 - [Documentation](https://sdialog.readthedocs.io)
+- [LLM-friendly docs](https://sdialog.readthedocs.io/en/latest/llm.txt) for AI coding assistants (GitHub Copilot, etc.) following the [llm.txt specification](https://llmstxt.org/), in your chat use:
+  ```
+  #fetch https://sdialog.readthedocs.io/en/latest/llm.txt
+  Your prompt using sdialog here...
+  ```
 
 ## 🤝 Contributing
 
