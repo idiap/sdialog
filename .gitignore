@@ -27,3 +27,4 @@ misc/audio/Generation/*.csv
 misc/audio/Generation/*.json
 misc/audio/Generation/200-dialogues-V0
 old.git
+tutorials/dialog_demo.json

@@ -96,24 +96,6 @@ def generate_utterance(
     return tts_pipeline.generate(text, voice=voice)
 
 
-def generate_word_alignments(
-        dialog: AudioDialog,
-        whisper_model_name: str = "large-v3") -> AudioDialog:
-    """
-    Generates word alignments for each utterance in a Dialog object.
-    """
-    from sdialog.audio.audio_utils import AudioUtils
-
-    whisper_model = AudioUtils.get_whisper_model(model_name=whisper_model_name)
-
-    for turn in dialog.turns:
-        result = whisper_model.transcribe(turn.get_audio(), word_timestamps=True, fp16=False, language="en")
-        turn.alignment = result["segments"][0]["words"]
-        turn.transcript = result["text"]
-
-    return dialog
-
-
 def save_utterances_audios(
         dialog: AudioDialog,
         dir_audio: str,

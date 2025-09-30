@@ -6,7 +6,6 @@ This module provides the audio pipeline for generating audio from a dialog.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import os
-import json
 import logging
 import numpy as np
 from tqdm import tqdm
@@ -21,13 +20,11 @@ from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.audio_events_enricher import AudioEventsEnricher
 from sdialog.audio.voice_database import BaseVoiceDatabase, DummyKokoroVoiceDatabase
 from sdialog.audio import (
     generate_utterances_audios,
     save_utterances_audios,
-    generate_audio_room_accoustic,
-    generate_word_alignments
+    generate_audio_room_accoustic
 )
 
 
@@ -41,7 +38,6 @@ class AudioPipeline:
             dir_audio: Optional[str] = "./outputs",
             tts_pipeline: Optional[BaseTTS] = None,
             voice_database: Optional[BaseVoiceDatabase] = None,
-            enricher: Optional[AudioEventsEnricher] = None,
             sampling_rate: Optional[int] = 24_000,
             dscaper=None):
         """
@@ -58,7 +54,6 @@ class AudioPipeline:
         if self.voice_database is None:
             self.voice_database = DummyKokoroVoiceDatabase()
 
-        self.enricher = enricher
         self._dscaper = dscaper
 
         self.sampling_rate = sampling_rate  # Need to be set to the same as the TTS model
@@ -133,26 +128,11 @@ class AudioPipeline:
         """
         return np.concatenate([turn.get_audio() for turn in dialog.turns])
 
-    def enrich(
-            self,
-            dialog: AudioDialog) -> AudioDialog:
-        """
-        Enrich with audio events, SNR and room position.
-        """
-        if self.enricher is None:
-            raise ValueError("Enricher is not set")
-
-        dialog = self.enricher.extract_events(dialog)
-
-        return dialog
-
     def inference(
             self,
             dialog: Dialog,
             room: Optional[Room] = None,
             do_word_alignments: Optional[bool] = False,
-            do_snr: Optional[bool] = False,
-            do_room_position: Optional[bool] = False,
             microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED,
             do_step_1: Optional[bool] = True,
             do_step_2: Optional[bool] = True,
@@ -165,8 +145,6 @@ class AudioPipeline:
             dialog: The text dialog object.
             room: The room object.
             do_word_alignments: Whether to do word alignments between the text and the audio.
-            do_snr: Whether to do dynamic SNR prediction.
-            do_room_position: Whether to do room position.
             microphone_position: The microphone position in the room.
             do_step_1: Whether to do step 1 (generate the utterances audios).
             do_step_2: Whether to do step 2 (generate the timeline from the utterances audios).
@@ -232,58 +210,6 @@ class AudioPipeline:
                 self.sampling_rate
             )
 
-        # else:
-
-            # ###################
-            # # TODO: Change completely this part after the refactoring of the room object serialization.
-            # ###################
-
-            # # Load combined audio from the exported_audios folder
-            # dialog.set_combined_audio(
-            #     sf.read(dialog.audio_step_1_filepath)[0]  # WARNING: watchout for the sampling rate
-            # )
-
-            # # Load utterances to the dialog turns
-            # path_utterances = os.path.join(dialog.audio_dir_path, dialog_directory, "utterances")
-
-            # audio_start_time = 0
-
-            # for utterance_audio in os.listdir(path_utterances):
-
-            #     utterance_id = utterance_audio.split("_")[0]
-
-            #     # WARNING: watchout for the sampling rate
-            #     audio_utterance_filepath = os.path.join(
-            #         path_utterances,
-            #         utterance_audio
-            #     )
-
-            #     # Populate the turn audio fields from the audio path
-            #     _turn = dialog.turns[int(utterance_id)]
-            #     _turn.audio_path = audio_utterance_filepath
-            #     _audio, _sampling_rate = sf.read(audio_utterance_filepath)
-            #     _turn.set_audio(_audio, _sampling_rate)
-            #     _turn.audio_duration = _audio.shape[0] / _sampling_rate
-            #     _turn.audio_start_time = audio_start_time
-            #     audio_start_time += _turn.audio_duration
-
-            # logging.info(f"Audio data from step 1 loaded into the dialog ({dialog.id}) successfully!")
-
-        # TODO: Test this computation of word alignments
-        if do_word_alignments:
-            dialog: AudioDialog = generate_word_alignments(dialog)
-
-        # TODO: Test this generation of SNR
-        if do_snr:
-            dialog: AudioDialog = self.enricher.generate_snr(dialog)
-
-        # Generate the position of the speakers in the room
-        if do_room_position:
-            dialog: AudioDialog = self.enricher.generate_room_position(dialog)
-
-        # # Randomly sample a static microphone position for the whole dialogue
-        # dialog: AudioDialog = self.enricher.generate_microphone_position(dialog)
-
         if self._dscaper is not None and do_step_2 and len(dialog.audio_step_2_filepath) > 0:
             logging.info(f"Audio sources from dSCAPER loaded in the dialog ({dialog.id}) successfully!")
 
@@ -298,12 +224,6 @@ class AudioPipeline:
                 send_utterances_to_dscaper,
                 generate_dscaper_timeline
             )
-
-            # TODO: Remove the files previously generated by dSCAPER
-            # if do_step_2 and file_exists(dialog.audio_step_2_filepath):
-            # utterances
-            # timeline
-            # audio file
 
             # Send the utterances to dSCAPER
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
