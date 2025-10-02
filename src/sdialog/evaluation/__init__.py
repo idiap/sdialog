@@ -417,8 +417,9 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
             from sdialog.evaluation import LLMJudgeYesNo
 
-            magic_judge = LLMJudgeYesNo("Is the following dialogue magical?\\n{{ dialog }}",
-                                        feedback=True)
+            magic_judge = LLMJudgeYesNo("Is this dialogue magical? "
+                                        "Reply Yes/No and a brief reason."
+                                        "Dialog:\n{{ dialog }}")
 
             result = magic_judge.judge(dialog)
 
@@ -497,8 +498,9 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
             from sdialog.evaluation import LLMJudgeScore
 
-            magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue?\\n{{ dialog }}",
-                                        feedback=True)
+            magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue? "
+                                        "Provide the score and feedback. "
+                                        "Dialog:\n{{ dialog }}")
 
             result = magic_judge.judge(dialog)
 

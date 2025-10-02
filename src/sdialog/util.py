@@ -19,6 +19,7 @@ import numpy as np
 import transformers
 import pandas as pd
 
+from time import sleep
 from tqdm.auto import tqdm
 from functools import wraps
 from pydantic import BaseModel
@@ -217,6 +218,14 @@ def get_llm_default_params(model_name: str, llm_params: dict) -> float:
             defaults["temperature"] = 0.8
     except Exception as e:
         logger.error(f"Error getting default parameters for model '{model_name}': {e}. Is Ollama server running?")
+        logger.info("Trying to run the Ollama server...")
+        try:
+            subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            sleep(5)  # Give it some time to start
+            logger.info("Ollama server started. Retrying the request.")
+            return get_llm_default_params(model_name, llm_params)
+        except Exception as e:
+            logger.error(f"Failed to start Ollama server: {e}")
 
     for k, v in list(defaults.items()):
         if k in llm_params and llm_params[k] is not None:
