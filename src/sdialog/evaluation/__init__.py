@@ -515,8 +515,8 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             # as variables in your prompt template.
             prompt = (
                 "On a scale from {{ min_score }} to {{ max_score }}, "
-                "how magical is this dialogue?\\n{{ dialog }}\\n"
-                "Please provide a single {{ score_type }} score."
+                "how magical is this dialogue?"
+                "Provide a {{ score_type }} score."
             )
             magic_judge = LLMJudgeScore(prompt,
                                         min_score=1,

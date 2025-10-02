@@ -759,7 +759,7 @@ class BaseLLMJudge(ABC):
                     raw = self(prompt)  # call underlying LLM
                     return raw  # normally you'd parse into structured output
 
-            magic_judge = MagicJudge(prompt_template="Is the following dialogue magical? Dialogue:\\n{{ dialog }}")
+            magic_judge = MagicJudge(prompt_template="How magical is the following dialogue? Dialogue:\\n{{ dialog }}")
             print(magic_judge.judge(dialog))  # Outputs raw LLM response
 
     :param model: Model instance or model name (falls back to config if None).

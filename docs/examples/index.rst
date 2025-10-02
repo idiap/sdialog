@@ -211,15 +211,13 @@ Both judges are only invoked once (each) thanks to internal flags. After an inst
             self.expertise_judge = LLMJudgeYesNo(
                 "Has the speaker demonstrated professional domain expertise "
                 "(e.g., explicitly stating their job, years of experience, or "
-                "discussing implementation/technical methodology) in the dialogue so far?\n\n"
-                "Dialogue:\n{{ dialog }}",
+                "discussing implementation/technical methodology) in the dialogue so far?",
                 model=model
             )
             self.sensitive_context_judge = LLMJudgeYesNo(
                 "Do the recent turns indicate either "
                 "(a) a sensitive emotional situation (e.g., loss, illness, personal hardship) or "
-                "(b) clearly positive celebratory news (promotion, graduation, birth)?\n\n"
-                "Dialogue:\n{{ dialog }}",
+                "(b) clearly positive celebratory news (promotion, graduation, birth)?",
                 model=model
             )
 
