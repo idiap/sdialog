@@ -9,40 +9,9 @@ Carefully read the persona attributes below and then analyze the {{ "dialogues" 
 
 If "{{ speaker }}" in the {{ "dialogue clearly reflects" if not is_plural else "each dialogue clearly reflects" }} the persona, reply {{ "'true'" if not is_plural else "'true' for that dialogue" }}. If {{ "not" if not is_plural else "a dialogue does not" }}, reply {{ "'false'" if not is_plural else "'false' for that dialogue" }}.
 
-{% if reason %}
-Reply with a JSON object with two fields:
-{% else %}
-Reply with a JSON object with ONLY one field:
-{% endif %}
-  - 'output': {{ "a list of booleans, true if the speaker matches the persona, false otherwise, one per dialogue in order" if is_plural else "true if the speaker matches the persona, false otherwise" }}
-{% if reason %}
-  - 'reason': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
-{% endif %}
-
 Persona attributes are provided in JSON format:
 [[ ## BEGIN PERSONA ## ]]
 {{ persona }}
 [[ ## END PERSONA ## ]]
 
 Speaker to evaluate: "{{ speaker }}"
-
-{% if is_plural %}
-Below, each dialogue is delimited by:
-[[ ## BEGIN DIALOGUE N ## ]]
-...dialogue text...
-[[ ## END DIALOGUE N ## ]]
-where N is the dialogue number (starting from 1).
-
-{% endif %}
-{{ "Dialogues:" if is_plural else "Dialogue:" }}
-{% if is_plural %}
-{% for d in dialogs %}
-[[ ## BEGIN DIALOGUE {{ loop.index }} ## ]]
-{{ d }}
-[[ ## END DIALOGUE {{ loop.index }} ## ]]
-{% endfor %}
-{% else %}
-{{ dialogs[0] }}
-{% endif %}
-
-Your answer:

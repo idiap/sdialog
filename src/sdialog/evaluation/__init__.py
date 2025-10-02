@@ -417,9 +417,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
             from sdialog.evaluation import LLMJudgeYesNo
 
-            magic_judge = LLMJudgeYesNo("Is this dialogue magical? "
-                                        "Reply Yes/No and a brief reason. "
-                                        "Dialog:\n{{ dialog }}")
+            magic_judge = LLMJudgeYesNo("Is this dialogue magical?", reason=True)
 
             result = magic_judge.judge(dialog)
 
@@ -441,6 +439,9 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize yes/no LLM judge."""
+        with open(config["prompts"]["evaluation"]["llm_judge"]["yesno"]["base"], encoding="utf-8") as f:
+            prompt_template = f.read().replace("{{ prompt_template }}", prompt_template)
+
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
         BaseLLMJudge.__init__(self,
@@ -448,7 +449,6 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                               output_format=LLMJudgeYesNoOutput,
                               prompt_template=prompt_template,
                               **llm_kwargs)
-
         self.reason = reason
 
     def judge(self, dialogs: Union[Dialog, List[Dialog]], reason: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
@@ -498,9 +498,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
             from sdialog.evaluation import LLMJudgeScore
 
-            magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue? "
-                                        "Provide the score and a brief reason. "
-                                        "Dialog:\n{{ dialog }}")
+            magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue?", reason=True)
 
             result = magic_judge.judge(dialog)
 
@@ -556,6 +554,9 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
         :raises ValueError: If score_type invalid.
         """
+        if isinstance(score_type, str):
+            score_type = {"int": int, "float": float}.get(score_type.lower(), score_type)
+
         if score_type not in [int, float]:
             raise ValueError(f"Invalid score_type: {score_type}. Must be int or float.")
         elif score_type is float:
@@ -570,6 +571,9 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             __base__=LLMJudgeScoreOutput,
             score=(score_type, Field(ge=min_score, le=max_score)),
         )
+
+        with open(config["prompts"]["evaluation"]["llm_judge"]["score"]["base"], encoding="utf-8") as f:
+            prompt_template = f.read().replace("{{ prompt_template }}", prompt_template)
 
         BaseDialogScore.__init__(self,
                                  name=upper_camel_to_dash(self.__class__.__name__))
@@ -667,7 +671,7 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize real vs synthetic judge (boolean)."""
-        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_judge"]["yesno"]["real_dialog"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
                          model=model,
@@ -706,7 +710,7 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize Likert realism scorer (1-5)."""
-        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog_likert_score"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_judge"]["score"]["real_dialog_likert"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
                          model=model,
@@ -754,7 +758,7 @@ class LLMJudgeRealDialogScore(LLMJudgeScore):
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize realism score judge (custom numeric range)."""
-        with open(config["prompts"]["evaluation"]["llm_as_judge_real_dialog_score"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_judge"]["score"]["real_dialog"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
                          model=model,
@@ -794,7 +798,7 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize refusal detector."""
-        with open(config["prompts"]["evaluation"]["llm_as_judge_refusal"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_judge"]["yesno"]["refusal"], encoding="utf-8") as f:
             prompt_template = f.read()
         super().__init__(prompt_template,
                          model=model,
@@ -839,7 +843,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize persona adherence judge."""
-        with open(config["prompts"]["evaluation"]["llm_as_judge_persona_attributes"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_judge"]["yesno"]["persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
         prompt_template = prompt_template.render(persona=persona, speaker=speaker)

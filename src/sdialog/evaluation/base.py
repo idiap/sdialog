@@ -791,7 +791,7 @@ class BaseLLMJudge(ABC):
                                  output_format=self.output_format,
                                  **llm_kwargs)
 
-        with open(config["prompts"]["evaluation"]["llm_as_judge"], encoding="utf-8") as f:
+        with open(config["prompts"]["evaluation"]["llm_judge"]["base"], encoding="utf-8") as f:
             self.messages = [SystemMessage(f.read()), HumanMessage("")]
 
     def __call__(self, prompt: str) -> Union[dict, BaseModel]:

@@ -10,12 +10,17 @@ prompts:
   paraphraser_turn: ../prompts/paraphraser_turn.j2
   paraphraser: ../prompts/paraphraser.j2
   evaluation:
-    llm_as_judge: ../prompts/evaluation/llm_as_judge.j2
-    llm_as_judge_refusal: ../prompts/evaluation/llm_as_judge_refusal.j2
-    llm_as_judge_real_dialog: ../prompts/evaluation/llm_as_judge_real_dialog.j2
-    llm_as_judge_real_dialog_score: ../prompts/evaluation/llm_as_judge_real_dialog_score.j2
-    llm_as_judge_real_dialog_likert_score: ../prompts/evaluation/llm_as_judge_real_dialog_likert_score.j2
-    llm_as_judge_persona_attributes: ../prompts/evaluation/llm_as_judge_persona_attributes.j2
+    llm_judge:
+      base: ../prompts/evaluation/llm_judge_base.j2
+      yesno:
+        base: ../prompts/evaluation/llm_judge_yesno_base.j2
+        refusal: ../prompts/evaluation/llm_judge_yesno_inst_refusal.j2
+        real_dialog: ../prompts/evaluation/llm_judge_yesno_inst_real.j2
+        persona_attributes: ../prompts/evaluation/llm_judge_yesno_inst_persona.j2
+      score:
+        base: ../prompts/evaluation/llm_judge_score_base.j2
+        real_dialog: ../prompts/evaluation/llm_judge_score_inst_real.j2
+        real_dialog_likert: ../prompts/evaluation/llm_judge_score_inst_real_likert.j2
 llm:
   model: gemma3:27b
   temperature: null  # model's default
