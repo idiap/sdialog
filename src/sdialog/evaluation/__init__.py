@@ -421,7 +421,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
             result = magic_judge.judge(dialog)
 
-            print(result.yes)
+            print(result.positive)
             print(result.reason)
 
     :param prompt_template: Jinja2 template for judging prompt.
@@ -483,9 +483,9 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         """
         output = self.judge(dialog)
         try:
-            return int(output.yes[0]) if isinstance(output.yes, list) else int(output.yes)
+            return int(output.positive[0]) if isinstance(output.positive, list) else int(output.positive)
         except TypeError:
-            raise ValueError(f"LLMJudgeYesNo output '{output.yes}' is not a boolean or list of booleans, "
+            raise ValueError(f"LLMJudgeYesNo output '{output.positive}' is not a boolean or list of booleans, "
                              f"cannot convert to integer score.")
 
 
@@ -656,7 +656,7 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
 
             result = judge_real.judge(dialog)
 
-            print("Real?", result.yes)
+            print("Real?", result.positive)
             print("Reason:", result.reason)
 
     :param reason: Whether to request reason.
@@ -783,7 +783,7 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
 
             result = judge_refusal.judge(dialog)
 
-            print("Refused?", result.yes)
+            print("Refused?", result.positive)
             print("Reason:", result.reason)
 
     :param reason: Request reason flag.
@@ -822,7 +822,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
                                                       reason=True)
             result = judge_persona.judge(dialog)
 
-            print("Matches persona?", result.yes)
+            print("Matches persona?", result.positive)
             print("Reason:", result.reason)
 
     :param persona: Persona definition object.

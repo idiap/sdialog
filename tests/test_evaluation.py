@@ -28,8 +28,8 @@ def test_kl_divergence_identical():
 
 
 def test_llmjudgeyesno_output():
-    out = LLMJudgeYesNoOutput(yes=True, reason="ok")
-    assert out.yes is True
+    out = LLMJudgeYesNoOutput(positive=True, reason="ok")
+    assert out.positive is True
     assert out.reason == "ok"
 
 

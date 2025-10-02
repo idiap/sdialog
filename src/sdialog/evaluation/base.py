@@ -44,12 +44,12 @@ class LLMJudgeYesNoOutput(BaseModel):
     """
     Structured output used by yes/no LLM judgments.
 
-    :param yes: Boolean (or list of booleans) indicating classification outcome(s).
-    :type yes: Union[bool, List[bool]]
+    :param positive: Boolean (or list of booleans) indicating classification outcome(s).
+    :type positive: Union[bool, List[bool]]
     :param reason: Optional explanatory reason (string or list).
     :type reason: Optional[Union[str, List[str]]]
     """
-    yes: Union[bool, List[bool]]
+    positive: Union[bool, List[bool]]
     reason: Optional[Union[str, List[str]]] = None
 
 

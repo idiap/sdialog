@@ -236,7 +236,7 @@ Both judges are only invoked once (each) thanks to internal flags. After an inst
             # 1) Domain expertise detection
             if not self.expertise_activated:
                 result = self.expertise_judge.judge(dialog)
-                if result.yes:
+                if result.positive:
                     self.expertise_activated = True
                     return (
                         "The interlocutor has demonstrated domain expertise. "
@@ -247,7 +247,7 @@ Both judges are only invoked once (each) thanks to internal flags. After an inst
             # 2) Emotional / situational sensitivity.
             if not self.context_set:
                 result_ctx = self.sensitive_context_judge.judge(dialog)
-                if result_ctx.yes:
+                if result_ctx.positive:
                     self.context_set = True
                     return (
                         "Recent dialogue content suggests notable emotional "
@@ -374,7 +374,7 @@ Judge realism and persona consistency with built-in yes/no and Likert judges.
     persona_result = persona_judge.judge(dialog)
 
     print("Realism score:", realism_result.score, realism_result.reason)
-    print("Persona match:", persona_result.yes, persona_result.reason)
+    print("Persona match:", persona_result.positive, persona_result.reason)
 
 
 Dataset-Level Comparison (Frequency + Mean)
