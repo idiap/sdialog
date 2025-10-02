@@ -366,15 +366,16 @@ Judge realism and persona consistency with built-in yes/no and Likert judges.
     from sdialog.evaluation import LLMJudgeRealDialogLikertScore, LLMJudgePersonaAttributes
     from sdialog.personas import Persona
 
-    realism_judge = LLMJudgeRealDialogLikertScore(feedback=True)
+    realism_judge = LLMJudgeRealDialogLikertScore(reason=True)
     persona_ref = Persona(name="Mentor", role="helpful tutor")
-    persona_judge = LLMJudgePersonaAttributes(persona=persona_ref, speaker="Mentor", feedback=True)
+    persona_judge = LLMJudgePersonaAttributes(persona=persona_ref, speaker="Mentor", reason=True)
 
     realism_result = realism_judge.judge(dialog)
     persona_result = persona_judge.judge(dialog)
 
-    print("Realism score:", realism_result.score, realism_result.feedback)
-    print("Persona match:", persona_result.yes, persona_result.feedback)
+    print("Realism score:", realism_result.score, realism_result.reason)
+    print("Persona match:", persona_result.yes, persona_result.reason)
+
 
 Dataset-Level Comparison (Frequency + Mean)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

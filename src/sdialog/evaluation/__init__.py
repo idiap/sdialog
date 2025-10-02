@@ -409,7 +409,7 @@ class DialogFlowScore(BaseDialogFlowScore):
 
 
 class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
-    """LLM judge for classifying a dialogue as "yes or no" (boolean) output and feedback.
+    """LLM judge for classifying a dialogue as "yes or no" (boolean) output and reason.
 
     Example:
 
@@ -418,18 +418,18 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
             from sdialog.evaluation import LLMJudgeYesNo
 
             magic_judge = LLMJudgeYesNo("Is this dialogue magical? "
-                                        "Reply Yes/No and a brief reason."
+                                        "Reply Yes/No and a brief reason. "
                                         "Dialog:\n{{ dialog }}")
 
             result = magic_judge.judge(dialog)
 
             print(result.yes)
-            print(result.feedback)
+            print(result.reason)
 
     :param prompt_template: Jinja2 template for judging prompt.
     :type prompt_template: str
-    :param feedback: Whether to request feedback field.
-    :type feedback: bool
+    :param reason: Whether to request reason field.
+    :type reason: bool
     :param model: Model instance or model name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Extra LLM initialization kwargs.
@@ -437,7 +437,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
     """
     def __init__(self,
                  prompt_template: str,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize yes/no LLM judge."""
@@ -449,16 +449,16 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                               prompt_template=prompt_template,
                               **llm_kwargs)
 
-        self.feedback = feedback
+        self.reason = reason
 
-    def judge(self, dialogs: Union[Dialog, List[Dialog]], feedback: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
+    def judge(self, dialogs: Union[Dialog, List[Dialog]], reason: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
         """
         Run judgment over one or multiple dialogues.
 
         :param dialogs: A single Dialog or list of Dialogs.
         :type dialogs: Union[Dialog, List[Dialog]]
-        :param feedback: Override feedback flag (falls back to self.feedback).
-        :type feedback: Optional[bool]
+        :param reason: Override reason flag (falls back to self.reason).
+        :type reason: Optional[bool]
         :return: Structured yes/no output model.
         :rtype: LLMJudgeYesNoOutput
         """
@@ -467,7 +467,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
         prompt = self.prompt_template.render(dialogs=dialogs,
                                              dialog=dialogs[0],
-                                             feedback=feedback if feedback is not None else self.feedback)
+                                             reason=reason if reason is not None else self.reason)
         output = BaseLLMJudge.__call__(self, prompt)
         output = self.output_format.model_validate(output)
 
@@ -490,7 +490,7 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
 
 
 class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
-    """LLM judge for scoring a dialogue with a numerical score and optional feedback.
+    """LLM judge for scoring a dialogue with a numerical score and optional reason.
 
     Example 1:
 
@@ -499,13 +499,13 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             from sdialog.evaluation import LLMJudgeScore
 
             magic_judge = LLMJudgeScore("From 1 to 5, how magical is this dialogue? "
-                                        "Provide the score and feedback. "
+                                        "Provide the score and a brief reason. "
                                         "Dialog:\n{{ dialog }}")
 
             result = magic_judge.judge(dialog)
 
             print(result.score)
-            print(result.feedback)
+            print(result.reason)
 
     Example 2:
 
@@ -513,7 +513,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
             from sdialog.evaluation import LLMJudgeScore
 
-            # You can use the `min_score`, `max_score`, `score_type` and/or `feedback` parameters
+            # You can use the `min_score`, `max_score`, `score_type` and/or `reason` parameters
             # as variables in your prompt template.
             prompt = (
                 "On a scale from {{ min_score }} to {{ max_score }}, "
@@ -526,7 +526,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                                         score_type=int)
             result = magic_judge.judge(dialog)
             print(result.score)
-            print(result.feedback)
+            print(result.reason)
 
     :param prompt_template: Jinja2 template text.
     :type prompt_template: str
@@ -536,8 +536,8 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
     :type max_score: float
     :param score_type: int or float score type.
     :type score_type: type
-    :param feedback: Whether to request feedback field.
-    :type feedback: bool
+    :param reason: Whether to request reason field.
+    :type reason: bool
     :param model: Model instance or model name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Extra LLM kwargs.
@@ -548,7 +548,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                  min_score: float = 1,
                  max_score: float = 5,
                  score_type: type = int,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """
@@ -582,19 +582,19 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
         self.score_type = score_type
         self.min_score = min_score
         self.max_score = max_score
-        self.feedback = feedback
+        self.reason = reason
 
     def judge(self,
               dialogs: Union[Dialog, List[Dialog]],
-              feedback: bool = None) -> LLMJudgeScoreOutput:
+              reason: bool = None) -> LLMJudgeScoreOutput:
         """
         Produce a numeric judgment for one or more dialogues.
 
         :param dialogs: Dialogue or list of dialogues.
         :type dialogs: Union[Dialog, List[Dialog]]
-        :param feedback: Override feedback flag.
-        :type feedback: Optional[bool]
-        :return: Structured output containing the score and an optional feedback.
+        :param reason: Override reason flag.
+        :type reason: Optional[bool]
+        :return: Structured output containing the score and an optional reason.
         :rtype: LLMJudgeScoreOutput
         """
         if isinstance(dialogs, Dialog):
@@ -604,7 +604,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
                                              dialog=dialogs[0],
                                              min_score=self.min_score,
                                              max_score=self.max_score,
-                                             feedback=feedback if feedback is not None else self.feedback)
+                                             reason=reason if reason is not None else self.reason)
         output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
 
         return output
@@ -639,7 +639,7 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
 class LLMJudgeRealDialog(LLMJudgeYesNo):
     """
-    LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and feedback.
+    LLM judge for classifying a dialogue as real (human) or synthetic (machine-generated), with boolean output and reason.
     Returns an instance of LLMJudgeYesNoOutput.
 
     Example:
@@ -648,22 +648,22 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
 
             from sdialog.evaluation import LLMJudgeRealDialog
 
-            judge_real = LLMJudgeRealDialog(feedback=True)
+            judge_real = LLMJudgeRealDialog(reason=True)
 
             result = judge_real.judge(dialog)
 
             print("Real?", result.yes)
-            print("Reason:", result.feedback)
+            print("Reason:", result.reason)
 
-    :param feedback: Whether to request feedback.
-    :type feedback: bool
+    :param reason: Whether to request reason.
+    :type reason: bool
     :param model: Model instance or name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Additional LLM kwargs.
     :type llm_kwargs: dict
     """  # noqa: E501
     def __init__(self,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize real vs synthetic judge (boolean)."""
@@ -671,14 +671,14 @@ class LLMJudgeRealDialog(LLMJudgeYesNo):
             prompt_template = f.read()
         super().__init__(prompt_template,
                          model=model,
-                         feedback=feedback,
+                         reason=reason,
                          **llm_kwargs)
 
 
 class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
     """
     LLM judge for evaluating whether a dialogue appears real (human) or synthetic (machine-generated),
-    providing a Likert score between 1 (definitely synthetic) and 5 (definitely real), with optional feedback.
+    providing a Likert score between 1 (definitely synthetic) and 5 (definitely real), with optional reason.
 
     Example:
 
@@ -686,23 +686,23 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
 
             from sdialog.evaluation import LLMJudgeRealDialogLikertScore
 
-            judge_real = LLMJudgeRealDialogLikertScore(feedback=True)
+            judge_real = LLMJudgeRealDialogLikertScore(reason=True)
 
             result = judge_real.judge(dialog)
             # score = judge_real(dialog)
 
             print("Likert Score:", result.score)  # score from 1 to 5
-            print("Reason:", result.feedback)
+            print("Reason:", result.reason)
 
-    :param feedback: Request feedback flag.
-    :type feedback: bool
+    :param reason: Request reason flag.
+    :type reason: bool
     :param model: Model instance or name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Extra LLM kwargs.
     :type llm_kwargs: dict
     """
     def __init__(self,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize Likert realism scorer (1-5)."""
@@ -713,7 +713,7 @@ class LLMJudgeRealDialogLikertScore(LLMJudgeScore):
                          score_type=int,
                          min_score=1,
                          max_score=5,
-                         feedback=feedback,
+                         reason=reason,
                          **llm_kwargs)
 
 
@@ -728,20 +728,20 @@ class LLMJudgeRealDialogScore(LLMJudgeScore):
 
             from sdialog.evaluation import LLMJudgeRealDialogScore
 
-            judge_real = LLMJudgeRealDialogScore(min_score=0, max_score=10, feedback=True)
+            judge_real = LLMJudgeRealDialogScore(min_score=0, max_score=10, reason=True)
 
             result = judge_real.judge(dialog)
             # score = judge_real(dialog)
 
             print("Score:", result.score)  # score from 0 to 10
-            print("Reason:", result.feedback)
+            print("Reason:", result.reason)
 
     :param min_score: Minimum realism score.
     :type min_score: int
     :param max_score: Maximum realism score.
     :type max_score: int
-    :param feedback: Request feedback flag.
-    :type feedback: bool
+    :param reason: Request reason flag.
+    :type reason: bool
     :param model: Model instance or name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Extra LLM kwargs.
@@ -750,7 +750,7 @@ class LLMJudgeRealDialogScore(LLMJudgeScore):
     def __init__(self,
                  min_score: int = 0,
                  max_score: int = 10,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize realism score judge (custom numeric range)."""
@@ -761,7 +761,7 @@ class LLMJudgeRealDialogScore(LLMJudgeScore):
                          score_type=int,
                          min_score=min_score,
                          max_score=max_score,
-                         feedback=feedback,
+                         reason=reason,
                          **llm_kwargs)
 
 
@@ -775,22 +775,22 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
 
             from sdialog.evaluation import LLMJudgeRefusal
 
-            judge_refusal = LLMJudgeRefusal(feedback=True)
+            judge_refusal = LLMJudgeRefusal(reason=True)
 
             result = judge_refusal.judge(dialog)
 
             print("Refused?", result.yes)
-            print("Reason:", result.feedback)
+            print("Reason:", result.reason)
 
-    :param feedback: Request feedback flag.
-    :type feedback: bool
+    :param reason: Request reason flag.
+    :type reason: bool
     :param model: Model instance or name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Extra LLM kwargs.
     :type llm_kwargs: dict
     """
     def __init__(self,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize refusal detector."""
@@ -798,7 +798,7 @@ class LLMJudgeRefusal(LLMJudgeYesNo):
             prompt_template = f.read()
         super().__init__(prompt_template,
                          model=model,
-                         feedback=feedback,
+                         reason=reason,
                          **llm_kwargs)
 
 
@@ -815,18 +815,18 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
             reference_persona = Doctor(name="Dr. Smith", specialty="cardiology")
             judge_persona = LLMJudgePersonaAttributes(persona=reference_persona,
                                                       speaker="Doctor",
-                                                      feedback=True)
+                                                      reason=True)
             result = judge_persona.judge(dialog)
 
             print("Matches persona?", result.yes)
-            print("Reason:", result.feedback)
+            print("Reason:", result.reason)
 
     :param persona: Persona definition object.
     :type persona: BasePersona
     :param speaker: Target speaker in dialogue.
     :type speaker: str
-    :param feedback: Request feedback flag.
-    :type feedback: bool
+    :param reason: Request reason flag.
+    :type reason: bool
     :param model: Model instance or name.
     :type model: Optional[Union[BaseLanguageModel, str]]
     :param llm_kwargs: Additional LLM kwargs.
@@ -835,7 +835,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
     def __init__(self,
                  persona: BasePersona,
                  speaker: str,
-                 feedback: bool = False,
+                 reason: bool = False,
                  model: Union[BaseLanguageModel, str] = None,
                  **llm_kwargs):
         """Initialize persona adherence judge."""
@@ -846,7 +846,7 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
 
         super().__init__(prompt_template,
                          model=model,
-                         feedback=feedback,
+                         reason=reason,
                          **llm_kwargs)
 
 

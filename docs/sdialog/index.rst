@@ -478,7 +478,7 @@ Categories:
     flow_evaluator = DialogFlowScore(reference_dialogs)
 
     # LLM-based judgment
-    realism_judge = LLMJudgeRealDialog(feedback=True)
+    realism_judge = LLMJudgeRealDialog(reason=True)
     realism_judge_likert = LLMJudgeRealDialogLikertScore()  # 1-5 scale
 
     # Multi-metric comparison across different models

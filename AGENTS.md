@@ -177,7 +177,7 @@ Common variations:
 Scoring guidelines:
 * For batch evaluation prefer building a list of `Dialog` objects, then pass into `DatasetComparator`.
 * When creating new metrics: implement `.score(dialog)` returning primitive numeric or structured result; keep deterministic for identical input.
-* LLM judges should expose `feedback` toggle to control cost.
+* LLM judges should expose `reason` toggle to control cost.
 
 Edge cases to handle in metrics:
 * Empty dialogue (return None or 0 with documented behavior)

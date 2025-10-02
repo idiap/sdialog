@@ -28,9 +28,9 @@ def test_kl_divergence_identical():
 
 
 def test_llmjudgeyesno_output():
-    out = LLMJudgeYesNoOutput(yes=True, feedback="ok")
+    out = LLMJudgeYesNoOutput(yes=True, reason="ok")
     assert out.yes is True
-    assert out.feedback == "ok"
+    assert out.reason == "ok"
 
 
 def test_sentence_transformer_dialog_embedder_mean(monkeypatch):

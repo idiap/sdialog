@@ -46,11 +46,11 @@ class LLMJudgeYesNoOutput(BaseModel):
 
     :param yes: Boolean (or list of booleans) indicating classification outcome(s).
     :type yes: Union[bool, List[bool]]
-    :param feedback: Optional explanatory feedback (string or list).
-    :type feedback: Optional[Union[str, List[str]]]
+    :param reason: Optional explanatory reason (string or list).
+    :type reason: Optional[Union[str, List[str]]]
     """
     yes: Union[bool, List[bool]]
-    feedback: Optional[Union[str, List[str]]] = None
+    reason: Optional[Union[str, List[str]]] = None
 
 
 class LLMJudgeScoreOutput(BaseModel):
@@ -59,11 +59,11 @@ class LLMJudgeScoreOutput(BaseModel):
 
     :param score: Numeric score (int or float).
     :type score: Union[int, float]
-    :param feedback: Optional explanatory feedback.
-    :type feedback: Optional[str]
+    :param reason: Optional explanatory reason.
+    :type reason: Optional[str]
     """
     score: Union[int, float] = None
-    feedback: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class BaseDialogEmbedder(ABC):

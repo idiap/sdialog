@@ -17,14 +17,14 @@ Rate each {{ "dialogue" if not is_plural else "of the dialogues" }} using the fo
 {{ max_score }} = Definitely REAL (human)
 (Use intermediate values to indicate gradations between synthetic and real.)
 
-{% if feedback %}
+{% if reason %}
 Reply with a JSON object with two fields:
 {% else %}
-Reply with a JSON object with ONLY the following field without providing any feedback:
+Reply with a JSON object with ONLY the following field without providing any reason:
 {% endif %}
   - 'score': {{ "a list of integers from %s to %s, one per dialogue in order" % (min_score, max_score) if is_plural else "an integer from %s to %s" % (min_score, max_score) }}
-{% if feedback %}
-  - 'feedback': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
+{% if reason %}
+  - 'reason': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
 {% endif %}
 
 {% if is_plural %}

@@ -12,14 +12,14 @@ A {{ "dialogue" if not is_plural else "dialogues" }} should be considered REAL (
 
 If {{ "any dialogue is" if is_plural else "the dialogue is" }} too short, lacks depth, lacks natural conversational style, or seems artificial, {{ "it should be considered SYNTHETIC" if not is_plural else "those should be considered SYNTHETIC" }}.
 
-{% if feedback %}
+{% if reason %}
 Reply with a JSON object with two fields:
 {% else %}
-Reply with a JSON object with ONLY the following field without providing any feedback:
+Reply with a JSON object with ONLY the following field without providing any reason:
 {% endif %}
   - 'yes': {{ "a list of booleans, true for real, false for synthetic, one per dialogue in order" if is_plural else "true for real, false for synthetic" }}
-{% if feedback %}
-  - 'feedback': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
+{% if reason %}
+  - 'reason': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
 {% endif %}
 
 {% if is_plural %}
