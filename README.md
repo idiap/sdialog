@@ -44,10 +44,17 @@ from sdialog.orchestrators import SimpleReflexOrchestrator
 # Set your preferred backend/model and parameters
 sdialog.config.llm("openai:gpt-4.1", temperature=0.9)
 
-# Define personas and shared context
+# Define personas
 alice = Persona(name="Alice", role="barista", personality="cheerful")
 bob   = Persona(name="Bob", role="customer", personality="curious")
-ctx = Context(location="Downtown cafe", topics=["coffee"]) 
+
+# (Optional) Define a concrete conversational context
+ctx = Context(
+  location="Downtown cafe",
+  environment="noisy, aromatic cafe with occasional grinder sounds",
+  circumstances="Morning rush hour",
+  objects=["espresso machine", "menu board", "tip jar"]
+)
 
 # (Optional) Define tools for the agents
 # Just any user-defined function, let's define a mock one for our agent
@@ -65,7 +72,7 @@ react = SimpleReflexOrchestrator(
 barista = Agent(persona=alice, tools=[lookup_menu])
 customer = Agent(persona=bob, first_utterance="Hi!")
 
-# Add orchestrators to your agent using pipe-like composition
+# (Optional) Add orchestrators to your agent using pipe-like composition
 barista = barista | react
 
 # Generate three dialogs!
