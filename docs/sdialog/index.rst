@@ -48,15 +48,63 @@ A :class:`~sdialog.Dialog` object contains an ordered list of :class:`~sdialog.T
 - **Turn**: Has ``speaker`` and ``text`` fields.
 - **Event**: Generic action record (utterance, instruction, tool invocation, etc.).
 - **Metadata**: Provenance for reproducibility (version, timestamp, id, parentId, seed, model, etc.).
-- **Methods**: Text transforms (:meth:`~sdialog.Dialog.lower`, :meth:`~sdialog.Dialog.upper`, :meth:`~sdialog.Dialog.replace`, :meth:`~sdialog.Dialog.re_sub`, etc.), utilities (:meth:`~sdialog.Dialog.prompt`, :meth:`~sdialog.Dialog.rename_speaker`, :meth:`~sdialog.Dialog.filter`, :meth:`~sdialog.Dialog.get_speakers`, etc.), serialization (:meth:`~sdialog.Dialog.to_file`, :meth:`~sdialog.Dialog.from_file`), cloning with lineage (:meth:`~sdialog.Dialog.clone`), and :meth:`~sdialog.Dialog.length` estimation (words / turns / minutes).
+- **Methods**: Text transforms at dialog level (:meth:`~sdialog.Dialog.lower`, :meth:`~sdialog.Dialog.upper`, :meth:`~sdialog.Dialog.replace`, :meth:`~sdialog.Dialog.re_sub`, etc.), utilities (:meth:`~sdialog.Dialog.prompt`, :meth:`~sdialog.Dialog.rename_speaker`, :meth:`~sdialog.Dialog.filter`, :meth:`~sdialog.Dialog.get_speakers`, etc.), serialization (:meth:`~sdialog.Dialog.to_file`, :meth:`~sdialog.Dialog.from_file`), cloning with lineage (:meth:`~sdialog.Dialog.clone`), and :meth:`~sdialog.Dialog.length` estimation (words / turns / minutes).
 
-**Operations Example**:
+**Creating Dialog from Text**:
+
+Dialog objects can be created programmatically or you can simply created from plain text, either a string or txt file, using :meth:`~sdialog.Dialog.from_str` or :meth:`~sdialog.Dialog.from_file` methods, respectively.
+Both methods accept the same arguments and ``Dialog.from_str(text)`` is equivalent to ``Dialog.from_file("file.txt")`` when the file contains plain text.
+Below it is shown examples of three typical use cases:
 
 .. code-block:: python
 
     from sdialog import Dialog, Turn
 
-    # Create a sample dialog
+    # 1) Basic usage - Text in default "{speaker}: {text}" format
+    dialog_text = """Alice: Hello there! How are you today?
+    Bob: I'm doing great, thanks for asking.
+    Alice: That's wonderful to hear!
+    Bob: What about you? How's your day going?"""
+
+    dialog = Dialog.from_str(dialog_text)
+    dialog.print()
+
+    # 2) Text in custom format
+    chat_log = """[2024-01-15 14:30] @user123: Hey everyone!
+    [2024-01-15 14:31] @moderator: Welcome to the chat
+    [2024-01-15 14:32] @user123: Thanks, excited to be here!
+    [2024-01-15 14:33] @helper_bot: How can I assist you today?"""
+
+    # Define your custom template to parse each turn
+    dialog_from_chat = Dialog.from_str(
+        chat_log,
+        template="[{timestamp}] @{speaker}: {text}"
+    )
+    dialog_from_chat.print()
+
+    # 3) Text with no speaker tags
+    simple_conversation = """Hello there!
+    Hi, how are you?
+    I'm doing well, thanks!
+    That's great to hear."""
+
+    # Provide default speakers to assign alternately
+    dialog_with_defaults = Dialog.from_str(
+        simple_conversation,
+        template="{text}",  # No speaker in text turns
+        default_speakers=["Alice", "Bob"]  # Alternating assignment
+    )
+    dialog_with_defaults.print()
+
+**Operations Example**:
+
+Below is a compact walkthrough demonstrating common Dialog manipulations—creating a dialog programmatically, slicing (which preserves lineage), chaining text transformations, selective speaker filtering, speaker renaming, length/statistics queries, and safe iteration over derived copies.
+
+.. code-block:: python
+
+    from sdialog import Dialog, Turn
+
+    # Let's first create a sample dialog programatically
     dialog = Dialog(turns=[
         Turn(speaker="Alice", text="Hello there! How are you doing today?"),
         Turn(speaker="Bob", text="I'm doing great, thanks for asking."),
@@ -83,51 +131,8 @@ A :class:`~sdialog.Dialog` object contains an ordered list of :class:`~sdialog.T
     for ix, turn in enumerate(dialog_alicia):
         print(f"Turn {ix+1}: {turn.speaker} - {turn.text}")
 
-Instead of creating the Dialog object programmatically as above, you can also load it from text files or strings using a simple template format with :meth:`~sdialog.Dialog.from_file` or :meth:`~sdialog.Dialog.from_str` methods, respectively.
-Both methods accept the same arguments and ``Dialog.from_str(text)`` is equivalent to ``Dialog.from_file("file.txt")`` when the file contains plain text.
-The most common cases are shown below with three examples:
-
-**Creating Dialog from Text**:
-
-.. code-block:: python
-
-    from sdialog import Dialog, Turn
-
-    # Basic usage - Text in default "{speaker}: {text}" format
-    dialog_text = """Alice: Hello there! How are you today?
-    Bob: I'm doing great, thanks for asking.
-    Alice: That's wonderful to hear!
-    Bob: What about you? How's your day going?"""
-
-    dialog = Dialog.from_str(dialog_text)
-    dialog.print()
-
-    # Text in custom format
-    chat_log = """[2024-01-15 14:30] @user123: Hey everyone!
-    [2024-01-15 14:31] @moderator: Welcome to the chat
-    [2024-01-15 14:32] @user123: Thanks, excited to be here!
-    [2024-01-15 14:33] @helper_bot: How can I assist you today?"""
-
-    # Define your custom template to parse each turn
-    dialog_from_chat = Dialog.from_str(
-        chat_log,
-        template="[{timestamp}] @{speaker}: {text}"
-    )
-    dialog_from_chat.print()
-
-    # Text with no speaker tags
-    simple_conversation = """Hello there!
-    Hi, how are you?
-    I'm doing well, thanks!
-    That's great to hear."""
-
-    # Provide default speakers to assign alternately
-    dialog_with_defaults = Dialog.from_str(
-        simple_conversation,
-        template="{text}",  # No speaker in text turns
-        default_speakers=["Alice", "Bob"]  # Alternating assignment
-    )
-    dialog_with_defaults.print()
+    # Save to JSON with metadata
+    dialog_alicia.to_file("dialog_alicia.json")
 
 
 Personas & Context

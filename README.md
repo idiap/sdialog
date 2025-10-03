@@ -14,7 +14,7 @@ SDialog is a modular Python toolkit for synthetic dialog generation, evaluation,
 Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## ✨ Key features
-- Standard Dialog schema with JSON import/export _(aiming to help standardize dialog datasets with community support)_
+- Standard [Dialog](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#dialog) schema with JSON import/export _(aiming to help standardize dialog datasets with community support)_
 - Persona‑driven multi‑agent simulation with contexts, tools, and thoughts
 - Composable orchestration for precise control over behavior and flow
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration

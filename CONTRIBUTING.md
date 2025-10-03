@@ -46,9 +46,14 @@ ReadTheDocs latest build list: https://app.readthedocs.org/projects/sdialog/
 
 ## Release (PyPI)
 
-1. Bump version in `src/sdialog/util.py` (follow semver)
+1. Update version in `src/sdialog/util.py` (follow semver)
 2. Update CHANGELOG (if present)
 3. Tag & push
+```bash
+git commit -m "Release v0.x.x"
+git tag v0.x.x
+git push origin main --tags
+```
 4. Build & upload:
 ```bash
 python -m build

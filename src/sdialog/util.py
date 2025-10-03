@@ -35,7 +35,7 @@ from langchain_core.language_models.base import BaseLanguageModel
 
 logger = logging.getLogger(__name__)
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 
 def _get_dynamic_version() -> str:
