@@ -37,7 +37,7 @@ All notable changes to SDialog will be documented here.
 
 
 ### Enhanced
-- **sdialog.agents**: Added `base_model` attribute to `Agent` to direclty access the LLM's underlying model (#74)
+- **sdialog.agents**: Added `base_model` attribute to `Agent` to direclty access the LLM's underlying model for mechanistic interpretability (#74)
 - **sdialog.config**: Added `clear_cache()` method to config (#75)
 
 ### Documentation
@@ -65,6 +65,8 @@ All notable changes to SDialog will be documented here.
 ### Pending
 - Audio module (`sdialog.audio`) integration
 - Documentation updates
+
+---
 
 ## [0.0.2] 2025-06-03 🔧
 
