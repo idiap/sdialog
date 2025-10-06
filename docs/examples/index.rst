@@ -74,7 +74,7 @@ Seed value, as long as model and parameters are always logged and saved as part 
 
 Basic Persona-to-Persona Dialogue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Generate a quick dialog between two simple personas using :class:`~sdialog.agents.Agent`.
+Let's start with a simple example - generating a quick dialog between two personas using :class:`~sdialog.agents.Agent`.
 
 .. code-block:: python
 
@@ -89,7 +89,7 @@ Generate a quick dialog between two simple personas using :class:`~sdialog.agent
 
 Few-Shot Learning with Example Dialogs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SDialog supports in-context few-shot learning by supplying ``example_dialogs`` to generation components. These exemplar dialogs are injected into the system prompt to steer style, structure, tone, or task format.
+Now let's explore how SDialog supports in-context few-shot learning by supplying ``example_dialogs`` to generation components. These exemplar dialogs are injected into the system prompt to steer style, structure, tone, or task format.
 
 1. Agent Role-Play with Exemplars
 
@@ -147,7 +147,7 @@ SDialog supports in-context few-shot learning by supplying ``example_dialogs`` t
 
 Multi-Agent Orchestration (Reflex + Length Control)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Use :mod:`sdialog.orchestrators` to dynamically steer turns. Orchestrators can be composed with the pipe operator.
+Next, let's explore how to use :mod:`sdialog.orchestrators` to dynamically steer turns. Orchestrators can be composed with the pipe operator.
 
 .. code-block:: python
 
@@ -174,16 +174,16 @@ Use :mod:`sdialog.orchestrators` to dynamically steer turns. Orchestrators can b
 
 .. _advanced_context_persistent_orchestrator:
 
-Advanced Persistent Orchestrator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Advanced Orchestrator: LLM Judges + Persistent Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This advanced persistent orchestrator demonstrates how to:
+In this more advanced example, we'll build a persistent orchestrator that demonstrates how to:
 
 - Inspect the entire accumulated dialogue (not only the last utterance).
 - Emit different one-time persistent instructions for distinct detected conditions (domain expertise vs emotional context).
 - Avoid re-emitting the same instruction thanks to internal state flags.
 
-We will use two :class:`~sdialog.evaluation.LLMJudgeYesNo` judges (LLM-based yes/no classifiers) to detect conditions in the ongoing dialogue:
+In our implementation, we'll use two :class:`~sdialog.evaluation.LLMJudgeYesNo` judges (LLM-based yes/no classifiers) to detect conditions in the ongoing dialogue:
 
 * ``expertise_judge`` - fires when the other speaker has likely demonstrated professional / domain expertise (mentions of role, advanced methods, implementation specifics, etc.).
 * ``sensitive_context_judge`` - fires when recent dialogue turns suggest emotionally sensitive or celebratory life events that warrant tone adaptation.
@@ -269,7 +269,7 @@ Explanation: The first time a condition is met we return the instruction; SDialo
 
 Attribute Generation (Personas & Contexts)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Use :class:`~sdialog.generators.PersonaGenerator` and :class:`~sdialog.generators.ContextGenerator` with rule + LLM hybrid specification.
+Let's see how to use :class:`~sdialog.generators.PersonaGenerator` and :class:`~sdialog.generators.ContextGenerator` with rule + LLM hybrid specification.
 
 .. code-block:: python
 
@@ -297,7 +297,7 @@ Use :class:`~sdialog.generators.PersonaGenerator` and :class:`~sdialog.generator
 
 Paraphrasing an Existing Dialog
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Apply :class:`~sdialog.generators.Paraphraser` to rephrase turns (optionally one speaker only).
+Sometimes we want to rephrase an existing dialog. Let's see how to apply :class:`~sdialog.generators.Paraphraser` to rephrase turns (optionally targeting one speaker only).
 
 .. code-block:: python
 
@@ -315,7 +315,7 @@ Evaluation and Analysis
 
 Linguistic Feature Metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-Compute readability / style indicators with :class:`~sdialog.evaluation.LinguisticFeatureScore`.
+Let's start by computing readability and style indicators with :class:`~sdialog.evaluation.LinguisticFeatureScore`.
 
 .. code-block:: python
 
@@ -329,7 +329,7 @@ Compute readability / style indicators with :class:`~sdialog.evaluation.Linguist
 
 Flow-Based Scores (Perplexity & Likelihood)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Use existing dialogs as a reference graph to assess structural fit.
+Next, we can use existing dialogs as a reference graph to assess structural fit.
 
 .. code-block:: python
 
@@ -344,7 +344,7 @@ Use existing dialogs as a reference graph to assess structural fit.
 
 Embedding + Centroid Similarity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Compare candidate dialogs to reference centroid with embeddings.
+We can also compare candidate dialogs to reference centroid using embeddings.
 
 .. code-block:: python
 
@@ -355,9 +355,9 @@ Compare candidate dialogs to reference centroid with embeddings.
 
     print("Centroid similarity:", centroid_eval([dialog]))
 
-LLM Judges (Realism + Persona Adherence)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Judge realism and persona consistency with built-in yes/no and Likert judges.
+LLM Judges: Realism + Persona Adherence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Now let's explore how to judge realism and persona consistency with built-in yes/no and Likert judges.
 
 .. code-block:: python
 
@@ -375,9 +375,121 @@ Judge realism and persona consistency with built-in yes/no and Likert judges.
     print("Persona match:", persona_result.positive, persona_result.reason)
 
 
+Custom LLM Judges: Document Relevance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this example, we'll explore how to build custom LLM judges to evaluate document relevance in the context of a dialog. Let's start by defining a sample dialog and two documents (one relevant, one not):
+
+.. code-block:: python
+
+    from sdialog import Dialog
+
+    # Example dialogue where the user is looking for a laptop
+    dialog = Dialog.from_str("""
+    AI: Hello! How can I assist you today?
+    Robert: Hi! I'm looking for a new laptop. Can you help me find one?
+    AI: Of course! What are your main requirements for the laptop?
+    Robert: I need it for gaming and graphic design, so it should have a powerful GPU and a high-resolution display.
+    AI: Got it. Do you have a preferred brand or budget in mind?""")
+
+    # Document with relevant information matching user needs
+    good_document = """
+    The latest gaming laptops come with powerful GPUs and high-resolution displays.
+    They are designed to handle demanding tasks like gaming and graphic design with ease.
+    Many models also offer customizable options to fit your specific needs and budget.
+    """
+
+    # Document with irrelevant information not matching user needs (e.g., about cooking)
+    bad_document = """
+    Cooking is an essential skill that everyone should learn.
+    It allows you to prepare healthy meals at home and can be a fun hobby.
+    Many people enjoy experimenting with new recipes and ingredients.
+    """
+
+Example 1: Yes/No relevance judgment with reasoning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Let's create a binary judge using :class:`~sdialog.evaluation.LLMJudgeYesNo` that determines whether a document is relevant to what the user was discussing in the dialog. We can add any placeholder in our judge template and then pass their values when calling ``judge()``. In this example, we'll use ``{{ document }}`` as a placeholder to pass a document to be evaluated (you're free to add as many placeholders with whatever names as needed).
+
+By setting ``reason=True``, we enable reasoning, which provides detailed explanations along with the binary verdict.
+
+.. code-block:: python
+
+    from sdialog.evaluation import LLMJudgeYesNo
+
+    # Let's create our custom yes/no judge
+    doc_rel = LLMJudgeYesNo(
+        "Does this document relate to what the user was looking for?\n\n"
+        "Document:\n{{ document }}",
+        reason=True  # Enable explanations
+    )
+
+    # Let's use our judge to evaluate our example documents
+    good_result = doc_rel.judge(dialog, document=good_document)
+    bad_result = doc_rel.judge(dialog, document=bad_document)
+
+    print("Good document verdict:", good_result.positive)
+    print("Good document reason:", good_result.reason)
+    print("---")
+    print("Bad document verdict:", bad_result.positive)
+    print("Bad document reason:", bad_result.reason)
+
+Output:
+::
+
+    Good document verdict: True
+    Good document reason: The document directly addresses the user's stated needs - a laptop with a powerful GPU and high-resolution display for gaming and graphic design - as expressed in the dialogue.
+    ---
+    Bad document verdict: False
+    Bad document reason: The document discusses cooking, while the user is looking for information about laptops. These topics are unrelated.
+
+
+Example 2: Likert-style relevance score with reasoning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Now let's explore a different approach. Instead of binary yes/no decisions, we can use numerical scores to evaluate relevance on a scale using :class:`~sdialog.evaluation.LLMJudgeScore`. In this example, we'll implement a 1-5 Likert scale judgment that provides a more nuanced assessment of document relevance.
+
+.. code-block:: python
+
+    from sdialog.evaluation import LLMJudgeScore
+
+    # Let's create now our custom score judge
+    doc_rel = LLMJudgeScore(
+        "From 1 to 5, how closely does the following document match user needs?\n\n"
+        "Document:\n{{ document }}",
+        reason=True
+    )
+
+    # Again, let's use our judge to evaluate our example documents
+    good_result = doc_rel.judge(dialog, document=good_document)
+    bad_result = doc_rel.judge(dialog, document=bad_document)
+
+    print("Good document score:", good_result.score)
+    print("Good document reason:", good_result.reason)
+    print("---")
+    print("Bad document score:", bad_result.score)
+    print("Bad document reason:", bad_result.reason)
+
+Output:
+::
+
+    Good document score: 5
+    Good document reason: The document directly addresses the user's needs as expressed in the dialogue. Robert specifically states he needs a laptop for gaming and graphic design with a powerful GPU and high-resolution display, and the document highlights these exact features in gaming laptops. It's a perfect match for the user's stated requirements.
+    ---
+    Bad document score: 1
+    Bad document reason: The provided document discusses cooking, while the user dialogue is about finding a laptop. There is absolutely no overlap in topic or user need fulfillment; therefore, the match is extremely poor.
+
+Sometimes we only need the numerical score without the detailed explanation. In such cases, we can call the judge object directly to return just the score value:
+
+.. code-block:: python
+
+    print("Good document score:", doc_rel(dialog, document=good_document))
+    print("Bad document score:", doc_rel(dialog, document=bad_document))
+
+
 Dataset-Level Comparison (Frequency + Mean)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Aggregate metrics over datasets using :class:`~sdialog.evaluation.DatasetComparator`.
+When working with multiple datasets, we can aggregate metrics using :class:`~sdialog.evaluation.DatasetComparator`.
 
 .. code-block:: python
 
@@ -396,7 +508,7 @@ Aggregate metrics over datasets using :class:`~sdialog.evaluation.DatasetCompara
 
 Distribution Divergence (KDE / Frechet)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Compare score distributions with statistical evaluators.
+To compare score distributions, we can use statistical evaluators.
 
 .. code-block:: python
 
@@ -415,7 +527,7 @@ Interpretability
 
 Capturing Activations with an Inspector
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Attach :class:`~sdialog.interpretability.Inspector` to an agent to record token-level activations.
+Let's start by exploring how to attach :class:`~sdialog.interpretability.Inspector` to an agent to record token-level activations.
 
 .. code-block:: python
 
@@ -435,7 +547,7 @@ Attach :class:`~sdialog.interpretability.Inspector` to an agent to record token-
 
 Steering with a Direction Vector
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Use :class:`~sdialog.interpretability.DirectionSteerer` to nudge (add) or ablate (subtract) a semantic direction.
+Now we can use :class:`~sdialog.interpretability.DirectionSteerer` to nudge (add) or ablate (subtract) a semantic direction.
 
 .. code-block:: python
 
@@ -456,7 +568,7 @@ Use :class:`~sdialog.interpretability.DirectionSteerer` to nudge (add) or ablate
 
 Finding Injected Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Inspect dynamic system instructions that were added during a dialog.
+We can also inspect dynamic system instructions that were added during a dialog.
 
 .. code-block:: python
 
@@ -466,7 +578,7 @@ Inspect dynamic system instructions that were added during a dialog.
 
 Custom Orchestrator + Interpretability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Define a bespoke orchestrator to encourage elaboration, while observing effects with an inspector.
+Let's combine concepts by defining a bespoke orchestrator to encourage elaboration, while observing effects with an inspector.
 
 .. code-block:: python
 
@@ -489,7 +601,7 @@ Define a bespoke orchestrator to encourage elaboration, while observing effects 
 
 Multiple Inspectors (Layer Comparison)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Attach two inspectors to compare early vs late layer activations.
+Finally, we can attach two inspectors to compare early vs late layer activations.
 
 .. code-block:: python
 
