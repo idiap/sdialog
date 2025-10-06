@@ -56,8 +56,8 @@ ctx = Context(
   objects=["espresso machine", "menu board", "tip jar"]
 )
 
-# (Optional) Define tools for the agents
-# Just any user-defined function, let's define a mock one for our agent
+# (Optional) Define tools for the agents (just plain Python functions)
+# Let's define a mock function for our agent to use as a tool
 def lookup_menu(item: str) -> dict:
     return {"item": item, "specials": ["vanilla latte", "cold brew"]}
 

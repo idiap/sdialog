@@ -163,16 +163,18 @@ class BaseDialogScore(ABC):
         self.name = name
         self.ai_speaker = ai_speaker
 
-    def __call__(self, dialog: Dialog):
+    def __call__(self, dialog: Dialog, **kwargs):
         """
         Compute the score for a given dialog (delegates to score()).
 
         :param dialog: The dialog to score.
         :type dialog: Dialog
+        :param kwargs: Additional keyword arguments for scoring.
+        :type kwargs: dict
         :return: Scalar score value.
         :rtype: float
         """
-        return self.score(dialog)
+        return self.score(dialog, **kwargs)
 
     @abstractmethod
     def score(self, dialog: Dialog) -> float:

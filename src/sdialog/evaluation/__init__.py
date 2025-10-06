@@ -451,7 +451,10 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
                               **llm_kwargs)
         self.reason = reason
 
-    def judge(self, dialogs: Union[Dialog, List[Dialog]], reason: bool = None) -> Union[LLMJudgeYesNoOutput, int]:
+    def judge(self,
+              dialogs: Union[Dialog, List[Dialog]],
+              reason: bool = None,
+              **template_kwargs) -> Union[LLMJudgeYesNoOutput, int]:
         """
         Run judgment over one or multiple dialogues.
 
@@ -459,15 +462,25 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         :type dialogs: Union[Dialog, List[Dialog]]
         :param reason: Override reason flag (falls back to self.reason).
         :type reason: Optional[bool]
+        :param template_kwargs: Extra template kwargs.
+        :type template_kwargs: dict
         :return: Structured yes/no output model.
         :rtype: LLMJudgeYesNoOutput
         """
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
-        prompt = self.prompt_template.render(dialogs=dialogs,
-                                             dialog=dialogs[0],
-                                             reason=reason if reason is not None else self.reason)
+        # Prepare default template variables
+        render_kwargs = {
+            'dialogs': dialogs,
+            'dialog': dialogs[0],
+            'reason': reason if reason is not None else self.reason
+        }
+
+        # Merge with any additional template kwargs
+        render_kwargs.update(template_kwargs)
+
+        prompt = self.prompt_template.render(**render_kwargs)
         output = BaseLLMJudge.__call__(self, prompt)
         output = self.output_format.model_validate(output)
 
@@ -590,7 +603,8 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
 
     def judge(self,
               dialogs: Union[Dialog, List[Dialog]],
-              reason: bool = None) -> LLMJudgeScoreOutput:
+              reason: bool = None,
+              **template_kwargs) -> LLMJudgeScoreOutput:
         """
         Produce a numeric judgment for one or more dialogues.
 
@@ -598,33 +612,46 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
         :type dialogs: Union[Dialog, List[Dialog]]
         :param reason: Override reason flag.
         :type reason: Optional[bool]
+        :param template_kwargs: Extra template kwargs.
+        :type template_kwargs: dict
         :return: Structured output containing the score and an optional reason.
         :rtype: LLMJudgeScoreOutput
         """
+
         if isinstance(dialogs, Dialog):
             dialogs = [dialogs]  # Wrap single dialog in a list
 
-        prompt = self.prompt_template.render(dialogs=dialogs,
-                                             dialog=dialogs[0],
-                                             min_score=self.min_score,
-                                             max_score=self.max_score,
-                                             reason=reason if reason is not None else self.reason)
+        # Prepare default template variables
+        render_kwargs = {
+            'dialogs': dialogs,
+            'dialog': dialogs[0],
+            'min_score': self.min_score,
+            'max_score': self.max_score,
+            'reason': reason if reason is not None else self.reason
+        }
+
+        # Merge with any additional template kwargs
+        render_kwargs.update(template_kwargs)
+
+        prompt = self.prompt_template.render(**render_kwargs)
         output = self.output_format.model_validate(BaseLLMJudge.__call__(self, prompt))
 
         return output
 
     @CacheDialogScore.cache
-    def score(self, dialog: Dialog) -> Union[float, int]:
+    def score(self, dialog: Dialog, **template_kwargs) -> Union[float, int]:
         """
         Return the numeric score.
 
         :param dialog: Dialogue to score.
         :type dialog: Dialog
+        :param template_kwargs: Extra template kwargs.
+        :type template_kwargs: dict
         :return: Score value.
         :rtype: Union[int, float]
         :raises ValueError: If model output malformed.
         """
-        output = self.judge(dialog)
+        output = self.judge(dialog, **template_kwargs)
         try:
             score = output.score[0] if isinstance(output.score, list) else output.score
             # Clamp score to [min_score, max_score] if out of bounds
