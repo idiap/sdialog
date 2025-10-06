@@ -1,32 +1,54 @@
+# === Core utilities ===
 codecov
 flake8
 graphviz
 Jinja2
+matplotlib
+networkx
+numpy
+pandas
+tabulate
+pre-commit
+print-color
+PyYAML
+tqdm
+tenacity
+syllables
+
+# === LangChain ecosystem ===
+# LangChain ≥0.3.0 officially targets Python 3.9+, but later releases may require 3.10+.
+# Lock compatible versions for Python 3.9.
 langchain-huggingface
 langchain-openai
 langchain-google-genai
 langchain-aws
 langchain-ollama
-langchain>=0.3.26
-matplotlib
-networkx
-numpy
-ollama
-openai
-pandas
-tabulate
-pre-commit
-print-color
-pydantic
-pytest
-pytest-cov
-PyYAML
-scikit-learn
-scipy
+langchain==0.3.26; python_version < "3.10"
+langchain>=0.3.26; python_version >= "3.10"
+
+# === Machine learning & NLP dependencies ===
 sentence-transformers
 simpleneighbors
-tenacity
-torch
-tqdm
-transformers
-syllables
+scikit-learn
+scipy
+# Pydantic v2+ only works cleanly on Python 3.10+
+pydantic<2.0; python_version < "3.10"
+pydantic>=2.0; python_version >= "3.10"
+
+# === Transformers and Torch compatibility handling ===
+# For Python 3.9 (older typing syntax), use last compatible releases
+transformers==4.56.2; python_version < "3.10"
+torch==2.3.0; python_version < "3.10"
+
+# For Python 3.10+ (supports PEP 604 typing)
+transformers>=4.57.0; python_version >= "3.10"
+torch>=2.4.0; python_version >= "3.10"
+
+# === Testing ===
+pytest
+pytest-cov
+
+# === LLM provider SDKs ===
+# Used to interface with local or hosted large-language-model backends
+ollama
+openai
