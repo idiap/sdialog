@@ -105,8 +105,8 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
 
 class LinguisticFeatureScore(BaseDialogScore):
     """
-    Compute linguistic features for a dialogue: mean turn length, hesitation rate,
-    Gunning Fog index, and Flesch Reading Ease score.
+    Compute one or multiple simple linguistic features for a dialogue: mean turn length,
+    hesitation rate, Gunning Fog index, and Flesch Reading Ease score.
 
     Example:
 
@@ -114,31 +114,42 @@ class LinguisticFeatureScore(BaseDialogScore):
 
             from sdialog.evaluation import LinguisticFeatureScore
 
-            scorer_all_feat = LinguisticFeatureScore()
-            scorer_hesit = LinguisticFeatureScore(feature="hesitation-rate")
+            # All features as a dictionary
+            scorer_all = LinguisticFeatureScore()
+            # Single feature
+            scorer_hes = LinguisticFeatureScore(feature="hesitation-rate")
+            # Subset of features
+            scorer_subset = LinguisticFeatureScore(feature=["mean-turn-length", "gunning-fog"])
 
-            print(scorer_all_feat(dialog))  # dict of values for all linguistic features
-            print(scorer_hesit(dialog))     # single float value for hesitation rate
+            print(scorer_all(dialog))      # dict with all feature values
+            print(scorer_hes(dialog))      # single float (hesitation rate)
+            print(scorer_subset(dialog))   # dict with the two requested features
 
-    :param feature: Specific feature to compute or None to compute all (default).
-                    Features are one of:
-
-                      - ``"mean-turn-length"`` (average words per turn),
-                      - ``"hesitation-rate"`` (percentage of hesitation tokens over total words),
-                      - ``"gunning-fog"`` (Gunning Fog readability index),
-                      - ``"flesch-reading-ease"`` (Flesch Reading Ease score);
-    :type feature: Optional[Literal["mean-turn-length","hesitation-rate","gunning-fog","flesch-reading-ease"]]
-    :param name: Internal score name.
+    :param feature: List of feature names to compute. If ``None`` (default) compute all.
+                    If the resulting set has size 1, ``__call__`` / ``score`` returns a single float; otherwise a dict.
+                    Available features:
+                      - ``"mean-turn-length"``: average number of words per dialogue turn.
+                      - ``"hesitation-rate"``: percentage of hesitation tokens over total words (%).
+                      - ``"gunning-fog"``: Gunning Fog readability index.
+                      - ``"flesch-reading-ease"``: Flesch Reading Ease score.
+    :type feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"]]]
+    :param name: Internal score name (defaults to ``"linguistic_features"`` or
+                 the single feature name if only one provided).
     :type name: str
     :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
     :type speaker: Optional[str]
     """
     def __init__(self,
-                 feature: Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"] = None,
-                 name="linguistic_features",
+                 feature: Optional[List[Literal["mean-turn-length", "hesitation-rate",
+                                                "gunning-fog", "flesch-reading-ease"]]] = None,
+                 name: str = "linguistic_features",
                  speaker: Optional[str] = None):
         """Initialize scorer."""
-        super().__init__(name=name or feature or "")
+        # If a single feature is requested, allow name override with that feature for clearer downstream tables
+        effective_name = name
+        if feature and len(feature) == 1 and name == "linguistic_features":
+            effective_name = feature[0]
+        super().__init__(name=effective_name or "")
         self.feature = feature
         self.speaker = speaker
 
@@ -200,13 +211,15 @@ class LinguisticFeatureScore(BaseDialogScore):
         avg_syllables_per_word = total_syllables / len(words)
         return 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
 
-    def score(self, dialog: Dialog) -> float:
-        """
-        Compute one or multiple linguistic features for the dialogue.
+    def score(self, dialog: Dialog) -> Union[float, dict]:
+        """Compute one or multiple linguistic features for the dialogue.
 
         :param dialog: Dialogue instance to evaluate.
         :type dialog: Dialog
-        :return: Feature value (float) if single feature requested; otherwise dict mapping feature -> value.
+        :return: If exactly one feature is requested (either because ``feature`` was a singleton list
+                 or because a single feature key is computed), returns a single ``float``.
+                 Otherwise returns a ``dict`` mapping feature-name (canonical snake/dash variants preserved)
+                 to numeric value.
         :rtype: Union[float, dict]
         """
         if self.speaker:
@@ -217,13 +230,13 @@ class LinguisticFeatureScore(BaseDialogScore):
         results = {}
         all_text = " ".join(utts)
         turn_lengths = [len(utt.split()) for utt in utts]
-        if not self.feature or self.feature == "mean-turn-length":
+        if not self.feature or "mean-turn-length" in self.feature:
             results["mean-turn-length"] = np.mean(turn_lengths)
-        if not self.feature or self.feature == "hesitation-rate":
+        if not self.feature or "hesitation-rate" in self.feature:
             results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, sum(turn_lengths)) * 100)
-        if not self.feature or self.feature == "gunning-fog":
+        if not self.feature or "gunning-fog" in self.feature:
             results["gunning_fog"] = self.calculate_gunning_fog(all_text)
-        if not self.feature or self.feature == "flesch-reading-ease":
+        if not self.feature or "flesch-reading-ease" in self.feature:
             results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
 
         return results if len(results) > 1 else list(results.values())[0]
