@@ -11,6 +11,7 @@ dscaper_data/
 *.flac
 *.ogg
 *.zip
+!misc/audio/my_custom_voices.zip
 *.tar
 misc/audio/Generation/dscaper
 misc/audio/Voices/embeddings/xvectors.pkl
