@@ -169,6 +169,4 @@ def generate_audio_room_accoustic(
         "room": room
     }
 
-    # TODO: Update the audio dialog file
-
     return dialog

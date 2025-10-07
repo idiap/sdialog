@@ -6,20 +6,18 @@ This module provides a class for simulating room acoustics.
 # SPDX-License-Identifier: MIT
 import os
 import logging
-from typing import List, Optional, Union
 import numpy as np
+from typing import List, Optional, Union
 
 # import matplotlib.pyplot as plt
 import soundfile as sf
-from sdialog.audio.room import Room, RoomRole, AudioSource, Position3D
+from sdialog.audio.room import Room, AudioSource, Position3D
 from sdialog.audio.room import (
     DoctorPosition,
     PatientPosition,
     SoundEventPosition,
-    RecordingDevice,
     MicrophonePosition,
 )
-from sdialog.audio.room_generator import calculate_room_dimensions, ROOM_SIZES
 
 
 class RoomAcousticsSimulator:
@@ -28,11 +26,11 @@ class RoomAcousticsSimulator:
     sound sources provided and microphone(s) setup.
 
      Example:
-         >>> from sdialog.audio.room_generator import RoomGenerator
+         >>> from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
          >>> from sdialog.audio.room import MicrophonePosition
          >>>
          >>> # Create room with specific microphone position
-         >>> room = RoomGenerator().generate(RoomRole.CONSULTATION)
+         >>> room = MedicalRoomGenerator().generate(RoomRole.CONSULTATION)
          >>> room_acoustics = RoomAcousticsSimulator(room)
          >>>
          >>> # Change microphone position using enum
@@ -44,32 +42,22 @@ class RoomAcousticsSimulator:
          >>> audio = room_acoustics.simulate(audio_sources)
     """
 
-    def __init__(self, room: Optional[Room] = None, sampling_rate=44_100):
+    def __init__(self, room: Room = None, sampling_rate=44_100):
         self.sampling_rate = sampling_rate
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
         self.room: Room = room
 
-        if self.room is None:
-            self.room = Room(
-                role=RoomRole.CONSULTATION,
-                name="consultation_room_default",
-                dimensions=calculate_room_dimensions(ROOM_SIZES[3]),
-                rt60=0.5,
-                soundsources_position=[
-                    DoctorPosition.AT_DESK_SITTING,
-                    PatientPosition.NEXT_TO_DESK_SITTING,
-                ],
-                mic_type=RecordingDevice.WEBCAM,
-                mic_position=MicrophonePosition.MONITOR,
-                furnitures=False,
-            )
+        if room is None:
+            raise ValueError("Room is required")
 
         self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
+
         # Set microphone position based on room's mic_position setting
         self.mic_position = self.microphone_position_to_room_position(
             self.room, self.room.mic_position
         )
+
         self.add_microphone(self.mic_position.to_list())
 
     def _create_pyroom(self, room: Room, sampling_rate=44_100):
@@ -273,9 +261,8 @@ class RoomAcousticsSimulator:
         - Standard sitting height: 0.5m, standing height: 1.7m
 
         Example:
-            >>> from sdialog.audio.room import Room, RoomRole, Dimensions3D, DoctorPosition
-            >>> room = Room(role=RoomRole.CONSULTATION,
-            ...              dimensions=Dimensions3D(4.0, 3.0, 3.0))
+            >>> from sdialog.audio.room import Room, Dimensions3D, DoctorPosition
+            >>> room = Room(dimensions=Dimensions3D(4.0, 3.0, 3.0))
             >>> pos = DoctorPosition.AT_DESK_SITTING
             >>> coord = RoomAcousticsSimulator.position_to_room_position(room, pos)
             >>> print(f"Doctor position: ({coord.x:.1f}, {coord.y:.1f}, {coord.z:.1f})")
@@ -398,9 +385,8 @@ class RoomAcousticsSimulator:
         - CHEST_POCKET: At doctor's chest level (wearable mic)
 
         Example:
-            >>> from sdialog.audio.room import Room, RoomRole, Dimensions3D, MicrophonePosition
-            >>> room = Room(role=RoomRole.CONSULTATION,
-            ...              dimensions=Dimensions3D(4.0, 3.0, 3.0))
+            >>> from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
+            >>> room = Room(dimensions=Dimensions3D(4.0, 3.0, 3.0))
             >>> mic_pos = MicrophonePosition.MONITOR
             >>> coord = RoomAcousticsSimulator.microphone_position_to_room_position(room, mic_pos)
             >>> print(f"Microphone position: ({coord.x:.1f}, {coord.y:.1f}, {coord.z:.1f})")
@@ -545,10 +531,10 @@ class RoomAcousticsSimulator:
 
 if __name__ == "__main__":
     logging.info("Room Acoustics Simulator")
-    from sdialog.audio.room_generator import RoomGenerator
+    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 
-    generator = RoomGenerator()
-    room = generator.generate(RoomRole.CONSULTATION)
+    generator = MedicalRoomGenerator()
+    room = generator.generate(RoomRole.CONSULTATION, 6)
     logging.info(f" Room dimensions: {room.dimensions}")
 
     print("\n Doctor positions:")

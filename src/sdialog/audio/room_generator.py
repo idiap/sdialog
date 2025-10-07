@@ -4,41 +4,11 @@ This module provides classes for the room generation.
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
-import math
-import logging
-from typing import List
-from sdialog.audio.room import Room, Dimensions3D, RoomRole
-
-
-# Standard room sizes (floor area in m²)
-ROOM_SIZES: List[float] = [4.5, 6, 8, 9.5, 12, 15, 18]
-
-
-# Standard aspect ratios for different room sizes (width:length)
-ROOM_ASPECT_RATIOS = {
-    4.5: (1.5, 1.0),  # 2.12 x 2.12m (compact square)
-    6: (1.5, 1.0),  # 2.45 x 2.45m
-    8: (1.6, 1.0),  # 3.58 x 2.24m (slightly rectangular)
-    9.5: (1.7, 1.0),  # 4.0 x 2.35m
-    12: (1.8, 1.0),  # 4.65 x 2.58m
-    15: (2.0, 1.0),  # 5.48 x 2.74m
-    18: (2.2, 1.0),  # 6.26 x 2.87m
-    20: (2.5, 1.0),  # 7.07 x 2.83m
-    24: (2.4, 1.0),  # 7.59 x 3.16m
-    32: (2.8, 1.0),  # 9.49 x 3.37m (long rectangular)
-}
-
-
-def calculate_room_dimensions(floor_area: float) -> Dimensions3D:
-    """Calculate room dimensions from floor area"""
-    if floor_area not in ROOM_ASPECT_RATIOS:
-        raise ValueError(f"Unsupported room size: {floor_area}m²")
-
-    w_ratio, l_ratio = ROOM_ASPECT_RATIOS[floor_area]
-    length = math.sqrt(floor_area / (w_ratio / l_ratio))
-    width = length * (w_ratio / l_ratio)
-
-    return Dimensions3D(width=width, length=length, height=3.0)
+import time
+import random
+from abc import abstractmethod
+from typing import Tuple, Dict, Any
+from sdialog.audio.room import Room, Dimensions3D
 
 
 class RoomGenerator:
@@ -47,31 +17,76 @@ class RoomGenerator:
     creating standardized room personas with different configurations
     """
 
-    def __init__(self):
-        self.generated_rooms = {}
+    @abstractmethod
+    def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:
+        """
+        Calculate room dimensions from floor area
+        """
+        return None
 
-    def generate(self, room_type: RoomRole, room_size: float = ROOM_SIZES[3]) -> Room:
+    @abstractmethod
+    def generate(self, args: Dict[str, Any]) -> Room:
+        """
+        Generate a room based on predefined setups.
+        """
+        return None
+
+
+class BasicRoomGenerator(RoomGenerator):
+    """
+    Generate a basic room based on the floor area and aspect ratio which is
+    selected automatically based on the floor area the user provides.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.aspect_ratio = [
+            (1.0, 1.0),
+            (1.5, 1.0),
+            (2.0, 1.0)
+        ]
+        self.floor_heights = [
+            2.25,
+            2.5,
+            3.0,
+            3.5
+        ]
+
+    def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:
+        """
+        Calculate room dimensions from floor area
+        """
+        width_ratio, length_ratio = aspect_ratio
+
+        # Calculate the scaling factor to achieve the desired floor area
+        # floor_area = width * length = (width_ratio * k) * (length_ratio * k) = width_ratio * length_ratio * k²
+        # Therefore: k = sqrt(floor_area / (width_ratio * length_ratio))
+        k = (floor_area / (width_ratio * length_ratio)) ** 0.5
+
+        width = width_ratio * k
+        length = length_ratio * k
+        height = random.choice(self.floor_heights)
+        return Dimensions3D(width=width, length=length, height=height)
+
+    def generate(self, args: Dict[str, Any]) -> Room:
         """
         Generate a room based on predefined setups.
         """
 
-        if room_type == RoomRole.OFFICE:
-            return Room(
-                name="office_room",
-                description="office",
-                dimensions=calculate_room_dimensions(ROOM_SIZES[4]),
-                rt60=0.3,
-            )
+        if "room_size" not in args:
+            raise ValueError("room_size is required in m²")
+
+        if len(args) > 1:
+            raise ValueError("Only room_size is allowed")
+
+        aspect_ratio = random.choice(self.aspect_ratio)
+
+        dimensions = self.calculate_room_dimensions(args["room_size"], aspect_ratio)
+
         return Room(
-            name="consultation_room",
-            description="consultation room",
-            dimensions=calculate_room_dimensions(room_size),
-            rt60=0.5,
+            name=f"room_{time.time_ns()}",
+            description=f"room_{time.time_ns()}",
+            dimensions=dimensions,
+            rt60=random.uniform(0.3, 0.7),
+            aspect_ratio=aspect_ratio
         )
-
-
-if __name__ == "__main__":
-    logging.info(" Room Generator creates:")
-    generator = RoomGenerator()
-    room = generator.generate(RoomRole.CONSULTATION)
-    logging.info(f"  Room {room}")

@@ -108,23 +108,6 @@ class Dimensions3D:
         )
 
 
-class RoomRole(str, Enum):
-    """
-    Defines the functional role of the room and dimentions that comes with it.
-    """
-
-    CONSULTATION = "consultation"
-    EXAMINATION = "examination"
-    TREATMENT = "treatment"
-    PATIENT_ROOM = "patient_room"
-    SURGERY = "surgery"  # operating_room
-    WAITING = "waiting_room"
-    EMERGENCY = "emergency"
-    OFFICE = "office"
-
-    # def __str__(self):
-    #     return self.value
-
 
 class SoundEventPosition(str, Enum):
     BACKGROUND = "no_type"  # background -
@@ -435,18 +418,23 @@ class MaterialProperties(BaseModel):
 
 
 def get_room_id():
-    return str(int(time.time()))[-4:]
+    """
+    Get the room id based on the time in nanoseconds.
+    """
+    return str(int(time.time_ns()))
 
 
 class Room(BaseModel):
     """
     Class to handle a room for audio simulation.
+    rt60: reverberation time in seconds
     """
     id: str = Field(default_factory=get_room_id)
     name: str = "Room"
     description: str = ""
     rt60: Optional[float] = 0.5
     furnitures: bool = False
+    aspect_ratio: Optional[Tuple[float, float]] = None
 
     walls_material: Optional[MaterialProperties] = None  # absorbion_coefficient
     # role: RoomRole = RoomRole.CONSULTATION
@@ -457,6 +445,114 @@ class Room(BaseModel):
     model_config = {
         "arbitrary_types_allowed": True,
     }
+
+    def get_square_meters(self) -> float:
+        """
+        Get the square meters of the room
+        """
+        return self.dimensions.width * self.dimensions.length
+
+    def get_volume(self) -> float:
+        """
+        Get the volume of the room
+        """
+        return self.dimensions.width * self.dimensions.length * self.dimensions.height
+
+    def to_image(self):
+        """
+        Create a room plan (pillow image) based on the "dimensions"
+        """
+        from PIL import Image, ImageDraw, ImageFont
+
+        # Create a 512x512 image with white background
+        img = Image.new('RGB', (512, 512), 'white')
+        draw = ImageDraw.Draw(img)
+
+        # Calculate scaling factors to fit the room in the image
+        # Leave some margin (50 pixels on each side)
+        margin = 50
+        available_width = 512 - 2 * margin
+        available_height = 512 - 2 * margin
+
+        # Calculate scale factors for width (x-axis) and length (y-axis)
+        scale_x = available_width / self.dimensions.width
+        scale_y = available_height / self.dimensions.length
+
+        # Use the smaller scale to maintain aspect ratio
+        scale = min(scale_x, scale_y)
+
+        # Calculate the actual room dimensions in pixels
+        room_width_px = int(self.dimensions.width * scale)
+        room_length_px = int(self.dimensions.length * scale)
+
+        # Center the room in the image
+        start_x = (512 - room_width_px) // 2
+        start_y = (512 - room_length_px) // 2
+
+        # Draw the room walls (rectangle)
+        # Top wall
+        draw.line(
+            [(start_x, start_y), (start_x + room_width_px, start_y)],
+            fill='black', width=3
+        )
+        # Right wall
+        draw.line(
+            [
+                (start_x + room_width_px, start_y),
+                (start_x + room_width_px, start_y + room_length_px)
+            ],
+            fill='black', width=3
+        )
+        # Bottom wall
+        draw.line(
+            [
+                (start_x + room_width_px, start_y + room_length_px),
+                (start_x, start_y + room_length_px)
+            ],
+            fill='black', width=3
+        )
+        # Left wall
+        draw.line(
+            [(start_x, start_y + room_length_px), (start_x, start_y)],
+            fill='black', width=3
+        )
+
+        # Add room dimensions as text
+        try:
+            # Try to use a default font
+            font = ImageFont.load_default()
+        except Exception:
+            font = None
+
+        # Add dimension labels
+        dim_text = f"{self.dimensions.width:.1f}m x {self.dimensions.length:.1f}m"
+        if font:
+            # Get text size for centering
+            bbox = draw.textbbox((0, 0), dim_text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            # Position text at the bottom of the image
+            text_x = (512 - text_width) // 2
+            text_y = 512 - text_height - 10
+
+            draw.text((text_x, text_y), dim_text, fill='black', font=font)
+
+        # Add room name if available
+        if self.name and self.name != f"Room_{self.id}":
+            name_text = self.name
+            if font:
+                bbox = draw.textbbox((0, 0), name_text, font=font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+
+                # Position text at the top of the image
+                text_x = (512 - text_width) // 2
+                text_y = 10
+
+                draw.text((text_x, text_y), name_text, fill='black', font=font)
+
+        return img
 
     def model_post_init(self, __context: Any) -> None:
         if self.name == "Room":
@@ -489,6 +585,7 @@ class Room(BaseModel):
         return (
             f"{self.id}:  {self.name}, desc: {self.description} "
             f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60})"
+            f"(aspect_ratio: {self.aspect_ratio})"
         )
 
 
