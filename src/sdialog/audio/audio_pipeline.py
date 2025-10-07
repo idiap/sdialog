@@ -131,9 +131,7 @@ class AudioPipeline:
     def inference(
             self,
             dialog: Dialog,
-            room: Optional[Room] = None,
-            do_word_alignments: Optional[bool] = False,
-            microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED,
+            environment: dict = {},
             do_step_1: Optional[bool] = True,
             do_step_2: Optional[bool] = False,
             do_step_3: Optional[bool] = False,
@@ -143,9 +141,7 @@ class AudioPipeline:
         Run the audio pipeline.
         Args:
             dialog: The text dialog object.
-            room: The room object.
-            do_word_alignments: Whether to do word alignments between the text and the audio.
-            microphone_position: The microphone position in the room.
+            environment: The environment containing the room (Room) and microphone position (MicrophonePosition).
             do_step_1: Whether to do step 1 (generate the utterances audios).
             do_step_2: Whether to do step 2 (generate the timeline from the utterances audios).
             do_step_3: Whether to do step 3 (generate the room accoustic).
@@ -154,6 +150,14 @@ class AudioPipeline:
         Returns:
             The audio enriched dialog.
         """
+
+        # Create variables from the environment
+        room = environment["room"] if "room" in environment else None
+        microphone_position = (
+            environment["microphone_position"]
+            if "microphone_position" in environment
+            else MicrophonePosition.CEILING_CENTERED
+        )
 
         # Override the dialog directory name if provided otherwise use the dialog id as the directory name
         dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
@@ -247,6 +251,15 @@ class AudioPipeline:
         if room is not None and self._dscaper is not None and do_step_3:
 
             logging.info("Starting step 3...")
+
+            if room is None:
+                raise ValueError("The room is not set, which make the generation of the room accoustic impossible")
+
+            if not isinstance(environment["room"], Room):
+                raise ValueError("The room must be a Room object")
+
+            if not isinstance(environment["microphone_position"], MicrophonePosition):
+                raise ValueError("The microphone position must be a MicrophonePosition object")
 
             # Check if the step 2 is not done
             if not do_step_2 and len(dialog.audio_step_2_filepath) < 1:

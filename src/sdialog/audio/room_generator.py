@@ -87,6 +87,6 @@ class BasicRoomGenerator(RoomGenerator):
             name=f"room_{time.time_ns()}",
             description=f"room_{time.time_ns()}",
             dimensions=dimensions,
-            rt60=random.uniform(0.3, 0.7),
+            reverberation_time_ratio=random.uniform(0.3, 0.7),
             aspect_ratio=aspect_ratio
         )

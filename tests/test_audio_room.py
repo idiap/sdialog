@@ -50,11 +50,11 @@ def test_dimensions3d():
 def test_room_creation():
     """Test Room class creation."""
     dims = Dimensions3D(4, 5, 3)
-    room = Room(role=RoomRole.OFFICE, dimensions=dims, name="Test Office", rt60=0.5)
+    room = Room(role=RoomRole.OFFICE, dimensions=dims, name="Test Office", reverberation_time_ratio=0.5)
     assert room.role == RoomRole.OFFICE
     assert room.dimensions == dims
     assert "Test Office" in room.name
-    assert room.rt60 == 0.5
+    assert room.reverberation_time_ratio == 0.5
     assert "dimentions: [4, 5, 3]" in str(room)
 
 
@@ -108,7 +108,7 @@ def test_room_generator_generate():
     assert isinstance(office_room, Room)
     assert office_room.role == RoomRole.OFFICE
     assert office_room.description == "office"
-    assert office_room.rt60 == 0.3
+    assert office_room.reverberation_time_ratio == 0.3
     assert office_room.dimensions.floor_area == pytest.approx(ROOM_SIZES[4])
 
     # Test CONSULTATION room
@@ -116,5 +116,5 @@ def test_room_generator_generate():
     assert isinstance(consultation_room, Room)
     assert consultation_room.role == RoomRole.CONSULTATION
     assert consultation_room.description == "consultation room"
-    assert consultation_room.rt60 == 0.5
+    assert consultation_room.reverberation_time_ratio == 0.5
     assert consultation_room.dimensions.floor_area == pytest.approx(ROOM_SIZES[3])

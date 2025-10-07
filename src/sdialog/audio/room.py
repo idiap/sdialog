@@ -427,12 +427,11 @@ def get_room_id():
 class Room(BaseModel):
     """
     Class to handle a room for audio simulation.
-    rt60: reverberation time in seconds
     """
     id: str = Field(default_factory=get_room_id)
     name: str = "Room"
     description: str = ""
-    rt60: Optional[float] = 0.5
+    reverberation_time_ratio: Optional[float] = 0.5
     furnitures: bool = False
     aspect_ratio: Optional[Tuple[float, float]] = None
 
@@ -440,6 +439,7 @@ class Room(BaseModel):
     # role: RoomRole = RoomRole.CONSULTATION
     dimensions: Dimensions3D = Field(default_factory=lambda: Dimensions3D(2, 2.5, 3))
     mic_type: RecordingDevice = RecordingDevice.WEBCAM
+
     mic_position: MicrophonePosition = MicrophonePosition.MONITOR
 
     model_config = {
@@ -569,7 +569,7 @@ class Room(BaseModel):
             # "role": self.role.value,
             "dimensions": self.dimensions.to_list(),
             "walls_material": self.walls_material,  # TODO: Add walls material in the serialization
-            "rt60": self.rt60,
+            "reverberation_time_ratio": self.reverberation_time_ratio,
             "mic_type": self.mic_type.value,
             "mic_position": self.mic_position.value,
             "furnitures": self.furnitures
@@ -584,7 +584,7 @@ class Room(BaseModel):
     def __str__(self):
         return (
             f"{self.id}:  {self.name}, desc: {self.description} "
-            f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60})"
+            f"(dimentions: {str(self.dimensions)}, reverberation_time_ratio: {self.reverberation_time_ratio})"
             f"(aspect_ratio: {self.aspect_ratio})"
         )
 

@@ -36,7 +36,7 @@ class MedicalRoomGenerator(RoomGenerator):
     def __init__(self):
         super().__init__()
 
-        # Standard room sizes (floor area in m²): size, rt60, name, description
+        # Standard room sizes (floor area in m²): size, reverberation_time_ratio, name, description
         self.ROOM_SIZES: Dict[RoomRole, Tuple[float, float, str, str]] = {
             RoomRole.CONSULTATION: (4.5, 0.47, "consultation_room", "consultation room"),
             RoomRole.EXAMINATION: (6, 0.75, "examination_room", "examination room"),
@@ -89,7 +89,7 @@ class MedicalRoomGenerator(RoomGenerator):
         if len(args) > 1:
             raise ValueError("Only room_type is allowed")
 
-        floor_area, rt60, name, description = self.ROOM_SIZES[args["room_type"]]
+        floor_area, reverberation_time_ratio, name, description = self.ROOM_SIZES[args["room_type"]]
 
         if floor_area not in self.ROOM_ASPECT_RATIOS:
             raise ValueError(f"Unsupported room size: {floor_area}m²")
@@ -103,6 +103,6 @@ class MedicalRoomGenerator(RoomGenerator):
             name=f"{name} - {time_in_ns}",
             description=f"{description} - {time_in_ns}",
             dimensions=self.calculate_room_dimensions(floor_area, (w_ratio, l_ratio)),
-            rt60=rt60,
+            reverberation_time_ratio=reverberation_time_ratio,
             aspect_ratio=(w_ratio, l_ratio)
         )

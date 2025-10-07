@@ -7,7 +7,8 @@ This module provides a class for simulating room acoustics.
 import os
 import logging
 import numpy as np
-from typing import List, Optional, Union
+from typing import List, Union
+from sdialog.audio.audio_scaper_utils import microphone_position_to_room_position
 
 # import matplotlib.pyplot as plt
 import soundfile as sf
@@ -26,20 +27,20 @@ class RoomAcousticsSimulator:
     sound sources provided and microphone(s) setup.
 
      Example:
-         >>> from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-         >>> from sdialog.audio.room import MicrophonePosition
-         >>>
-         >>> # Create room with specific microphone position
-         >>> room = MedicalRoomGenerator().generate(RoomRole.CONSULTATION)
-         >>> room_acoustics = RoomAcousticsSimulator(room)
-         >>>
-         >>> # Change microphone position using enum
-         >>> room_acoustics.set_microphone_position(MicrophonePosition.CEILING_CENTERED)
-         >>> # Or use explicit coordinates
-         >>> room_acoustics.set_microphone_position([2.0, 1.5, 1.8])
-         >>>
-         >>> # Add audio sources and simulate
-         >>> audio = room_acoustics.simulate(audio_sources)
+        from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+        from sdialog.audio.room import MicrophonePosition
+
+        # Create room with specific microphone position
+        room = MedicalRoomGenerator().generate(RoomRole.CONSULTATION)
+        room_acoustics = RoomAcousticsSimulator(room)
+
+        # Change microphone position using enum
+        room_acoustics.set_microphone_position(MicrophonePosition.CEILING_CENTERED)
+        # Or use explicit coordinates
+        room_acoustics.set_microphone_position([2.0, 1.5, 1.8])
+
+        # Add audio sources and simulate
+        audio = room_acoustics.simulate(audio_sources)
     """
 
     def __init__(self, room: Room = None, sampling_rate=44_100):
@@ -54,15 +55,16 @@ class RoomAcousticsSimulator:
         self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
 
         # Set microphone position based on room's mic_position setting
-        self.mic_position = self.microphone_position_to_room_position(
-            self.room, self.room.mic_position
+        self.mic_position = microphone_position_to_room_position(
+            self.room,
+            self.room.mic_position
         )
 
-        self.add_microphone(self.mic_position.to_list())
+        self.set_microphone_position(self.mic_position.to_list())
 
     def _create_pyroom(self, room: Room, sampling_rate=44_100):
         import pyroomacoustics as pra
-        e_absorption, max_order = pra.inverse_sabine(room.rt60, room.dimensions)
+        e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
         # max_order = 17  # Number of reflections
         return pra.ShoeBox(
             room.dimensions,
@@ -71,12 +73,9 @@ class RoomAcousticsSimulator:
             max_order=max_order,
         )
 
-    def add_microphone(self, mic_position):
-        """Add microphone to the room"""
-        self.set_microphone_position(mic_position)
-
     def set_microphone_position(
-        self, mic_pos: Union[MicrophonePosition, List[float], Position3D, str]
+        self,
+        mic_pos: Union[MicrophonePosition, List[float], Position3D, str]
     ):
         """
         Set microphone position using MicrophonePosition enum or explicit coordinates.
@@ -87,14 +86,14 @@ class RoomAcousticsSimulator:
         import pyroomacoustics as pra
 
         if isinstance(mic_pos, MicrophonePosition):
-            position_3d = self.microphone_position_to_room_position(self.room, mic_pos)
+            position_3d = microphone_position_to_room_position(self.room, mic_pos)
         elif isinstance(mic_pos, list):
             position_3d = Position3D.from_list(mic_pos)
         elif isinstance(mic_pos, Position3D):
             position_3d = mic_pos
         elif isinstance(mic_pos, str):
             mic_pos = MicrophonePosition(mic_pos)
-            position_3d = self.microphone_position_to_room_position(self.room, mic_pos)
+            position_3d = microphone_position_to_room_position(self.room, mic_pos)
         else:
             raise ValueError(
                 "mic_pos must be MicrophonePosition enum, list [x,y,z], or Position3D object"
@@ -163,27 +162,12 @@ class RoomAcousticsSimulator:
         self._pyroom.simulate()
         mixed_signal = self._pyroom.mic_array.signals[0, :]
 
-        # peak_level = np.max(np.abs(mixed_signal))
-        # if peak_level > 0.95:
-        #     # Soft compression to prevent harsh clipping
-        #     compression_ratio = 0.95 / peak_level
-        #     mixed_signal = mixed_signal * compression_ratio
-        #     print(f"Applied soft compression (ratio: {compression_ratio:.3f}) to prevent clipping")
-        # print(f"Simulation complete! Peak level: {np.max(np.abs(mixed_signal)):.3f}")
-
         mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max 1dB
         return mixed_signal
 
     def reset(self):
         del self._pyroom
         self._pyroom = None
-
-    # def plot_room_setup(self):
-    #     """Visualize the room setup"""
-    #     self._pyroom.compute_rir()
-    #     self._pyroom.plot_rir()
-    #     self._pyroom.plot()
-    #     return
 
     @staticmethod
     def plot_energy_db(ax, rir, fs=24000):
@@ -361,84 +345,6 @@ class RoomAcousticsSimulator:
         return clamp_position(center_pos[0], center_pos[1], standing_height)
 
     @staticmethod
-    def microphone_position_to_room_position(
-        room: Room, mic_pos: MicrophonePosition
-    ) -> Position3D:
-        """
-        Convert semantic microphone position enum to actual 3D coordinates within the room.
-
-        This function maps microphone placement descriptions to concrete 3D coordinates
-        that can be used for acoustic simulation.
-
-        Args:
-            room: Room object containing dimensions and layout information
-            mic_pos: MicrophonePosition enum value
-
-        Returns:
-            Position3D: 3D coordinates (x, y, z) in meters within the room
-
-        Standard microphone placement assumptions as in enum MicrophonePosition:
-        - TABLE_SMARTPHONE: On desk surface at standard height
-        - MONITOR: Near computer monitor (on/beside desk)
-        - WALL_MOUNTED: On wall at speaking height
-        - CEILING_CENTERED: Center of ceiling
-        - CHEST_POCKET: At doctor's chest level (wearable mic)
-
-        Example:
-            >>> from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
-            >>> room = Room(dimensions=Dimensions3D(4.0, 3.0, 3.0))
-            >>> mic_pos = MicrophonePosition.MONITOR
-            >>> coord = RoomAcousticsSimulator.microphone_position_to_room_position(room, mic_pos)
-            >>> print(f"Microphone position: ({coord.x:.1f}, {coord.y:.1f}, {coord.z:.1f})")
-            Microphone position: (1.2, 0.4, 1.2)
-        """
-        width, length, height = (
-            room.dimensions.width,
-            room.dimensions.length,
-            room.dimensions.height,
-        )
-
-        # Define standard furniture positions (same as speaker positioning)
-        desk_pos = (width * 0.25, length * 0.15)  # Near corner, away from door
-        center_pos = (width * 0.5, length * 0.5)  # Room center
-
-        # Heights for different microphone placements
-        desk_height = 0.8  # Standard desk height
-        monitor_height = 1.2  # Monitor/webcam height
-        wall_mount_height = 1.5  # Wall-mounted mic height
-        ceiling_height = height - 0.1  # Just below ceiling
-        chest_height = 1.4  # Chest-worn microphone height
-
-        def clamp_position(x, y, z):
-            """Ensure position is within room bounds with safety margin"""
-            margin = 0.1  # 10cm safety margin from walls (except ceiling)
-            x = max(margin, min(x, width - margin))
-            y = max(margin, min(y, length - margin))
-            z = max(0.1, min(z, height - 0.05))  # Smaller top margin for ceiling mics
-            return Position3D.from_list([x, y, z])
-
-        # Map microphone positions
-        if mic_pos == MicrophonePosition.TABLE_SMARTPHONE:
-            return clamp_position(desk_pos[0] + 0.3, desk_pos[1] + 0.2, desk_height)
-        elif mic_pos == MicrophonePosition.MONITOR:
-            # Webcam/microphone on or near monitor (typically on desk)
-            return clamp_position(desk_pos[0] + 0.1, desk_pos[1], monitor_height)
-        elif mic_pos == MicrophonePosition.WALL_MOUNTED:
-            # Wall-mounted microphone, typically on the wall opposite to the desk
-            wall_x = width * 0.95  # Near far wall
-            wall_y = length * 0.6  # Center-ish of the wall
-            return clamp_position(wall_x, wall_y, wall_mount_height)
-        elif mic_pos == MicrophonePosition.CEILING_CENTERED:
-            return clamp_position(center_pos[0], center_pos[1], ceiling_height)
-        elif mic_pos == MicrophonePosition.CHEST_POCKET:
-            # Wearable microphone - place at doctor's typical position
-            doctor_pos = (desk_pos[0], desk_pos[1])  # Doctor at desk
-            return clamp_position(doctor_pos[0], doctor_pos[1], chest_height)
-
-        # Fallback to center position at monitor height
-        return clamp_position(center_pos[0], center_pos[1], monitor_height)
-
-    @staticmethod
     def generate_test_audio_sources(
         sampling_rate=44_100, duration=2.0, save_files=True
     ) -> List[AudioSource]:
@@ -527,59 +433,3 @@ class RoomAcousticsSimulator:
             logging.info(f"Generated {len(audio_sources)} test audio sources (in-memory)")
 
         return audio_sources
-
-
-if __name__ == "__main__":
-    logging.info("Room Acoustics Simulator")
-    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-
-    generator = MedicalRoomGenerator()
-    room = generator.generate(RoomRole.CONSULTATION, 6)
-    logging.info(f" Room dimensions: {room.dimensions}")
-
-    print("\n Doctor positions:")
-    for doc_pos in DoctorPosition:
-        pos_3d = RoomAcousticsSimulator.position_to_room_position(room, doc_pos)
-        logging.info(f"  {doc_pos.value} -> {pos_3d}")
-
-    print("\n Patient positions:")
-    for pat_pos in PatientPosition:
-        pos_3d = RoomAcousticsSimulator.position_to_room_position(room, pat_pos)
-        logging.info(f"  {pat_pos.value} -> {pos_3d}")
-
-    print("\n Microphone positions:")
-    for mic_pos in MicrophonePosition:
-        pos_3d = RoomAcousticsSimulator.microphone_position_to_room_position(
-            room, mic_pos
-        )
-        logging.info(f"  {mic_pos.value} -> {pos_3d}")
-
-    room_acoustics = RoomAcousticsSimulator(room)
-    logging.info(f"\n Default microphone position: {room_acoustics.mic_position}")
-
-    logging.info("\n Testing microphone position: Monitor")
-    room_acoustics.set_microphone_position(MicrophonePosition.MONITOR)
-    # room_acoustics.set_microphone_position([2.0, 1.5, 1.0])  # Explicit coordinates
-
-    logging.info("\nGenerating test audio sources:")
-    audio_sources = RoomAcousticsSimulator.generate_test_audio_sources(
-        sampling_rate=room_acoustics.sampling_rate,
-        duration=1.0,
-        save_files=False,  # Use in-memory audio for testing
-    )
-
-    logging.info("\nRunning acoustic simulation:")
-    try:
-        mixed_audio = room_acoustics.simulate(audio_sources)
-        sf.write("test_audio.wav", mixed_audio, room_acoustics.sampling_rate)
-
-        logging.info(f"✓ Simulation complete! Generated {len(mixed_audio)} audio samples")
-        logging.info(
-            f"  Audio duration: {len(mixed_audio) / room_acoustics.sampling_rate:.2f} seconds"
-        )
-        logging.info(f"  Peak level: {np.max(np.abs(mixed_audio)):.3f}")
-    except Exception as e:
-        logging.error(f"✗ Simulation failed: {e}")
-
-    logging.info("\n" + "=" * 80)
-    logging.info("✓ Room Acoustics Simulator test completed!")

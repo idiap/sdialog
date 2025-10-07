@@ -140,6 +140,12 @@ def generate_audio_room_accoustic(
     room_acoustics.set_microphone_position(mic_pos=microphone_position)
 
     # Simulate the audio
+    logging.info("simulate sources:")
+    logging.info(f"{len(dialog.get_audio_sources())}")
+    logging.info(dialog.get_audio_sources())
+    print("/"*25)
+    print(dialog.get_audio_sources())
+
     _audio_accoustic = room_acoustics.simulate(
         sources=dialog.get_audio_sources()
     )
