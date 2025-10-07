@@ -449,7 +449,7 @@ class Room(BaseModel):
     furnitures: bool = False
 
     walls_material: Optional[MaterialProperties] = None  # absorbion_coefficient
-    role: RoomRole = RoomRole.CONSULTATION
+    # role: RoomRole = RoomRole.CONSULTATION
     dimensions: Dimensions3D = Field(default_factory=lambda: Dimensions3D(2, 2.5, 3))
     mic_type: RecordingDevice = RecordingDevice.WEBCAM
     mic_position: MicrophonePosition = MicrophonePosition.MONITOR
@@ -470,7 +470,7 @@ class Room(BaseModel):
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "role": self.role.value,
+            # "role": self.role.value,
             "dimensions": self.dimensions.to_list(),
             "walls_material": self.walls_material,  # TODO: Add walls material in the serialization
             "rt60": self.rt60,
@@ -488,7 +488,7 @@ class Room(BaseModel):
     def __str__(self):
         return (
             f"{self.id}:  {self.name}, desc: {self.description} "
-            f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60}) role: {self.role})  "
+            f"(dimentions: {str(self.dimensions)}, rt60: {self.rt60})"
         )
 
 

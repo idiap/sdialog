@@ -57,14 +57,12 @@ class RoomGenerator:
 
         if room_type == RoomRole.OFFICE:
             return Room(
-                role=RoomRole.OFFICE,
                 name="office_room",
                 description="office",
                 dimensions=calculate_room_dimensions(ROOM_SIZES[4]),
                 rt60=0.3,
             )
         return Room(
-            role=RoomRole.CONSULTATION,
             name="consultation_room",
             description="consultation room",
             dimensions=calculate_room_dimensions(room_size),

@@ -135,8 +135,8 @@ class AudioPipeline:
             do_word_alignments: Optional[bool] = False,
             microphone_position: Optional[MicrophonePosition] = MicrophonePosition.CEILING_CENTERED,
             do_step_1: Optional[bool] = True,
-            do_step_2: Optional[bool] = True,
-            do_step_3: Optional[bool] = True,
+            do_step_2: Optional[bool] = False,
+            do_step_3: Optional[bool] = False,
             dialog_dir_name: Optional[str] = None,
             room_name: Optional[str] = None) -> AudioDialog:
         """
@@ -209,11 +209,12 @@ class AudioPipeline:
                 dialog.get_combined_audio(),
                 self.sampling_rate
             )
+            logging.info(f"Step 1 audio saved to {dialog.audio_step_1_filepath}")
 
-        if self._dscaper is not None and do_step_2 and len(dialog.audio_step_2_filepath) > 0:
-            logging.info(f"Audio sources from dSCAPER loaded in the dialog ({dialog.id}) successfully!")
+        # If the user want to generate the timeline from dSCAPER (whatever if the timeline is already generated or not)
+        if self._dscaper is not None and do_step_2:
 
-        elif self._dscaper is not None and do_step_2:
+            logging.info("Starting step 2...")
 
             from scaper import Dscaper
 
@@ -225,6 +226,8 @@ class AudioPipeline:
                 generate_dscaper_timeline
             )
 
+            logging.info("#################################### Generating timeline from dSCAPER for dialogue")
+
             # Send the utterances to dSCAPER
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
 
@@ -232,6 +235,7 @@ class AudioPipeline:
             logging.info(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
             dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper, dialog_directory=dialog_directory)
             logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
+            logging.info("Step 2 done!")
 
         elif do_step_2 and self._dscaper is None:
 
@@ -241,6 +245,8 @@ class AudioPipeline:
 
         # Generate the audio room accoustic
         if room is not None and self._dscaper is not None and do_step_3:
+
+            logging.info("Starting step 3...")
 
             # Check if the step 2 is not done
             if not do_step_2 and len(dialog.audio_step_2_filepath) < 1:
@@ -261,6 +267,11 @@ class AudioPipeline:
             # Override the room name if provided otherwise use the hash of the room
             room_name = room_name if room_name is not None else room.name
 
+            # TODO: Remove this after testing
+            logging.info("Internal audio sources length:")
+            logging.info(str(len(dialog.get_audio_sources())))
+            logging.info("-"*25)
+
             # Generate the audio room accoustic from the dialog and room object
             dialog: AudioDialog = generate_audio_room_accoustic(
                 dialog=dialog,
@@ -271,6 +282,7 @@ class AudioPipeline:
             )
 
             logging.info(f"Room accoustic generated for dialogue {dialog.id}!")
+            logging.info("Step 3 done!")
 
         elif do_step_3:
             logging.warning(

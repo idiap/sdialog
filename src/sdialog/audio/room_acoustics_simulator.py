@@ -48,8 +48,9 @@ class RoomAcousticsSimulator:
         self.sampling_rate = sampling_rate
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
+        self.room: Room = room
 
-        if room is None:
+        if self.room is None:
             self.room = Room(
                 role=RoomRole.CONSULTATION,
                 name="consultation_room_default",
@@ -63,8 +64,6 @@ class RoomAcousticsSimulator:
                 mic_position=MicrophonePosition.MONITOR,
                 furnitures=False,
             )
-        else:
-            self.room = room
 
         self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
         # Set microphone position based on room's mic_position setting
@@ -84,7 +83,6 @@ class RoomAcousticsSimulator:
             max_order=max_order,
         )
 
-    # room_acoustics.add_microphone( .. )
     def add_microphone(self, mic_position):
         """Add microphone to the room"""
         self.set_microphone_position(mic_position)
