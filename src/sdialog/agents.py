@@ -26,7 +26,7 @@ from .config import config
 from jinja2 import Template
 
 from . import Dialog, Turn, Event, Instruction, Context
-from .personas import BasePersona, Persona
+from .personas import BasePersona
 from .orchestrators import BaseOrchestrator
 from .interpretability import ResponseHook, ActivationHook, Inspector
 from .util import get_llm_model, is_amazon_model_name, is_huggingface_model_name, set_generator_seed, get_universal_id
@@ -104,7 +104,8 @@ class Agent:
     :param postprocess_fn: Optional function to postprocess each output utterance after calling the LLM
                             (input string, output string).
     :type postprocess_fn: Optional[callable]
-    :param system_prompt: Custom system prompt (optional, otherwise loaded from config).
+    :param system_prompt: Custom system prompt to use as-is (takes precedence over persona;
+                          if provided, persona is disabled and this prompt is used directly).
     :type system_prompt: Optional[str]
     :param model: The LLM or model name to use (defaults to config["llm"]["model"]).
     :type model: Union[str, BaseLanguageModel], optional
@@ -115,7 +116,7 @@ class Agent:
     _STOP_WORD_TEXT = "(bye bye!)"
 
     def __init__(self,
-                 persona: BasePersona = Persona(),
+                 persona: BasePersona = None,
                  name: Optional[str] = None,
                  context: Optional[Union[str, Context]] = None,
                  first_utterance: Optional[Union[str, List[str]]] = None,
@@ -146,9 +147,16 @@ class Agent:
         if preprocessing_fn is not None and not callable(preprocessing_fn):
             raise ValueError("preprocessing_fn must be a callable function that takes a string and outputs a string.")
 
-        if not system_prompt:
+        # Handle system_prompt parameter - if provided, it takes precedence over persona
+        if system_prompt:
+            if persona:
+                logger.warning("Both system_prompt and persona provided. system_prompt takes precedence; "
+                               "persona will be ignored.")
+            persona = None  # Disable persona logic when custom system_prompt is provided
+            system_prompt_template = None
+        else:
             with open(config["prompts"]["persona_agent"], encoding="utf-8") as f:
-                system_prompt_template = Template(f.read())
+                system_prompt_template = Template(f.read() if persona else "")
 
         # Private attributes
         self._system_prompt_template = system_prompt_template
@@ -178,19 +186,33 @@ class Agent:
         self.model_info = {"name": str(model), **llm_kwargs}
         self.name = name if name is not None else getattr(persona, "name", None)
         self.persona = persona
-        self.memory = [SystemMessage(self._system_prompt_template.render(
-            persona=self.persona.prompt(),
-            context=self._context,
-            example_dialogs=self._example_dialogs,
-            dialogue_details=self._dialogue_details,
-            response_details=self._response_details,
-            can_finish=self._can_finish,
-            stop_word=self._STOP_WORD
-        ))]
 
-        logger.debug(f"Initialized agent '{self.name}' with model '{str(model)}' "
-                     f"using prompt from '{config['prompts']['persona_agent']}'.")
-        logger.debug("Prompt: " + self.prompt())
+        # Initialize memory based on whether we have a custom system_prompt or persona
+        if system_prompt:
+            self.memory = [SystemMessage(system_prompt)]
+        elif persona and self._system_prompt_template:
+            self.memory = [SystemMessage(self._system_prompt_template.render(
+                persona=self.persona.prompt(),
+                context=self._context,
+                example_dialogs=self._example_dialogs,
+                dialogue_details=self._dialogue_details,
+                response_details=self._response_details,
+                can_finish=self._can_finish,
+                stop_word=self._STOP_WORD
+            ))]
+        else:
+            self.memory = []
+
+        if system_prompt:
+            logger.debug(f"Initialized agent '{self.name}' with model '{str(model)}' "
+                         f"using custom system prompt (persona disabled).")
+            logger.debug("Prompt: " + self.prompt())
+        elif persona:
+            logger.debug(f"Initialized agent '{self.name}' with model '{str(model)}' "
+                         f"using prompt from '{config['prompts']['persona_agent']}'.")
+            logger.debug("Prompt: " + self.prompt())
+        else:
+            logger.debug("Initialized agent with no persona and no system prompt.")
 
         self.add_orchestrators(orchestrators)
         self.add_inspectors(inspectors)
@@ -635,7 +657,7 @@ class Agent:
         data["model"] = self.model_info
         if self._first_utterances:
             data["first_utterances"] = self._first_utterances
-        data["persona"] = self.persona.json()
+        data["persona"] = self.persona.json() if self.persona else {}
         if self._orchestrators:
             data["persona"]["orchestrators"] = [orc.json() for orc in self._orchestrators]
         return json.dumps(data, indent=indent) if string else data
@@ -652,7 +674,7 @@ class Agent:
         # Remove history
         self.memory[:] = self.memory[:1]
         # Update system prompt if needed
-        if self.memory and (context or example_dialogs):
+        if self.persona and self.memory and (context or example_dialogs):
             system_prompt = self._system_prompt_template.render(
                 persona=self.persona.prompt(),
                 context=context or self._context,
@@ -769,8 +791,9 @@ class Agent:
             model=self.model_info,
             seed=seed,
             personas={
-                self.get_name(): self.persona.json(),
-                agent.get_name(default="Other"): agent.persona.json()},
+                self.get_name(): self.persona.json() if self.persona else {},
+                agent.get_name(default="Other"): agent.persona.json() if agent.persona else {}
+            },
             context=context.json() if context and isinstance(context, Context) else context,
             scenario=scenario,
             notes=notes,
