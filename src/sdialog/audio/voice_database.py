@@ -6,6 +6,7 @@ This module provides a voice database.
 # SPDX-License-Identifier: MIT
 import os
 import random
+import logging
 
 
 class BaseVoiceDatabase:
@@ -173,72 +174,42 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                 }
             ] for d in dataset
         }
+        logging.info(f"Voice database populated with {len(self._data)} voices")
 
 
-class JsaltDummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
+class LocalVoiceDatabase(BaseVoiceDatabase):
     """
-    JSALT DummyIndexTts voice database.
-    Made for Jean-Zay cluster only.
+    Local voice database.
     """
 
-    def __init__(self):
-        BaseVoiceDatabase.__init__(self)
-
-    def _gender_to_gender(
+    def __init__(
             self,
-            gender: str) -> str:
-        """
-        Convert the gender to the gender.
-        """
-        gender = gender.lower()
+            directory_audios: str,
+            metadata_file: str):
 
-        if gender == "m":
-            return "male"
-
-        if gender == "f":
-            return "female"
-
-        if gender not in ["male", "female"]:
-            raise ValueError(f"Invalid gender: {gender}")
-
-        return gender
-
-    def populate(self) -> dict:
-        """
-        Populate the voice database.
-        """
-        dataset = [
-            {"speaker_id": 1, "age": 28, "gender": "M", "name": "Sergio Burdisso"},
-            {"speaker_id": 2, "age": 26, "gender": "M", "name": "Yanis Labrak"},
-            {"speaker_id": 3, "age": 21, "gender": "F", "name": "Isabella Gidi"},
-            {"speaker_id": 4, "age": 21, "gender": "F", "name": "Isabella Gidi Texan"}
-        ]
-
-        root_voices_path = "/lustre/fsn1/projects/rech/rtl/uaj63yz/JSALT2025/sdialog/misc/audio/Generation/"
-        sergio_voice = root_voices_path + "sergio-sample.wav"
-        isabella_normal = root_voices_path + "isabella.wav"
-        isabella_texan = root_voices_path + "isabella-texan.wav"
-
-        for d in dataset:
-            _gender = self._gender_to_gender(d["gender"])
-            voice_attributed = sergio_voice if _gender == "m" else random.choice([isabella_normal, isabella_texan])
-            self._data[(_gender, d["age"])] = [
-                {
-                    "identifier": d["speaker_id"],
-                    "voice": voice_attributed
-                }
-            ]
-
-
-class DummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
-    """
-    DummyIndexTts voice database.
-    Downloaded from git clone https://huggingface.co/datasets/sdialog/voices-libritts
-    """
-
-    def __init__(self, path_dir):
-        self.path_dir = path_dir
+        self.directory_audios = directory_audios
+        self.metadata_file = metadata_file
         BaseVoiceDatabase.__init__(self)
+
+        # check if the directory audios exists
+        if not os.path.exists(self.directory_audios):
+            raise ValueError(f"Directory audios does not exist: {self.directory_audios}")
+
+        # check if the metadata file exists
+        if not os.path.exists(self.metadata_file):
+            raise ValueError(f"Metadata file does not exist: {self.metadata_file}")
+
+        # check if the directory audios is a directory
+        if not os.path.isdir(self.directory_audios):
+            raise ValueError(f"Directory audios is not a directory: {self.directory_audios}")
+
+        # check if the metadata file is a csv / tsv / json file
+        if (
+            not self.metadata_file.endswith(".csv") and
+            not self.metadata_file.endswith(".tsv") and
+            not self.metadata_file.endswith(".json")
+        ):
+            raise ValueError(f"Metadata file is not a csv / tsv / json file: {self.metadata_file}")
 
     def _gender_to_gender(
             self,
@@ -265,18 +236,37 @@ class DummyIndexTtsVoiceDatabase(BaseVoiceDatabase):
         """
         import pandas as pd
 
-        df = pd.read_csv(os.path.join(self.path_dir, "metadata.csv"))
+        if self.metadata_file.endswith(".csv"):
+            df = pd.read_csv(self.metadata_file)
+        elif self.metadata_file.endswith(".tsv"):
+            df = pd.read_csv(self.metadata_file, delimiter="\t")
+        elif self.metadata_file.endswith(".json"):
+            df = pd.read_json(self.metadata_file)
+        else:
+            raise ValueError(f"Metadata file is not a csv / tsv / json file: {self.metadata_file}")
 
-        for index, row in df.iterrows():
+        # check if the audio file column exists
+        if "audio_file" not in df.columns:
+            raise ValueError(f"Audio file column does not exist in the metadata file: {self.metadata_file}")
 
-            _gender = self._gender_to_gender(row["gender"])
+        # check if the gender column exists
+        if "gender" not in df.columns:
+            raise ValueError(f"Gender column does not exist in the metadata file: {self.metadata_file}")
 
-            if (_gender, row["age"]) not in self._data:
-                self._data[(_gender, row["age"])] = []
+        # check if the age column exists
+        if "age" not in df.columns:
+            raise ValueError(f"Age column does not exist in the metadata file: {self.metadata_file}")
 
-            self._data[(_gender, row["age"])].append(
+        # check if the speaker id column exists
+        if "speaker_id" not in df.columns:
+            raise ValueError(f"Speaker id column does not exist in the metadata file: {self.metadata_file}")
+
+        self._data = {
+            (self._gender_to_gender(row["gender"]), row["age"]): [
                 {
                     "identifier": row["speaker_id"],
-                    "voice": os.path.join(self.path_dir, row["file_name"])
+                    "voice": os.path.join(self.directory_audios, row["audio_file"])
                 }
-            )
+            ] for index, row in df.iterrows()
+        }
+        logging.info(f"Voice database populated with {len(self._data)} voices")
