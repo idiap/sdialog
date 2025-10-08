@@ -8,7 +8,7 @@ import time
 import random
 from abc import abstractmethod
 from typing import Tuple, Dict, Any, Optional
-from sdialog.audio.audio_utils import Furniture
+from sdialog.audio.audio_utils import Furniture, RoomMaterials
 from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
 
 
@@ -95,7 +95,8 @@ class BasicRoomGenerator(RoomGenerator):
             name=f"room_{time.time_ns()}",
             description=f"room_{time.time_ns()}",
             dimensions=dims,
-            reverberation_time_ratio=random.uniform(0.3, 0.7),
+            reverberation_time_ratio=None,
+            materials=RoomMaterials(),
             mic_position=MicrophonePosition.CEILING_CENTERED,
             furnitures={
                 "door": Furniture(

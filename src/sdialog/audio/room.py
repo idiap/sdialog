@@ -11,7 +11,7 @@ from enum import Enum
 from dataclasses import dataclass
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
-from sdialog.audio.audio_utils import BodyPosture, Furniture
+from sdialog.audio.audio_utils import BodyPosture, Furniture, RoomMaterials
 
 
 @dataclass
@@ -135,36 +135,6 @@ class MicrophonePosition(str, Enum):
     CUSTOM = "custom"
 
 
-class WallMaterial(str, Enum):
-    """
-    Common wall materials with typical absorption coefficients
-    """
-
-    DRYWALL = "drywall"
-    CONCRETE = "concrete"
-    BRICK = "brick"
-    WOOD_PANEL = "wood_panel"
-    ACOUSTIC_TILE = "acoustic_tile"
-    GLASS = "glass"
-    METAL = "metal"
-
-
-class FloorMaterial(str, Enum):
-    """
-    Floor materials affecting acoustics
-    """
-
-    CARPET = "carpet"
-    VINYL = "vinyl"
-    CONCRETE = "concrete"
-    HARDWOOD = "hardwood"
-    TILE = "tile"
-    RUBBER = "rubber"
-
-
-# ------------------------------------------------------------------------------
-
-
 class AudioSource(BaseModel):
     """
     Represents an object, speaker that makes sounds in the room
@@ -250,7 +220,6 @@ class Room(BaseModel):
     id: str = Field(default_factory=get_room_id)
     name: str = "Room"
     description: str = ""
-    reverberation_time_ratio: Optional[float] = 0.5
 
     dimensions: Dimensions3D = Field(default_factory=lambda: Dimensions3D(2, 2.5, 3))
 
@@ -259,6 +228,9 @@ class Room(BaseModel):
 
     # Furniture available in the room
     furnitures: dict[str, Furniture] = {}
+
+    materials: RoomMaterials = RoomMaterials()
+    reverberation_time_ratio: Optional[float] = None
 
     model_config = {
         "arbitrary_types_allowed": True,
@@ -522,6 +494,7 @@ class Room(BaseModel):
             # "role": self.role.value,
             "dimensions": self.dimensions.to_list(),
             "reverberation_time_ratio": self.reverberation_time_ratio,
+            "materials": self.materials.model_dump(),
             "mic_type": self.mic_type.value,
             "mic_position": self.mic_position.value,
             "mic_position_3d": self.mic_position_3d.to_list()
@@ -536,7 +509,8 @@ class Room(BaseModel):
     def __str__(self):
         return (
             f"{self.id}:  {self.name}, desc: {self.description} "
-            f"(dimentions: {str(self.dimensions)}, reverberation_time_ratio: {self.reverberation_time_ratio})"
+            f"(dimentions: {str(self.dimensions)}, reverberation_time_ratio: {self.reverberation_time_ratio}"
+            f"materials: {self.materials})"
         )
 
 

@@ -68,18 +68,31 @@ class RoomAcousticsSimulator:
         """
         import pyroomacoustics as pra
 
-        e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
+        # If reverberation time ratio is provided, use it to create the materials
+        if room.reverberation_time_ratio is not None:
+            logging.info(f"Reverberation time ratio: {room.reverberation_time_ratio}")
+            e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
+            _m = pra.Material(e_absorption)
+        else:
+            logging.info("Reverberation time ratio is not provided, using room materials")
+            max_order = 17  # Number of reflections
+            _m = pra.make_materials(
+                ceiling=room.materials.ceiling,
+                floor=room.materials.floor,
+                east=room.materials.walls,
+                west=room.materials.walls,
+                north=room.materials.walls,
+                south=room.materials.walls
+            )
 
-        # max_order = 17  # Number of reflections
         _accoustic_room = pra.ShoeBox(
             room.dimensions,
             fs=sampling_rate,
-            materials=pra.Material(e_absorption),
+            materials=_m,
             max_order=max_order,
             **kwargs_pyroom
         )
 
-        # Activate the ray tracing
         if "ray_tracing" in kwargs_pyroom:
             _accoustic_room.set_ray_tracing()
 

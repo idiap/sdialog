@@ -8,9 +8,9 @@ import time
 import math
 from enum import Enum
 from typing import Tuple, Dict, Any, Optional
-from sdialog.audio.audio_utils import Furniture
 from sdialog.audio.room import Room, Dimensions3D
 from sdialog.audio.room_generator import RoomGenerator
+from sdialog.audio.audio_utils import Furniture, RoomMaterials
 
 
 class RoomRole(str, Enum):
@@ -37,16 +37,16 @@ class MedicalRoomGenerator(RoomGenerator):
     def __init__(self, seed: Optional[int] = time.time_ns()):
         super().__init__(seed)
 
-        # Standard room sizes (floor area in m²): size, reverberation_time_ratio, name, description
-        self.ROOM_SIZES: Dict[RoomRole, Tuple[float, float, str, str]] = {
-            RoomRole.CONSULTATION: (4.5, 0.10, "consultation_room", "consultation room"),
-            RoomRole.EXAMINATION:  (6,   0.15, "examination_room",  "examination room"),
-            RoomRole.TREATMENT:    (8,   0.18, "treatment_room",    "treatment room"),
-            RoomRole.PATIENT_ROOM: (9.5, 0.21, "patient_room",      "patient room"),
-            RoomRole.SURGERY:      (12,  0.24, "surgery_room",      "surgery room"),
-            RoomRole.WAITING:      (15,  0.28, "waiting_room",      "waiting room"),
-            RoomRole.EMERGENCY:    (18,  0.31, "emergency_room",    "emergency room"),
-            RoomRole.OFFICE:       (20,  0.34, "office_room",       "office room"),
+        # Standard room sizes (floor area in m²): size, name, description
+        self.ROOM_SIZES: Dict[RoomRole, Tuple[float, str, str]] = {
+            RoomRole.CONSULTATION: (4.5, "consultation_room", "consultation room"),
+            RoomRole.EXAMINATION:  (6,   "examination_room",  "examination room"),
+            RoomRole.TREATMENT:    (8,   "treatment_room",    "treatment room"),
+            RoomRole.PATIENT_ROOM: (9.5, "patient_room",      "patient room"),
+            RoomRole.SURGERY:      (12,  "surgery_room",      "surgery room"),
+            RoomRole.WAITING:      (15,  "waiting_room",      "waiting room"),
+            RoomRole.EMERGENCY:    (18,  "emergency_room",    "emergency room"),
+            RoomRole.OFFICE:       (20,  "office_room",       "office room"),
         }
 
         # Standard aspect ratios for different room sizes (width:length)
@@ -90,7 +90,7 @@ class MedicalRoomGenerator(RoomGenerator):
         if len(args) > 1:
             raise ValueError("Only room_type is allowed")
 
-        floor_area, reverberation_time_ratio, name, description = self.ROOM_SIZES[args["room_type"]]
+        floor_area, name, description = self.ROOM_SIZES[args["room_type"]]
 
         if floor_area not in self.ROOM_ASPECT_RATIOS:
             raise ValueError(f"Unsupported room size: {floor_area}m²")
@@ -107,7 +107,8 @@ class MedicalRoomGenerator(RoomGenerator):
             name=f"{name} - {time_in_ns}",
             description=f"{description} - {time_in_ns}",
             dimensions=dims,
-            reverberation_time_ratio=reverberation_time_ratio,
+            reverberation_time_ratio=0.18,
+            # materials=RoomMaterials(),
             furnitures={
                 "desk": Furniture(
                     name="desk",
