@@ -96,7 +96,6 @@ class BasicRoomGenerator(RoomGenerator):
             description=f"room_{time.time_ns()}",
             dimensions=dims,
             reverberation_time_ratio=random.uniform(0.3, 0.7),
-            aspect_ratio=aspect_ratio,
             mic_position=MicrophonePosition.CEILING_CENTERED,
             furnitures={
                 "door": Furniture(

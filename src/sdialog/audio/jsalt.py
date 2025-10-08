@@ -39,28 +39,28 @@ class MedicalRoomGenerator(RoomGenerator):
 
         # Standard room sizes (floor area in m²): size, reverberation_time_ratio, name, description
         self.ROOM_SIZES: Dict[RoomRole, Tuple[float, float, str, str]] = {
-            RoomRole.CONSULTATION: (4.5, 0.47, "consultation_room", "consultation room"),
-            RoomRole.EXAMINATION: (6, 0.75, "examination_room", "examination room"),
-            RoomRole.TREATMENT: (8, 0.70, "treatment_room", "treatment room"),
-            RoomRole.PATIENT_ROOM: (9.5, 0.60, "patient_room", "patient room"),
-            RoomRole.SURGERY: (12, 0.77, "surgery_room", "surgery room"),
-            RoomRole.WAITING: (15, 0.55, "waiting_room", "waiting room"),
-            RoomRole.EMERGENCY: (18, 0.50, "emergency_room", "emergency room"),
-            RoomRole.OFFICE: (20, 0.65, "office_room", "office room"),
+            RoomRole.CONSULTATION: (4.5, 0.10, "consultation_room", "consultation room"),
+            RoomRole.EXAMINATION:  (6,   0.15, "examination_room",  "examination room"),
+            RoomRole.TREATMENT:    (8,   0.18, "treatment_room",    "treatment room"),
+            RoomRole.PATIENT_ROOM: (9.5, 0.21, "patient_room",      "patient room"),
+            RoomRole.SURGERY:      (12,  0.24, "surgery_room",      "surgery room"),
+            RoomRole.WAITING:      (15,  0.28, "waiting_room",      "waiting room"),
+            RoomRole.EMERGENCY:    (18,  0.31, "emergency_room",    "emergency room"),
+            RoomRole.OFFICE:       (20,  0.34, "office_room",       "office room"),
         }
 
         # Standard aspect ratios for different room sizes (width:length)
         self.ROOM_ASPECT_RATIOS = {
             4.5: (1.5, 1.0),  # 2.12 x 2.12m (compact square)
-            6: (1.5, 1.0),  # 2.45 x 2.45m
-            8: (1.6, 1.0),  # 3.58 x 2.24m (slightly rectangular)
+            6:   (1.5, 1.0),  # 2.45 x 2.45m
+            8:   (1.6, 1.0),  # 3.58 x 2.24m (slightly rectangular)
             9.5: (1.7, 1.0),  # 4.0 x 2.35m
-            12: (1.8, 1.0),  # 4.65 x 2.58m
-            15: (2.0, 1.0),  # 5.48 x 2.74m
-            18: (2.2, 1.0),  # 6.26 x 2.87m
-            20: (2.5, 1.0),  # 7.07 x 2.83m
-            24: (2.4, 1.0),  # 7.59 x 3.16m
-            32: (2.8, 1.0),  # 9.49 x 3.37m (long rectangular)
+            12:  (1.8, 1.0),  # 4.65 x 2.58m
+            15:  (2.0, 1.0),  # 5.48 x 2.74m
+            18:  (2.2, 1.0),  # 6.26 x 2.87m
+            20:  (2.5, 1.0),  # 7.07 x 2.83m
+            24:  (2.4, 1.0),  # 7.59 x 3.16m
+            32:  (2.8, 1.0),  # 9.49 x 3.37m (long rectangular)
         }
 
     def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:
@@ -75,7 +75,7 @@ class MedicalRoomGenerator(RoomGenerator):
         length = math.sqrt(floor_area / (w_ratio / l_ratio))
         width = length * (w_ratio / l_ratio)
 
-        return Dimensions3D(width=width, length=length, height=3.0)
+        return Dimensions3D(width=width, length=length, height=2.5)
 
     def generate(self, args: Dict[str, Any]) -> Room:
         """
@@ -108,56 +108,55 @@ class MedicalRoomGenerator(RoomGenerator):
             description=f"{description} - {time_in_ns}",
             dimensions=dims,
             reverberation_time_ratio=reverberation_time_ratio,
-            aspect_ratio=(w_ratio, l_ratio),
             furnitures={
                 "desk": Furniture(
                     name="desk",
-                    x=dims.width * 0.25,
+                    x=dims.width * 0.01,
                     y=dims.length * 0.15,
-                    width=1.5,
-                    height=0.8,
-                    depth=1.0
+                    width=1.22,
+                    height=0.76,
+                    depth=0.76
                 ),
                 "monitor": Furniture(
                     name="monitor",
-                    x=dims.width * 0.25,
+                    x=dims.width * 0.01,
                     y=dims.length * 0.15,
                     z=0.8,
                     width=0.5,
                     height=0.4,
-                    depth=0.25
+                    depth=0.10
                 ),
                 "bench": Furniture(
                     name="bench",
-                    x=dims.width * 0.60,
-                    y=dims.length * 0.50,
-                    width=2.0,
-                    height=1.0,
-                    depth=0.75
+                    x=dims.width * 0.65,
+                    y=dims.length * 0.01,
+                    width=0.82,
+                    height=0.75,
+                    depth=1.95
                 ),
                 "sink": Furniture(
                     name="sink",
-                    x=dims.width * 0.05,
-                    y=dims.length * 0.80,
-                    width=0.5,
+                    x=dims.width * 0.35,
+                    y=dims.length * 0.75,
+                    width=0.4,
                     height=1.0,
-                    depth=0.5
+                    depth=0.4
                 ),
                 "cupboard": Furniture(
                     name="cupboard",
-                    x=dims.width * 0.95,
-                    y=dims.length * 0.80,
-                    width=1.0,
-                    height=1.0,
-                    depth=0.5
+                    x=dims.width * 0.01,
+                    y=dims.length * 0.75,
+                    width=0.9,
+                    height=1.85,
+                    depth=0.4
                 ),
                 "door": Furniture(
                     name="door",
-                    x=0.10,
-                    y=0.10,
+                    x=0.01,
+                    y=0.01,
                     width=0.70,
                     height=2.10,
-                    depth=0.5
+                    depth=0.10
                 )
             }
         )

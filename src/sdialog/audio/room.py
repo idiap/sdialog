@@ -86,25 +86,6 @@ class Dimensions3D:
     def __getitem__(self, index):
         return [self.length, self.width, self.height][index]
 
-    @classmethod
-    def from_volume(
-        cls,
-        volume: float,
-        aspect_ratio: Tuple[float, float, float] = (1.5, 1.0, 0.3)
-    ):
-        """
-        Generate dimensions from volume using aspect ratio (width:length:height)
-        """
-        if volume <= 0:
-            raise ValueError("Volume must be positive")
-
-        w_ratio, l_ratio, h_ratio = aspect_ratio
-        scale = (volume / (w_ratio * l_ratio * h_ratio)) ** (1 / 3)
-
-        return cls(
-            width=w_ratio * scale, length=l_ratio * scale, height=h_ratio * scale
-        )
-
 
 class SoundEventPosition(str, Enum):
     BACKGROUND = "no_type"  # background -
@@ -270,7 +251,6 @@ class Room(BaseModel):
     name: str = "Room"
     description: str = ""
     reverberation_time_ratio: Optional[float] = 0.5
-    aspect_ratio: Optional[Tuple[float, float]] = None
 
     dimensions: Dimensions3D = Field(default_factory=lambda: Dimensions3D(2, 2.5, 3))
 
@@ -557,7 +537,6 @@ class Room(BaseModel):
         return (
             f"{self.id}:  {self.name}, desc: {self.description} "
             f"(dimentions: {str(self.dimensions)}, reverberation_time_ratio: {self.reverberation_time_ratio})"
-            f"(aspect_ratio: {self.aspect_ratio})"
         )
 
 
