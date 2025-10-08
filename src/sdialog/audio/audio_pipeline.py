@@ -280,7 +280,8 @@ class AudioPipeline:
                 dialog=dialog,
                 room=room,
                 dialog_directory=dialog_directory,
-                room_name=room_name
+                room_name=room_name,
+                kwargs_pyroom=environment["kwargs_pyroom"] if "kwargs_pyroom" in environment else {}
             )
 
             logging.info(f"Room accoustic generated for dialogue {dialog.id}!")

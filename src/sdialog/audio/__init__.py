@@ -127,13 +127,14 @@ def generate_audio_room_accoustic(
         dialog: AudioDialog,
         room: Room,
         dialog_directory: str,
-        room_name: str) -> AudioDialog:
+        room_name: str,
+        kwargs_pyroom: dict = {}) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
 
     # Create the room acoustics simulator
-    room_acoustics = RoomAcousticsSimulator(room=room)
+    room_acoustics = RoomAcousticsSimulator(room=room, kwargs_pyroom=kwargs_pyroom)
 
     # Simulate the audio
     logging.info("simulate sources:")

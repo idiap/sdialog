@@ -27,7 +27,8 @@ class RoomAcousticsSimulator:
     def __init__(
         self,
         room: Room = None,
-        sampling_rate=44_100
+        sampling_rate=44_100,
+        kwargs_pyroom: dict = {}
     ):
         """
         Initialize the room acoustics simulator.
@@ -38,11 +39,12 @@ class RoomAcousticsSimulator:
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
         self.room: Room = room
+        self.kwargs_pyroom: dict = kwargs_pyroom
 
         if room is None:
             raise ValueError("Room is required")
 
-        self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
+        self._pyroom = self._create_pyroom(self.room, self.sampling_rate, self.kwargs_pyroom)
 
         # Remove existing microphone and add new one
         if hasattr(self._pyroom, "mic_array") and self._pyroom.mic_array is not None:
@@ -58,7 +60,8 @@ class RoomAcousticsSimulator:
     def _create_pyroom(
         self,
         room: Room,
-        sampling_rate=44_100
+        sampling_rate=44_100,
+        kwargs_pyroom: dict = {}
     ):
         """
         Create a pyroomacoustics room based on the room definition.
@@ -68,12 +71,19 @@ class RoomAcousticsSimulator:
         e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
 
         # max_order = 17  # Number of reflections
-        return pra.ShoeBox(
+        _accoustic_room = pra.ShoeBox(
             room.dimensions,
             fs=sampling_rate,
             materials=pra.Material(e_absorption),
             max_order=max_order,
+            **kwargs_pyroom
         )
+
+        # Activate the ray tracing
+        if "ray_tracing" in kwargs_pyroom:
+            _accoustic_room.set_ray_tracing()
+
+        return _accoustic_room
 
     def _add_sources(
         self,
@@ -137,7 +147,7 @@ class RoomAcousticsSimulator:
         if reset:
             # see https://github.com/LCAV/pyroomacoustics/issues/311
             self.reset()
-            self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
+            self._pyroom = self._create_pyroom(self.room, self.sampling_rate, self.kwargs_pyroom)
 
         self._add_sources(sources)
         self._pyroom.simulate()
