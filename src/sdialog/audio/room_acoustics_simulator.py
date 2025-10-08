@@ -9,6 +9,7 @@ import logging
 import numpy as np
 import soundfile as sf
 from typing import List, Union
+from sdialog.audio.audio_utils import BodyPosture
 from sdialog.audio.room import Room, AudioSource, Position3D
 from sdialog.audio.audio_scaper_utils import microphone_position_to_room_position
 from sdialog.audio.room import (
@@ -135,9 +136,12 @@ class RoomAcousticsSimulator:
             position = self.parse_position(audio_source.position)
 
             if position is not SoundEventPosition:
+
                 audio_source._position3d = self.position_to_room_position(
-                    self.room, position
+                    self.room,
+                    position
                 )
+
             else:
                 room_center = [dim / 2 for dim in self._pyroom.dimensions]
                 audio_source._position3d = Position3D(room_center)
@@ -232,7 +236,8 @@ class RoomAcousticsSimulator:
 
     @staticmethod
     def position_to_room_position(
-        room: Room, pos: Union[DoctorPosition, PatientPosition]
+        room: Room,
+        pos: Union[DoctorPosition, PatientPosition]
     ) -> Position3D:
         """
         Convert semantic position enums to actual 3D coordinates within the room.
@@ -246,31 +251,12 @@ class RoomAcousticsSimulator:
 
         Returns:
             Position3D: 3D coordinates (x, y, z) in meters within the room
-
-        Standard room layout assumptions as define in enums DoctorPosition or PatientPosition :
-        - Door at (0, 0) corner
-        - Desk along the width wall at 1/4 from door
-        - Examination bench in center area
-        - Sink and cupboards along length walls
-        - Standard sitting height: 0.5m, standing height: 1.7m
         """
         width, length, height = (
             room.dimensions.width,
             room.dimensions.length,
             room.dimensions.height,
         )
-
-        # Define standard furniture positions as fractions of room dimensions
-        desk_pos = (width * 0.25, length * 0.15)  # Near corner, away from door
-        bench_pos = (width * 0.6, length * 0.5)  # Center-right area
-        door_pos = (0.1, 0.1)  # Near corner
-        sink_pos = (width * 0.05, length * 0.8)  # Back wall, near corner
-        cupboard_pos = (width * 0.95, length * 0.8)  # Back wall, opposite corner
-        center_pos = (width * 0.5, length * 0.5)  # Room center
-
-        # Heights for different postures
-        sitting_height = 0.5  # Chair/bench sitting height
-        standing_height = 1.7  # Average person standing height
 
         def clamp_position(x, y, z):
             """Ensure position is within room bounds with safety margin"""
@@ -283,50 +269,90 @@ class RoomAcousticsSimulator:
         # Map doctor positions
         if isinstance(pos, DoctorPosition):
             if pos == DoctorPosition.AT_DESK_SITTING:
-                return clamp_position(desk_pos[0], desk_pos[1], sitting_height)
+                return clamp_position(
+                    room.furnitures["desk"].x,
+                    room.furnitures["desk"].y,
+                    BodyPosture.SITTING.value
+                )
             elif pos == DoctorPosition.AT_DESK_SIDE_STANDING:
-                return clamp_position(desk_pos[0] + 0.5, desk_pos[1], standing_height)
+                return clamp_position(
+                    room.furnitures["desk"].x + 0.5,
+                    room.furnitures["desk"].y,
+                    BodyPosture.STANDING.value
+                )
             elif pos == DoctorPosition.NEXT_TO_BENCH_STANDING:
-                return clamp_position(bench_pos[0] - 0.8, bench_pos[1], standing_height)
+                return clamp_position(
+                    room.furnitures["bench"].x - 0.8,
+                    room.furnitures["bench"].y,
+                    BodyPosture.STANDING.value
+                )
             elif pos == DoctorPosition.NEXT_TO_SINK_FRONT:
                 return clamp_position(
-                    sink_pos[0] + 0.3, sink_pos[1] - 0.5, standing_height
+                    room.furnitures["sink"].x + 0.3,
+                    room.furnitures["sink"].y - 0.5,
+                    BodyPosture.STANDING.value
                 )
             elif pos == DoctorPosition.NEXT_TO_SINK_BACK:
                 return clamp_position(
-                    sink_pos[0] - 0.3, sink_pos[1] + 0.3, standing_height
+                    room.furnitures["sink"].x - 0.3,
+                    room.furnitures["sink"].y + 0.3,
+                    BodyPosture.STANDING.value
                 )
             elif pos == DoctorPosition.NEXT_TO_CUPBOARD_FRONT:
                 return clamp_position(
-                    cupboard_pos[0] - 0.3, cupboard_pos[1] - 0.5, standing_height
+                    room.furnitures["cupboard"].x - 0.3,
+                    room.furnitures["cupboard"].y - 0.5,
+                    BodyPosture.STANDING.value
                 )
             elif pos == DoctorPosition.NEXT_TO_CUPBOARD_BACK:
                 return clamp_position(
-                    cupboard_pos[0] + 0.3, cupboard_pos[1] + 0.3, standing_height
+                    room.furnitures["cupboard"].x + 0.3,
+                    room.furnitures["cupboard"].y + 0.3,
+                    BodyPosture.STANDING.value
                 )
             elif pos == DoctorPosition.NEXT_TO_DOOR_STANDING:
                 return clamp_position(
-                    door_pos[0] + 0.5, door_pos[1] + 0.3, standing_height
+                    room.furnitures["door"].x + 0.5,
+                    room.furnitures["door"].y + 0.3,
+                    BodyPosture.STANDING.value
                 )
 
         # Map patient positions
         elif isinstance(pos, PatientPosition):
             if pos == PatientPosition.AT_DOOR_STANDING:
                 return clamp_position(
-                    door_pos[0] + 0.3, door_pos[1] + 0.2, standing_height
+                    room.furnitures["door"].x + 0.3,
+                    room.furnitures["door"].y + 0.2,
+                    BodyPosture.STANDING.value
                 )
             elif pos == PatientPosition.NEXT_TO_DESK_SITTING:
                 return clamp_position(
-                    desk_pos[0] + 0.8, desk_pos[1] + 0.3, sitting_height
+                    room.furnitures["desk"].x + 0.8,
+                    room.furnitures["desk"].y + 0.3,
+                    BodyPosture.SITTING.value
                 )
             elif pos == PatientPosition.NEXT_TO_DESK_STANDING:
                 return clamp_position(
-                    desk_pos[0] + 0.8, desk_pos[1] + 0.3, standing_height
+                    room.furnitures["desk"].x + 0.8,
+                    room.furnitures["desk"].y + 0.3,
+                    BodyPosture.STANDING.value
                 )
             elif pos == PatientPosition.SITTING_ON_BENCH:
-                return clamp_position(bench_pos[0], bench_pos[1], sitting_height)
+                return clamp_position(
+                    room.furnitures["bench"].x,
+                    room.furnitures["bench"].y,
+                    BodyPosture.SITTING.value
+                )
             elif pos == PatientPosition.CENTER_ROOM_STANDING:
-                return clamp_position(center_pos[0], center_pos[1], standing_height)
+                return clamp_position(
+                    room.furnitures["center"].x,
+                    room.furnitures["center"].y,
+                    BodyPosture.STANDING.value
+                )
 
         # Fallback to center of room if position not recognized
-        return clamp_position(center_pos[0], center_pos[1], standing_height)
+        return clamp_position(
+            room.furnitures["center"].x,
+            room.furnitures["center"].y,
+            BodyPosture.STANDING.value
+        )

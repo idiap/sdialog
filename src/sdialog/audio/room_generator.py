@@ -8,6 +8,7 @@ import time
 import random
 from abc import abstractmethod
 from typing import Tuple, Dict, Any, Optional
+from sdialog.audio.audio_utils import Furniture
 from sdialog.audio.room import Room, Dimensions3D
 
 
@@ -88,12 +89,33 @@ class BasicRoomGenerator(RoomGenerator):
         random.seed(self.seed)
         aspect_ratio = random.choice(self.aspect_ratio)
 
-        dimensions = self.calculate_room_dimensions(args["room_size"], aspect_ratio)
+        dims = self.calculate_room_dimensions(args["room_size"], aspect_ratio)
 
-        return Room(
+        room = Room(
             name=f"room_{time.time_ns()}",
             description=f"room_{time.time_ns()}",
-            dimensions=dimensions,
+            dimensions=dims,
             reverberation_time_ratio=random.uniform(0.3, 0.7),
             aspect_ratio=aspect_ratio
         )
+
+        room.add_furnitures({
+            "door": Furniture(
+                name="door",
+                x=0.10,
+                y=0.10,
+                width=0.70,
+                height=2.10,
+                depth=0.5
+            ),
+            "center": Furniture(
+                name="center",
+                x=dims.width * 0.50,
+                y=dims.length * 0.50,
+                width=0.0,
+                height=0.0,
+                depth=0.0
+            )
+        })
+
+        return room

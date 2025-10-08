@@ -9,6 +9,7 @@ import hashlib
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass
+from sdialog.audio.audio_utils import Furniture
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
 
@@ -276,9 +277,18 @@ class Room(BaseModel):
 
     mic_position: MicrophonePosition = MicrophonePosition.MONITOR
 
+    # Furniture available in the room
+    furnitures: dict[str, Furniture] = {}
+
     model_config = {
         "arbitrary_types_allowed": True,
     }
+
+    def add_furnitures(self, furnitures: dict[str, Furniture]):
+        self.furnitures.update(furnitures)
+
+    def get_furnitures(self) -> dict[str, Furniture]:
+        return self.furnitures
 
     def get_square_meters(self) -> float:
         """
@@ -385,6 +395,69 @@ class Room(BaseModel):
                 text_y = 10
 
                 draw.text((text_x, text_y), name_text, fill='black', font=font)
+
+        #########################
+        # Drawing furnitures
+        #########################
+
+        # Add furniture as rectangles using their x, y, width and depth coordinates
+        for furniture_name, furniture in self.furnitures.items():
+            # Convert furniture coordinates to pixel coordinates
+            # Furniture coordinates are in meters, need to convert to pixels
+            furniture_x_px = start_x + int(furniture.x * scale)
+            furniture_y_px = start_y + int(furniture.y * scale)
+
+            # Convert furniture dimensions to pixels
+            furniture_width_px = int(furniture.width * scale)
+            furniture_depth_px = int(furniture.depth * scale)
+
+            # Calculate rectangle coordinates (top-left and bottom-right)
+            # Furniture position is now the top-left corner
+            rect_left = furniture_x_px
+            rect_top = furniture_y_px
+            rect_right = furniture_x_px + furniture_width_px
+            rect_bottom = furniture_y_px + furniture_depth_px
+
+            # Ensure minimum size for visibility
+            min_size = 4  # Minimum 4 pixels
+            if furniture_width_px < min_size:
+                rect_right = rect_left + min_size
+            if furniture_depth_px < min_size:
+                rect_bottom = rect_top + min_size
+
+            # Draw furniture rectangle outline
+            draw.rectangle(
+                [rect_left, rect_top, rect_right, rect_bottom],
+                outline=furniture.color.value, width=2
+            )
+
+            # Fill the rectangle with a semi-transparent red color
+            # Create a temporary image for the fill
+            fill_img = Image.new('RGBA', (rect_right - rect_left, rect_bottom - rect_top), furniture.color.value)
+            img.paste(fill_img, (rect_left, rect_top), fill_img)
+
+            # Add furniture name as text near the rectangle
+            if font:
+                # Get text size for positioning
+                bbox = draw.textbbox((0, 0), furniture_name, font=font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+
+                # Position text at the center of the rectangle
+                text_x = rect_left + (rect_right - rect_left - text_width) // 2
+                text_y = rect_top + (rect_bottom - rect_top - text_height) // 2
+
+                # Make sure text doesn't go outside the image bounds
+                if text_x < 0:
+                    text_x = 5
+                elif text_x + text_width > 512:
+                    text_x = 512 - text_width - 5
+                if text_y < 0:
+                    text_y = 5
+                elif text_y + text_height > 512:
+                    text_y = 512 - text_height - 5
+
+                draw.text((text_x, text_y), furniture_name, fill=furniture.color.value, font=font)
 
         return img
 

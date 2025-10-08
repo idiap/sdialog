@@ -8,6 +8,7 @@ import time
 import math
 from enum import Enum
 from typing import Tuple, Dict, Any, Optional
+from sdialog.audio.audio_utils import Furniture
 from sdialog.audio.room import Room, Dimensions3D
 from sdialog.audio.room_generator import RoomGenerator
 
@@ -99,10 +100,67 @@ class MedicalRoomGenerator(RoomGenerator):
         # Time in nanoseconds
         time_in_ns = time.time_ns()
 
-        return Room(
+        # Calculate room dimensions
+        dims = self.calculate_room_dimensions(floor_area, (w_ratio, l_ratio))
+
+        room = Room(
             name=f"{name} - {time_in_ns}",
             description=f"{description} - {time_in_ns}",
-            dimensions=self.calculate_room_dimensions(floor_area, (w_ratio, l_ratio)),
+            dimensions=dims,
             reverberation_time_ratio=reverberation_time_ratio,
             aspect_ratio=(w_ratio, l_ratio)
         )
+
+        # Define standard furniture positions as fractions of room dimensions
+        room.add_furnitures({
+            "desk": Furniture(
+                name="desk",
+                x=dims.width * 0.25,
+                y=dims.length * 0.15,
+                width=1.5,
+                height=1.0,
+                depth=1.0
+            ),
+            "bench": Furniture(
+                name="bench",
+                x=dims.width * 0.60,
+                y=dims.length * 0.50,
+                width=2.0,
+                height=1.0,
+                depth=0.75
+            ),
+            "sink": Furniture(
+                name="sink",
+                x=dims.width * 0.05,
+                y=dims.length * 0.80,
+                width=0.5,
+                height=1.0,
+                depth=0.5
+            ),
+            "cupboard": Furniture(
+                name="cupboard",
+                x=dims.width * 0.95,
+                y=dims.length * 0.80,
+                width=1.0,
+                height=1.0,
+                depth=0.5
+            ),
+            "door": Furniture(
+                name="door",
+                x=0.10,
+                y=0.10,
+                width=0.70,
+                height=2.10,
+                depth=0.5
+            ),
+            "center": Furniture(
+                name="center",
+                x=dims.width * 0.50,
+                y=dims.length * 0.50,
+                width=0.0,
+                height=0.0,
+                depth=0.0
+            )
+        })
+
+        return room
