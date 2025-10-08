@@ -52,9 +52,9 @@ A :class:`~sdialog.Dialog` object contains an ordered list of :class:`~sdialog.T
 
 **Creating Dialog from Text**:
 
-Dialog objects can be created programmatically or you can simply created from plain text, either a string or txt file, using :meth:`~sdialog.Dialog.from_str` or :meth:`~sdialog.Dialog.from_file` methods, respectively.
+Dialog objects can be created programmatically, but let's explore how we can also easily create them from plain text! Whether you have a string or a text file, we can use the convenient :meth:`~sdialog.Dialog.from_str` or :meth:`~sdialog.Dialog.from_file` methods respectively.
 Both methods accept the same arguments and ``Dialog.from_str(text)`` is equivalent to ``Dialog.from_file("file.txt")`` when the file contains plain text.
-Below it is shown examples of three typical use cases:
+Let's walk through three common scenarios you might encounter:
 
 .. code-block:: python
 
@@ -98,7 +98,7 @@ Below it is shown examples of three typical use cases:
 
 **Operations Example**:
 
-Below is a compact walkthrough demonstrating common Dialog manipulations—creating a dialog programmatically, slicing (which preserves lineage), chaining text transformations, selective speaker filtering, speaker renaming, length/statistics queries, and safe iteration over derived copies.
+Now that we understand how to create dialogs, let's explore the powerful operations we can perform with them! Here's a hands-on walkthrough demonstrating common Dialog manipulations we'll be working with—creating a dialog programmatically, slicing (which preserves lineage), chaining text transformations, selective speaker filtering, speaker renaming, length/statistics queries, and safe iteration over derived copies.
 
 .. code-block:: python
 
@@ -152,7 +152,7 @@ All inherit :class:`~sdialog.base.BaseAttributeModel` and, as such, they support
 
 **Creating your own Personas**:
 
-Create custom personas by inheriting from :class:`~sdialog.personas.BasePersona` (equivalent to :class:`~sdialog.base.BaseAttributeModel`) or from any existing persona class to extend it further.
+Sometimes the built-in personas don't quite fit your specific use case—and that's perfectly fine! Let's create custom personas by inheriting from :class:`~sdialog.personas.BasePersona` (equivalent to :class:`~sdialog.base.BaseAttributeModel`) or from any existing persona class to extend it further.
 
 .. code-block:: python
 
@@ -180,7 +180,7 @@ Create custom personas by inheriting from :class:`~sdialog.personas.BasePersona`
 
 **Advanced Persona Creation with Field Documentation**:
 
-You can use Pydantic Field descriptions to document each attribute in your custom persona. These descriptions serve as guides for LLMs when generating persona objects via :class:`~sdialog.generators.PersonaGenerator`:
+Here's where things get even more interesting! We can use Pydantic Field descriptions to document each attribute in our custom persona. These descriptions serve as guides for LLMs when generating persona objects via :class:`~sdialog.generators.PersonaGenerator`. Let's see this in action:
 
 .. code-block:: python
 
@@ -259,7 +259,9 @@ Built-in Orchestrators:
 
 **Creating your own Orchestrators**:
 
-You can create custom orchestrators by inheriting from :class:`~sdialog.orchestrators.base.BaseOrchestrator` (for one-time instructions) or :class:`~sdialog.orchestrators.base.BasePersistentOrchestrator` (for persistent instructions). Implement the ``instruct(self, dialog, utterance)`` method to define your orchestration logic. The method receives the current :class:`~sdialog.Dialog` and the last utterance from the opposite agent (or ``None`` if it's the first turn).
+Ready to build your own orchestration logic? You can create custom orchestrators by inheriting from :class:`~sdialog.orchestrators.base.BaseOrchestrator` (for one-time instructions) or :class:`~sdialog.orchestrators.base.BasePersistentOrchestrator` (for persistent instructions). The key is implementing the ``instruct(self, dialog, utterance)`` method to define your orchestration logic. The method receives the current :class:`~sdialog.Dialog` and the last utterance from the opposite agent (or ``None`` if it's the first turn).
+
+Let's explore both types with practical examples:
 
 - **One-time Orchestrator Example**:
 
@@ -328,36 +330,56 @@ The generation system in SDialog provides powerful tools for creating synthetic 
 Attribute Generators
 ~~~~~~~~~~~~~~~~~~~~
 
-Attribute generators combine LLM intelligence with rule-based patterns to create structured objects with randomized or AI-generated content. They are perfect for creating diverse personas and contexts for your dialogue simulations.
+Let's dive into one of SDialog's most powerful features! Attribute generators combine LLM intelligence with rule-based patterns to create structured objects with randomized or AI-generated content. They are perfect for creating diverse personas and contexts for your dialogue simulations.
 
 Both generators derive from :class:`~sdialog.generators.base.BaseAttributeModelGenerator` and support flexible attribute generation rules:
 
 **PersonaGenerator** (:class:`~sdialog.generators.PersonaGenerator`)
     Creates diverse character profiles with demographic, behavioral, and professional attributes. Ideal for generating varied participants in dialogue scenarios.
 
+    Let's see how we can create sophisticated doctor personas where attributes intelligently depend on each other. In this example, we'll make the communication style adapt based on years of experience:
+
     .. code-block:: python
 
+        import random
         from sdialog.personas import Doctor
         from sdialog.generators import PersonaGenerator
 
-        # Create a generator for doctor personas
+        # Let's define a custom function to sample formality values based on experience
+        # Your function can take any of the persona attributes as keyword arguments
+        # In this case, we are interested in the years_of_experience attribute
+        def get_random_formality(years_of_experience=None, **kwargs):
+            # Base style on experience level
+            if years_of_experience < 3:
+                base_styles = ["enthusiastic", "eager to learn", "detailed"]
+            elif years_of_experience < 10:
+                base_styles = ["confident", "professional", "clear"]
+            else:
+                base_styles = ["authoritative", "concise", "experienced"]
+            return random.choice(base_styles)
+
+        # 1) Create a generator for doctor personas
         doctor_gen = PersonaGenerator(Doctor)
-        # Alternatively, setup generation for specific attributes (other than LLM-based)
+
+        # 2) Setup generation with interdependent attributes
         doctor_gen.set(
             specialty=["cardiology", "neurology", "oncology"],
-            years_of_experience="{5-20}",
-            formality=["formal", "casual", "friendly"]
+            years_of_experience="{2-25}",
+            formality=get_random_formality,  # Depends on experience
+            hurriedness=["low", "medium", "high"]
         )
 
-        # Generate diverse doctors
+        # 3) Generate diverse doctors with contextually appropriate communication styles
         doctor1 = doctor_gen.generate()
         doctor2 = doctor_gen.generate()
 
-        # Ask the LLM to generate multiple doctors at once
+        # 4) Let's generate 3 more doctors in one shot
         doctors_batch = doctor_gen.generate(n=3)  # Returns list of 3 doctors
 
 **ContextGenerator** (:class:`~sdialog.generators.ContextGenerator`)
     Generates rich contextual frameworks that define the setting, environment, and situational constraints for dialogues. Essential for creating realistic and consistent conversation backgrounds.
+
+    Now let's create varied hospital contexts to set the stage for our medical conversations:
 
     .. code-block:: python
 
@@ -388,10 +410,12 @@ The :meth:`~sdialog.generators.base.BaseAttributeModelGenerator.set` method acce
 Dialogue Generators
 ~~~~~~~~~~~~~~~~~~~
 
-Dialogue generators create complete conversations using different approaches, from direct LLM instruction to sophisticated persona-driven interactions.
+Now let's move on to creating complete conversations! Dialogue generators create full dialogues using different approaches, from direct LLM instruction to sophisticated persona-driven interactions.
 
 **DialogGenerator** (:class:`~sdialog.generators.DialogGenerator`)
     The foundational dialogue generator that creates conversations based on free-form instructions. Great for quick prototyping and simple dialogue generation tasks.
+
+    Let's start with a simple example—generating a medical consultation:
 
     .. code-block:: python
 
@@ -405,6 +429,8 @@ Dialogue generators create complete conversations using different approaches, fr
 
 **PersonaDialogGenerator** (:class:`~sdialog.generators.PersonaDialogGenerator`)
     Creates sophisticated dialogues by having two distinct personas or agents interact naturally. This generator produces more realistic and character-consistent conversations.
+
+    Here's how we can create a dialogue between a doctor and patient with their unique characteristics:
 
     .. code-block:: python
 
@@ -425,6 +451,8 @@ Dialogue generators create complete conversations using different approaches, fr
 
 **Paraphraser** (:class:`~sdialog.generators.Paraphraser`)
     Transforms existing dialogues following user-provided instructions. Useful for improving synthetic dialogues, adapting content for different styles, or data augmentation.
+
+    Let's see how we can make automated responses sound more natural and empathetic:
 
     .. code-block:: python
 
@@ -466,6 +494,8 @@ Categories:
 8. **Statistics / Frequency**: :class:`~sdialog.evaluation.StatsEvaluator` (mean/std/min/max/median), :class:`~sdialog.evaluation.MeanEvaluator`, :class:`~sdialog.evaluation.FrequencyEvaluator`.
 
 **Evaluation Examples:**
+
+Let's explore how to evaluate our generated dialogues using SDialog's comprehensive evaluation suite. We'll walk through different evaluation approaches to assess dialogue quality from multiple perspectives:
 
 .. code-block:: python
 
@@ -511,7 +541,7 @@ SDialog provides advanced tools for mechanistic interpretability and activation 
 
 **Activation Inspection:**
 
-:class:`~sdialog.interpretability.Inspector` registers PyTorch forward hooks on specified model layers to capture per-token activations during generation:
+Let's start exploring the inner workings of our models! :class:`~sdialog.interpretability.Inspector` registers PyTorch forward hooks on specified model layers to capture per-token activations during generation. This allows us to see what's happening inside the model as it generates responses:
 
 .. code-block:: python
 
@@ -539,7 +569,7 @@ SDialog provides advanced tools for mechanistic interpretability and activation 
 
 **Activation Steering:**
 
-:class:`~sdialog.interpretability.DirectionSteerer` enables targeted manipulation of model activations:
+Now for the exciting part—actually steering the model's behavior! :class:`~sdialog.interpretability.DirectionSteerer` enables targeted manipulation of model activations. This means we can guide the model's responses in specific directions:
 
 .. code-block:: python
 
@@ -562,6 +592,8 @@ SDialog provides advanced tools for mechanistic interpretability and activation 
     baseline_response = agent("I'm feeling really sad today")
 
 **Advanced Usage:**
+
+Ready to dive deeper? Here's how we can inspect multiple layers simultaneously and apply fine-grained steering control:
 
 .. code-block:: python
 
@@ -600,6 +632,8 @@ Centralized configuration lives in ``sdialog.config``:
 - Local model instances passed directly
 
 **Configuration Examples:**
+
+Let's configure SDialog to work with your preferred LLM backend. Here are some common configuration patterns:
 
 .. code-block:: python
 

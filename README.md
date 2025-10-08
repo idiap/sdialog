@@ -11,10 +11,10 @@
 ---
 SDialog is a modular Python toolkit for synthetic dialog generation, evaluation, and analysis. It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability—so you can generate reliable, controllable dialog data at scale.
 
-Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## ✨ Key features
-- Standard [Dialog](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#dialog) schema with JSON import/export _(aiming to help standardize dialog datasets with community support)_
+- Standard [Dialog](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#dialog) schema with JSON import/export _(aiming to standardize dialog datasets format [with your help 🙏](#-project-vision--community-call))_
 - Persona‑driven multi‑agent simulation with contexts, tools, and thoughts
 - Composable orchestration for precise control over behavior and flow
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
@@ -22,7 +22,7 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
 - Interoperability across OpenAI, HuggingFace, Ollama, AWS, and more
 
-If you are building controlled conversational simulations, benchmarking dialog models, producing synthetic training corpora, or probing internal model behavior, SDialog provides an end-to-end workflow.
+If you are building controlled multi‑agent conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
 
 ## ⚡ Installation
 
@@ -30,9 +30,9 @@ If you are building controlled conversational simulations, benchmarking dialog m
 pip install sdialog
 ```
 
-## 🏁 Quickstart: 60‑second tour
+## 🏁 Quickstart tour
 
-Short example showing personas, agents, a simple rule (orchestrator), and a tool.
+Here's a short, hands-on example showing personas, agents, a simple rule (orchestrator), and a tool.
 
 ```python
 import sdialog
@@ -41,14 +41,14 @@ from sdialog.agents import Agent
 from sdialog.personas import Persona
 from sdialog.orchestrators import SimpleReflexOrchestrator
 
-# Set your preferred backend/model and parameters
+# First, let's set our preferred backend/model and parameters
 sdialog.config.llm("openai:gpt-4.1", temperature=0.9)
 
-# Define personas
+# Let's define our personas
 alice = Persona(name="Alice", role="barista", personality="cheerful")
 bob   = Persona(name="Bob", role="customer", personality="curious")
 
-# (Optional) Define a concrete conversational context
+# (Optional) Let's add a concrete conversational context
 ctx = Context(
   location="Downtown cafe",
   environment="noisy, aromatic cafe with occasional grinder sounds",
@@ -56,26 +56,25 @@ ctx = Context(
   objects=["espresso machine", "menu board", "tip jar"]
 )
 
-# (Optional) Define tools for the agents (just plain Python functions)
-# Let's define a mock function for our agent to use as a tool
+# (Optional) Let's add a simple tool (just a plain Python function)
+# We'll use a tiny mock function our agent can call as a tool
 def lookup_menu(item: str) -> dict:
     return {"item": item, "specials": ["vanilla latte", "cold brew"]}
 
-# (Optional) Define orchestrators for the agents
-# Let's define a simple rule-based orchestrator
+# (Optional) Let's include a small rule-based orchestrator
 react = SimpleReflexOrchestrator(
     condition=lambda utt: "decaf" in utt.lower(),
     instruction="Explain decaf options and suggest one."
 )
 
-# Create the agents
+# Now we create the agents
 barista = Agent(persona=alice, tools=[lookup_menu])
 customer = Agent(persona=bob, first_utterance="Hi!")
 
-# (Optional) Add orchestrators to your agent using pipe-like composition
+# (Optional) We can attach orchestrators to an agent using pipe-like composition
 barista = barista | react
 
-# Generate three dialogs!
+# Let's generate three dialogs!
 for ix in range(3):
     dialog = customer.dialog_with(barista, context=ctx)
     dialog.print(orchestration=True)
@@ -84,41 +83,107 @@ for ix in range(3):
 > [!NOTE]
 > - See [orchestration tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/3.multi-agent%2Borchestrator_generation.ipynb) and [agents with tools and thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb).
 > - Dialogs are [rich objects](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#sdialog.Dialog) with helper methods (filter, slice, transform, etc.) that can be easily exported and loaded.
+> - Next: see [Loading and saving dialogs](#loading-and-saving-dialogs) and [Auto-generating personas and contexts](#auto-generating-personas-and-contexts) for persistence and controlled diversity.
 
-Load a saved dialog later:
+### 💾 Loading and saving dialogs
+
+[Dialog](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#dialog)s are JSON‑serializable and can be created from multiple formats. After generating one you can persist it, then reload later for evaluation, transformation, or mixing with real data.
+
 ```python
 from sdialog import Dialog
-my_dialog = Dialog.from_file("dialog_0.json")
-my_dialog.print()
+
+# Load from JSON (generated by SDialog)
+dialog = Dialog.from_file("dialog_0.json")
+
+# Create from plain text files or strings - perfect for converting existing datasets!
+dialog_from_txt = Dialog.from_str("""
+Alice: Hello there! How are you today?
+Bob: I'm doing great, thanks for asking.
+Alice: That's wonderful to hear!
+""")
+# Or, equivalently if the content is in a txt file
+dialog_from_txt = Dialog.from_file("conversation.txt")
+
+# Load from CSV files with custom templates
+dialog_from_csv = Dialog.from_file("conversation.csv",
+                                   csv_speaker_col="speaker",
+                                   csv_text_col="value",)
+
+# All Dialog objects have rich manipulation methods
+dialog.filter("Alice").rename_speaker("Alice", "Customer").upper().to_file("processed.json")
+avg_words_turn = sum(len(turn) for turn in dialog) / len(dialog)
 ```
 
-Generate personas and contexts for your agents automatically when you need diversity, and use the [`.set()`](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#sdialog.generators.base.BaseAttributeModelGenerator.set) method when you need more control:
+### 🧬 Auto-generating personas and contexts
+
+Use [generators](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) to fill in (or selectively control) persona/context attributes using LLMs or other data sources (functions, CSV files, inline prompts). The `.set()` method lets you override how individual attributes are produced.
 
 ```python
 from sdialog.personas import Doctor, Patient
 from sdialog.generators import PersonaGenerator, ContextGenerator
 from sdialog import Context
 
-# By default, all attribute values will be LLM generated.
+# By default, unspecified attributes are LLM generated
 doc = PersonaGenerator(Doctor(specialty="Cardiology")).generate()
 pat = PersonaGenerator(Patient(symptoms="chest pain")).generate()
 
-# Alternatively, specify how you want each attribute to be generated
-ctx_base = Context(location="emergency room")
-ctx_gen = ContextGenerator(ctx_base)
+# Optionally specify generation sources per attribute
+ctx_gen = ContextGenerator(Context(location="emergency room"))
 ctx_gen.set(
-    objects=get_objects_from_db,  # A user-defined function
-    circumstances="{csv:circumstances:./data/circumstances.csv}",  # A CSV file
-    goals="{llm:Suggest a realistic goal for the context}"  # LLM but with specific instruction, etc.
+  objects=get_random_object,                        # user-defined function
+  circumstances="{csv:circumstance:./data/circumstances.csv}",  # CSV file values
+  goals="{llm:Suggest a realistic goal for the context}"         # targeted LLM instruction
 )
 ctx = ctx_gen.generate()
 ```
+
 > [!TIP]
-> 🕹️ 👉 Check out [our demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) in Colab to play around with sdialog.
+> 🕹️ 👉 Try the [demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) to experiment with generators.
+
+### 🧪 Testing remote systems with simulated users
+
+SDialog can also easily act as a controllable test harness for any (OpenAI‑compatible) conversational backend. Create realistic or adversarial user personas to role‑play against your deployed system:
+
+* Black‑box functional checks (Does the system follow instructions? Handle edge cases?)
+* Persona / use‑case coverage (Different goals, emotions, domains)
+* Regression testing (Run the same persona batch each release; diff dialogs)
+* Safety / robustness probing (Angry, confused, or noisy users)
+* Automated evaluation (Pipe generated dialogs directly into evaluators below)
+
+Core idea: your remote system is wrapped as an `Agent`; simulated users are `Agent`s with personas producing diverse conversation trajectories, all recorded as `Dialog` objects you can save, diff, and score.
+
+Below is a minimal example where an "angry customer" interacts once with a mock remote endpoint:
+
+```python
+# Our remote system (your conversational backend exposing an OpenAI-compatible API)
+system = Agent(
+  model="my/super-llm",  # Model name exposed by your server
+  openai_api_base="http://my-endpoint.com:8000/v1",  # Base URL of the service
+  openai_api_key="EMPTY",  # Or a real key if required
+  name="System"
+)
+
+# Let's manually define one (minimal) synthetic customer persona
+angry_customer = Customer(
+  name="Riley",
+  issue="Billing error on last invoice",
+  issue_description="Charged twice for the same month",
+  anger_level="high",
+  times_called=3,
+)
+
+simulated_customer = Agent(persona=angry_customer, name="Customer")
+
+# Let's make the system talk to our simulated customer once
+dialog = system.dialog_with(simulated_customer)
+dialog.to_file("dialog_0.json")
+```
+
+Next, evaluate these dialogs or orchestrate agents with more complex flows using rule/LLM hybrid orchestrators (see [tutorials 3 & 7](https://github.com/idiap/sdialog/tree/main/tutorials)).
 
 ## 📊 Evaluate and compare
 
-Use built‑in metrics (readability, flow, linguistic features, LLM judges) or easily create new ones, then aggregate and compare datasets via `DatasetComparator`.
+Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation) (readability, flow, linguistic features, LLM judges) or easily create new ones, then aggregate and compare datasets via `DatasetComparator`.
 
 ```python
 from sdialog.evaluation import LLMJudgeRealDialog, LinguisticFeatureScore
@@ -149,8 +214,11 @@ comparator.plot()
 Attach Inspectors to capture per‑token activations and optionally steer (add/ablate directions) to analyze or intervene in model behavior.
 
 ```python
+import sdialog
 from sdialog.interpretability import Inspector
 from sdialog.agents import Agent
+
+sdialog.config.llm("huggingface:meta-llama/Llama-3.2-3B-Instruct")
 
 agent = Agent(name="Bob")
 inspector = Inspector(target="model.layers.16.post_attention_layernorm")
@@ -175,7 +243,7 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 
 ## 🔧 Interoperability
 
-Many backends supported, just use `"BACKEND:MODEL"` string format to either set a global default LLM for all components or pass one to each component:
+Many [backends supported](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer), just use `"BACKEND:MODEL"` string format to either set a global default LLM for all components or pass one to each component:
 
 ```python
 import sdialog
@@ -204,12 +272,32 @@ my_agent = Agent(model="amazon:anthropic.claude-3-5-sonnet-20240620-v1:0",
 - [LLM-friendly docs](https://sdialog.readthedocs.io/en/latest/llm.txt) for AI coding assistants (**GitHub Copilot**, etc.) following the [llm.txt specification](https://llmstxt.org/), in your chat use:
   ```
   #fetch https://sdialog.readthedocs.io/en/latest/llm.txt
-  Your prompt using sdialog here...
+  Your prompt to use sdialog here...
   ```
 
-## 🤝 Contributing
+## 🌍 Project Vision & Community Call
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). We welcome issues, feature requests, and pull requests. If you want to add personas, agents, orchestrators, generators, evaluators, or tutorials, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍
+To accelerate open, rigorous, and reproducible conversational AI research, SDialog invites the community to collaborate and help shape the future of open dialogue generation.
+
+### 🤝 How You Can Help
+
+Contributions of any size are welcome and help shape the future of open dialogue generation:
+
+- **🗂️ Dataset Standardization**: Help convert existing dialogue datasets to SDialog format. Currently, each dataset stores dialogues in different formats, making cross-dataset analysis and model evaluation challenging. **Converted datasets are made available as Hugging Face datasets** in the [SDialog organization](https://huggingface.co/datasets/sdialog/) for easy access and integration.
+- **🔧 Component Development**: Create new personas, orchestrators, evaluators, generators, or backend integrations
+- **📊 Evaluation & Benchmarks**: Design new metrics, evaluation frameworks, or comparative studies
+- **🧠 Interpretability Research**: Develop new analysis tools, steering methods, or mechanistic insights
+- **📖 Documentation & Tutorials**: Improve guides, add examples, or create educational content
+- **🐛 Issues & Discussions**: Report bugs, request features, or share research ideas and use cases
+
+> [!NOTE]
+> **Example**: Check out [Primock-57](https://huggingface.co/datasets/sdialog/Primock-57), a sample dataset already available in SDialog format on Hugging Face.
+> 
+> If you have a dialogue dataset you'd like to convert to SDialog format, need help with the conversion process, or want to contribute in any other way, please [open an issue](https://github.com/idiap/sdialog/issues) or reach out to us. We're happy to help and collaborate!
+
+### 💪 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). We welcome issues, feature requests, and pull requests. If you want to **contribute to the project**, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. All-contributors list:
 
