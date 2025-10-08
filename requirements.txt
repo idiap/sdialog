@@ -28,6 +28,7 @@ langchain>=0.3.26; python_version >= "3.10"
 
 # === Machine learning & NLP dependencies ===
 sentence-transformers
+huggingface_hub
 simpleneighbors
 scikit-learn
 scipy

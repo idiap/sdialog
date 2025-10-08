@@ -22,6 +22,7 @@ import json
 import csv
 import logging
 import importlib
+import tempfile
 
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
@@ -459,6 +460,92 @@ class Dialog(BaseModel):
                     csv_writer.writerow([turn.speaker, turn.text])
             else:
                 writer.write(self.description())
+
+    @staticmethod
+    def from_huggingface(repo_id: str,
+                         local_dir: str = None,
+                         collapse_consecutive_speakers: bool = False,
+                         collapse_separator: str = "\n") -> Union[List["Dialog"], Dict[str, List["Dialog"]]]:
+        """
+        Loads dialogues from a HuggingFace dataset.
+
+        This method downloads a dataset from HuggingFace Hub and loads dialogues from it.
+        The dataset must follow the SDialog format with a 'data' folder containing dialogue files.
+        If the data folder contains train/test/val split subdirectories, dialogues are loaded
+        from all splits and returned as a dictionary mapping split names to dialogue lists.
+        Otherwise, all dialogues from the data folder are returned as a single list.
+
+        :param repo_id: HuggingFace repository ID (e.g., "sdialog/Primock-57").
+        :type repo_id: str
+        :param local_dir: Local directory to download to. If None, uses a temporary directory.
+        :type local_dir: str, optional
+        :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker.
+        :type collapse_consecutive_speakers: bool
+        :param collapse_separator: Separator used when collapsing consecutive turns.
+        :type collapse_separator: str
+        :return: List of dialogs or dict mapping splits to lists of dialogs.
+        :rtype: Union[List[Dialog], Dict[str, List[Dialog]]]
+        :raises ImportError: If huggingface_hub is not installed.
+        :raises ValueError: If the dataset is not a valid sdialog dataset.
+        """
+        from huggingface_hub import snapshot_download
+
+        # Use temporary directory if local_dir is not provided
+        temp_dir = None
+        if local_dir is None:
+            temp_dir = tempfile.mkdtemp()
+            local_dir = temp_dir
+
+        try:
+            # Download the dataset
+            snapshot_download(
+                repo_id=repo_id,
+                repo_type="dataset",
+                local_dir=local_dir,
+            )
+
+            # Check if dataset has 'data' folder
+            data_dir = os.path.join(local_dir, "data")
+            if not os.path.exists(data_dir):
+                raise ValueError(f"'{repo_id}' is not a valid sdialog dataset. "
+                                 "Expected 'data' folder not found in downloaded dataset.")
+
+            # Check for split folders (train, test, val)
+            split_folders = ["train", "test", "val"]
+            existing_splits = {}
+
+            for split in split_folders:
+                split_path = os.path.join(data_dir, split)
+                if os.path.exists(split_path) and os.path.isdir(split_path):
+                    existing_splits[split] = split_path
+
+            # If split folders exist, load dialogs from all splits
+            if existing_splits:
+                result = {}
+                for split_name, split_path in existing_splits.items():
+                    dialogs = Dialog.from_file(
+                        split_path,
+                        type="json",
+                        collapse_consecutive_speakers=collapse_consecutive_speakers,
+                        collapse_separator=collapse_separator
+                    )
+                    result[split_name] = dialogs
+                return result
+            else:
+                # No split folders, load all dialogs from data directory
+                dialogs = Dialog.from_file(
+                    data_dir,
+                    type="json",
+                    collapse_consecutive_speakers=collapse_consecutive_speakers,
+                    collapse_separator=collapse_separator
+                )
+                return dialogs
+
+        finally:
+            # Clean up temporary directory if we created one
+            if temp_dir is not None:
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     @staticmethod
     def from_file(path: str,
