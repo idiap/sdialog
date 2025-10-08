@@ -10,12 +10,11 @@ import numpy as np
 import soundfile as sf
 from typing import List, Union
 from sdialog.audio.audio_utils import BodyPosture
-from sdialog.audio.room import Room, AudioSource, Position3D, microphone_position_to_room_position
+from sdialog.audio.room import Room, AudioSource, Position3D
 from sdialog.audio.room import (
     DoctorPosition,
     PatientPosition,
-    SoundEventPosition,
-    MicrophonePosition,
+    SoundEventPosition
 )
 
 
@@ -25,7 +24,11 @@ class RoomAcousticsSimulator:
     sound sources provided and microphone(s) setup.
     """
 
-    def __init__(self, room: Room = None, sampling_rate=44_100):
+    def __init__(
+        self,
+        room: Room = None,
+        sampling_rate=44_100
+    ):
         """
         Initialize the room acoustics simulator.
         """
@@ -52,7 +55,11 @@ class RoomAcousticsSimulator:
             )
         )
 
-    def _create_pyroom(self, room: Room, sampling_rate=44_100):
+    def _create_pyroom(
+        self,
+        room: Room,
+        sampling_rate=44_100
+    ):
         """
         Create a pyroomacoustics room based on the room definition.
         """

@@ -12,11 +12,11 @@ import numpy as np
 from tqdm import tqdm
 import soundfile as sf
 from sdialog import Dialog, Turn
+from sdialog.audio.room import Room
 from sdialog.personas import BasePersona
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_utils import AudioUtils
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.room import MicrophonePosition, Room
 from sdialog.audio.voice_database import BaseVoiceDatabase
 from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 

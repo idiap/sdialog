@@ -138,16 +138,6 @@ class AudioPipeline:
             room_name: Optional[str] = None) -> AudioDialog:
         """
         Run the audio pipeline.
-        Args:
-            dialog: The text dialog object.
-            environment: The environment containing the room (Room) and microphone position (MicrophonePosition).
-            do_step_1: Whether to do step 1 (generate the utterances audios).
-            do_step_2: Whether to do step 2 (generate the timeline from the utterances audios).
-            do_step_3: Whether to do step 3 (generate the room accoustic).
-            dialog_dir_name: Override the name of the directory containing the dialog audios.
-            room_name: Override the name of the room (only for the 3rd step).
-        Returns:
-            The audio enriched dialog.
         """
 
         # Create variables from the environment

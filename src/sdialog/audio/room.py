@@ -151,6 +151,7 @@ class MicrophonePosition(str, Enum):
     WALL_MOUNTED = "wall_mounted"
     CEILING_CENTERED = "ceiling_centered"
     CHEST_POCKET = "chest_pocket"
+    CUSTOM = "custom"
 
 
 class WallMaterial(str, Enum):
@@ -458,6 +459,51 @@ class Room(BaseModel):
 
                 draw.text((text_x, text_y), furniture_name, fill=furniture.color.value, font=font)
 
+        #########################
+        # Drawing microphone position
+        #########################
+        # Convert microphone coordinates to pixel coordinates relative to the room
+        # Microphone coordinates are in meters, need to convert to pixels and position relative to room
+        mic_x_px = start_x + int(self.mic_position_3d.x * scale)
+        mic_y_px = start_y + int(self.mic_position_3d.y * scale)
+
+        # Ensure microphone is within room bounds
+        mic_x_px = max(start_x + 5, min(mic_x_px, start_x + room_width_px - 5))
+        mic_y_px = max(start_y + 5, min(mic_y_px, start_y + room_length_px - 5))
+
+        # Draw microphone as a circle
+        draw.circle(
+            (mic_x_px, mic_y_px),
+            radius=8,
+            fill='red',
+            outline='black',
+            width=2
+        )
+
+        # Add microphone label
+        mic_label = 'Mic' if self.mic_position != MicrophonePosition.CUSTOM else 'Custom Mic'
+        if font:
+            # Get text size for positioning
+            bbox = draw.textbbox((0, 0), mic_label, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            # Position text below the microphone circle
+            text_x = mic_x_px - text_width // 2
+            text_y = mic_y_px + 12  # Position below the circle
+
+            # Make sure text doesn't go outside the image bounds
+            if text_x < 0:
+                text_x = 5
+            elif text_x + text_width > 512:
+                text_x = 512 - text_width - 5
+            if text_y < 0:
+                text_y = 5
+            elif text_y + text_height > 512:
+                text_y = 512 - text_height - 5
+
+            draw.text((text_x, text_y), mic_label, fill='red', font=font)
+
         return img
 
     def model_post_init(self, __context: Any) -> None:
@@ -476,7 +522,11 @@ class Room(BaseModel):
                 depth=0.0
             )
 
-        self.mic_position_3d = microphone_position_to_room_position(self, self.mic_position)
+        self.mic_position_3d = microphone_position_to_room_position(
+            self,
+            self.mic_position,
+            position_3D=self.mic_position_3d
+        )
 
         if self.name == "Room":
             self.name = f"{self.name}_{self.id}"
@@ -513,20 +563,14 @@ class Room(BaseModel):
 
 def microphone_position_to_room_position(
     room: Room,
-    mic_pos: MicrophonePosition
+    mic_pos: MicrophonePosition,
+    position_3D: Optional[Position3D] = None
 ) -> Position3D:
     """
     Convert semantic microphone position enum to actual 3D coordinates within the room.
 
     This function maps microphone placement descriptions to concrete 3D coordinates
     that can be used for acoustic simulation.
-
-    Args:
-        room: Room object containing dimensions and layout information
-        mic_pos: MicrophonePosition enum value
-
-    Returns:
-        Position3D: 3D coordinates (x, y, z) in meters within the room
     """
     width, length, height = (
         room.dimensions.width,
@@ -566,6 +610,10 @@ def microphone_position_to_room_position(
     elif mic_pos == MicrophonePosition.CHEST_POCKET:
         doctor_pos = (room.furnitures["desk"].x, room.furnitures["desk"].y)  # Doctor at desk
         return clamp_position(doctor_pos.x, doctor_pos.y, BodyPosture.STANDING.value-0.3)
+    elif mic_pos == MicrophonePosition.CUSTOM:
+        if position_3D is None:
+            raise ValueError("Custom position is required")
+        return position_3D
 
     # Fallback to center position at monitor height
     return clamp_position(
