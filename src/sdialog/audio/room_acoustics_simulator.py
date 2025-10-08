@@ -29,6 +29,7 @@ class RoomAcousticsSimulator:
         """
         Initialize the room acoustics simulator.
         """
+        import pyroomacoustics as pra
 
         self.sampling_rate = sampling_rate
         self.ref_db = -65  # - 45 dB
@@ -40,17 +41,25 @@ class RoomAcousticsSimulator:
 
         self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
 
-        self.sim_position_mic = self.room.mic_position_3d
+        # Remove existing microphone and add new one
+        if hasattr(self._pyroom, "mic_array") and self._pyroom.mic_array is not None:
+            self._pyroom.mic_array = None
 
-        self.set_microphone_position(self.sim_position_mic.to_list())
+        # Add microphone at new position
+        self._pyroom.add_microphone_array(
+            pra.MicrophoneArray(
+                np.array([self.room.mic_position_3d.to_list()]).T, self._pyroom.fs
+            )
+        )
 
     def _create_pyroom(self, room: Room, sampling_rate=44_100):
         """
         Create a pyroomacoustics room based on the room definition.
         """
-
         import pyroomacoustics as pra
+
         e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
+
         # max_order = 17  # Number of reflections
         return pra.ShoeBox(
             room.dimensions,
@@ -58,46 +67,6 @@ class RoomAcousticsSimulator:
             materials=pra.Material(e_absorption),
             max_order=max_order,
         )
-
-    def set_microphone_position(
-        self,
-        mic_pos: Union[MicrophonePosition, List[float], Position3D, str]
-    ):
-        """
-        Set microphone position using MicrophonePosition enum or explicit coordinates.
-
-        Args:
-            mic_pos: Can be MicrophonePosition enum, list [x,y,z], or Position3D object
-        """
-        import pyroomacoustics as pra
-
-        if isinstance(mic_pos, MicrophonePosition):
-            position_3d = microphone_position_to_room_position(self.room, mic_pos)
-        elif isinstance(mic_pos, list):
-            position_3d = Position3D.from_list(mic_pos)
-        elif isinstance(mic_pos, Position3D):
-            position_3d = mic_pos
-        elif isinstance(mic_pos, str):
-            mic_pos = MicrophonePosition(mic_pos)
-            position_3d = microphone_position_to_room_position(self.room, mic_pos)
-        else:
-            raise ValueError(
-                "mic_pos must be MicrophonePosition enum, list [x,y,z], or Position3D object"
-            )
-
-        self.sim_position_mic = position_3d
-
-        # Remove existing microphone and add new one
-        if hasattr(self._pyroom, "mic_array") and self._pyroom.mic_array is not None:
-            # Clear existing microphone array
-            self._pyroom.mic_array = None
-
-        # Add microphone at new position
-        mic_array = pra.MicrophoneArray(
-            np.array([self.sim_position_mic.to_list()]).T, self._pyroom.fs
-        )
-        self._pyroom.add_microphone_array(mic_array)
-        logging.info(f"  Microphone set to position {self.sim_position_mic.to_list()}")
 
     def _add_sources(
         self,

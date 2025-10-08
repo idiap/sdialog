@@ -18,7 +18,6 @@ from sdialog import Dialog
 from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
-from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase
 from sdialog.audio import (
@@ -153,11 +152,6 @@ class AudioPipeline:
 
         # Create variables from the environment
         room = environment["room"] if "room" in environment else None
-        microphone_position = (
-            environment["microphone_position"]
-            if "microphone_position" in environment
-            else MicrophonePosition.CEILING_CENTERED
-        )
 
         # Override the dialog directory name if provided otherwise use the dialog id as the directory name
         dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
@@ -258,9 +252,6 @@ class AudioPipeline:
             if not isinstance(environment["room"], Room):
                 raise ValueError("The room must be a Room object")
 
-            if not isinstance(environment["microphone_position"], MicrophonePosition):
-                raise ValueError("The microphone position must be a MicrophonePosition object")
-
             # Check if the step 2 is not done
             if not do_step_2 and len(dialog.audio_step_2_filepath) < 1:
 
@@ -289,7 +280,6 @@ class AudioPipeline:
             dialog: AudioDialog = generate_audio_room_accoustic(
                 dialog=dialog,
                 room=room,
-                microphone_position=microphone_position,
                 dialog_directory=dialog_directory,
                 room_name=room_name
             )

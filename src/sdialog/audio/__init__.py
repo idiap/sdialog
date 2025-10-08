@@ -126,7 +126,6 @@ def save_utterances_audios(
 def generate_audio_room_accoustic(
         dialog: AudioDialog,
         room: Room,
-        microphone_position: MicrophonePosition,
         dialog_directory: str,
         room_name: str) -> AudioDialog:
     """
@@ -135,9 +134,6 @@ def generate_audio_room_accoustic(
 
     # Create the room acoustics simulator
     room_acoustics = RoomAcousticsSimulator(room=room)
-
-    # Add the microphone to the room acoustics simulator
-    room_acoustics.set_microphone_position(mic_pos=microphone_position)
 
     # Simulate the audio
     logging.info("simulate sources:")
@@ -171,7 +167,7 @@ def generate_audio_room_accoustic(
 
     dialog.audio_step_3_filepaths[room_name] = {
         "audio_path": current_room_audio_path,
-        "microphone_position": microphone_position,
+        "microphone_position": room.mic_position,
         "room_name": room_name,
         "room": room
     }
