@@ -10,8 +10,7 @@ import numpy as np
 import soundfile as sf
 from typing import List, Union
 from sdialog.audio.audio_utils import BodyPosture
-from sdialog.audio.room import Room, AudioSource, Position3D
-from sdialog.audio.audio_scaper_utils import microphone_position_to_room_position
+from sdialog.audio.room import Room, AudioSource, Position3D, microphone_position_to_room_position
 from sdialog.audio.room import (
     DoctorPosition,
     PatientPosition,
@@ -24,22 +23,6 @@ class RoomAcousticsSimulator:
     """
     Simulates sound based on room acoustics based on room definition,
     sound sources provided and microphone(s) setup.
-
-     Example:
-        from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-        from sdialog.audio.room import MicrophonePosition
-
-        # Create room with specific microphone position
-        room = MedicalRoomGenerator().generate(RoomRole.CONSULTATION)
-        room_acoustics = RoomAcousticsSimulator(room)
-
-        # Change microphone position using enum
-        room_acoustics.set_microphone_position(MicrophonePosition.CEILING_CENTERED)
-        # Or use explicit coordinates
-        room_acoustics.set_microphone_position([2.0, 1.5, 1.8])
-
-        # Add audio sources and simulate
-        audio = room_acoustics.simulate(audio_sources)
     """
 
     def __init__(self, room: Room = None, sampling_rate=44_100):
@@ -57,13 +40,9 @@ class RoomAcousticsSimulator:
 
         self._pyroom = self._create_pyroom(self.room, self.sampling_rate)
 
-        # Set microphone position based on room's mic_position setting
-        self.mic_position = microphone_position_to_room_position(
-            self.room,
-            self.room.mic_position
-        )
+        self.sim_position_mic = self.room.mic_position_3d
 
-        self.set_microphone_position(self.mic_position.to_list())
+        self.set_microphone_position(self.sim_position_mic.to_list())
 
     def _create_pyroom(self, room: Room, sampling_rate=44_100):
         """
@@ -106,7 +85,7 @@ class RoomAcousticsSimulator:
                 "mic_pos must be MicrophonePosition enum, list [x,y,z], or Position3D object"
             )
 
-        self.mic_position = position_3d
+        self.sim_position_mic = position_3d
 
         # Remove existing microphone and add new one
         if hasattr(self._pyroom, "mic_array") and self._pyroom.mic_array is not None:
@@ -115,10 +94,10 @@ class RoomAcousticsSimulator:
 
         # Add microphone at new position
         mic_array = pra.MicrophoneArray(
-            np.array([self.mic_position.to_list()]).T, self._pyroom.fs
+            np.array([self.sim_position_mic.to_list()]).T, self._pyroom.fs
         )
         self._pyroom.add_microphone_array(mic_array)
-        logging.info(f"  Microphone set to position {self.mic_position.to_list()}")
+        logging.info(f"  Microphone set to position {self.sim_position_mic.to_list()}")
 
     def _add_sources(
         self,

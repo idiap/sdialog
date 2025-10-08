@@ -9,11 +9,9 @@ import hashlib
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass
-from sdialog.audio.audio_utils import Furniture
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
-
-# from pyroomacoustics.directivities.analytic import Omnidirectional
+from sdialog.audio.audio_utils import BodyPosture, Furniture
 
 
 @dataclass
@@ -275,7 +273,8 @@ class Room(BaseModel):
 
     dimensions: Dimensions3D = Field(default_factory=lambda: Dimensions3D(2, 2.5, 3))
 
-    mic_position: MicrophonePosition = MicrophonePosition.MONITOR
+    mic_position: MicrophonePosition = MicrophonePosition.CEILING_CENTERED
+    mic_position_3d: Position3D = None
 
     # Furniture available in the room
     furnitures: dict[str, Furniture] = {}
@@ -462,6 +461,23 @@ class Room(BaseModel):
         return img
 
     def model_post_init(self, __context: Any) -> None:
+        """
+        Post init function to set the microphone position 3D.
+        """
+
+        # if the user override the center of the room, add it to the furnitures
+        if "center" not in self.furnitures:
+            self.furnitures["center"] = Furniture(
+                name="center",
+                x=self.dimensions.width * 0.50,
+                y=self.dimensions.length * 0.50,
+                width=0.0,
+                height=0.0,
+                depth=0.0
+            )
+
+        self.mic_position_3d = microphone_position_to_room_position(self, self.mic_position)
+
         if self.name == "Room":
             self.name = f"{self.name}_{self.id}"
 
@@ -477,7 +493,8 @@ class Room(BaseModel):
             "dimensions": self.dimensions.to_list(),
             "reverberation_time_ratio": self.reverberation_time_ratio,
             "mic_type": self.mic_type.value,
-            "mic_position": self.mic_position.value
+            "mic_position": self.mic_position.value,
+            "mic_position_3d": self.mic_position_3d.to_list()
         }
 
     def get_hash(self) -> str:
@@ -492,3 +509,67 @@ class Room(BaseModel):
             f"(dimentions: {str(self.dimensions)}, reverberation_time_ratio: {self.reverberation_time_ratio})"
             f"(aspect_ratio: {self.aspect_ratio})"
         )
+
+
+def microphone_position_to_room_position(
+    room: Room,
+    mic_pos: MicrophonePosition
+) -> Position3D:
+    """
+    Convert semantic microphone position enum to actual 3D coordinates within the room.
+
+    This function maps microphone placement descriptions to concrete 3D coordinates
+    that can be used for acoustic simulation.
+
+    Args:
+        room: Room object containing dimensions and layout information
+        mic_pos: MicrophonePosition enum value
+
+    Returns:
+        Position3D: 3D coordinates (x, y, z) in meters within the room
+    """
+    width, length, height = (
+        room.dimensions.width,
+        room.dimensions.length,
+        room.dimensions.height,
+    )
+
+    def clamp_position(x, y, z):
+        """Ensure position is within room bounds with safety margin"""
+        margin = 0.1  # 10cm safety margin from walls (except ceiling)
+        x = max(margin, min(x, width - margin))
+        y = max(margin, min(y, length - margin))
+        z = max(0.1, min(z, height - 0.05))  # Smaller top margin for ceiling mics
+        return Position3D.from_list([x, y, z])
+
+    # TODO: Make more dynamic
+
+    # Map microphone positions
+    if mic_pos == MicrophonePosition.TABLE_SMARTPHONE:
+        return clamp_position(
+            room.furnitures["desk"].x + 0.3,
+            room.furnitures["desk"].y + 0.2,
+            room.furnitures["desk"].get_top_z()
+        )
+    elif mic_pos == MicrophonePosition.MONITOR:
+        return clamp_position(
+            room.furnitures["monitor"].x + 0.1,
+            room.furnitures["monitor"].y,
+            room.furnitures["monitor"].get_top_z()
+        )
+    elif mic_pos == MicrophonePosition.WALL_MOUNTED:
+        wall_x = width * 0.95  # Near far wall
+        wall_y = length * 0.6  # Center-ish of the wall
+        return clamp_position(wall_x, wall_y, BodyPosture.STANDING.value)
+    elif mic_pos == MicrophonePosition.CEILING_CENTERED:
+        return clamp_position(room.furnitures["center"].x, room.furnitures["center"].y, height - 0.1)
+    elif mic_pos == MicrophonePosition.CHEST_POCKET:
+        doctor_pos = (room.furnitures["desk"].x, room.furnitures["desk"].y)  # Doctor at desk
+        return clamp_position(doctor_pos.x, doctor_pos.y, BodyPosture.STANDING.value-0.3)
+
+    # Fallback to center position at monitor height
+    return clamp_position(
+        room.furnitures["center"].x,
+        room.furnitures["center"].y,
+        room.furnitures["monitor"].get_top_z()
+    )

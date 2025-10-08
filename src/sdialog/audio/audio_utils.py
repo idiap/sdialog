@@ -29,12 +29,19 @@ class Furniture(BaseModel):
 
     x: float  # x-axis in meters
     y: float  # y-axis in meters
+    z: float = 0.0  # z-axis in meters
 
     width: float  # width in meters
     height: float  # height in meters
     depth: float  # depth in meters
 
     color: RGBAColor = RGBAColor.RED
+
+    def get_top_z(self) -> float:
+        """
+        Get the z-axis for the top of the furniture.
+        """
+        return self.z + self.height
 
 
 # TODO: Add Float as heritance for the serialization of the model

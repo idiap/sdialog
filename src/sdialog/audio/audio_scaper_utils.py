@@ -3,8 +3,8 @@ import shutil
 import logging
 
 import scaper
+from sdialog.audio.room import AudioSource
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.room import AudioSource, Position3D, MicrophonePosition, Room
 from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
 
 
@@ -185,80 +185,3 @@ def generate_dscaper_timeline(
         logging.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
 
     return dialog
-
-
-def microphone_position_to_room_position(
-    room: Room,
-    mic_pos: MicrophonePosition
-) -> Position3D:
-    """
-    Convert semantic microphone position enum to actual 3D coordinates within the room.
-
-    This function maps microphone placement descriptions to concrete 3D coordinates
-    that can be used for acoustic simulation.
-
-    Args:
-        room: Room object containing dimensions and layout information
-        mic_pos: MicrophonePosition enum value
-
-    Returns:
-        Position3D: 3D coordinates (x, y, z) in meters within the room
-
-    Standard microphone placement assumptions as in enum MicrophonePosition:
-    - TABLE_SMARTPHONE: On desk surface at standard height
-    - MONITOR: Near computer monitor (on/beside desk)
-    - WALL_MOUNTED: On wall at speaking height
-    - CEILING_CENTERED: Center of ceiling
-    - CHEST_POCKET: At doctor's chest level (wearable mic)
-
-    Example:
-        >>> from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
-        >>> room = Room(dimensions=Dimensions3D(4.0, 3.0, 3.0))
-        >>> mic_pos = MicrophonePosition.MONITOR
-        >>> coord = RoomAcousticsSimulator.microphone_position_to_room_position(room, mic_pos)
-        >>> print(f"Microphone position: ({coord.x:.1f}, {coord.y:.1f}, {coord.z:.1f})")
-        Microphone position: (1.2, 0.4, 1.2)
-    """
-    width, length, height = (
-        room.dimensions.width,
-        room.dimensions.length,
-        room.dimensions.height,
-    )
-
-    # Define standard furniture positions (same as speaker positioning)
-    desk_pos = (width * 0.25, length * 0.15)  # Near corner, away from door
-    center_pos = (width * 0.5, length * 0.5)  # Room center
-
-    # Heights for different microphone placements
-    desk_height = 0.8  # Standard desk height
-    monitor_height = 1.2  # Monitor/webcam height
-    wall_mount_height = 1.5  # Wall-mounted mic height
-    ceiling_height = height - 0.1  # Just below ceiling
-    chest_height = 1.4  # Chest-worn microphone height
-
-    def clamp_position(x, y, z):
-        """Ensure position is within room bounds with safety margin"""
-        margin = 0.1  # 10cm safety margin from walls (except ceiling)
-        x = max(margin, min(x, width - margin))
-        y = max(margin, min(y, length - margin))
-        z = max(0.1, min(z, height - 0.05))  # Smaller top margin for ceiling mics
-        return Position3D.from_list([x, y, z])
-
-    # TODO: Make more dynamic
-    # Map microphone positions
-    if mic_pos == MicrophonePosition.TABLE_SMARTPHONE:
-        return clamp_position(desk_pos[0] + 0.3, desk_pos[1] + 0.2, desk_height)
-    elif mic_pos == MicrophonePosition.MONITOR:
-        return clamp_position(desk_pos[0] + 0.1, desk_pos[1], monitor_height)
-    elif mic_pos == MicrophonePosition.WALL_MOUNTED:
-        wall_x = width * 0.95  # Near far wall
-        wall_y = length * 0.6  # Center-ish of the wall
-        return clamp_position(wall_x, wall_y, wall_mount_height)
-    elif mic_pos == MicrophonePosition.CEILING_CENTERED:
-        return clamp_position(center_pos[0], center_pos[1], ceiling_height)
-    elif mic_pos == MicrophonePosition.CHEST_POCKET:
-        doctor_pos = (desk_pos[0], desk_pos[1])  # Doctor at desk
-        return clamp_position(doctor_pos[0], doctor_pos[1], chest_height)
-
-    # Fallback to center position at monitor height
-    return clamp_position(center_pos[0], center_pos[1], monitor_height)

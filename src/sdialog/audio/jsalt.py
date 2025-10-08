@@ -108,59 +108,58 @@ class MedicalRoomGenerator(RoomGenerator):
             description=f"{description} - {time_in_ns}",
             dimensions=dims,
             reverberation_time_ratio=reverberation_time_ratio,
-            aspect_ratio=(w_ratio, l_ratio)
+            aspect_ratio=(w_ratio, l_ratio),
+            furnitures={
+                "desk": Furniture(
+                    name="desk",
+                    x=dims.width * 0.25,
+                    y=dims.length * 0.15,
+                    width=1.5,
+                    height=0.8,
+                    depth=1.0
+                ),
+                "monitor": Furniture(
+                    name="monitor",
+                    x=dims.width * 0.25,
+                    y=dims.length * 0.15,
+                    z=0.8,
+                    width=0.5,
+                    height=0.4,
+                    depth=0.25
+                ),
+                "bench": Furniture(
+                    name="bench",
+                    x=dims.width * 0.60,
+                    y=dims.length * 0.50,
+                    width=2.0,
+                    height=1.0,
+                    depth=0.75
+                ),
+                "sink": Furniture(
+                    name="sink",
+                    x=dims.width * 0.05,
+                    y=dims.length * 0.80,
+                    width=0.5,
+                    height=1.0,
+                    depth=0.5
+                ),
+                "cupboard": Furniture(
+                    name="cupboard",
+                    x=dims.width * 0.95,
+                    y=dims.length * 0.80,
+                    width=1.0,
+                    height=1.0,
+                    depth=0.5
+                ),
+                "door": Furniture(
+                    name="door",
+                    x=0.10,
+                    y=0.10,
+                    width=0.70,
+                    height=2.10,
+                    depth=0.5
+                )
+            }
         )
-
-        # Define standard furniture positions as fractions of room dimensions
-        room.add_furnitures({
-            "desk": Furniture(
-                name="desk",
-                x=dims.width * 0.25,
-                y=dims.length * 0.15,
-                width=1.5,
-                height=1.0,
-                depth=1.0
-            ),
-            "bench": Furniture(
-                name="bench",
-                x=dims.width * 0.60,
-                y=dims.length * 0.50,
-                width=2.0,
-                height=1.0,
-                depth=0.75
-            ),
-            "sink": Furniture(
-                name="sink",
-                x=dims.width * 0.05,
-                y=dims.length * 0.80,
-                width=0.5,
-                height=1.0,
-                depth=0.5
-            ),
-            "cupboard": Furniture(
-                name="cupboard",
-                x=dims.width * 0.95,
-                y=dims.length * 0.80,
-                width=1.0,
-                height=1.0,
-                depth=0.5
-            ),
-            "door": Furniture(
-                name="door",
-                x=0.10,
-                y=0.10,
-                width=0.70,
-                height=2.10,
-                depth=0.5
-            ),
-            "center": Furniture(
-                name="center",
-                x=dims.width * 0.50,
-                y=dims.length * 0.50,
-                width=0.0,
-                height=0.0,
-                depth=0.0
-            )
-        })
 
         return room
