@@ -179,7 +179,7 @@ class LinguisticFeatureScore(BaseDialogScore):
         :return: Gunning Fog index value.
         :rtype: float
         """
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r'[.!?\n]+', text)
         sentences = [s.strip() for s in sentences if s.strip()]
         if not sentences:
             return 0
@@ -200,7 +200,7 @@ class LinguisticFeatureScore(BaseDialogScore):
         :return: Reading ease score.
         :rtype: float
         """
-        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+        sentences = [s.strip() for s in re.split(r'[.!?\n]+', text) if s.strip()]
         if not sentences:
             return 0
         words = re.findall(r'\b[a-zA-Z]+\b', text)
@@ -225,11 +225,9 @@ class LinguisticFeatureScore(BaseDialogScore):
         if self.speaker:
             dialog = dialog.filter(speaker=self.speaker)
 
-        utts = [" ".join(re.findall(r"[\w-]+", turn.text)) for turn in dialog]
-
         results = {}
-        all_text = " ".join(utts)
-        turn_lengths = [len(utt.split()) for utt in utts]
+        all_text = str(dialog)
+        turn_lengths = [len(turn) for turn in dialog]
         if not self.feature or "mean-turn-length" in self.feature:
             results["mean-turn-length"] = np.mean(turn_lengths)
         if not self.feature or "hesitation-rate" in self.feature:

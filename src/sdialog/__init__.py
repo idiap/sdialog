@@ -58,6 +58,15 @@ class Turn(BaseModel):
     speaker: Optional[str] = None
     text: str
 
+    def __len__(self):
+        """
+        Returns the number of words in the turn's text.
+
+        :return: Number of words in the text.
+        :rtype: int
+        """
+        return len(self.text.split())
+
     def __str__(self):
         return f"{self.speaker}: {self.text}"
 
