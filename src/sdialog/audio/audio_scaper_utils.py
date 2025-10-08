@@ -249,17 +249,14 @@ def microphone_position_to_room_position(
     if mic_pos == MicrophonePosition.TABLE_SMARTPHONE:
         return clamp_position(desk_pos[0] + 0.3, desk_pos[1] + 0.2, desk_height)
     elif mic_pos == MicrophonePosition.MONITOR:
-        # Webcam/microphone on or near monitor (typically on desk)
         return clamp_position(desk_pos[0] + 0.1, desk_pos[1], monitor_height)
     elif mic_pos == MicrophonePosition.WALL_MOUNTED:
-        # Wall-mounted microphone, typically on the wall opposite to the desk
         wall_x = width * 0.95  # Near far wall
         wall_y = length * 0.6  # Center-ish of the wall
         return clamp_position(wall_x, wall_y, wall_mount_height)
     elif mic_pos == MicrophonePosition.CEILING_CENTERED:
         return clamp_position(center_pos[0], center_pos[1], ceiling_height)
     elif mic_pos == MicrophonePosition.CHEST_POCKET:
-        # Wearable microphone - place at doctor's typical position
         doctor_pos = (desk_pos[0], desk_pos[1])  # Doctor at desk
         return clamp_position(doctor_pos[0], doctor_pos[1], chest_height)
 
