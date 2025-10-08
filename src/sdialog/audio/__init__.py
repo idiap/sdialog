@@ -145,6 +145,7 @@ def generate_audio_room_accoustic(
     logging.info(dialog.get_audio_sources())
     print("/"*25)
     print(dialog.get_audio_sources())
+    # TODO: Remove this after testing
 
     _audio_accoustic = room_acoustics.simulate(
         sources=dialog.get_audio_sources()

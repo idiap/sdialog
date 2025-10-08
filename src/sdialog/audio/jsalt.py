@@ -7,7 +7,7 @@ This module provides classes for medical room generation.
 import time
 import math
 from enum import Enum
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from sdialog.audio.room import Room, Dimensions3D
 from sdialog.audio.room_generator import RoomGenerator
 
@@ -33,8 +33,8 @@ class MedicalRoomGenerator(RoomGenerator):
     creating standardized room personas with different configurations
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, seed: Optional[int] = time.time_ns()):
+        super().__init__(seed)
 
         # Standard room sizes (floor area in m²): size, reverberation_time_ratio, name, description
         self.ROOM_SIZES: Dict[RoomRole, Tuple[float, float, str, str]] = {

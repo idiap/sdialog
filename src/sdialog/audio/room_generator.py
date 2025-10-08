@@ -7,7 +7,7 @@ This module provides classes for the room generation.
 import time
 import random
 from abc import abstractmethod
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from sdialog.audio.room import Room, Dimensions3D
 
 
@@ -16,6 +16,10 @@ class RoomGenerator:
     A room generator is a class that generates a room to be handled by the dialog.
     creating standardized room personas with different configurations
     """
+
+    def __init__(self, seed: Optional[int] = None):
+        self.seed = seed if seed is not None else time.time_ns()
+        random.seed(seed)
 
     @abstractmethod
     def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:
@@ -38,15 +42,14 @@ class BasicRoomGenerator(RoomGenerator):
     selected automatically based on the floor area the user provides.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, seed: Optional[int] = None):
+        super().__init__(seed)
         self.aspect_ratio = [
             (1.0, 1.0),
             (1.5, 1.0),
             (2.0, 1.0)
         ]
         self.floor_heights = [
-            2.25,
             2.5,
             3.0,
             3.5
@@ -65,7 +68,10 @@ class BasicRoomGenerator(RoomGenerator):
 
         width = width_ratio * k
         length = length_ratio * k
+
+        random.seed(self.seed)
         height = random.choice(self.floor_heights)
+
         return Dimensions3D(width=width, length=length, height=height)
 
     def generate(self, args: Dict[str, Any]) -> Room:
@@ -79,6 +85,7 @@ class BasicRoomGenerator(RoomGenerator):
         if len(args) > 1:
             raise ValueError("Only room_size is allowed")
 
+        random.seed(self.seed)
         aspect_ratio = random.choice(self.aspect_ratio)
 
         dimensions = self.calculate_room_dimensions(args["room_size"], aspect_ratio)
