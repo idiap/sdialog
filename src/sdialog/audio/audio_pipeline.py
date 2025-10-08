@@ -20,7 +20,7 @@ from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.audio.room import MicrophonePosition
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.voice_database import BaseVoiceDatabase, DummyKokoroVoiceDatabase
+from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase
 from sdialog.audio import (
     generate_utterances_audios,
     save_utterances_audios,
@@ -52,11 +52,11 @@ class AudioPipeline:
 
         self.voice_database = voice_database
         if self.voice_database is None:
-            self.voice_database = DummyKokoroVoiceDatabase()
+            self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
 
         self._dscaper = dscaper
 
-        self.sampling_rate = sampling_rate  # Need to be set to the same as the TTS model
+        self.sampling_rate = sampling_rate  # TODO: Need to be set to the same as the TTS model
 
     def populate_dscaper(
             self,

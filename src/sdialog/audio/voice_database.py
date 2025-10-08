@@ -27,6 +27,26 @@ class BaseVoiceDatabase:
         """
         return self._data
 
+    def to_csv(self, path: str):
+        """
+        Save the voice database to a CSV file.
+        """
+        import pandas as pd
+
+        # Flatten the nested structure into a list of records
+        records = []
+        for (genre, age), voice_list in self._data.items():
+            for voice_info in voice_list:
+                records.append({
+                    'gender': genre,
+                    'age': age,
+                    'speaker_id': voice_info['identifier'],
+                    'audio_file': voice_info['voice']
+                })
+
+        df = pd.DataFrame(records)
+        df.to_csv(path, index=False)
+
     def populate(self) -> dict:
         """
         Populate the voice database.
@@ -79,49 +99,6 @@ class BaseVoiceDatabase:
         return random.choice(_subset)
 
 
-class DummyKokoroVoiceDatabase(BaseVoiceDatabase):
-    """
-    Dummy voice database for Kokoro.
-    """
-
-    def __init__(self):
-        BaseVoiceDatabase.__init__(self)
-
-    def populate(self) -> dict:
-        """
-        Populate the voice database with the voices from Kokoro.
-        """
-        self._womans = [
-            "af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica",
-            "af_kore", "af_nicole", "af_nova", "af_river", "af_sarah", "af_sky"
-        ]
-        self._mans = [
-            "am_adam", "am_echo", "am_eric", "am_fenrir", "am_liam", "am_michael",
-            "am_onyx", "am_puck"
-        ]
-
-        males_voices = {
-            ("male", age): [
-                {
-                    "identifier": voice_name,
-                    "voice": voice_name
-                } for voice_name in self._mans
-            ] for age in range(0, 150, 1)
-        }
-        females_voices = {
-            ("female", age): [
-                {
-                    "identifier": voice_name,
-                    "voice": voice_name
-                } for voice_name in self._womans
-            ] for age in range(0, 150, 1)
-        }
-        self._data = {
-            **males_voices,
-            **females_voices
-        }
-
-
 class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
     """
     Huggingface voice database.
@@ -166,14 +143,15 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         else:
             dataset = load_dataset(self.dataset_name)[self.subset]
 
-        self._data = {
-            (self._gender_to_gender(d["gender"]), d["age"]): [
-                {
-                    "identifier": d["speaker_id"],
-                    "voice": d["audio"]["path"]
-                }
-            ] for d in dataset
-        }
+        self._data = {}
+        for d in dataset:
+            key = (self._gender_to_gender(d["gender"]), d["age"])
+            if key not in self._data:
+                self._data[key] = []
+            self._data[key].append({
+                "identifier": d["speaker_id"],
+                "voice": d["audio"]["path"] if "audio" in d else d["audio_file"]
+            })
         logging.info(f"Voice database populated with {len(self._data)} voices")
 
 
@@ -261,12 +239,13 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
         if "speaker_id" not in df.columns:
             raise ValueError(f"Speaker id column does not exist in the metadata file: {self.metadata_file}")
 
-        self._data = {
-            (self._gender_to_gender(row["gender"]), row["age"]): [
-                {
-                    "identifier": row["speaker_id"],
-                    "voice": os.path.join(self.directory_audios, row["audio_file"])
-                }
-            ] for index, row in df.iterrows()
-        }
+        self._data = {}
+        for index, row in df.iterrows():
+            key = (self._gender_to_gender(row["gender"]), row["age"])
+            if key not in self._data:
+                self._data[key] = []
+            self._data[key].append({
+                "identifier": row["speaker_id"],
+                "voice": os.path.abspath(os.path.join(self.directory_audios, row["audio_file"]))
+            })
         logging.info(f"Voice database populated with {len(self._data)} voices")
