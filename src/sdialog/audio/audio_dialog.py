@@ -32,7 +32,7 @@ class AudioDialog(Dialog):
     audio_step_2_filepath: str = ""
     audio_step_3_filepaths: dict[str, dict] = {}
 
-    speakers_names: List[str] = {}
+    speakers_names: dict[str, str] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

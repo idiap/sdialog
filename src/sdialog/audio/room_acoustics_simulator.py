@@ -2,17 +2,15 @@
 This module provides a class for simulating room acoustics.
 """
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>
+# SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import os
 import logging
 import numpy as np
-from typing import List, Union
-from sdialog.audio.audio_scaper_utils import microphone_position_to_room_position
-
-# import matplotlib.pyplot as plt
 import soundfile as sf
+from typing import List, Union
 from sdialog.audio.room import Room, AudioSource, Position3D
+from sdialog.audio.audio_scaper_utils import microphone_position_to_room_position
 from sdialog.audio.room import (
     DoctorPosition,
     PatientPosition,
@@ -44,6 +42,10 @@ class RoomAcousticsSimulator:
     """
 
     def __init__(self, room: Room = None, sampling_rate=44_100):
+        """
+        Initialize the room acoustics simulator.
+        """
+
         self.sampling_rate = sampling_rate
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
@@ -63,6 +65,10 @@ class RoomAcousticsSimulator:
         self.set_microphone_position(self.mic_position.to_list())
 
     def _create_pyroom(self, room: Room, sampling_rate=44_100):
+        """
+        Create a pyroomacoustics room based on the room definition.
+        """
+
         import pyroomacoustics as pra
         e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
         # max_order = 17  # Number of reflections
@@ -113,46 +119,62 @@ class RoomAcousticsSimulator:
         self._pyroom.add_microphone_array(mic_array)
         logging.info(f"  Microphone set to position {self.mic_position.to_list()}")
 
-    def _add_sources(self, audiosources: List[AudioSource]):
-        for i, asource in enumerate(audiosources):
-            self.audiosources.append(asource)
+    def _add_sources(
+        self,
+        audiosources: List[AudioSource]
+    ):
+        """
+        Add audio sources to the room acoustics simulator.
+        """
 
-            position = self.parse_position(asource.position)
+        for i, audio_source in enumerate(audiosources):
+
+            self.audiosources.append(audio_source)
+
+            # Parse the position of the audio source
+            position = self.parse_position(audio_source.position)
+
             if position is not SoundEventPosition:
-                asource._position3d = self.position_to_room_position(
+                audio_source._position3d = self.position_to_room_position(
                     self.room, position
                 )
             else:
                 room_center = [dim / 2 for dim in self._pyroom.dimensions]
-                asource._position3d = Position3D(room_center)
+                audio_source._position3d = Position3D(room_center)
 
-            audio = None
-            if hasattr(asource, "_test_audio") and asource._test_audio is not None:
-                audio = asource._test_audio  # Use in-memory test audio data
-                logging.info(
-                    f"✓ Using in-memory audio for '{asource.name}' with {len(audio)} samples"
-                )
-            elif asource.source_file and os.path.exists(asource.source_file):
-                audio, original_fs = sf.read(asource.source_file)
-                if audio.ndim > 1:  # Convert to mono if stereo
+            # Load the audio file from the file system for the audio source
+            if audio_source.source_file and os.path.exists(audio_source.source_file):
+
+                # Read the audio file
+                audio, original_fs = sf.read(audio_source.source_file)
+
+                # Convert to mono if stereo
+                if audio.ndim > 1:
                     audio = np.mean(audio, axis=1)
-                logging.info(
-                    f"✓ Loaded audio file '{asource.source_file}' for '{asource.name}' with {len(audio)} samples"
+
+                # Add the audio source to the room acoustics simulator at the position
+                self._pyroom.add_source(
+                    audio_source._position3d.to_list(),
+                    signal=audio
                 )
+
+                logging.info((
+                    f"✓ Loaded audio file '{audio_source.source_file}' for "
+                    f"'{audio_source.name}' with {len(audio)} samples"
+                ))
+
             else:
-                logging.warning(
-                    (
-                        f"Warning: No audio data found for '{asource.name}' ",
-                        "- file '{asource.source_file}' not found and no test data available.",
-                    )
-                )
-                continue
+                logging.warning(f"Warning: No audio data found for '{audio_source.name}'")
 
-            if audio is not None:
-                # audio = self.apply_snr(audio, asource.snr)
-                self._pyroom.add_source(asource._position3d.to_list(), signal=audio)
+    def simulate(
+        self,
+        sources: List[AudioSource] = [],
+        reset: bool = False
+    ):
+        """
+        Simulate the audio sources in the room.
+        """
 
-    def simulate(self, sources: List[AudioSource] = [], reset=False):  # -> np.array:
         if reset:
             # see https://github.com/LCAV/pyroomacoustics/issues/311
             self.reset()
@@ -166,24 +188,12 @@ class RoomAcousticsSimulator:
         return mixed_signal
 
     def reset(self):
+        """
+        Reset the room acoustics simulator.
+        """
+
         del self._pyroom
         self._pyroom = None
-
-    @staticmethod
-    def plot_energy_db(ax, rir, fs=24000):
-        """The power of the impulse response in dB"""
-        power = rir**2
-        energy = np.cumsum(power[::-1])[::-1]  # Integration according to Schroeder
-        # remove the possibly all zero tail
-        i_nz = np.max(np.where(energy > 0)[0])
-        energy = energy[:i_nz]
-        energy_db = 10 * np.log10(energy)
-        energy_db -= energy_db[0]
-        ax.plot(energy_db)
-
-    @staticmethod
-    def dbfs_to_linear(dbfs):
-        return 10 ** (dbfs / 20)
 
     @staticmethod
     def apply_snr(x, snr):
@@ -243,29 +253,6 @@ class RoomAcousticsSimulator:
         - Examination bench in center area
         - Sink and cupboards along length walls
         - Standard sitting height: 0.5m, standing height: 1.7m
-
-        Example:
-            >>> from sdialog.audio.room import Room, Dimensions3D, DoctorPosition
-            >>> room = Room(dimensions=Dimensions3D(4.0, 3.0, 3.0))
-            >>> pos = DoctorPosition.AT_DESK_SITTING
-            >>> coord = RoomAcousticsSimulator.position_to_room_position(room, pos)
-            >>> print(f"Doctor position: ({coord.x:.1f}, {coord.y:.1f}, {coord.z:.1f})")
-            Doctor position: (1.0, 0.4, 0.5)
-
-        Supported positions:
-        Doctor positions:
-        - AT_DESK_SITTING: Seated at desk
-        - AT_DESK_SIDE_STANDING: Standing beside desk
-        - NEXT_TO_BENCH_STANDING: Standing next to examination bench
-        - NEXT_TO_SINK_FRONT/BACK: Near sink area
-        - NEXT_TO_CUPBOARD_FRONT/BACK: Near cupboard area
-        - NEXT_TO_DOOR_STANDING: Standing near entrance
-
-        Patient positions:
-        - AT_DOOR_STANDING: Standing at entrance
-        - NEXT_TO_DESK_SITTING/STANDING: Near desk area
-        - SITTING_ON_BENCH: On examination bench
-        - CENTER_ROOM_STANDING: Middle of room
         """
         width, length, height = (
             room.dimensions.width,
@@ -343,93 +330,3 @@ class RoomAcousticsSimulator:
 
         # Fallback to center of room if position not recognized
         return clamp_position(center_pos[0], center_pos[1], standing_height)
-
-    @staticmethod
-    def generate_test_audio_sources(
-        sampling_rate=44_100, duration=2.0, save_files=True
-    ) -> List[AudioSource]:
-        """
-        Generate synthetic audio sources for testing the room acoustics simulator.
-
-        Args:
-            sampling_rate: Audio sampling rate in Hz
-            duration: Duration of each audio source in seconds
-            save_files: Whether to save audio files to disk (creates temp files)
-
-        Returns:
-            List[AudioSource]: List of audio sources with different frequencies and positions
-        """
-        import tempfile
-        import os
-
-        # Create temporary directory for audio files if saving
-        temp_dir = tempfile.mkdtemp() if save_files else None
-
-        t = np.linspace(0, duration, int(sampling_rate * duration), False)
-
-        # Define test sources with different characteristics
-        test_sources = [
-            {
-                "name": "doctor",
-                "position": DoctorPosition.AT_DESK_SITTING.value,
-                "frequency": 440.0,  # A4 note
-                "amplitude": 0.3,
-                "snr": -6.0,
-            },
-            {
-                "name": "patient",
-                "position": PatientPosition.NEXT_TO_DESK_SITTING.value,
-                "frequency": 330.0,  # E4 note
-                "amplitude": 0.25,
-                "snr": -12.0,
-            },
-            {
-                "name": "background_noise",
-                "position": "no_type",
-                "frequency": None,  # White noise
-                "amplitude": 0.1,
-                "snr": -20.0,
-            },
-        ]
-
-        audio_sources = []
-
-        for i, source_config in enumerate(test_sources):
-            if source_config["frequency"] is not None:
-                # Generate sine wave
-                audio = source_config["amplitude"] * np.sin(
-                    2 * np.pi * source_config["frequency"] * t
-                )
-                # Add some envelope to make it more natural
-                envelope = np.exp(-t * 0.5)  # Exponential decay
-                audio = audio * envelope
-            else:
-                # Generate white noise
-                audio = source_config["amplitude"] * np.random.normal(0, 1, len(t))
-
-            source_file = None
-            if save_files:
-                source_file = os.path.join(
-                    temp_dir, f"test_source_{i}_{source_config['name']}.wav"
-                )
-                sf.write(source_file, audio, sampling_rate)
-
-            audio_source = AudioSource(
-                name=source_config["name"],
-                position=source_config["position"],
-                snr=source_config["snr"],
-                source_file=source_file,
-                directivity="omnidirectional",
-            )
-
-            if not save_files:
-                audio_source._test_audio = audio
-
-            audio_sources.append(audio_source)
-
-        if save_files:
-            logging.info(f"Generated {len(audio_sources)} test audio sources in {temp_dir}")
-        else:
-            logging.info(f"Generated {len(audio_sources)} test audio sources (in-memory)")
-
-        return audio_sources
