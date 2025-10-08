@@ -732,7 +732,6 @@ class Dialog(BaseModel):
         if speaker.lower() not in self.get_speakers(keep_case=False):
             logger.error(f"The provided speaker '{speaker}' does not exist in the dialogue. "
                          f"Valid speakers are: {self.get_speakers()}")
-            return None
 
         filtered_dialog = self.clone()
         filtered_dialog.turns = [turn for turn in self.turns if turn.speaker.lower() == speaker.lower()]
