@@ -32,7 +32,7 @@ class AudioDialog(Dialog):
     audio_step_2_filepath: str = ""
     audio_step_3_filepaths: dict[str, dict] = {}
 
-    # Room hash or user input name
+    speakers_names: List[str] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -72,12 +72,21 @@ class AudioDialog(Dialog):
 
     @staticmethod
     def from_dialog(dialog: Dialog):
+        """
+        Create an AudioDialog object from a Dialog object.
+        """
+
         audio_dialog = AudioDialog()
 
         for attr in dialog.__dict__:
             setattr(audio_dialog, attr, getattr(dialog, attr))
 
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
+
+        # Identify the speaker 1 and 2
+        audio_dialog.speakers_names["speaker_1"] = audio_dialog.turns[0].speaker
+        audio_dialog.speakers_names["speaker_2"] = audio_dialog.turns[1].speaker
+
         return audio_dialog
 
     @staticmethod
