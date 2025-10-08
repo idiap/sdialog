@@ -1847,15 +1847,15 @@ class DatasetComparator:
 
             comparator.plot()  # plot results for each evaluator that support it
 
-    :param evaluators: List of evaluator instances.
-    :type evaluators: List[BaseDatasetEvaluator]
-    :raises ValueError: If list empty.
-    :raises TypeError: If any element not a BaseDatasetEvaluator.
+    :param evaluators: Single evaluator instance or list of evaluator instances.
+    :type evaluators: Union[BaseDatasetEvaluator, List[BaseDatasetEvaluator]]
     """
-    def __init__(self, evaluators: List[BaseDatasetEvaluator]):
+    def __init__(self, evaluators: Union[BaseDatasetEvaluator, List[BaseDatasetEvaluator]]):
         """Initialize dataset comparator."""
         if not evaluators:
             raise ValueError("No evaluators provided for comparison.")
+        if not isinstance(evaluators, list):
+            evaluators = [evaluators]
         for evaluator in evaluators:
             if not isinstance(evaluator, BaseDatasetEvaluator):
                 raise TypeError(f"Evaluator {evaluator} is not an instance of `BaseDatasetEvaluator`")
