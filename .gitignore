@@ -7,6 +7,7 @@ dscaper_data/
 #audio files
 *.wav
 *.mp3
+*.png
 *.mp4
 *.flac
 *.ogg

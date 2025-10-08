@@ -221,7 +221,16 @@ class AudioPipeline:
 
             # Generate the timeline from dSCAPER
             logging.info(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
-            dialog: AudioDialog = generate_dscaper_timeline(dialog, self._dscaper, dialog_directory=dialog_directory)
+            dialog: AudioDialog = generate_dscaper_timeline(
+                dialog,
+                self._dscaper,
+                dialog_directory=dialog_directory,
+                background_effect=(
+                    environment["background_effect"]
+                    if "background_effect" in environment
+                    else "ac_noise_low"
+                )
+            )
             logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
             logging.info("Step 2 done!")
 
