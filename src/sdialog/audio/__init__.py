@@ -15,9 +15,9 @@ from sdialog import Dialog, Turn
 from sdialog.audio.room import Room
 from sdialog.personas import BasePersona
 from sdialog.audio.tts_engine import BaseTTS
-from sdialog.audio.audio_utils import AudioUtils
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
+from sdialog.audio.audio_utils import AudioUtils, SourceVolume
 from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -128,7 +128,8 @@ def generate_audio_room_accoustic(
         room: Room,
         dialog_directory: str,
         room_name: str,
-        kwargs_pyroom: dict = {}) -> AudioDialog:
+        kwargs_pyroom: dict = {},
+        source_volumes: dict[str, SourceVolume] = {}) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
@@ -145,7 +146,8 @@ def generate_audio_room_accoustic(
     # TODO: Remove this after testing
 
     _audio_accoustic = room_acoustics.simulate(
-        sources=dialog.get_audio_sources()
+        sources=dialog.get_audio_sources(),
+        source_volumes=source_volumes
     )
 
     # Save the audio file

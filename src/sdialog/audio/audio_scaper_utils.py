@@ -55,7 +55,7 @@ def generate_dscaper_timeline(
         _dscaper: scaper.Dscaper,
         dialog_directory: str,
         sampling_rate: int = 24_000,
-        background_effect: str = "ac_noise_low") -> AudioDialog:
+        background_effect: str = "ac_noise_minimal") -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
 

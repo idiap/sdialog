@@ -114,6 +114,18 @@ class CeilingMaterial(str, Enum):
     METAL_PANEL = "ceiling_metal_panel"
 
 
+class SourceVolume(Enum):
+    """
+    Volume of the audio source
+    """
+
+    VERY_LOW = 0.0000001
+    LOW = 0.01
+    MEDIUM = 0.02
+    HIGH = 0.05
+    VERY_HIGH = 0.07
+
+
 class AudioUtils:
     """
     Audio utilities.

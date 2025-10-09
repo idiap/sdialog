@@ -9,8 +9,8 @@ import logging
 import numpy as np
 import soundfile as sf
 from typing import List, Union
-from sdialog.audio.audio_utils import BodyPosture
 from sdialog.audio.room import Room, AudioSource, Position3D
+from sdialog.audio.audio_utils import BodyPosture, SourceVolume
 from sdialog.audio.room import (
     DoctorPosition,
     PatientPosition,
@@ -101,7 +101,8 @@ class RoomAcousticsSimulator:
 
     def _add_sources(
         self,
-        audiosources: List[AudioSource]
+        audiosources: List[AudioSource],
+        source_volumes: dict[str, SourceVolume] = {}
     ):
         """
         Add audio sources to the room acoustics simulator.
@@ -135,15 +136,19 @@ class RoomAcousticsSimulator:
                 if audio.ndim > 1:
                     audio = np.mean(audio, axis=1)
 
+                # Reduce the volume of the audio source
                 if position.startswith("room-"):
-                    # Reduce the volume of the audio source
-                    # audio = audio * 0.02
-                    # audio = audio * 0.01
-                    audio = audio * 0.05
-                    # audio = audio * 0.2
-                    # audio = audio * 0.5
+                    audio = (
+                        audio * source_volumes["room-"].value
+                        if "room-" in source_volumes
+                        else SourceVolume.HIGH.value
+                    )
                 elif position.startswith("no_type"):
-                    audio = audio * 0.0000001
+                    audio = (
+                        audio * source_volumes["no_type"].value
+                        if "no_type" in source_volumes
+                        else SourceVolume.VERY_LOW.value
+                    )
 
                 # Add the audio source to the room acoustics simulator at the position
                 self._pyroom.add_source(
@@ -162,6 +167,7 @@ class RoomAcousticsSimulator:
     def simulate(
         self,
         sources: List[AudioSource] = [],
+        source_volumes: dict[str, SourceVolume] = {},
         reset: bool = False
     ):
         """
@@ -173,7 +179,7 @@ class RoomAcousticsSimulator:
             self.reset()
             self._pyroom = self._create_pyroom(self.room, self.sampling_rate, self.kwargs_pyroom)
 
-        self._add_sources(sources)
+        self._add_sources(sources, source_volumes)
         self._pyroom.simulate()
         mixed_signal = self._pyroom.mic_array.signals[0, :]
 
