@@ -95,6 +95,17 @@ class SoundEventPosition(str, Enum):
     # NEXT_TO PATIENT
 
 
+class RoomPosition(str, Enum):
+    """
+    Room placement locations in the world
+    """
+    CENTER = "room-center"
+    TOP_LEFT = "room-top_left"
+    TOP_RIGHT = "room-top_right"
+    BOTTOM_LEFT = "room-bottom_left"
+    BOTTOM_RIGHT = "room-bottom_right"
+
+
 class DoctorPosition(str, Enum):
     """
     Doctor placement locations in examination room

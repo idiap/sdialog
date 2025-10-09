@@ -82,8 +82,7 @@ def generate_dscaper_timeline(
     # Add the background to the timeline
     background_metadata = DscaperBackground(
         library="background",
-        label=["const", background_effect],
-        # source_file=["const", "0"]
+        label=["const", "white_noise"],
         source_file=["choose", "[]"]
     )
     _dscaper.add_background(timeline_name, background_metadata)
@@ -92,13 +91,13 @@ def generate_dscaper_timeline(
     # TODO: Prevent error when there is no foreground
     foreground_metadata = DscaperEvent(
         library="foreground",
-        label=["const", "white_noise"],
-        source_file=["choose", "[]"],
-        event_time=["const", "0"],
-        event_duration=["const", "0.1"],
-        position="doctor-at_desk_sitting",
         speaker="foreground",
         text="foreground",
+        label=["const", background_effect],
+        source_file=["choose", "[]"],
+        event_time=["const", "0"],
+        event_duration=["const", str(f"{total_duration:.1f}")],
+        position="room-top_right",
     )
     _dscaper.add_event(timeline_name, foreground_metadata)
 

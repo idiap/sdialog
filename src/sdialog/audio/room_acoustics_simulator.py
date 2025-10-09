@@ -14,6 +14,7 @@ from sdialog.audio.room import Room, AudioSource, Position3D
 from sdialog.audio.room import (
     DoctorPosition,
     PatientPosition,
+    RoomPosition,
     SoundEventPosition
 )
 
@@ -201,6 +202,11 @@ class RoomAcousticsSimulator:
                 return PatientPosition(position)
             except ValueError:
                 raise ValueError(f"Invalid patient position: {position}")
+        elif position.startswith("room-"):
+            try:
+                return RoomPosition(position)
+            except ValueError:
+                raise ValueError(f"Invalid patient position: {position}")
         elif position.startswith("soundevent-"):
             return SoundEventPosition(position)
         elif position.startswith(
@@ -328,9 +334,42 @@ class RoomAcousticsSimulator:
                     BodyPosture.STANDING.value
                 )
 
+        # Map room positions
+        elif isinstance(pos, RoomPosition):
+            if pos == RoomPosition.CENTER:
+                return clamp_position(
+                    room.dimensions.length * 0.5,
+                    room.dimensions.width * 0.5,
+                    BodyPosture.STANDING.value
+                )
+            elif pos == RoomPosition.TOP_LEFT:
+                return clamp_position(
+                    room.dimensions.length * 0.1,
+                    room.dimensions.width * 0.1,
+                    BodyPosture.SITTING.value
+                )
+            elif pos == RoomPosition.TOP_RIGHT:
+                return clamp_position(
+                    room.dimensions.length * 0.1,
+                    room.dimensions.width * 0.9,
+                    BodyPosture.STANDING.value
+                )
+            elif pos == RoomPosition.BOTTOM_LEFT:
+                return clamp_position(
+                    room.dimensions.length * 0.9,
+                    room.dimensions.width * 0.1,
+                    BodyPosture.SITTING.value
+                )
+            elif pos == RoomPosition.BOTTOM_RIGHT:
+                return clamp_position(
+                    room.dimensions.length * 0.9,
+                    room.dimensions.width * 0.9,
+                    BodyPosture.STANDING.value
+                )
+
         # Fallback to center of room if position not recognized
         return clamp_position(
-            room.furnitures["center"].x,
-            room.furnitures["center"].y,
+            room.dimensions.length * 0.5,
+            room.dimensions.width * 0.5,
             BodyPosture.STANDING.value
         )
