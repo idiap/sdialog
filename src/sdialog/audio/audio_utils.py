@@ -107,7 +107,7 @@ class CeilingMaterial(str, Enum):
     """
 
     PLASTERBOARD = "ceiling_plasterboard"
-    FIBRE_ABOSRBER = "ceiling_fibre_abosrber"
+    FIBRE_ABSORBER = "ceiling_fibre_absorber"
     FISSURED_TILE = "ceiling_fissured_tile"
     PERFORATED_GYPSUM_BOARD = "ceiling_perforated_gypsum_board"
     MELAMINE_FOAM = "ceiling_melamine_foam"
@@ -131,6 +131,6 @@ class RoomMaterials(BaseModel):
     """
     Materials of the room.
     """
-    ceiling: CeilingMaterial = CeilingMaterial.PLASTERBOARD
-    walls: WallMaterial = WallMaterial.PLASTERBOARD
-    floor: FloorMaterial = FloorMaterial.LINOLEUM_ON_CONCRETE
+    ceiling: CeilingMaterial = CeilingMaterial.FIBRE_ABSORBER
+    walls: WallMaterial = WallMaterial.WOODEN_LINING
+    floor: FloorMaterial = FloorMaterial.CARPET_HAIRY

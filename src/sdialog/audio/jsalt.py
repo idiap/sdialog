@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Tuple, Dict, Any, Optional
 from sdialog.audio.room import Room, Dimensions3D
 from sdialog.audio.room_generator import RoomGenerator
-from sdialog.audio.audio_utils import Furniture, RGBAColor
+from sdialog.audio.audio_utils import Furniture, RGBAColor, RoomMaterials
 
 
 class RoomRole(str, Enum):
@@ -107,8 +107,8 @@ class MedicalRoomGenerator(RoomGenerator):
             name=f"{name} - {time_in_ns}",
             description=f"{description} - {time_in_ns}",
             dimensions=dims,
-            reverberation_time_ratio=0.18,
-            # materials=RoomMaterials(),
+            # reverberation_time_ratio=0.18,
+            materials=RoomMaterials(),
             furnitures={
                 "desk": Furniture(
                     name="desk",

@@ -135,6 +135,16 @@ class RoomAcousticsSimulator:
                 if audio.ndim > 1:
                     audio = np.mean(audio, axis=1)
 
+                if position.startswith("room-"):
+                    # Reduce the volume of the audio source
+                    # audio = audio * 0.02
+                    # audio = audio * 0.01
+                    audio = audio * 0.05
+                    # audio = audio * 0.2
+                    # audio = audio * 0.5
+                elif position.startswith("no_type"):
+                    audio = audio * 0.0000001
+
                 # Add the audio source to the room acoustics simulator at the position
                 self._pyroom.add_source(
                     audio_source._position3d.to_list(),
