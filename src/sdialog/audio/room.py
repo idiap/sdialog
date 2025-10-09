@@ -247,6 +247,41 @@ class Room(BaseModel):
         "arbitrary_types_allowed": True,
     }
 
+    def get_top_left_corner(self) -> Position3D:
+        return Position3D(
+            x=self.dimensions.width * 0.01,
+            y=self.dimensions.length * 0.01,
+            z=self.dimensions.height * 0.99
+        )
+
+    def get_bottom_left_corner(self) -> Position3D:
+        return Position3D(
+            x=self.dimensions.length * 0.01,
+            y=self.dimensions.width * 0.99,
+            z=self.dimensions.height * 0.99
+        )
+
+    def get_top_right_corner(self) -> Position3D:
+        return Position3D(
+            x=self.dimensions.length * 0.99,
+            y=self.dimensions.width * 0.01,
+            z=self.dimensions.height * 0.99
+        )
+
+    def get_bottom_right_corner(self) -> Position3D:
+        return Position3D(
+            x=self.dimensions.width * 0.99,
+            y=self.dimensions.length * 0.99,
+            z=self.dimensions.height * 0.99
+        )
+
+    def get_roof_center(self) -> Position3D:
+        return Position3D(
+            x=self.dimensions.width * 0.50,
+            y=self.dimensions.length * 0.50,
+            z=self.dimensions.height * 0.99
+        )
+
     def add_furnitures(self, furnitures: dict[str, Furniture]):
         self.furnitures.update(furnitures)
 
@@ -265,7 +300,13 @@ class Room(BaseModel):
         """
         return self.dimensions.width * self.dimensions.length * self.dimensions.height
 
-    def to_image(self):
+    def to_image(
+        self,
+        show_furnitures: bool = True,
+        show_microphones: bool = True,
+        show_anchors: bool = True,
+        show_walls: bool = True
+    ):
         """
         Create a room plan (pillow image) based on the "dimensions"
         """
@@ -296,33 +337,34 @@ class Room(BaseModel):
         start_x = (512 - room_width_px) // 2
         start_y = (512 - room_length_px) // 2
 
-        # Draw the room walls (rectangle)
-        # Top wall
-        draw.line(
-            [(start_x, start_y), (start_x + room_width_px, start_y)],
-            fill='black', width=3
-        )
-        # Right wall
-        draw.line(
-            [
-                (start_x + room_width_px, start_y),
-                (start_x + room_width_px, start_y + room_length_px)
-            ],
-            fill='black', width=3
-        )
-        # Bottom wall
-        draw.line(
-            [
-                (start_x + room_width_px, start_y + room_length_px),
-                (start_x, start_y + room_length_px)
-            ],
-            fill='black', width=3
-        )
-        # Left wall
-        draw.line(
-            [(start_x, start_y + room_length_px), (start_x, start_y)],
-            fill='black', width=3
-        )
+        if show_walls:
+            # Draw the room walls (rectangle)
+            # Top wall
+            draw.line(
+                [(start_x, start_y), (start_x + room_width_px, start_y)],
+                fill='black', width=3
+            )
+            # Right wall
+            draw.line(
+                [
+                    (start_x + room_width_px, start_y),
+                    (start_x + room_width_px, start_y + room_length_px)
+                ],
+                fill='black', width=3
+            )
+            # Bottom wall
+            draw.line(
+                [
+                    (start_x + room_width_px, start_y + room_length_px),
+                    (start_x, start_y + room_length_px)
+                ],
+                fill='black', width=3
+            )
+            # Left wall
+            draw.line(
+                [(start_x, start_y + room_length_px), (start_x, start_y)],
+                fill='black', width=3
+            )
 
         # Add room dimensions as text
         try:
@@ -359,56 +401,103 @@ class Room(BaseModel):
 
                 draw.text((text_x, text_y), name_text, fill='black', font=font)
 
-        #########################
-        # Drawing furnitures
-        #########################
+        if show_furnitures:
+            #########################
+            # Drawing furnitures
+            #########################
 
-        # Add furniture as rectangles using their x, y, width and depth coordinates
-        for furniture_name, furniture in self.furnitures.items():
-            # Convert furniture coordinates to pixel coordinates
-            # Furniture coordinates are in meters, need to convert to pixels
-            furniture_x_px = start_x + int(furniture.x * scale)
-            furniture_y_px = start_y + int(furniture.y * scale)
+            # Add furniture as rectangles using their x, y, width and depth coordinates
+            for furniture_name, furniture in self.furnitures.items():
+                # Convert furniture coordinates to pixel coordinates
+                # Furniture coordinates are in meters, need to convert to pixels
+                furniture_x_px = start_x + int(furniture.x * scale)
+                furniture_y_px = start_y + int(furniture.y * scale)
 
-            # Convert furniture dimensions to pixels
-            furniture_width_px = int(furniture.width * scale)
-            furniture_depth_px = int(furniture.depth * scale)
+                # Convert furniture dimensions to pixels
+                furniture_width_px = int(furniture.width * scale)
+                furniture_depth_px = int(furniture.depth * scale)
 
-            # Calculate rectangle coordinates (top-left and bottom-right)
-            # Furniture position is now the top-left corner
-            rect_left = furniture_x_px
-            rect_top = furniture_y_px
-            rect_right = furniture_x_px + furniture_width_px
-            rect_bottom = furniture_y_px + furniture_depth_px
+                # Calculate rectangle coordinates (top-left and bottom-right)
+                # Furniture position is now the top-left corner
+                rect_left = furniture_x_px
+                rect_top = furniture_y_px
+                rect_right = furniture_x_px + furniture_width_px
+                rect_bottom = furniture_y_px + furniture_depth_px
 
-            # Ensure minimum size for visibility
-            min_size = 4  # Minimum 4 pixels
-            if furniture_width_px < min_size:
-                rect_right = rect_left + min_size
-            if furniture_depth_px < min_size:
-                rect_bottom = rect_top + min_size
+                # Ensure minimum size for visibility
+                min_size = 4  # Minimum 4 pixels
+                if furniture_width_px < min_size:
+                    rect_right = rect_left + min_size
+                if furniture_depth_px < min_size:
+                    rect_bottom = rect_top + min_size
 
-            # Draw furniture rectangle outline
-            draw.rectangle(
-                [rect_left, rect_top, rect_right, rect_bottom],
-                outline=furniture.color.value, width=2
+                # Draw furniture rectangle outline
+                draw.rectangle(
+                    [rect_left, rect_top, rect_right, rect_bottom],
+                    outline=furniture.color.value, width=2
+                )
+
+                # Fill the rectangle with a semi-transparent red color
+                # Create a temporary image for the fill
+                fill_img = Image.new('RGBA', (rect_right - rect_left, rect_bottom - rect_top), furniture.color.value)
+                img.paste(fill_img, (rect_left, rect_top), fill_img)
+
+                # Add furniture name as text near the rectangle
+                if font:
+                    # Get text size for positioning
+                    bbox = draw.textbbox((0, 0), furniture_name, font=font)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+
+                    # Position text at the center of the rectangle
+                    text_x = rect_left + (rect_right - rect_left - text_width) // 2
+                    text_y = rect_top + (rect_bottom - rect_top - text_height) // 2
+
+                    # Make sure text doesn't go outside the image bounds
+                    if text_x < 0:
+                        text_x = 5
+                    elif text_x + text_width > 512:
+                        text_x = 512 - text_width - 5
+                    if text_y < 0:
+                        text_y = 5
+                    elif text_y + text_height > 512:
+                        text_y = 512 - text_height - 5
+
+                    draw.text((text_x, text_y), furniture_name, fill=furniture.color.value, font=font)
+
+        if show_microphones:
+            #########################
+            # Drawing microphone position
+            #########################
+            # Convert microphone coordinates to pixel coordinates relative to the room
+            # Microphone coordinates are in meters, need to convert to pixels and position relative to room
+            mic_x_px = start_x + int(self.mic_position_3d.x * scale)
+            mic_y_px = start_y + int(self.mic_position_3d.y * scale)
+
+            # Ensure microphone is within room bounds
+            mic_x_px = max(start_x + 5, min(mic_x_px, start_x + room_width_px - 5))
+            mic_y_px = max(start_y + 5, min(mic_y_px, start_y + room_length_px - 5))
+
+            # Draw microphone as a circle
+            draw.circle(
+                (mic_x_px, mic_y_px),
+                radius=8,
+                fill='red',
+                outline='black',
+                width=2
             )
 
-            # Fill the rectangle with a semi-transparent red color
-            # Create a temporary image for the fill
-            fill_img = Image.new('RGBA', (rect_right - rect_left, rect_bottom - rect_top), furniture.color.value)
-            img.paste(fill_img, (rect_left, rect_top), fill_img)
-
-            # Add furniture name as text near the rectangle
+            # Add microphone label
+            mic_label = 'Mic' if self.mic_position != MicrophonePosition.CUSTOM else 'Custom Mic'
             if font:
                 # Get text size for positioning
-                bbox = draw.textbbox((0, 0), furniture_name, font=font)
+                bbox = draw.textbbox((0, 0), mic_label, font=font)
                 text_width = bbox[2] - bbox[0]
                 text_height = bbox[3] - bbox[1]
 
-                # Position text at the center of the rectangle
-                text_x = rect_left + (rect_right - rect_left - text_width) // 2
-                text_y = rect_top + (rect_bottom - rect_top - text_height) // 2
+                # Position text below the microphone circle
+                text_x = mic_x_px - text_width // 2
+                text_y = mic_y_px + 12  # Position below the circle
 
                 # Make sure text doesn't go outside the image bounds
                 if text_x < 0:
@@ -420,52 +509,72 @@ class Room(BaseModel):
                 elif text_y + text_height > 512:
                     text_y = 512 - text_height - 5
 
-                draw.text((text_x, text_y), furniture_name, fill=furniture.color.value, font=font)
+                draw.text((text_x, text_y), mic_label, fill='red', font=font)
 
-        #########################
-        # Drawing microphone position
-        #########################
-        # Convert microphone coordinates to pixel coordinates relative to the room
-        # Microphone coordinates are in meters, need to convert to pixels and position relative to room
-        mic_x_px = start_x + int(self.mic_position_3d.x * scale)
-        mic_y_px = start_y + int(self.mic_position_3d.y * scale)
+        if show_anchors:
+            #########################
+            # Drawing corners and center of the room based on get_top_left_corner,
+            # get_top_right_corner, get_bottom_left_corner, get_bottom_right_corner, get_roof_center
+            #########################
 
-        # Ensure microphone is within room bounds
-        mic_x_px = max(start_x + 5, min(mic_x_px, start_x + room_width_px - 5))
-        mic_y_px = max(start_y + 5, min(mic_y_px, start_y + room_length_px - 5))
+            # Get corner and center positions
+            top_left = self.get_top_left_corner()
+            top_right = self.get_top_right_corner()
+            bottom_left = self.get_bottom_left_corner()
+            bottom_right = self.get_bottom_right_corner()
+            roof_center = self.get_roof_center()
 
-        # Draw microphone as a circle
-        draw.circle(
-            (mic_x_px, mic_y_px),
-            radius=8,
-            fill='red',
-            outline='black',
-            width=2
-        )
+            # Convert 3D positions to pixel coordinates (ignoring z for 2D view)
+            def pos_to_pixels(pos: Position3D) -> Tuple[int, int]:
+                x_px = start_x + int(pos.x * scale)
+                y_px = start_y + int(pos.y * scale)
+                return x_px, y_px
 
-        # Add microphone label
-        mic_label = 'Mic' if self.mic_position != MicrophonePosition.CUSTOM else 'Custom Mic'
-        if font:
-            # Get text size for positioning
-            bbox = draw.textbbox((0, 0), mic_label, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
+            # Draw corner points
+            corner_positions = [
+                (top_left, "TL"),
+                (top_right, "TR"),
+                (bottom_left, "BL"),
+                (bottom_right, "BR"),
+                (roof_center, "RC")
+            ]
 
-            # Position text below the microphone circle
-            text_x = mic_x_px - text_width // 2
-            text_y = mic_y_px + 12  # Position below the circle
+            for pos, label in corner_positions:
+                x_px, y_px = pos_to_pixels(pos)
 
-            # Make sure text doesn't go outside the image bounds
-            if text_x < 0:
-                text_x = 5
-            elif text_x + text_width > 512:
-                text_x = 512 - text_width - 5
-            if text_y < 0:
-                text_y = 5
-            elif text_y + text_height > 512:
-                text_y = 512 - text_height - 5
+                # Ensure points are within room bounds
+                x_px = max(start_x + 5, min(x_px, start_x + room_width_px - 5))
+                y_px = max(start_y + 5, min(y_px, start_y + room_length_px - 5))
 
-            draw.text((text_x, text_y), mic_label, fill='red', font=font)
+                # Draw corner point as a small circle
+                draw.circle(
+                    (x_px, y_px),
+                    radius=4,
+                    fill='blue',
+                    outline='darkblue',
+                    width=1
+                )
+
+                # Add corner label
+                if font:
+                    # Get text size for positioning
+                    bbox = draw.textbbox((0, 0), label, font=font)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+
+                    # Position text near the corner point
+                    text_x = x_px + 6  # Position to the right of the point
+                    text_y = y_px - text_height // 2  # Center vertically
+
+                    # Make sure text doesn't go outside the image bounds
+                    if text_x + text_width > 512:
+                        text_x = x_px - text_width - 6  # Position to the left instead
+                    if text_y < 0:
+                        text_y = 5
+                    elif text_y + text_height > 512:
+                        text_y = 512 - text_height - 5
+
+                    draw.text((text_x, text_y), label, fill='blue', font=font)
 
         return img
 

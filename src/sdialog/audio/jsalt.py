@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Tuple, Dict, Any, Optional
 from sdialog.audio.room import Room, Dimensions3D
 from sdialog.audio.room_generator import RoomGenerator
-from sdialog.audio.audio_utils import Furniture, RoomMaterials
+from sdialog.audio.audio_utils import Furniture, RGBAColor
 
 
 class RoomRole(str, Enum):
@@ -116,7 +116,8 @@ class MedicalRoomGenerator(RoomGenerator):
                     y=dims.length * 0.15,
                     width=1.22,
                     height=0.76,
-                    depth=0.76
+                    depth=0.76,
+                    color=RGBAColor.GREEN
                 ),
                 "monitor": Furniture(
                     name="monitor",
@@ -125,7 +126,8 @@ class MedicalRoomGenerator(RoomGenerator):
                     z=0.8,
                     width=0.5,
                     height=0.4,
-                    depth=0.10
+                    depth=0.10,
+                    color=RGBAColor.BROWN
                 ),
                 "bench": Furniture(
                     name="bench",
@@ -133,7 +135,8 @@ class MedicalRoomGenerator(RoomGenerator):
                     y=dims.length * 0.01,
                     width=0.82,
                     height=0.75,
-                    depth=1.95
+                    depth=1.95,
+                    color=RGBAColor.ORANGE
                 ),
                 "sink": Furniture(
                     name="sink",
@@ -157,7 +160,8 @@ class MedicalRoomGenerator(RoomGenerator):
                     y=0.01,
                     width=0.70,
                     height=2.10,
-                    depth=0.10
+                    depth=0.10,
+                    color=RGBAColor.BLACK
                 )
             }
         )

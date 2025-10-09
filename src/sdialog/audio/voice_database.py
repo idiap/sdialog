@@ -35,14 +35,16 @@ class BaseVoiceDatabase:
 
         # Flatten the nested structure into a list of records
         records = []
-        for (genre, age), voice_list in self._data.items():
-            for voice_info in voice_list:
-                records.append({
-                    'gender': genre,
-                    'age': age,
-                    'speaker_id': voice_info['identifier'],
-                    'audio_file': voice_info['voice']
-                })
+        for lang in self._data:
+            for (genre, age), voice_list in self._data[lang].items():
+                for voice_info in voice_list:
+                    records.append({
+                        'gender': genre,
+                        'age': age,
+                        'speaker_id': voice_info['identifier'],
+                        'audio_file': voice_info['voice'],
+                        'language': lang
+                    })
 
         df = pd.DataFrame(records)
         df.to_csv(path, index=False)
@@ -58,14 +60,18 @@ class BaseVoiceDatabase:
             genre: str,
             age: int,
             identifier: str,
-            path: str):
+            path: str,
+            lang: str = "english"):
         """
         Add a voice to the database.
         """
-        if (genre, age) not in self._data:
-            self._data[(genre, age)] = []
+        if lang not in self._data:
+            self._data[lang] = {}
 
-        self._data[(genre, age)].append({
+        if (genre, age) not in self._data[lang]:
+            self._data[lang][(genre, age)] = []
+
+        self._data[lang][(genre, age)].append({
             "identifier": identifier,
             "voice": path
         })
@@ -73,17 +79,22 @@ class BaseVoiceDatabase:
     def get_voice(
             self,
             genre: str,
-            age: int) -> dict:
+            age: int,
+            lang: str = "english") -> dict:
         """
         Random sampling of voice from the database.
         """
+
+        if lang not in self._data:
+            raise ValueError(f"Language {lang} not found in the database")
+
         genre = genre.lower()
 
         # If the voice is not in the database, find the closest age for this gender
-        if (genre, age) not in self._data:
+        if (genre, age) not in self._data[lang]:
 
             # Get the list of ages for this gender
-            _ages = [_age for (_genre, _age) in self._data.keys() if _genre == genre]
+            _ages = [_age for (_genre, _age) in self._data[lang].keys() if _genre == genre]
             # add shuffle the list
             random.shuffle(_ages)
             random.shuffle(_ages)
@@ -93,7 +104,7 @@ class BaseVoiceDatabase:
             age = min(_ages, key=lambda x: abs(x - age))
 
         # Get the voices from the database for this gender and age
-        _subset = self._data[(genre, age)]
+        _subset = self._data[lang][(genre, age)]
 
         # Randomly sample a voice from the database for this gender and age
         return random.choice(_subset)
@@ -143,16 +154,29 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         else:
             dataset = load_dataset(self.dataset_name)[self.subset]
 
+        counter = 0
+
         self._data = {}
+
         for d in dataset:
+
+            lang = d["language"] if "language" in d else "english"
+
+            if lang not in self._data:
+                self._data[lang] = {}
+
             key = (self._gender_to_gender(d["gender"]), d["age"])
-            if key not in self._data:
-                self._data[key] = []
-            self._data[key].append({
+
+            if key not in self._data[lang]:
+                self._data[lang][key] = []
+
+            self._data[lang][key].append({
                 "identifier": d["speaker_id"],
                 "voice": d["audio"]["path"] if "audio" in d else d["audio_file"]
             })
-        logging.info(f"Voice database populated with {len(self._data)} voices")
+            counter += 1
+
+        logging.info(f"Voice database populated with {counter} voices")
 
 
 class LocalVoiceDatabase(BaseVoiceDatabase):
@@ -239,13 +263,25 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
         if "speaker_id" not in df.columns:
             raise ValueError(f"Speaker id column does not exist in the metadata file: {self.metadata_file}")
 
+        counter = 0
+
         self._data = {}
         for index, row in df.iterrows():
+
+            lang = row["language"] if "language" in df.columns else "english"
+
+            if lang not in self._data:
+                self._data[lang] = {}
+
             key = (self._gender_to_gender(row["gender"]), row["age"])
-            if key not in self._data:
-                self._data[key] = []
-            self._data[key].append({
+
+            if key not in self._data[lang]:
+                self._data[lang][key] = []
+
+            self._data[lang][key].append({
                 "identifier": row["speaker_id"],
                 "voice": os.path.abspath(os.path.join(self.directory_audios, row["audio_file"]))
             })
-        logging.info(f"Voice database populated with {len(self._data)} voices")
+            counter += 1
+
+        logging.info(f"Voice database populated with {counter} voices")

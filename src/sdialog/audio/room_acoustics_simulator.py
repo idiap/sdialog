@@ -337,35 +337,15 @@ class RoomAcousticsSimulator:
         # Map room positions
         elif isinstance(pos, RoomPosition):
             if pos == RoomPosition.CENTER:
-                return clamp_position(
-                    room.dimensions.length * 0.5,
-                    room.dimensions.width * 0.5,
-                    BodyPosture.STANDING.value
-                )
+                return room.get_roof_center()
             elif pos == RoomPosition.TOP_LEFT:
-                return clamp_position(
-                    room.dimensions.length * 0.1,
-                    room.dimensions.width * 0.1,
-                    BodyPosture.SITTING.value
-                )
+                return room.get_top_left_corner()
             elif pos == RoomPosition.TOP_RIGHT:
-                return clamp_position(
-                    room.dimensions.length * 0.1,
-                    room.dimensions.width * 0.9,
-                    BodyPosture.STANDING.value
-                )
+                return room.get_top_right_corner()
             elif pos == RoomPosition.BOTTOM_LEFT:
-                return clamp_position(
-                    room.dimensions.length * 0.9,
-                    room.dimensions.width * 0.1,
-                    BodyPosture.SITTING.value
-                )
+                return room.get_bottom_left_corner()
             elif pos == RoomPosition.BOTTOM_RIGHT:
-                return clamp_position(
-                    room.dimensions.length * 0.9,
-                    room.dimensions.width * 0.9,
-                    BodyPosture.STANDING.value
-                )
+                return room.get_bottom_right_corner()
 
         # Fallback to center of room if position not recognized
         return clamp_position(
