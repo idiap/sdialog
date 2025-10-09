@@ -125,9 +125,9 @@ def generate_dscaper_timeline(
     resp = _dscaper.generate_timeline(
         timeline_name,
         DscaperGenerate(
-            seed=0,
+            seed=42,
             save_isolated_positions=True,
-            ref_db=-20,
+            ref_db=-40,
             reverb=0,
             save_isolated_events=False
         ),
