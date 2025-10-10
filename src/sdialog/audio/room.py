@@ -266,14 +266,11 @@ class Room(BaseModel):
         furniture = self.furnitures[furniture_name]
 
         # Get a random position around the furniture (considering the furniture 2D dimensions)
+        # Position validation is already handled within _get_random_position_around_furniture
         position = self._get_random_position_around_furniture(furniture, max_distance)
 
-        # Double-check that the position is within room bounds
-        # (should already be handled by _get_random_position_around_furniture)
-        final_position = self._clamp_position_to_room_bounds(position.x, position.y, position.z)
-
         # Add the speaker to the room
-        self.speakers_positions[speaker_name] = final_position
+        self.speakers_positions[speaker_name] = position
 
     def _clamp_position_to_room_bounds(self, x: float, y: float, z: float) -> Position3D:
         """
@@ -290,6 +287,45 @@ class Room(BaseModel):
         clamped_y = max(margin, min(y, self.dimensions.length - margin))
         clamped_z = max(0.1, min(z, self.dimensions.height - 0.05))  # Smaller top margin
         return Position3D(clamped_x, clamped_y, clamped_z)
+
+    def _is_position_valid(self, x: float, y: float) -> bool:
+        """
+        Check if a position is valid (no collision with furniture and within room bounds).
+
+        Args:
+            x, y: Position coordinates
+
+        Returns:
+            bool: True if position is valid, False otherwise
+        """
+        margin = 0.1  # 10cm safety margin from walls
+
+        # Check if position is within room bounds
+        if (x < margin or x > self.dimensions.width - margin or
+                y < margin or y > self.dimensions.length - margin):
+            return False
+
+        # Check for collision with any furniture
+        for furniture_name, furniture in self.furnitures.items():
+            if self._is_position_colliding_with_furniture(x, y, furniture):
+                return False
+
+        return True
+
+    def _is_position_colliding_with_furniture(self, x: float, y: float, furniture: Furniture) -> bool:
+        """
+        Check if a position collides with a specific furniture.
+
+        Args:
+            x, y: Position coordinates
+            furniture: The furniture to check collision with
+
+        Returns:
+            bool: True if position collides with furniture, False otherwise
+        """
+        # Check if position is within furniture bounds
+        return (furniture.x <= x <= furniture.x + furniture.width and
+                furniture.y <= y <= furniture.y + furniture.depth)
 
     def _get_random_position_around_furniture(
         self,
@@ -330,27 +366,32 @@ class Room(BaseModel):
             random_x = random.uniform(min_x, max_x)
             random_y = random.uniform(min_y, max_y)
 
+            # Clamp position to room bounds first
+            clamped_position = self._clamp_position_to_room_bounds(random_x, random_y, 0.0)
+            clamped_x, clamped_y = clamped_position.x, clamped_position.y
+
             # Check if the position is outside the furniture (not overlapping)
             # Position is outside furniture if it's not within furniture bounds
             is_outside_furniture = (
-                random_x < furniture.x or
-                random_x > furniture.x + furniture.width or
-                random_y < furniture.y or
-                random_y > furniture.y + furniture.depth
+                clamped_x < furniture.x or
+                clamped_x > furniture.x + furniture.width or
+                clamped_y < furniture.y or
+                clamped_y > furniture.y + furniture.depth
             )
 
             if is_outside_furniture:
                 # Check if position is within max_distance from furniture edge
                 # Calculate distance to furniture edge
                 distance_to_furniture = self._calculate_distance_to_furniture_edge(
-                    random_x, random_y, furniture
+                    clamped_x, clamped_y, furniture
                 )
 
                 if distance_to_furniture <= max_distance:
-                    # Use furniture height for z coordinate (standing height)
-                    z_position = furniture.get_top_z() + 0.1  # Slightly above furniture
-                    # Ensure position is within room bounds
-                    return self._clamp_position_to_room_bounds(random_x, random_y, z_position)
+                    # Check if position is valid (no collision with other furniture and within room bounds)
+                    if self._is_position_valid(clamped_x, clamped_y):
+                        # Use furniture height for z coordinate (standing height)
+                        z_position = furniture.get_top_z() + 0.1  # Slightly above furniture
+                        return Position3D(clamped_x, clamped_y, z_position)
 
             attempts += 1
 
