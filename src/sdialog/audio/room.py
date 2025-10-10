@@ -11,7 +11,7 @@ from enum import Enum
 from dataclasses import dataclass
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
-from sdialog.audio.audio_utils import BodyPosture, Furniture, RoomMaterials
+from sdialog.audio.audio_utils import BodyPosture, Furniture, RoomMaterials, SpeakerSide
 
 
 @dataclass
@@ -279,21 +279,30 @@ class Room(BaseModel):
     ):
         """
         Place a speaker position around a furniture.
+
+        Args:
+            speaker_name: Name of the speaker to place
+            furniture_name: Name of the furniture to place around
+            max_distance: Maximum distance from the furniture edge (in meters)
+            side: Specific side to place the speaker ("front", "back", "left", "right")
         """
 
         if furniture_name not in self.furnitures:
             raise ValueError(f"Furniture {furniture_name} not found in the room")
 
-        if side is not None:
-            if side not in ["front", "back", "left", "right"]:
-                raise ValueError(f"Side {side} is not valid, the speaker wasn't placed")
+        if side is not None and side not in [SpeakerSide.FRONT, SpeakerSide.BACK, SpeakerSide.LEFT, SpeakerSide.RIGHT]:
+            raise ValueError(f"Side {side} is not valid, the speaker wasn't placed")
 
         # Get the furniture
         furniture = self.furnitures[furniture_name]
 
-        # Get a random position around the furniture (considering the furniture 2D dimensions)
-        # Position validation is already handled within _get_random_position_around_furniture
-        position = self._get_random_position_around_furniture(furniture, max_distance)
+        # Get position based on whether a specific side is requested
+        if side is not None:
+            position = self._get_position_on_furniture_side(furniture, side, max_distance)
+        else:
+            # Get a random position around the furniture (considering the furniture 2D dimensions)
+            # Position validation is already handled within _get_random_position_around_furniture
+            position = self._get_random_position_around_furniture(furniture, max_distance)
 
         # Add the speaker to the room
         self.speakers_positions[speaker_name] = position
@@ -428,6 +437,108 @@ class Room(BaseModel):
         fallback_z = furniture.get_top_z() + 0.1
 
         # Ensure fallback is within room bounds using the clamp method
+        return self._clamp_position_to_room_bounds(fallback_x, fallback_y, fallback_z)
+
+    def _get_position_on_furniture_side(
+        self,
+        furniture: Furniture,
+        side: str,
+        max_distance: float = 0.3
+    ) -> Position3D:
+        """
+        Get a position on a specific side of a furniture.
+
+        Args:
+            furniture: The furniture object to position around
+            side: The side to place the speaker ("front", "back", "left", "right")
+            max_distance: Maximum distance from the furniture edge (in meters)
+
+        Returns:
+            Position3D: A position on the specified side of the furniture
+        """
+        import random
+
+        # Define the sides based on furniture orientation
+        # Assuming furniture is oriented with front facing positive Y direction
+        furniture_center_x = furniture.x + furniture.width / 2
+        furniture_center_y = furniture.y + furniture.depth / 2
+
+        # Calculate position ranges for each side - staying in "corridors"
+        if side == SpeakerSide.BACK:
+            # back side (positive Y direction) - X can vary, Y is fixed corridor
+            x_min = furniture.x
+            x_max = furniture.x + furniture.width
+            y_min = furniture.y + furniture.depth
+            y_max = furniture.y + furniture.depth + max_distance
+
+        elif side == SpeakerSide.FRONT:
+            # front side (negative Y direction) - X can vary, Y is fixed corridor
+            x_min = furniture.x
+            x_max = furniture.x + furniture.width
+            y_min = furniture.y - max_distance
+            y_max = furniture.y
+
+        elif side == SpeakerSide.LEFT:
+            # Left side (negative X direction) - Y can vary, X is fixed corridor
+            x_min = furniture.x - max_distance
+            x_max = furniture.x
+            y_min = furniture.y
+            y_max = furniture.y + furniture.depth
+
+        elif side == SpeakerSide.RIGHT:
+            # Right side (positive X direction) - Y can vary, X is fixed corridor
+            x_min = furniture.x + furniture.width
+            x_max = furniture.x + furniture.width + max_distance
+            y_min = furniture.y
+            y_max = furniture.y + furniture.depth
+
+        else:
+            raise ValueError(f"Invalid side: {side}")
+
+        # Ensure the position is within room bounds
+        x_min = max(0.1, x_min)  # 10cm margin from walls
+        x_max = min(self.dimensions.width - 0.1, x_max)
+        y_min = max(0.1, y_min)
+        y_max = min(self.dimensions.length - 0.1, y_max)
+
+        # Generate random position within the specified side corridor
+        attempts = 0
+        max_attempts = 9999
+
+        while attempts < max_attempts:
+            # Generate random coordinates within the side corridor
+            random_x = random.uniform(x_min, x_max)
+            random_y = random.uniform(y_min, y_max)
+
+            # Clamp position to room bounds
+            clamped_position = self._clamp_position_to_room_bounds(random_x, random_y, 0.0)
+            clamped_x, clamped_y = clamped_position.x, clamped_position.y
+
+            # Check if position is valid (no collision with other furniture and within room bounds)
+            if self._is_position_valid(clamped_x, clamped_y):
+                # Use furniture height for z coordinate (standing height)
+                z_position = furniture.get_top_z() + 0.1  # Slightly above furniture
+                return Position3D(clamped_x, clamped_y, z_position)
+
+            attempts += 1
+
+        # Fallback: place at the center of the side with minimum distance
+        if side == SpeakerSide.BACK:
+            fallback_x = furniture_center_x
+            fallback_y = furniture.y + furniture.depth + 0.1
+        elif side == SpeakerSide.FRONT:
+            fallback_x = furniture_center_x
+            fallback_y = furniture.y - 0.1
+        elif side == SpeakerSide.LEFT:
+            fallback_x = furniture.x - 0.1
+            fallback_y = furniture_center_y
+        elif side == SpeakerSide.RIGHT:
+            fallback_x = furniture.x + furniture.width + 0.1
+            fallback_y = furniture_center_y
+
+        fallback_z = furniture.get_top_z() + 0.1
+
+        # Ensure fallback is within room bounds
         return self._clamp_position_to_room_bounds(fallback_x, fallback_y, fallback_z)
 
     def _calculate_distance_to_furniture_edge(self, x: float, y: float, furniture: Furniture) -> float:

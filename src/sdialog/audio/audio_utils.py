@@ -114,13 +114,23 @@ class CeilingMaterial(str, Enum):
     METAL_PANEL = "ceiling_metal_panel"
 
 
-class SourceType(Enum):
+class SourceType(str, Enum):
     """
     Type of the audio source
     """
     BACKGROUND = "no_type"
     ROOM = "room-"
     EVENT = "soundevent-"
+
+
+class SpeakerSide(str, Enum):
+    """
+    Side of the speaker relative to the furniture
+    """
+    FRONT = "front"
+    BACK = "back"
+    LEFT = "left"
+    RIGHT = "right"
 
 
 class SourceVolume(Enum):
