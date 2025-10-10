@@ -114,6 +114,15 @@ class CeilingMaterial(str, Enum):
     METAL_PANEL = "ceiling_metal_panel"
 
 
+class SourceType(Enum):
+    """
+    Type of the audio source
+    """
+    BACKGROUND = "no_type"
+    ROOM = "room-"
+    EVENT = "soundevent-"
+
+
 class SourceVolume(Enum):
     """
     Volume of the audio source

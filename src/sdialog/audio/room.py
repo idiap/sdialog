@@ -42,6 +42,16 @@ class Position3D:
     def to_list(self):
         return [self.x, self.y, self.z]
 
+    def distance_to(self, other_position: "Position3D") -> float:
+        """
+        Calculate the euclidean distance between two positions.
+        """
+        return (
+            (self.x - other_position.x) ** 2
+            + (self.y - other_position.y) ** 2
+            + (self.z - other_position.z) ** 2
+        ) ** 0.5
+
     @classmethod
     def from_list(cls, position_list: List[float]) -> "Position3D":
         if len(position_list) != 3:
@@ -249,18 +259,34 @@ class Room(BaseModel):
 
     speakers_positions: dict[str, Position3D] = {}
 
-    def bind_speaker_around(
+    def place_speaker(self, speaker_name: str, position: Position3D):
+        """
+        Place a speaker in the room.
+        """
+
+        # Check is the coordinates are valid
+        if not self._is_position_valid(position.x, position.y):
+            raise ValueError(f"Position {position} is not valid, the speaker wasn't placed")
+
+        self.speakers_positions[speaker_name] = position
+
+    def place_speaker_around_furniture(
         self,
         speaker_name: str,
         furniture_name: str = "center",
-        max_distance: float = 0.3
+        max_distance: float = 0.3,
+        side: Optional[str] = None
     ):
         """
-        Bind a speaker position around a furniture.
+        Place a speaker position around a furniture.
         """
 
         if furniture_name not in self.furnitures:
             raise ValueError(f"Furniture {furniture_name} not found in the room")
+
+        if side is not None:
+            if side not in ["front", "back", "left", "right"]:
+                raise ValueError(f"Side {side} is not valid, the speaker wasn't placed")
 
         # Get the furniture
         furniture = self.furnitures[furniture_name]
@@ -491,6 +517,15 @@ class Room(BaseModel):
         Get the volume of the room
         """
         return self.dimensions.width * self.dimensions.length * self.dimensions.height
+
+    def get_speaker_distances_to_microphone(self) -> dict[str, float]:
+        """
+        Get the distances between speakers and the microphone.
+        """
+        return {
+            speaker_name: coordinates.distance_to(self.mic_position_3d)
+            for speaker_name, coordinates in self.speakers_positions.items()
+        }
 
     def to_image(
         self,
