@@ -3,8 +3,8 @@ import shutil
 import logging
 
 import scaper
-from sdialog.audio.room import AudioSource
 from sdialog.audio.audio_dialog import AudioDialog
+from sdialog.audio.room import AudioSource, RoomPosition, Room
 from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
 
 
@@ -55,7 +55,9 @@ def generate_dscaper_timeline(
         _dscaper: scaper.Dscaper,
         dialog_directory: str,
         sampling_rate: int = 24_000,
-        background_effect: str = "ac_noise_minimal") -> AudioDialog:
+        background_effect: str = "ac_noise_minimal",
+        background_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
 
@@ -88,7 +90,6 @@ def generate_dscaper_timeline(
     _dscaper.add_background(timeline_name, background_metadata)
 
     # Add the foreground to the timeline
-    # TODO: Prevent error when there is no foreground
     foreground_metadata = DscaperEvent(
         library="foreground",
         speaker="foreground",
@@ -97,15 +98,19 @@ def generate_dscaper_timeline(
         source_file=["choose", "[]"],
         event_time=["const", "0"],
         event_duration=["const", str(f"{total_duration:.1f}")],
-        position="room-top_right",
+        position=background_effect_position,
     )
     _dscaper.add_event(timeline_name, foreground_metadata)
 
     # Add the events and utterances to the timeline
     current_time = 0.0
     for i, turn in enumerate(dialog.turns):
-        # TODO: Remove this hardcoded default position
-        default_position = "doctor-at_desk_sitting" if turn.speaker == "DOCTOR" else "patient-next_to_desk_sitting"
+
+        # The role is used here to identify the source of emission of the audio
+        # We consider that it is immutable and will not change over the dialog timeline
+        # TODO: Make the position dynamic from one turn to another
+        _speaker_role = dialog.speakers_roles[turn.speaker]
+
         _event_metadata = DscaperEvent(
             library=timeline_name,
             label=["const", turn.speaker],
@@ -114,9 +119,7 @@ def generate_dscaper_timeline(
             event_duration=["const", str(f"{turn.audio_duration:.1f}")],
             speaker=turn.speaker,
             text=turn.text,
-            position=default_position,
-            # if turn.position is not None, use it, otherwise use the default position
-            # TODO: Add the microphone position
+            position=_speaker_role
         )
         _dscaper.add_event(timeline_name, _event_metadata)
         current_time += turn.audio_duration

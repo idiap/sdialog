@@ -12,8 +12,6 @@ from typing import List, Union
 from sdialog.audio.room import Room, AudioSource, Position3D
 from sdialog.audio.audio_utils import BodyPosture, SourceVolume
 from sdialog.audio.room import (
-    DoctorPosition,
-    PatientPosition,
     RoomPosition,
     SoundEventPosition
 )
@@ -112,19 +110,13 @@ class RoomAcousticsSimulator:
 
             self.audiosources.append(audio_source)
 
-            # Parse the position of the audio source
-            position = self.parse_position(audio_source.position)
-
-            if position is not SoundEventPosition:
-
-                audio_source._position3d = self.position_to_room_position(
-                    self.room,
-                    position
-                )
-
-            else:
-                room_center = [dim / 2 for dim in self._pyroom.dimensions]
-                audio_source._position3d = Position3D(room_center)
+            # Get the position of the audio source
+            if audio_source.position.startswith("no_type"):
+                _position3d = self.room.room_position_to_position3d(RoomPosition.CENTER)
+            elif audio_source.position.startswith("room-"):
+                _position3d = self.room.room_position_to_position3d(audio_source.position)
+            elif audio_source.position.startswith("speaker_"):
+                _position3d = self.room.speakers_positions[audio_source.position]
 
             # Load the audio file from the file system for the audio source
             if audio_source.source_file and os.path.exists(audio_source.source_file):
@@ -136,14 +128,14 @@ class RoomAcousticsSimulator:
                 if audio.ndim > 1:
                     audio = np.mean(audio, axis=1)
 
-                # Reduce the volume of the audio source
-                if position.startswith("room-"):
+                # Reduce the volume of those audio sources
+                if audio_source.position.startswith("room-"):
                     audio = (
                         audio * source_volumes["room-"].value
                         if "room-" in source_volumes
                         else SourceVolume.HIGH.value
                     )
-                elif position.startswith("no_type"):
+                elif audio_source.position.startswith("no_type"):
                     audio = (
                         audio * source_volumes["no_type"].value
                         if "no_type" in source_volumes
@@ -152,14 +144,9 @@ class RoomAcousticsSimulator:
 
                 # Add the audio source to the room acoustics simulator at the position
                 self._pyroom.add_source(
-                    audio_source._position3d.to_list(),
+                    _position3d.to_list(),
                     signal=audio
                 )
-
-                logging.info((
-                    f"✓ Loaded audio file '{audio_source.source_file}' for "
-                    f"'{audio_source.name}' with {len(audio)} samples"
-                ))
 
             else:
                 logging.warning(f"Warning: No audio data found for '{audio_source.name}'")
@@ -200,172 +187,3 @@ class RoomAcousticsSimulator:
         dbfs = 10 ** (snr / 20)
         x *= dbfs / np.abs(x).max(initial=1e-15)
         return x
-
-    @staticmethod
-    def parse_position(
-        position: str,
-    ) -> Union[DoctorPosition, PatientPosition, SoundEventPosition]:
-        """
-        Convert a position string to the appropriate position enum.
-        """
-        if position.startswith("doctor-"):
-            try:
-                return DoctorPosition(position)
-            except ValueError:
-                raise ValueError(f"Invalid doctor position: {position}")
-        elif position.startswith("patient-"):
-            try:
-                return PatientPosition(position)
-            except ValueError:
-                raise ValueError(f"Invalid patient position: {position}")
-        elif position.startswith("room-"):
-            try:
-                return RoomPosition(position)
-            except ValueError:
-                raise ValueError(f"Invalid patient position: {position}")
-        elif position.startswith("soundevent-"):
-            return SoundEventPosition(position)
-        elif position.startswith(
-            SoundEventPosition.BACKGROUND.value
-        ):  # no_type - background
-            return SoundEventPosition(position)
-        else:
-            raise ValueError(
-                f"Position must start with 'doctor-' or 'patient-', got: {position}"
-            )
-
-    @staticmethod
-    def position_to_room_position(
-        room: Room,
-        pos: Union[DoctorPosition, PatientPosition]
-    ) -> Position3D:
-        """
-        Convert semantic position enums to actual 3D coordinates within the room.
-
-        This function maps abstract position descriptions (like "doctor:at_desk_sitting")
-        to concrete 3D coordinates that can be used for acoustic simulation.
-
-        Args:
-            room: Room object containing dimensions and layout information
-            pos: Position enum (DoctorPosition or PatientPosition)
-
-        Returns:
-            Position3D: 3D coordinates (x, y, z) in meters within the room
-        """
-        width, length, height = (
-            room.dimensions.width,
-            room.dimensions.length,
-            room.dimensions.height,
-        )
-
-        def clamp_position(x, y, z):
-            """Ensure position is within room bounds with safety margin"""
-            margin = 0.1  # 10cm safety margin from walls
-            x = max(margin, min(x, width - margin))
-            y = max(margin, min(y, length - margin))
-            z = max(0.1, min(z, height - 0.1))
-            return Position3D.from_list([x, y, z])
-
-        # Map doctor positions
-        if isinstance(pos, DoctorPosition):
-            if pos == DoctorPosition.AT_DESK_SITTING:
-                return clamp_position(
-                    room.furnitures["desk"].x,
-                    room.furnitures["desk"].y,
-                    BodyPosture.SITTING.value
-                )
-            elif pos == DoctorPosition.AT_DESK_SIDE_STANDING:
-                return clamp_position(
-                    room.furnitures["desk"].x + 0.5,
-                    room.furnitures["desk"].y,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == DoctorPosition.NEXT_TO_BENCH_STANDING:
-                return clamp_position(
-                    room.furnitures["bench"].x - 0.8,
-                    room.furnitures["bench"].y,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == DoctorPosition.NEXT_TO_SINK_FRONT:
-                return clamp_position(
-                    room.furnitures["sink"].x + 0.3,
-                    room.furnitures["sink"].y - 0.5,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == DoctorPosition.NEXT_TO_SINK_BACK:
-                return clamp_position(
-                    room.furnitures["sink"].x - 0.3,
-                    room.furnitures["sink"].y + 0.3,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == DoctorPosition.NEXT_TO_CUPBOARD_FRONT:
-                return clamp_position(
-                    room.furnitures["cupboard"].x - 0.3,
-                    room.furnitures["cupboard"].y - 0.5,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == DoctorPosition.NEXT_TO_CUPBOARD_BACK:
-                return clamp_position(
-                    room.furnitures["cupboard"].x + 0.3,
-                    room.furnitures["cupboard"].y + 0.3,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == DoctorPosition.NEXT_TO_DOOR_STANDING:
-                return clamp_position(
-                    room.furnitures["door"].x + 0.5,
-                    room.furnitures["door"].y + 0.3,
-                    BodyPosture.STANDING.value
-                )
-
-        # Map patient positions
-        elif isinstance(pos, PatientPosition):
-            if pos == PatientPosition.AT_DOOR_STANDING:
-                return clamp_position(
-                    room.furnitures["door"].x + 0.3,
-                    room.furnitures["door"].y + 0.2,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == PatientPosition.NEXT_TO_DESK_SITTING:
-                return clamp_position(
-                    room.furnitures["desk"].x + 0.8,
-                    room.furnitures["desk"].y + 0.3,
-                    BodyPosture.SITTING.value
-                )
-            elif pos == PatientPosition.NEXT_TO_DESK_STANDING:
-                return clamp_position(
-                    room.furnitures["desk"].x + 0.8,
-                    room.furnitures["desk"].y + 0.3,
-                    BodyPosture.STANDING.value
-                )
-            elif pos == PatientPosition.SITTING_ON_BENCH:
-                return clamp_position(
-                    room.furnitures["bench"].x,
-                    room.furnitures["bench"].y,
-                    BodyPosture.SITTING.value
-                )
-            elif pos == PatientPosition.CENTER_ROOM_STANDING:
-                return clamp_position(
-                    room.furnitures["center"].x,
-                    room.furnitures["center"].y,
-                    BodyPosture.STANDING.value
-                )
-
-        # Map room positions
-        elif isinstance(pos, RoomPosition):
-            if pos == RoomPosition.CENTER:
-                return room.get_roof_center()
-            elif pos == RoomPosition.TOP_LEFT:
-                return room.get_top_left_corner()
-            elif pos == RoomPosition.TOP_RIGHT:
-                return room.get_top_right_corner()
-            elif pos == RoomPosition.BOTTOM_LEFT:
-                return room.get_bottom_left_corner()
-            elif pos == RoomPosition.BOTTOM_RIGHT:
-                return room.get_bottom_right_corner()
-
-        # Fallback to center of room if position not recognized
-        return clamp_position(
-            room.dimensions.length * 0.5,
-            room.dimensions.width * 0.5,
-            BodyPosture.STANDING.value
-        )

@@ -12,6 +12,7 @@ import soundfile as sf
 from sdialog import Dialog
 from typing import List, Union
 from sdialog.audio.room import AudioSource
+from sdialog.audio.audio_utils import Role
 from sdialog.audio.audio_turn import AudioTurn
 
 
@@ -33,6 +34,7 @@ class AudioDialog(Dialog):
     audio_step_3_filepaths: dict[str, dict] = {}
 
     speakers_names: dict[str, str] = {}
+    speakers_roles: dict[str, str] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -83,9 +85,16 @@ class AudioDialog(Dialog):
 
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
 
-        # Identify the speaker 1 and 2
-        audio_dialog.speakers_names["speaker_1"] = audio_dialog.turns[0].speaker
-        audio_dialog.speakers_names["speaker_2"] = audio_dialog.turns[1].speaker
+        speaker_1 = audio_dialog.turns[0].speaker
+        speaker_2 = audio_dialog.turns[1].speaker
+
+        # Identify the speaker 1 and 2 by their names
+        audio_dialog.speakers_names[Role.SPEAKER_1] = speaker_1
+        audio_dialog.speakers_names[Role.SPEAKER_2] = speaker_2
+
+        # Reverse mapping the roles of the speakers
+        audio_dialog.speakers_roles[speaker_1] = Role.SPEAKER_1
+        audio_dialog.speakers_roles[speaker_2] = Role.SPEAKER_2
 
         return audio_dialog
 

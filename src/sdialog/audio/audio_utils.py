@@ -165,3 +165,11 @@ class RoomMaterials(BaseModel):
     ceiling: CeilingMaterial = CeilingMaterial.FIBRE_ABSORBER
     walls: WallMaterial = WallMaterial.WOODEN_LINING
     floor: FloorMaterial = FloorMaterial.CARPET_HAIRY
+
+
+class Role(str, Enum):
+    """
+    Role of the speaker.
+    """
+    SPEAKER_1 = "speaker_1"
+    SPEAKER_2 = "speaker_2"

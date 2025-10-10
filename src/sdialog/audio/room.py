@@ -11,7 +11,7 @@ from enum import Enum
 from dataclasses import dataclass
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
-from sdialog.audio.audio_utils import BodyPosture, Furniture, RoomMaterials, SpeakerSide
+from sdialog.audio.audio_utils import BodyPosture, Furniture, RoomMaterials, SpeakerSide, Role
 
 
 @dataclass
@@ -100,9 +100,7 @@ class Dimensions3D:
 class SoundEventPosition(str, Enum):
     BACKGROUND = "no_type"  # background -
     NOT_DEFINED = "soundevent-not_defined"
-    DEFINED = "soundevent-defined"  # [0.0 0.1 0.4]
-    # NEXT_TO_DOCTOR
-    # NEXT_TO PATIENT
+    DEFINED = "soundevent-defined"
 
 
 class RoomPosition(str, Enum):
@@ -114,33 +112,6 @@ class RoomPosition(str, Enum):
     TOP_RIGHT = "room-top_right"
     BOTTOM_LEFT = "room-bottom_left"
     BOTTOM_RIGHT = "room-bottom_right"
-
-
-class DoctorPosition(str, Enum):
-    """
-    Doctor placement locations in examination room
-    """
-
-    AT_DESK_SITTING = "doctor-at_desk_sitting"
-    AT_DESK_SIDE_STANDING = "doctor-at_desk_side_standing"
-    NEXT_TO_BENCH_STANDING = "doctor-next_to_bench_standing"
-    NEXT_TO_SINK_FRONT = "doctor-next_to_sink_front"
-    NEXT_TO_SINK_BACK = "doctor-next_to_sink_back"
-    NEXT_TO_CUPBOARD_FRONT = "doctor-next_to_cupboard_front"
-    NEXT_TO_CUPBOARD_BACK = "doctor-next_to_cupboard_back"
-    NEXT_TO_DOOR_STANDING = "doctor-next_to_door_standing"
-
-
-class PatientPosition(str, Enum):
-    """
-    Patient placement locations in examination room
-    """
-
-    AT_DOOR_STANDING = "patient-at_door_standing"
-    NEXT_TO_DESK_SITTING = "patient-next_to_desk_sitting"
-    NEXT_TO_DESK_STANDING = "patient-next_to_desk_standing"
-    SITTING_ON_BENCH = "patient-sitting_on_bench"
-    CENTER_ROOM_STANDING = "patient-center_room_standing"
 
 
 class MicrophonePosition(str, Enum):
@@ -166,16 +137,11 @@ class AudioSource(BaseModel):
     snr: float = 0.0  # dB SPL
     source_file: Optional[str] = "no_file"  # audio file e.g wav
     directivity: Optional[str] = "omnidirectional"
-
     _position3d: Optional[Position3D] = PrivateAttr(default=None)
-    _is_primary: Optional[bool] = PrivateAttr(default=False)
 
     model_config = {
         "arbitrary_types_allowed": True,
     }
-
-    def model_post_init(self, __context: Any) -> None:
-        self._is_primary = self._determine_primary_status(self.name)
 
     @property
     def x(self) -> float:
@@ -202,30 +168,8 @@ class AudioSource(BaseModel):
             + (self.z - other_position[2]) ** 2
         ) ** 0.5
 
-    @staticmethod
-    def _determine_primary_status(name: str) -> bool:
-        """
-        Determine if a source is primary based on its name.
-        """
-        primary_names = [
-            "doctor",
-            "physician",
-            "main_speaker",
-            "speaker_a",
-            "primary",
-            "médecin",
-            "medecin",
-            "docteur",
-            "lekarz",
-            "doktor",
-            "lékař",
-        ]
-        return name.lower() in primary_names
-
-
-# ------------------------------------------------------------------------------
-
 # related to https://github.com/LCAV/pyroomacoustics/blob/master/pyroomacoustics/room.py
+
 
 def get_room_id():
     """
@@ -258,6 +202,21 @@ class Room(BaseModel):
     }
 
     speakers_positions: dict[str, Position3D] = {}
+
+    def room_position_to_position3d(
+        self,
+        position: RoomPosition
+    ) -> Position3D:
+        if position == RoomPosition.CENTER:
+            return self.get_roof_center()
+        elif position == RoomPosition.TOP_LEFT:
+            return self.get_top_left_corner()
+        elif position == RoomPosition.TOP_RIGHT:
+            return self.get_top_right_corner()
+        elif position == RoomPosition.BOTTOM_LEFT:
+            return self.get_bottom_left_corner()
+        elif position == RoomPosition.BOTTOM_RIGHT:
+            return self.get_bottom_right_corner()
 
     def place_speaker(self, speaker_name: str, position: Position3D):
         """
@@ -986,12 +945,30 @@ class Room(BaseModel):
                 depth=0.0
             )
 
-        self.mic_position_3d = microphone_position_to_room_position(
+        # Initialize the speakers positions if not already set
+        if Role.SPEAKER_1 not in self.speakers_positions:
+            self.place_speaker_around_furniture(
+                Role.SPEAKER_1,
+                furniture_name="center",
+                side=SpeakerSide.FRONT,
+                max_distance=2.0
+            )
+        if Role.SPEAKER_2 not in self.speakers_positions:
+            self.place_speaker_around_furniture(
+                Role.SPEAKER_2,
+                furniture_name="center",
+                side=SpeakerSide.BACK,
+                max_distance=2.0
+            )
+
+        # Convert the microphone position to 3D coordinates
+        self.mic_position_3d = microphone_to_position(
             self,
             self.mic_position,
             position_3D=self.mic_position_3d
         )
 
+        # Set the name of the room if not already set
         if self.name == "Room":
             self.name = f"{self.name}_{self.id}"
 
@@ -1003,7 +980,6 @@ class Room(BaseModel):
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            # "role": self.role.value,
             "dimensions": self.dimensions.to_list(),
             "reverberation_time_ratio": self.reverberation_time_ratio,
             "materials": self.materials.model_dump(),
@@ -1026,7 +1002,7 @@ class Room(BaseModel):
         )
 
 
-def microphone_position_to_room_position(
+def microphone_to_position(
     room: Room,
     mic_pos: MicrophonePosition,
     position_3D: Optional[Position3D] = None
