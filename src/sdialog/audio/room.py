@@ -247,6 +247,143 @@ class Room(BaseModel):
         "arbitrary_types_allowed": True,
     }
 
+    speakers_positions: dict[str, Position3D] = {}
+
+    def bind_speaker_around(
+        self,
+        speaker_name: str,
+        furniture_name: str,
+        max_distance: float = 0.3
+    ):
+        """
+        Bind a speaker position around a furniture.
+        """
+
+        if furniture_name not in self.furnitures:
+            raise ValueError(f"Furniture {furniture_name} not found in the room")
+
+        # Get the furniture
+        furniture = self.furnitures[furniture_name]
+
+        # Get a random position around the furniture (considering the furniture 2D dimensions)
+        position = self._get_random_position_around_furniture(furniture, max_distance)
+
+        # Add the speaker to the room
+        self.speakers_positions[speaker_name] = position
+
+    # TODO: Check if still in the room bounds
+    def _get_random_position_around_furniture(
+        self,
+        furniture: Furniture,
+        max_distance: float = 0.3
+    ) -> Position3D:
+        """
+        Get a random position around a furniture.
+
+        Args:
+            furniture: The furniture object to position around
+            max_distance: Maximum distance from the furniture edge (in meters)
+
+        Returns:
+            Position3D: A random position around the furniture
+        """
+        import random
+
+        # Calculate the area around the furniture where we can place the position
+        # We need to consider the furniture dimensions plus the max_distance
+        min_x = furniture.x - max_distance
+        max_x = furniture.x + furniture.width + max_distance
+        min_y = furniture.y - max_distance
+        max_y = furniture.y + furniture.depth + max_distance
+
+        # Ensure the position is within room bounds
+        min_x = max(0.1, min_x)  # 10cm margin from walls
+        max_x = min(self.dimensions.width - 0.1, max_x)
+        min_y = max(0.1, min_y)
+        max_y = min(self.dimensions.length - 0.1, max_y)
+
+        # Generate random position
+        attempts = 0
+        max_attempts = 9999
+
+        while attempts < max_attempts:
+            # Generate random coordinates
+            random_x = random.uniform(min_x, max_x)
+            random_y = random.uniform(min_y, max_y)
+
+            # Check if the position is outside the furniture (not overlapping)
+            # Position is outside furniture if it's not within furniture bounds
+            is_outside_furniture = (
+                random_x < furniture.x or
+                random_x > furniture.x + furniture.width or
+                random_y < furniture.y or
+                random_y > furniture.y + furniture.depth
+            )
+
+            if is_outside_furniture:
+                # Check if position is within max_distance from furniture edge
+                # Calculate distance to furniture edge
+                distance_to_furniture = self._calculate_distance_to_furniture_edge(
+                    random_x, random_y, furniture
+                )
+
+                if distance_to_furniture <= max_distance:
+                    # Use furniture height for z coordinate (standing height)
+                    z_position = furniture.get_top_z() + 0.1  # Slightly above furniture
+                    return Position3D(random_x, random_y, z_position)
+
+            attempts += 1
+
+        # Fallback: if we can't find a valid position, place it at a corner of the furniture
+        # with some offset
+        fallback_x = furniture.x + furniture.width + 0.1
+        fallback_y = furniture.y + furniture.depth + 0.1
+
+        # Ensure fallback is within room bounds
+        fallback_x = min(self.dimensions.width - 0.1, fallback_x)
+        fallback_y = min(self.dimensions.length - 0.1, fallback_y)
+
+        return Position3D(
+            fallback_x,
+            fallback_y,
+            furniture.get_top_z() + 0.1
+        )
+
+    def _calculate_distance_to_furniture_edge(self, x: float, y: float, furniture: Furniture) -> float:
+        """
+        Calculate the minimum distance from a point to the edge of a furniture.
+
+        Args:
+            x, y: Point coordinates
+            furniture: The furniture object
+
+        Returns:
+            float: Minimum distance to furniture edge
+        """
+        # Calculate distance to each edge of the furniture rectangle
+        distance_to_left = abs(x - furniture.x)
+        distance_to_right = abs(x - (furniture.x + furniture.width))
+        distance_to_top = abs(y - furniture.y)
+        distance_to_bottom = abs(y - (furniture.y + furniture.depth))
+
+        # If point is inside furniture, calculate distance to nearest edge
+        if (furniture.x <= x <= furniture.x + furniture.width and
+                furniture.y <= y <= furniture.y + furniture.depth):
+            # Point is inside furniture, return distance to nearest edge
+            return min(distance_to_left, distance_to_right, distance_to_top, distance_to_bottom)
+        else:
+            # Point is outside furniture, calculate distance to nearest corner/edge
+            # Distance to nearest point on furniture rectangle
+            dx = max(0, max(furniture.x - x, x - (furniture.x + furniture.width)))
+            dy = max(0, max(furniture.y - y, y - (furniture.y + furniture.depth)))
+            return (dx**2 + dy**2)**0.5
+
+    def add_speaker(self, speaker_name: str, position: Position3D):
+        """
+        Add a speaker to the room.
+        """
+        pass
+
     def get_top_left_corner(self) -> Position3D:
         return Position3D(
             x=self.dimensions.width * 0.01,
@@ -302,6 +439,7 @@ class Room(BaseModel):
 
     def to_image(
         self,
+        show_speakers: bool = True,
         show_furnitures: bool = True,
         show_microphones: bool = True,
         show_anchors: bool = True,
@@ -575,6 +713,59 @@ class Room(BaseModel):
                         text_y = 512 - text_height - 5
 
                     draw.text((text_x, text_y), label, fill='blue', font=font)
+
+        if show_speakers:
+            #########################
+            # Drawing speakers positions from self.speakers_positions
+            #########################
+            for speaker_name, speaker_position in self.speakers_positions.items():
+                # Convert speaker coordinates to pixel coordinates relative to the room
+                # Speaker coordinates are in meters, need to convert to pixels and position relative to room
+                speaker_x_px = start_x + int(speaker_position.x * scale)
+                speaker_y_px = start_y + int(speaker_position.y * scale)
+
+                # Ensure speaker is within room bounds
+                speaker_x_px = max(start_x + 5, min(speaker_x_px, start_x + room_width_px - 5))
+                speaker_y_px = max(start_y + 5, min(speaker_y_px, start_y + room_length_px - 5))
+
+                # Draw speaker as a circle with a different color for each speaker
+                # Use a simple hash of the speaker name to get a consistent color
+                color_hash = hash(speaker_name) % 360  # Get hue value
+                import colorsys
+                rgb = colorsys.hsv_to_rgb(color_hash / 360.0, 0.8, 0.8)
+                speaker_color = tuple(int(c * 255) for c in rgb)
+
+                # Draw speaker as a circle
+                draw.circle(
+                    (speaker_x_px, speaker_y_px),
+                    radius=10,
+                    fill=speaker_color,
+                    outline='black',
+                    width=2
+                )
+
+                # Add speaker name as label
+                if font:
+                    # Get text size for positioning
+                    bbox = draw.textbbox((0, 0), speaker_name, font=font)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+
+                    # Position text below the speaker circle
+                    text_x = speaker_x_px - text_width // 2
+                    text_y = speaker_y_px + 15  # Position below the circle
+
+                    # Make sure text doesn't go outside the image bounds
+                    if text_x < 0:
+                        text_x = 5
+                    elif text_x + text_width > 512:
+                        text_x = 512 - text_width - 5
+                    if text_y < 0:
+                        text_y = 5
+                    elif text_y + text_height > 512:
+                        text_y = 512 - text_height - 5
+
+                    draw.text((text_x, text_y), speaker_name, fill=speaker_color, font=font)
 
         return img
 
