@@ -19,6 +19,7 @@ class BaseVoiceDatabase:
         Initialize the voice database.
         """
         self._data = {}
+        self._used_voices = {}
         self.populate()
 
     def get_data(self) -> dict:
@@ -80,7 +81,8 @@ class BaseVoiceDatabase:
             self,
             genre: str,
             age: int,
-            lang: str = "english") -> dict:
+            lang: str = "english",
+            keep_duplicate: bool = True) -> dict:
         """
         Random sampling of voice from the database.
         """
@@ -103,11 +105,29 @@ class BaseVoiceDatabase:
             # Get the closest age for this gender
             age = min(_ages, key=lambda x: abs(x - age))
 
-        # Get the voices from the database for this gender and age
+        # Get the voices from the database for this gender, age and language
         _subset = self._data[lang][(genre, age)]
 
-        # Randomly sample a voice from the database for this gender and age
-        return random.choice(_subset)
+        # Filter the voices to keep only the ones that are not in the used voices
+        if not keep_duplicate:
+
+            if lang not in self._used_voices:
+                self._used_voices[lang] = []
+
+            _subset = [voice for voice in _subset if voice["voice"] not in self._used_voices[lang]]
+
+        # If no voice left, raise an error
+        if len(_subset) == 0:
+            raise ValueError("No voice found for this gender, age and language")
+
+        # Randomly sample a voice from the database for this gender, age and language
+        final_voice = random.choice(_subset)
+
+        # Add the voice to the list of used voices
+        if not keep_duplicate:
+            self._used_voices[lang].append(final_voice["voice"])
+
+        return final_voice
 
 
 class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
