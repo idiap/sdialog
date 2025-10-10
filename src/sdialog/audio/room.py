@@ -252,7 +252,7 @@ class Room(BaseModel):
     def bind_speaker_around(
         self,
         speaker_name: str,
-        furniture_name: str,
+        furniture_name: str = "center",
         max_distance: float = 0.3
     ):
         """
@@ -268,10 +268,29 @@ class Room(BaseModel):
         # Get a random position around the furniture (considering the furniture 2D dimensions)
         position = self._get_random_position_around_furniture(furniture, max_distance)
 
-        # Add the speaker to the room
-        self.speakers_positions[speaker_name] = position
+        # Double-check that the position is within room bounds
+        # (should already be handled by _get_random_position_around_furniture)
+        final_position = self._clamp_position_to_room_bounds(position.x, position.y, position.z)
 
-    # TODO: Check if still in the room bounds
+        # Add the speaker to the room
+        self.speakers_positions[speaker_name] = final_position
+
+    def _clamp_position_to_room_bounds(self, x: float, y: float, z: float) -> Position3D:
+        """
+        Ensure position is within room bounds with safety margin.
+
+        Args:
+            x, y, z: Position coordinates
+
+        Returns:
+            Position3D: Position clamped to room bounds
+        """
+        margin = 0.1  # 10cm safety margin from walls
+        clamped_x = max(margin, min(x, self.dimensions.width - margin))
+        clamped_y = max(margin, min(y, self.dimensions.length - margin))
+        clamped_z = max(0.1, min(z, self.dimensions.height - 0.05))  # Smaller top margin
+        return Position3D(clamped_x, clamped_y, clamped_z)
+
     def _get_random_position_around_furniture(
         self,
         furniture: Furniture,
@@ -330,7 +349,8 @@ class Room(BaseModel):
                 if distance_to_furniture <= max_distance:
                     # Use furniture height for z coordinate (standing height)
                     z_position = furniture.get_top_z() + 0.1  # Slightly above furniture
-                    return Position3D(random_x, random_y, z_position)
+                    # Ensure position is within room bounds
+                    return self._clamp_position_to_room_bounds(random_x, random_y, z_position)
 
             attempts += 1
 
@@ -338,16 +358,10 @@ class Room(BaseModel):
         # with some offset
         fallback_x = furniture.x + furniture.width + 0.1
         fallback_y = furniture.y + furniture.depth + 0.1
+        fallback_z = furniture.get_top_z() + 0.1
 
-        # Ensure fallback is within room bounds
-        fallback_x = min(self.dimensions.width - 0.1, fallback_x)
-        fallback_y = min(self.dimensions.length - 0.1, fallback_y)
-
-        return Position3D(
-            fallback_x,
-            fallback_y,
-            furniture.get_top_z() + 0.1
-        )
+        # Ensure fallback is within room bounds using the clamp method
+        return self._clamp_position_to_room_bounds(fallback_x, fallback_y, fallback_z)
 
     def _calculate_distance_to_furniture_edge(self, x: float, y: float, furniture: Furniture) -> float:
         """
