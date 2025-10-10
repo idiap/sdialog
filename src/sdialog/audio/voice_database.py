@@ -37,10 +37,10 @@ class BaseVoiceDatabase:
         # Flatten the nested structure into a list of records
         records = []
         for lang in self._data:
-            for (genre, age), voice_list in self._data[lang].items():
+            for (gender, age), voice_list in self._data[lang].items():
                 for voice_info in voice_list:
                     records.append({
-                        'gender': genre,
+                        'gender': gender,
                         'age': age,
                         'speaker_id': voice_info['identifier'],
                         'audio_file': voice_info['voice'],
@@ -56,9 +56,15 @@ class BaseVoiceDatabase:
         """
         self._data = {}
 
+    def reset_used_voices(self):
+        """
+        Reset the used voices.
+        """
+        self._used_voices = {}
+
     def add_voice(
             self,
-            genre: str,
+            gender: str,
             age: int,
             identifier: str,
             path: str,
@@ -69,17 +75,17 @@ class BaseVoiceDatabase:
         if lang not in self._data:
             self._data[lang] = {}
 
-        if (genre, age) not in self._data[lang]:
-            self._data[lang][(genre, age)] = []
+        if (gender, age) not in self._data[lang]:
+            self._data[lang][(gender, age)] = []
 
-        self._data[lang][(genre, age)].append({
+        self._data[lang][(gender, age)].append({
             "identifier": identifier,
             "voice": path
         })
 
     def get_voice(
             self,
-            genre: str,
+            gender: str,
             age: int,
             lang: str = "english",
             keep_duplicate: bool = True) -> dict:
@@ -90,13 +96,13 @@ class BaseVoiceDatabase:
         if lang not in self._data:
             raise ValueError(f"Language {lang} not found in the database")
 
-        genre = genre.lower()
+        gender = gender.lower()
 
         # If the voice is not in the database, find the closest age for this gender
-        if (genre, age) not in self._data[lang]:
+        if (gender, age) not in self._data[lang]:
 
             # Get the list of ages for this gender
-            _ages = [_age for (_genre, _age) in self._data[lang].keys() if _genre == genre]
+            _ages = [_age for (_gender, _age) in self._data[lang].keys() if _gender == gender]
             # add shuffle the list
             random.shuffle(_ages)
             random.shuffle(_ages)
@@ -106,7 +112,7 @@ class BaseVoiceDatabase:
             age = min(_ages, key=lambda x: abs(x - age))
 
         # Get the voices from the database for this gender, age and language
-        _subset = self._data[lang][(genre, age)]
+        _subset = self._data[lang][(gender, age)]
 
         # Filter the voices to keep only the ones that are not in the used voices
         if not keep_duplicate:

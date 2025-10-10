@@ -75,7 +75,7 @@ def match_voice_to_persona(
     Matches a voice to a persona.
     """
     for speaker, persona in dialog.personas.items():
-        persona["_metadata"]["voice"] = voice_database.get_voice(genre=persona["gender"], age=persona["age"])
+        persona["_metadata"]["voice"] = voice_database.get_voice(gender=persona["gender"], age=persona["age"])
     return dialog
 
 
