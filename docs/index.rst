@@ -18,18 +18,19 @@ Conversational AI research and applications increasingly rely on high-quality, f
 
 Project Vision & Community Call
 -------------------------------
-To accelerate open, rigorous, and reproducible conversational AI research, this project invites the community to collaborate around the following pillars:
 
-- **Standard Dialog Format:** A clear, versioned JSON spec so datasets, simulators, evaluators, and tooling plug together easily.
-- **Persona-Driven Multi-Agent Simulation:** Agents with structured personas, shared context, optional tools, and (optional) reasoning traces for fair comparison and ablations.
-- **Composable Orchestration:** Stack small pieces (rules, selectors, flow controllers, custom logic) to steer behavior predictably.
-- **Built-in Evaluation Suite:** Ready metrics for text features, flow / coherence, embeddings, LLM judging, and dataset benchmarking.
-- **Mechanistic Interpretability:** Hooks to capture internal signals, explore steering directions, and run safe intervention tests.
-- **Attribute & Dialogue Generators:** Mix LLMs and light rules to create personas, contexts, dialogs, and paraphrased or contrastive variants.
-- **Backend Interoperability:** One config layer for OpenAI, HuggingFace, Ollama, AWS, or local backends—plus caching, tracing, retries, reproducibility.
-- **Easy Extensibility:** Small base classes so you can add custom personas, orchestrators, evaluators, generators, embedding providers, or inspector logic quickly.
+To accelerate open, rigorous, and reproducible conversational AI research, SDialog invites the community to collaborate and help shape the future of open dialogue generation.
 
-Contributions of any size (issues, discussions, benchmarks, evaluation ideas, interpretability notes, new orchestrators) are welcome. Your ideas help shape open dialogue generation.
+Contributions of any size are welcome and help shape the future of open dialogue generation:
+
+- **🗂️ Dataset Standardization**: Help convert existing dialogue datasets to SDialog format. Currently, each dataset stores dialogues in different formats, making cross-dataset analysis and model evaluation challenging. **Converted datasets are made available as Hugging Face datasets** in the [SDialog organization](https://huggingface.co/datasets/sdialog/) for easy access and integration.
+- **🔧 Component Development**: Create new personas, orchestrators, evaluators, generators, or backend integrations
+- **📊 Evaluation & Benchmarks**: Design new metrics, evaluation frameworks, or comparative studies
+- **🧠 Interpretability Research**: Develop new analysis tools, steering methods, or mechanistic insights
+- **📖 Documentation & Tutorials**: Improve guides, add examples, or create educational content
+- **🐛 Issues & Discussions**: Report bugs, request features, or share research ideas and use cases
+
+See `SDialog Github page <https://github.com/idiap/sdialog/>` for more info. We welcome issues, feature requests, and pull requests. If you want to **contribute to the project**, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍
 
 Installation
 ------------

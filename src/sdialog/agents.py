@@ -507,6 +507,24 @@ class Agent:
         if self._hook_response_data is None:
             self._hook_response_data = ResponseHook(agent=self)
 
+    def serve(self,
+              host: str = "0.0.0.0",
+              port: int = 1333,
+              log_level: str = "info"):
+        """
+        Starts a REST API server to interact with the agent.
+
+        :param host: Host address to bind the server to.
+        :type host: str
+        :param port: Port number to listen on.
+        :type port: int
+        :param log_level: Logging level for the server.
+        :type log_level: str
+        """
+        from .server import Server
+
+        return Server.serve(agent=self, host=host, port=port, log_level=log_level)
+
     def response_lookahead(self, message: str = None):
         """
         Generates a response without updating the agent's memory.

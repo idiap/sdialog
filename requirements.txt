@@ -15,6 +15,10 @@ tqdm
 tenacity
 syllables
 
+# === Web server (optional) ===
+fastapi
+uvicorn
+
 # === LangChain ecosystem ===
 # LangChain ≥0.3.0 officially targets Python 3.9+, but later releases may require 3.10+.
 # Lock compatible versions for Python 3.9.
