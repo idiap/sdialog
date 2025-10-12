@@ -93,6 +93,9 @@ class BaseVoiceDatabase:
         Random sampling of voice from the database.
         """
 
+        if lang is not None:
+            lang = lang.lower()
+
         if lang not in self._data:
             raise ValueError(f"Language {lang} not found in the database")
 

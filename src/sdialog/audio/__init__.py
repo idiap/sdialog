@@ -11,9 +11,7 @@ import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-from sdialog import Dialog, Turn
 from sdialog.audio.room import Room
-from sdialog.personas import BasePersona
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase
@@ -21,16 +19,6 @@ from sdialog.audio.audio_utils import AudioUtils, SourceVolume
 from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-def _get_persona_voice(
-        dialog: Dialog,
-        turn: Turn) -> BasePersona:
-    """
-    Gets a persona from a dialog.
-    """
-    persona = dialog.personas[turn.speaker]
-    return persona["_metadata"]["voice"]
 
 
 def generate_utterances_audios(
@@ -46,36 +34,39 @@ def generate_utterances_audios(
     :rtype: AudioDialog
     """
 
-    # Match the voice to the persona of the dialog
-    dialog = match_voice_to_persona(dialog, voice_database=voice_database)
+    # Attribute the voice to the persona of the dialog
+    dialog = attribute_voice_to_persona(dialog, voice_database=voice_database)
 
     for turn in tqdm(dialog.turns, desc="Generating utterances audios"):
 
         # Get the voice of the turn
-        turn_voice = _get_persona_voice(dialog, turn)["voice"]
+        turn.voice = dialog.personas[turn.speaker]["voice"]
 
         # Generate the utterance audio
         utterance_audio, sampling_rate = generate_utterance(
             text=AudioUtils.remove_audio_tags(turn.text),
-            voice=turn_voice,
+            voice=turn.voice,
             tts_pipeline=tts_pipeline
         )
 
-        # Set the utterance audio and voice to the turn
+        # Set the utterance audio to the turn
         turn.set_audio(utterance_audio, sampling_rate)
-        turn.voice = turn_voice
 
     return dialog
 
 
-def match_voice_to_persona(
+def attribute_voice_to_persona(
         dialog: AudioDialog,
         voice_database: BaseVoiceDatabase) -> AudioDialog:
     """
-    Matches a voice to a persona.
+    Attributes a voice to a persona.
     """
     for speaker, persona in dialog.personas.items():
-        persona["_metadata"]["voice"] = voice_database.get_voice(gender=persona["gender"], age=persona["age"])
+        persona["voice"] = voice_database.get_voice(
+            gender=persona["gender"],
+            age=persona["age"],
+            lang=persona["language"]
+        )["voice"]
     return dialog
 
 
@@ -136,14 +127,6 @@ def generate_audio_room_accoustic(
 
     # Create the room acoustics simulator
     room_acoustics = RoomAcousticsSimulator(room=room, kwargs_pyroom=kwargs_pyroom)
-
-    # Simulate the audio
-    logging.info("simulate sources:")
-    logging.info(f"{len(dialog.get_audio_sources())}")
-    logging.info(dialog.get_audio_sources())
-    print("/"*25)
-    print(dialog.get_audio_sources())
-    # TODO: Remove this after testing
 
     _audio_accoustic = room_acoustics.simulate(
         sources=dialog.get_audio_sources(),
