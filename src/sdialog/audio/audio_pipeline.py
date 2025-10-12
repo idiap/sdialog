@@ -15,9 +15,9 @@ from typing import List, Optional
 from datasets import load_dataset
 
 from sdialog import Dialog
-from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
+from sdialog.audio.room import Room, RoomPosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase
 from sdialog.audio import (
@@ -225,10 +225,20 @@ class AudioPipeline:
                 dialog=dialog,
                 _dscaper=self._dscaper,
                 dialog_directory=dialog_directory,
+                foreground_effect=(
+                    environment["foreground_effect"]
+                    if "foreground_effect" in environment
+                    else "ac_noise_low"
+                ),
+                foreground_effect_position=(
+                    environment["foreground_effect_position"]
+                    if "foreground_effect_position" in environment
+                    else RoomPosition.TOP_RIGHT
+                ),
                 background_effect=(
                     environment["background_effect"]
                     if "background_effect" in environment
-                    else "ac_noise_low"
+                    else "white_noise"
                 )
             )
             logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")

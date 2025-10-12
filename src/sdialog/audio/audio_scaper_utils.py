@@ -55,8 +55,9 @@ def generate_dscaper_timeline(
         _dscaper: scaper.Dscaper,
         dialog_directory: str,
         sampling_rate: int = 24_000,
-        background_effect: str = "ac_noise_minimal",
-        background_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+        background_effect: str = "white_noise",
+        foreground_effect: str = "ac_noise_minimal",
+        foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
 ) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
@@ -84,7 +85,7 @@ def generate_dscaper_timeline(
     # Add the background to the timeline
     background_metadata = DscaperBackground(
         library="background",
-        label=["const", "white_noise"],
+        label=["const", background_effect],
         source_file=["choose", "[]"]
     )
     _dscaper.add_background(timeline_name, background_metadata)
@@ -94,11 +95,11 @@ def generate_dscaper_timeline(
         library="foreground",
         speaker="foreground",
         text="foreground",
-        label=["const", background_effect],
+        label=["const", foreground_effect],
         source_file=["choose", "[]"],
         event_time=["const", "0"],
         event_duration=["const", str(f"{total_duration:.1f}")],
-        position=background_effect_position,
+        position=foreground_effect_position,
     )
     _dscaper.add_event(timeline_name, foreground_metadata)
 
