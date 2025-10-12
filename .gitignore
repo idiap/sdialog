@@ -6,7 +6,6 @@ docs_html
 __*__
 
 dscaper_data/
-#audio files
 *.wav
 *.mp3
 *.png
@@ -14,29 +13,11 @@ dscaper_data/
 *.flac
 *.ogg
 *.zip
-!misc/audio/my_custom_voices.zip
+!tests/data/my_custom_voices.zip
 *.tar
-misc/audio/Generation/dscaper
-misc/audio/Voices/embeddings/xvectors.pkl
-misc/audio/Generation/index-tts/
-misc/audio/Generation/model/
-misc/audio/Generation/logs_slurm
-misc/audio/Generation/logs_slurm_transcripts
-misc/audio/Generation/logs_slurm_static_rooms
-misc/audio/Generation/output*
-misc/audio/Generation/data
-misc/audio/Generation/*.zip
-misc/audio/Generation/*.png
-misc/audio/Generation/*.csv
-misc/audio/Generation/*.json
-misc/audio/Generation/200-dialogues-V0
 old.git
 tutorials/dialog_demo.json
-tutorials/sdialog
-tutorials/sdialog/*
 tutorials/dscaper_data
 tutorials/audio_outputs
 tutorials/my_custom_voices
-tutorials/my_custom_voices/*
-tutorials/=0.9.4
 tutorials/room.png
