@@ -5,31 +5,24 @@
 [![codecov](https://codecov.io/gh/idiap/sdialog/graph/badge.svg?token=2210USI8I0)](https://app.codecov.io/gh/idiap/sdialog?displayType=list)
 [![PyPI version](https://badge.fury.io/py/sdialog.svg)](https://badge.fury.io/py/sdialog)
 [![Downloads](https://static.pepy.tech/badge/sdialog)](https://pepy.tech/project/sdialog)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/idiap/sdialog/)
+
 ---
+SDialog is a modular Python toolkit for synthetic dialog generation, evaluation, and analysis. It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability—so you can generate reliable, controllable dialog data at scale.
 
-> ⚠️ This library is currently undergoing significant updates as part of the JSALT workshop. As a result, some examples in this README and the tutorials may be outdated. Many new features have been added (including audio generation, evaluation, interpretability modules, persona generators, and more). We will update the README, documentation, and tutorials once the codebase stabilizes and matures. Thank you for your understanding and patience. **If you are interested in this project, we recommend clicking the “watch” icon above to stay informed about future updates and changes.**
+Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
-**SDialog** is a modular, extensible Python toolkit for synthetic dialogue generation and analysis, designed for research and development with instruction-tuned Large Language Models (LLMs). It enables flexible, persona-driven, multi-agent dialogue simulation, orchestration, and scenario management, making it ideal for building, evaluating, and experimenting with conversational agents.
+## ✨ Key features
+- Standard dialog schema with JSON import/export _(aiming to standardize dialog datasets format [with your help 🙏](#-project-vision--community-call))_
+- Persona‑driven multi‑agent simulation with contexts, tools, and thoughts
+- Composable orchestration for precise control over behavior and flow
+- Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
+- Native mechanistic interpretability (inspect and steer activations)
+- Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
+- Interoperability across OpenAI, HuggingFace, Ollama, AWS, and more
 
-## 🚀 Motivation
-
-Modern conversational AI research and applications increasingly require high-quality, flexible, and reproducible synthetic dialogues for training, evaluation, and benchmarking. SDialog addresses the need for:
-
-- **Standardization:** Clear definitions for dialogue, persona, and event structures.
-- **Abstraction:** Abstract interfaces for both single-agent and multi-agent dialogue generation.
-- **Fine-grained Control:** Orchestration to inject instructions, simulate user behaviors, and enforce scenario constraints.
-- **LLM Integration:** Seamless integration with instruction-tuned LLMs, prompt management, and memory handling.
-- **Scenario and Dataset Management:** Tools for managing complex scenarios, flowcharts, and persona definitions.
-
-## ✨ Features
-
-- **Persona-based Role-Playing:** Define rich agent personas to simulate realistic conversations.
-- **Multi-Agent Dialogue:** Generate dialogues between multiple agents, each with their own persona and behavior.
-- **Dialogue Orchestration:** Control agent actions and inject instructions dynamically using orchestrators.
-- **Scenario Management:** Easily describe and manage dialogue scenarios, including flowcharts and user/system goals.
-- **Flexible Serialization:** Export dialogues and events in JSON or plain text for downstream tasks.
-- **Integration with LLMs:** Out-of-the-box support for [Ollama](https://ollama.com/) and [LangChain](https://python.langchain.com/), with planned support for HuggingFace models.
+If you are building controlled multi‑agent conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
 
 ## ⚡ Installation
 
@@ -37,75 +30,279 @@ Modern conversational AI research and applications increasingly require high-qua
 pip install sdialog
 ```
 
-> **Note:** You must have [Ollama](https://ollama.com/download) running on your system to use the default LLM integration.
-> ```bash
-> curl -fsSL https://ollama.com/install.sh | sh
-> ```
+## 🏁 Quickstart tour
 
-## 🏁 Quick Start
-
-Define personas, create agents, and generate a dialogue:
+Here's a short, hands-on example showing personas, agents, a simple rule (orchestrator), and a tool.
 
 ```python
-from sdialog.personas import Persona, PersonaAgent
+import sdialog
+from sdialog import Context
+from sdialog.agents import Agent
+from sdialog.personas import Persona
+from sdialog.orchestrators import SimpleReflexOrchestrator
 
-# Define personas
-alice = Persona(name="Alice", role="friendly barista", personality="cheerful and helpful")
-bob = Persona(name="Bob", role="customer", personality="curious and polite")
+# First, let's set our preferred backend/model and parameters
+sdialog.config.llm("openai:gpt-4.1", temperature=0.9)
 
-# Create agents
-alice_agent = Agent(persona=alice, name="Alice")
-bob_agent = Agent(persona=bob, name="Bob")
+# Let's define our personas
+alice = Persona(name="Alice", role="barista", personality="cheerful")
+bob   = Persona(name="Bob", role="customer", personality="curious")
 
-# Generate a dialogue
-dialog = alice_agent.dialog_with(bob_agent)
-dialog.print()
+# (Optional) Let's add a concrete conversational context
+ctx = Context(
+  location="Downtown cafe",
+  environment="noisy, aromatic cafe with occasional grinder sounds",
+  circumstances="Morning rush hour",
+  objects=["espresso machine", "menu board", "tip jar"]
+)
+
+# (Optional) Let's add a simple tool (just a plain Python function)
+# We'll use a tiny mock function our agent can call as a tool
+def lookup_menu(item: str) -> dict:
+    return {"item": item, "specials": ["vanilla latte", "cold brew"]}
+
+# (Optional) Let's include a small rule-based orchestrator
+react = SimpleReflexOrchestrator(
+    condition=lambda utt: "decaf" in utt.lower(),
+    instruction="Explain decaf options and suggest one."
+)
+
+# Now we create the agents
+barista = Agent(persona=alice, tools=[lookup_menu])
+customer = Agent(persona=bob, first_utterance="Hi!")
+
+# (Optional) We can attach orchestrators to an agent using pipe-like composition
+barista = barista | react
+
+# Let's generate three dialogs!
+for ix in range(3):
+    dialog = customer.dialog_with(barista, context=ctx)
+    dialog.print(orchestration=True)
+    dialog.to_file(f"dialog_{ix}.json")
 ```
+> [!NOTE]
+> - See [orchestration tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/3.multi-agent%2Borchestrator_generation.ipynb) and [agents with tools and thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb).
+> - Dialogs are [rich objects](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#sdialog.Dialog) with helper methods (filter, slice, transform, etc.) that can be easily exported and loaded.
+> - Next: see [Loading and saving dialogs](#loading-and-saving-dialogs) and [Auto-generating personas and contexts](#auto-generating-personas-and-contexts) for persistence and controlled diversity.
 
-## 🎛️ Orchestration Example
+### 💾 Loading and saving dialogs
 
-Add orchestration to control dialogue length or simulate agent behaviors:
+[Dialog](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#dialog)s are JSON‑serializable and can be created from multiple formats. After generating one you can persist it, then reload later for evaluation, transformation, or mixing with real data.
 
 ```python
-from sdialog.orchestrators import LengthOrchestrator, ChangeMindOrchestrator
+from sdialog import Dialog
 
-length_orch = LengthOrchestrator(min=3, max=6)
-mind_orch = ChangeMindOrchestrator(probability=0.5, reasons=["changed plans", "new information"], max_times=1)
-alice_agent = alice_agent | length_orch | mind_orch
+# Load from JSON (generated by SDialog using `to_file()`)
+dialog = Dialog.from_file("dialog_0.json")
+
+# Load from HuggingFace Hub datasets
+dialogs = Dialog.from_huggingface("sdialog/Primock-57")
+
+# Create from plain text files or strings - perfect for converting existing datasets!
+dialog_from_txt = Dialog.from_str("""
+Alice: Hello there! How are you today?
+Bob: I'm doing great, thanks for asking.
+Alice: That's wonderful to hear!
+""")
+# Or, equivalently if the content is in a txt file
+dialog_from_txt = Dialog.from_file("conversation.txt")
+
+# Load from CSV files with custom templates
+dialog_from_csv = Dialog.from_file("conversation.csv",
+                                   csv_speaker_col="speaker",
+                                   csv_text_col="value",)
+
+# All Dialog objects have rich manipulation methods
+dialog.filter("Alice").rename_speaker("Alice", "Customer").upper().to_file("processed.json")
+avg_words_turn = sum(len(turn) for turn in dialog) / len(dialog)
 ```
 
-## 📚 STAR Dataset Integration
+### 🧬 Auto-generating personas and contexts
 
-Work with the STAR dataset for scenario-driven dialogue generation:
+Use [generators](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) to fill in (or selectively control) persona/context attributes using LLMs or other data sources (functions, CSV files, inline prompts). The `.set()` method lets you override how individual attributes are produced.
 
 ```python
-from sdialog.datasets import STAR
+from sdialog.personas import Doctor, Patient
+from sdialog.generators import PersonaGenerator, ContextGenerator
+from sdialog import Context
 
-STAR.set_path("/path/to/star-dataset")
+# By default, unspecified attributes are LLM generated
+doc = PersonaGenerator(Doctor(specialty="Cardiology")).generate()
+pat = PersonaGenerator(Patient(symptoms="chest pain")).generate()
 
-scenario = {
-    "Domains": ["banking"],
-    "UserTask": "Open a new account",
-    "WizardTask": "Assist with account opening",
-    "Happy": True,
-    "MultiTask": False,
-    "WizardCapabilities": [{"Task": "open_account", "Domain": "banking"}]
-}
-
-system_agent, user_agent = STAR.get_agents_for_scenario(scenario, "llama2")
-
-dialog = system_agent.dialog_with(user_agent)
-dialog.print()
+# Optionally specify generation sources per attribute
+ctx_gen = ContextGenerator(Context(location="emergency room"))
+ctx_gen.set(
+  objects=get_random_object,                        # user-defined function
+  circumstances="{csv:circumstance:./data/circumstances.csv}",  # CSV file values
+  goals="{llm:Suggest a realistic goal for the context}"         # targeted LLM instruction
+)
+ctx = ctx_gen.generate()
 ```
 
-## 📖 Documentation
+> [!TIP]
+> 🕹️ 👉 Try the [demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) to experiment with generators.
 
-- **[Documentation](https://sdialog.readthedocs.io)** - Full package documentation, including installation, API reference, usage guides, and advanced examples available.
-- **[API Reference](https://sdialog.readthedocs.io/en/latest/api/index.html):** See docstrings in the codebase for detailed documentation of all classes and functions.
-- **[Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials):** Tutorials for hands-on examples as Jupyter Notebooks.
+### 🧪 Testing remote systems with simulated users
 
+SDialog can also easily act as a controllable test harness for any (OpenAI‑compatible) conversational backend. Create realistic or adversarial user personas to role‑play against your deployed system:
 
-## :muscle: Contributors :sunglasses::+1:
+* Black‑box functional checks (Does the system follow instructions? Handle edge cases?)
+* Persona / use‑case coverage (Different goals, emotions, domains)
+* Regression testing (Run the same persona batch each release; diff dialogs)
+* Safety / robustness probing (Angry, confused, or noisy users)
+* Automated evaluation (Pipe generated dialogs directly into evaluators below)
+
+Core idea: your remote system is wrapped as an `Agent`; simulated users are `Agent`s with personas producing diverse conversation trajectories, all recorded as `Dialog` objects you can save, diff, and score.
+
+Below is a minimal example where an "angry customer" interacts once with a mock remote endpoint:
+
+```python
+# Our remote system (your conversational backend exposing an OpenAI-compatible API)
+system = Agent(
+  model="my/super-llm",  # Model name exposed by your server
+  openai_api_base="http://my-endpoint.com:8000/v1",  # Base URL of the service
+  openai_api_key="EMPTY",  # Or a real key if required
+  name="System"
+)
+
+# Let's manually define one (minimal) synthetic customer persona
+angry_customer = Customer(
+  name="Riley",
+  issue="Billing error on last invoice",
+  issue_description="Charged twice for the same month",
+  anger_level="high",
+  times_called=3,
+)
+
+simulated_customer = Agent(persona=angry_customer, name="Customer")
+
+# Let's make the system talk to our simulated customer once
+dialog = system.dialog_with(simulated_customer)
+dialog.to_file("dialog_0.json")
+```
+
+Next, evaluate these dialogs or orchestrate agents with more complex flows using rule/LLM hybrid orchestrators (see [tutorials 3 & 7](https://github.com/idiap/sdialog/tree/main/tutorials)).
+
+## 📊 Evaluate and compare
+
+Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation) (readability, flow, linguistic features, LLM judges) or easily create new ones, then aggregate and compare datasets via `DatasetComparator`.
+
+```python
+from sdialog.evaluation import LLMJudgeRealDialog, LinguisticFeatureScore
+from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator
+from sdialog.evaluation import DatasetComparator
+
+reference = [...]   # list[Dialog]
+candidate = [...]   # list[Dialog]
+
+judge  = LLMJudgeRealDialog()
+flesch = LinguisticFeatureScore(feature="flesch-reading-ease")
+
+comparator = DatasetComparator([
+  FrequencyEvaluator(judge, name="Realistic dialog rate"),
+  MeanEvaluator(flesch, name="Mean Flesch Reading Ease"),
+])
+
+results = comparator({"reference": reference, "candidate": candidate})
+
+# Plot results for each evaluator
+comparator.plot()
+```
+> [!TIP]
+> See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/5.evaluation.ipynb).
+
+## 🧠 Mechanistic interpretability
+
+Attach Inspectors to capture per‑token activations and optionally steer (add/ablate directions) to analyze or intervene in model behavior.
+
+```python
+import sdialog
+from sdialog.interpretability import Inspector
+from sdialog.agents import Agent
+
+sdialog.config.llm("huggingface:meta-llama/Llama-3.2-3B-Instruct")
+
+agent = Agent(name="Bob")
+inspector = Inspector(target="model.layers.16.post_attention_layernorm")
+agent = agent | inspector
+
+agent("How are you?")
+agent("Cool!")
+
+# Let's get the last response's first token activation vector!
+act = inspector[-1][0].act # [response index][token index]
+```
+
+Steering intervention (subtracting a direction):
+```python
+anger_direction = torch.load("anger_direction.pt")  # A direction vector (e.g., PCA / difference-in-mean vector)
+agent_steered = agent | inspector - anger_direction  # Ablate the anger direction from the target activations
+
+agent_steered("You are an extremely upset assistant")  # Agent "can't get angry anymore" :)
+```
+> [!TIP]
+> See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
+
+## 🔧 Interoperability
+
+Many [backends supported](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer), just use `"BACKEND:MODEL"` string format to either set a global default LLM for all components or pass one to each component:
+
+```python
+import sdialog
+
+# Change the default global LLM
+sdialog.config.llm("ollama:qwen3:14b")
+# Any argument supported by the chosen backend/model can also be given, for example
+sdialog.config.llm("ollama:qwen3:14b",
+                   temperature=0.7,
+                   base_url="https://my-ollama-endpoint.com:123")  # Remote Ollama server
+```
+Any LLM-powered component can also take a specific model and its parameters as argument, to overwrite the default one:
+```python
+from sdialog.agents import Agent
+
+my_agent = Agent(model="amazon:anthropic.claude-3-5-sonnet-20240620-v1:0",
+                 region_name="us-east-1")
+```
+
+## 📖 Documentation and tutorials
+
+- [Demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb)
+- [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
+- [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
+- [Documentation](https://sdialog.readthedocs.io)
+- [LLM-friendly docs](https://sdialog.readthedocs.io/en/latest/llm.txt) for AI coding assistants (**GitHub Copilot**, etc.) following the [llm.txt specification](https://llmstxt.org/), in your chat use:
+  ```
+  #fetch https://sdialog.readthedocs.io/en/latest/llm.txt
+  Your prompt to use sdialog here...
+  ```
+
+## 🌍 Project Vision & Community Call
+
+To accelerate open, rigorous, and reproducible conversational AI research, SDialog invites the community to collaborate and help shape the future of open dialogue generation.
+
+### 🤝 How You Can Help
+
+Contributions of any size are welcome and help shape the future of open dialogue generation:
+
+- **🗂️ Dataset Standardization**: Help convert existing dialogue datasets to SDialog format. Currently, each dataset stores dialogues in different formats, making cross-dataset analysis and model evaluation challenging. **Converted datasets are made available as Hugging Face datasets** in the [SDialog organization](https://huggingface.co/datasets/sdialog/) for easy access and integration.
+- **🔧 Component Development**: Create new personas, orchestrators, evaluators, generators, or backend integrations
+- **📊 Evaluation & Benchmarks**: Design new metrics, evaluation frameworks, or comparative studies
+- **🧠 Interpretability Research**: Develop new analysis tools, steering methods, or mechanistic insights
+- **📖 Documentation & Tutorials**: Improve guides, add examples, or create educational content
+- **🐛 Issues & Discussions**: Report bugs, request features, or share research ideas and use cases
+
+> [!NOTE]
+> **Example**: Check out [Primock-57](https://huggingface.co/datasets/sdialog/Primock-57), a sample dataset already available in SDialog format on Hugging Face.
+> 
+> If you have a dialogue dataset you'd like to convert to SDialog format, need help with the conversion process, or want to contribute in any other way, please [open an issue](https://github.com/idiap/sdialog/issues) or reach out to us. We're happy to help and collaborate!
+
+### 💪 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). We welcome issues, feature requests, and pull requests. If you want to **contribute to the project**, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. All-contributors list:
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
@@ -113,17 +310,17 @@ dialog.print()
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="http://scholar.google.com/citations?user=XOD8lrAAAAAJ"><img src="https://avatars.githubusercontent.com/u/12646542?v=4?s=100" width="100px;" alt="Sergio Burdisso"/><br /><sub><b>Sergio Burdisso</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Code">💻</a> <a href="#ideas-sergioburdisso" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Documentation">📖</a> <a href="#tutorial-sergioburdisso" title="Tutorials">✅</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://linkedin.com/in/yanis-labrak-8a7412145/"><img src="https://avatars.githubusercontent.com/u/19389475?v=4?s=100" width="100px;" alt="Labrak Yanis"/><br /><sub><b>Labrak Yanis</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=qanastek" title="Code">💻</a> <a href="#ideas-qanastek" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SevKod"><img src="https://avatars.githubusercontent.com/u/123748182?v=4?s=100" width="100px;" alt="Séverin"/><br /><sub><b>Séverin</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=SevKod" title="Code">💻</a> <a href="#ideas-SevKod" title="Ideas, Planning, & Feedback">🤔</a> <a href="#tutorial-SevKod" title="Tutorials">✅</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.ricardmarxer.com"><img src="https://avatars.githubusercontent.com/u/15324?v=4?s=100" width="100px;" alt="Ricard Marxer"/><br /><sub><b>Ricard Marxer</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=rikrd" title="Code">💻</a> <a href="#ideas-rikrd" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/thschaaf"><img src="https://avatars.githubusercontent.com/u/42753790?v=4?s=100" width="100px;" alt="Thomas Schaaf"/><br /><sub><b>Thomas Schaaf</b></sub></a><br /><a href="#ideas-thschaaf" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=thschaaf" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/enderzhangpro"><img src="https://avatars.githubusercontent.com/u/41446535?v=4?s=100" width="100px;" alt="David Liu"/><br /><sub><b>David Liu</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=enderzhangpro" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ahassoo1"><img src="https://avatars.githubusercontent.com/u/46629954?v=4?s=100" width="100px;" alt="ahassoo1"/><br /><sub><b>ahassoo1</b></sub></a><br /><a href="#ideas-ahassoo1" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=ahassoo1" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://sergioburdisso.github.io/" target="_blank"><img src="https://avatars.githubusercontent.com/u/12646542?v=4?s=100" width="100px;" alt="Sergio Burdisso"/><br /><sub><b>Sergio Burdisso</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Code" target="_blank">💻</a> <a href="#ideas-sergioburdisso" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Documentation" target="_blank">📖</a> <a href="#tutorial-sergioburdisso" title="Tutorials" target="_blank">✅</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://linkedin.com/in/yanis-labrak-8a7412145/" target="_blank"><img src="https://avatars.githubusercontent.com/u/19389475?v=4?s=100" width="100px;" alt="Labrak Yanis"/><br /><sub><b>Labrak Yanis</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=qanastek" title="Code" target="_blank">💻</a> <a href="#ideas-qanastek" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SevKod" target="_blank"><img src="https://avatars.githubusercontent.com/u/123748182?v=4?s=100" width="100px;" alt="Séverin"/><br /><sub><b>Séverin</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=SevKod" title="Code" target="_blank">💻</a> <a href="#ideas-SevKod" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="#tutorial-SevKod" title="Tutorials" target="_blank">✅</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.ricardmarxer.com" target="_blank"><img src="https://avatars.githubusercontent.com/u/15324?v=4?s=100" width="100px;" alt="Ricard Marxer"/><br /><sub><b>Ricard Marxer</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=rikrd" title="Code" target="_blank">💻</a> <a href="#ideas-rikrd" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/thschaaf" target="_blank"><img src="https://avatars.githubusercontent.com/u/42753790?v=4?s=100" width="100px;" alt="Thomas Schaaf"/><br /><sub><b>Thomas Schaaf</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=thschaaf" title="Code" target="_blank">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/enderzhangpro" target="_blank"><img src="https://avatars.githubusercontent.com/u/41446535?v=4?s=100" width="100px;" alt="David Liu"/><br /><sub><b>David Liu</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=enderzhangpro" title="Code" target="_blank">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ahassoo1" target="_blank"><img src="https://avatars.githubusercontent.com/u/46629954?v=4?s=100" width="100px;" alt="ahassoo1"/><br /><sub><b>ahassoo1</b></sub></a><br /><a href="#ideas-ahassoo1" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=ahassoo1" title="Code" target="_blank">💻</a></td>
     </tr>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.cyrta.com"><img src="https://avatars.githubusercontent.com/u/83173?v=4?s=100" width="100px;" alt="Pawel Cyrta"/><br /><sub><b>Pawel Cyrta</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=cyrta" title="Code">💻</a> <a href="#ideas-cyrta" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Amyyyyeah"><img src="https://avatars.githubusercontent.com/u/122391422?v=4?s=100" width="100px;" alt="ABCDEFGHIJKL"/><br /><sub><b>ABCDEFGHIJKL</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=Amyyyyeah" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.cyrta.com" target="_blank"><img src="https://avatars.githubusercontent.com/u/83173?v=4?s=100" width="100px;" alt="Pawel Cyrta"/><br /><sub><b>Pawel Cyrta</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=cyrta" title="Code" target="_blank">💻</a> <a href="#ideas-cyrta" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Amyyyyeah" target="_blank"><img src="https://avatars.githubusercontent.com/u/122391422?v=4?s=100" width="100px;" alt="ABCDEFGHIJKL"/><br /><sub><b>ABCDEFGHIJKL</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=Amyyyyeah" title="Code" target="_blank">💻</a></td>
     </tr>
   </tbody>
 </table>
@@ -133,17 +330,25 @@ dialog.print()
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+<!-- ## 📚 Citation
 
+If you use SDialog in academic work, please cite:
+```bibtex
+@misc{sdialog2025,
+  title  = {SDialog: A Toolkit for Synthetic Dialog Generation, Evaluation, and Interpretability},
+  author = {Contributors of the SDialog Project},
+  year   = {2025},
+  url    = {https://github.com/idiap/sdialog}
+}
+``` -->
 
 ## 🙏 Acknowledgments
 
-This work was supported by the EU Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/) (grant number 101070558).
+This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) (grant number 101070558).
 
-The initial development of this project began in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)). Further improvements and enhancements were made during the Workshop as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
-
+The initial development of this project began in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
 
 ## 📝 License
 
-MIT License  
+[MIT License](LICENSE)  
 Copyright (c) 2025 Idiap Research Institute

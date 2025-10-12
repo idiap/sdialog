@@ -1,0 +1,18 @@
+{% set is_plural = dialogs|length > 1 %}
+Given the following {{ "dialogues" if is_plural else "dialogue" }}, rate how REAL (human-like) or SYNTHETIC (machine-generated) {{ "they are" if is_plural else "it is" }} on a Likert scale from {{ min_score }} to {{ max_score }}.
+
+A {{ "dialogue" if not is_plural else "dialogues" }} should be considered more REAL (human) if {{ "each demonstrates" if is_plural else "it demonstrates" }} characteristics such as:
+- Sufficient length and depth (not just a short or trivial exchange)
+- Natural flow and coherence between turns
+- Realistic, contextually appropriate responses
+- Evidence of genuine intent, emotion, or subtlety in interaction
+- Natural conversational style, including possible hesitations, self-corrections, informal expressions, or filler words (e.g., "um", "well", "you know")
+- Absence of obvious artifacts of machine generation (e.g., generic, repetitive, or unnatural phrasing)
+- Consistency in persona, style, and topic progression
+
+If {{ "any dialogue is" if is_plural else "the dialogue is" }} too short, lacks depth, lacks natural conversational style, or seems artificial, it should receive a lower score (closer to {{ min_score }}).
+
+Rate each {{ "dialogue" if not is_plural else "of the dialogues" }} using the following Likert scale:
+{{ min_score }} = Definitely SYNTHETIC (machine-generated)
+{{ max_score }} = Definitely REAL (human)
+(Use intermediate values to indicate gradations between synthetic and real.)

@@ -1,29 +1,5 @@
-from sdialog import Dialog
-from sdialog.personas import Agent
-from sdialog.generators import LLMDialogOutput, Turn
-from sdialog.personas import Persona, ExtendedPersona, Doctor, Patient, PersonaMetadata, MinimalPatient, MinimalDoctor
-
-MODEL = "smollm:135m"
-example_dialog = Dialog(turns=[Turn(speaker="A", text="This is an example!"), Turn(speaker="B", text="Hi!")])
-
-
-# Patch LLM call
-class DummyLLM:
-    seed = 0
-    num_predict = 1
-
-    def __init__(self, *a, **kw):
-        pass
-
-    def invoke(self, memory):
-        return type(
-            "Msg", (),
-            {"content": LLMDialogOutput(
-                dialog=[Turn(speaker="A", text="Hi")]).model_dump_json()}
-        )()
-
-    def __str__(self):
-        return "dummy"
+from sdialog.base import Metadata
+from sdialog.personas import Persona, ExtendedPersona, ExtendedDoctor, ExtendedPatient, Patient, Doctor
 
 
 def test_persona_description_and_json():
@@ -43,17 +19,6 @@ def test_persona_fields():
     assert p.background == "Cafe"
 
 
-def test_persona_agent_init(monkeypatch):
-    persona = Persona(name="Alice")
-    agent = Agent(persona=persona, name="Alice", model=DummyLLM())
-    assert agent.get_name() == "Alice"
-    assert "role" in agent.prompt().lower()
-    agent.set_first_utterances("Hi!")
-    assert agent.first_utterances == "Hi!"
-    agent.clear_orchestrators()
-    agent.reset(seed=42)
-
-
 def test_persona_and_json():
     persona = Persona(name="Alice", role="barista", background="Works at a cafe")
     desc = persona.description()
@@ -63,36 +28,6 @@ def test_persona_and_json():
     js_str = persona.json(string=True)
     assert isinstance(js_str, str)
     assert "Alice" in js_str
-
-
-def test_persona_agent_init_and_prompt():
-    persona = Persona(name="Alice", role="barista")
-    agent = Agent(persona, "Alice", MODEL)
-    assert agent.get_name() == "Alice"
-    prompt = agent.prompt()
-    assert "role" in prompt.lower()
-
-
-def test_persona_agent_dialog_with():
-    persona1 = Persona(name="A")
-    persona2 = Persona(name="B")
-    agent1 = Agent(persona=persona1, name="A", model=DummyLLM())
-    agent2 = Agent(persona2, "B", DummyLLM())
-    dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
-    assert isinstance(dialog, Dialog)
-    assert len(dialog.turns) > 0
-    assert "A" in dialog.personas
-    assert "B" in dialog.personas
-
-
-def test_agent_postprocessing_fn():
-    persona1 = Persona(name="A")
-    persona2 = Persona(name="B")
-    agent1 = Agent(persona=persona1, name="A", model=DummyLLM())
-    agent2 = Agent(persona2, "B", DummyLLM(), postprocess_fn=lambda x: x.upper())
-    dialog = agent1.dialog_with(agent2, max_turns=4, keep_bar=False)
-    assert dialog.turns[1].text.isupper(), "Postprocessing function did not apply correctly."
-    assert not dialog.turns[0].text.isupper(), "Postprocessing function should not have effect."
 
 
 def test_extended_persona_fields_and_description():
@@ -126,8 +61,8 @@ def test_extended_persona_fields_and_description():
     assert js["occupation"] == "Engineer"
 
 
-def test_patient_fields_and_description():
-    p = Patient(
+def test_extended_patient_fields_and_description():
+    p = ExtendedPatient(
         name="Jane",
         age=30,
         symptoms="cough, fever",
@@ -147,8 +82,8 @@ def test_patient_fields_and_description():
     assert js["medical_conditions"] == "asthma"
 
 
-def test_doctor_fields_and_description():
-    d = Doctor(
+def test_extended_doctor_fields_and_description():
+    d = ExtendedDoctor(
         name="Dr. Smith",
         age=50,
         specialty="Cardiology",
@@ -165,8 +100,8 @@ def test_doctor_fields_and_description():
     assert js["years_of_experience"] == 25
 
 
-def test_MinimalPatient_fields_and_description():
-    p = MinimalPatient(
+def test_patient_fields_and_description():
+    p = Patient(
         name="John",
         age=35,
         race="Hispanic",
@@ -182,7 +117,7 @@ def test_MinimalPatient_fields_and_description():
         reason_for_visit="Routine checkup",
         medical_history="No major illnesses",
         medical_conditions="None",
-        medications_current="None",
+        medications="None",
         allergies="None",
         family_history="No significant history",
         marital_status="single",
@@ -212,16 +147,16 @@ def test_MinimalPatient_fields_and_description():
     assert js["reason_for_visit"] == "Routine checkup"
     assert js["medical_history"] == "No major illnesses"
     assert js["medical_conditions"] == "None"
-    assert js["medications_current"] == "None"
+    assert js["medications"] == "None"
     assert js["allergies"] == "None"
     assert js["family_history"] == "No significant history"
 
 
-def test_MinimalDoctor_fields_and_description():
-    d = MinimalDoctor(
+def test_doctor_fields_and_description():
+    d = Doctor(
         name="Dr. Jane",
         age=45,
-        speciality="Pediatrics",
+        specialty="Pediatrics",
         years_of_experience=20,
         race="Caucasian",
         gender="female",
@@ -237,7 +172,7 @@ def test_MinimalDoctor_fields_and_description():
     assert "Pediatrics" in desc
     js = d.json()
     assert isinstance(js, dict)
-    assert js["speciality"] == "Pediatrics"
+    assert js["specialty"] == "Pediatrics"
     assert js["years_of_experience"] == 20
     assert js["race"] == "Caucasian"
     assert js["gender"] == "female"
@@ -336,7 +271,7 @@ def test_persona_clone_parent_id():
     Test that .clone() sets the clone's _metadata.parentId to the original's _metadata.id.
     """
     persona = Persona(name="Alice", role="barista")
-    persona._metadata = PersonaMetadata(id=123)
+    persona._metadata = Metadata(id=123)
     clone = persona.clone()
     assert clone._metadata is not None
     assert clone._metadata.parentId == 123
@@ -350,9 +285,3 @@ def test_persona_clone_with_changes():
     clone = persona.clone(role="manager")
     assert clone.role == "manager"
     assert persona.name == clone.name
-
-
-def test_agent_example_dialogs():
-    persona = Persona(name="Alice")
-    agent = Agent(persona=persona, name="Alice", model=DummyLLM(), example_dialogs=[example_dialog])
-    assert example_dialog.turns[0].text in agent.memory[0].content

@@ -1,4 +1,3 @@
-# Improved two-persona dialogue prompt
 Role-play a conversation between the following two characters. Each character is defined by their persona below in JSON format. Remain in character for both roles at all times.
 
 [[ ## BEGIN FIRST PERSONA ## ]]
@@ -11,16 +10,22 @@ Role-play a conversation between the following two characters. Each character is
 
 ---
 {% if dialogue_details %}
-Dialogue context:
-{{ dialogue_details }}
+- Dialogue details: {{ dialogue_details }}
+{% endif %}
+{% if context %}
+- Dialogue context: {{ context }}
 {% endif %}
 {% if response_details %}
-Response guidelines:
-{{ response_details }}
+- Response guidelines: {{ response_details }}
 {% endif %}
-
 Instructions:
   1. Always stay in character for both personas.
   2. The first utterance must be a short, generic greeting. Wait for a reply before continuing the conversation.
   3. Keep responses natural, concise, and appropriate for each persona.
   4. The conversation should have a clear beginning (greeting) and end (goodbye).
+
+Output speaker mapping requirement:
+In every turn object within the output JSON "dialog" array:
+- Use "{{speaker_a}}" for utterances from the first persona.
+- Use "{{speaker_b}}" for utterances from the second persona.
+- Do not use any other values and do not omit the "speaker" field.

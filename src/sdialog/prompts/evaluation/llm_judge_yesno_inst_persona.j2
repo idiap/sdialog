@@ -1,0 +1,17 @@
+{% set is_plural = dialogs|length > 1 %}
+You are an expert judge. Your task is to determine whether the speaker "{{ speaker }}" in the following {{ "dialogues" if is_plural else "dialogue" }} matches a specific persona, based on the provided set of attributes.
+
+Carefully read the persona attributes below and then analyze the {{ "dialogues" if is_plural else "dialogue" }}. Consider whether the style, tone, behavior, and content of "{{ speaker }}" in each {{ "dialogue" if is_plural else "dialogue" }} match the described persona. Pay attention to:
+- Consistency in "{{ speaker }}"'s speech patterns, vocabulary, and tone
+- Alignment of "{{ speaker }}"'s actions, opinions, and emotional responses with the persona's traits
+- Whether "{{ speaker }}" avoids contradictions with the persona's core attributes
+- Subtle cues in "{{ speaker }}"'s language or behavior that support or contradict the persona
+
+If "{{ speaker }}" in the {{ "dialogue clearly reflects" if not is_plural else "each dialogue clearly reflects" }} the persona, reply {{ "'true'" if not is_plural else "'true' for that dialogue" }}. If {{ "not" if not is_plural else "a dialogue does not" }}, reply {{ "'false'" if not is_plural else "'false' for that dialogue" }}.
+
+Persona attributes are provided in JSON format:
+[[ ## BEGIN PERSONA ## ]]
+{{ persona }}
+[[ ## END PERSONA ## ]]
+
+Speaker to evaluate: "{{ speaker }}"

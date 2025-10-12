@@ -1,0 +1,33 @@
+{% set is_plural = dialogs|length > 1 %}
+{{ prompt_template }}
+
+{% if reason %}
+Reply with a JSON object with two fields:
+{% else %}
+Reply with a JSON object with ONLY the following field (do not provide any reason):
+{% endif %}
+  - 'positive': {{ "a list of booleans, each true for an affirmative (Yes) answer to the instruction's criterion and false for a non-affirmative (No) answer, one per dialogue in order" if is_plural else "true for an affirmative (Yes) answer to the instruction's criterion, false for a non-affirmative (No) answer" }}
+{% if reason %}
+  - 'reason': {{ "a brief justification for each decision in a list" if is_plural else "a brief justification for your decision" }}
+{% endif %}
+
+{% if is_plural %}
+Below, each dialogue is delimited by:
+[[ ## BEGIN DIALOGUE N ## ]]
+...dialogue text...
+[[ ## END DIALOGUE N ## ]]
+where N is the dialogue index in the list.
+
+{% endif %}
+{{ "Dialogues:" if is_plural else "Dialogue:" }}
+{% if is_plural %}
+{% for d in dialogs %}
+[[ ## BEGIN DIALOGUE {{ loop.index }} ## ]]
+{{ d }}
+[[ ## END DIALOGUE {{ loop.index }} ## ]]
+{% endfor %}
+{% else %}
+{{ dialogs[0] }}
+{% endif %}
+
+Your answer:

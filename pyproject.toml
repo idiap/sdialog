@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sdialog"
 authors = [
+  { name="Sergio Burdisso", email="sergio.burdisso@gmail.com" }
+]
+maintainers = [
   { name="Sergio Burdisso", email="sergio.burdisso@gmail.com" },
   { name="Severin Baroudi", email="sevbargal@outlook.fr" },
   { name="Yanis Labrak", email="yanis.labrak@univ-avignon.fr" },
@@ -35,7 +38,7 @@ Source = "https://github.com/idiap/sdialog"
 Documentation = "https://sdialog.readthedocs.io"
 
 [tool.setuptools.dynamic]
-version = {attr = "sdialog.__version__"}
+version = {attr = "sdialog.util.__version__"}
 dependencies = {file = ["requirements.txt"]}
 
 

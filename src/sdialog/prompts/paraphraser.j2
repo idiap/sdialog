@@ -1,0 +1,12 @@
+{% if not target_speaker %}
+Paraphrase the following dialogue:
+{% else %}
+Paraphrase the following list of utterances for {{ target_speaker }} speaker:
+{% endif %}
+
+{{ dialog }}
+
+{% if extra_instructions %}
+Consider the following extra guidelines when paraphrasing:
+{{ extra_instructions }}
+{% endif %}

@@ -8,12 +8,11 @@ import os
 import logging
 import numpy as np
 import soundfile as sf
-from typing import List, Union
-from sdialog.audio.room import Room, AudioSource, Position3D
-from sdialog.audio.audio_utils import BodyPosture, SourceVolume
+from typing import List
+from sdialog.audio.room import Room, AudioSource
+from sdialog.audio.audio_utils import SourceVolume
 from sdialog.audio.room import (
-    RoomPosition,
-    SoundEventPosition
+    RoomPosition
 )
 
 

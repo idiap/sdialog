@@ -2,8 +2,10 @@ import os
 
 from sdialog.generators import DialogGenerator, PersonaDialogGenerator, LLMDialogOutput, Turn
 from sdialog.generators import PersonaGenerator
-from sdialog.personas import BasePersona, Persona, Agent
-from sdialog import Dialog
+from sdialog.personas import BasePersona, Persona
+from sdialog.agents import Agent
+from sdialog import Dialog, Context
+from sdialog.generators import ContextGenerator  # added
 
 
 MODEL = "smollm:135m"
@@ -55,12 +57,35 @@ class DummyPersonaLLM:
     def __init__(self, *a, **kw):
         pass
 
+    def with_structured_output(self, output_format):
+        return self
+
     def invoke(self, memory):
         return {"name": "Dummy",
                 "age": 30,
                 "city": "Unknown",
                 "hobby": "Reading",
                 "occupation": "Engineer"}
+
+    def __str__(self):
+        return "dummy"
+
+
+# Patch LLM for ContextGenerator
+class DummyContextLLM:
+    seed = 0
+    num_predict = 1
+    temperature = None
+
+    def __init__(self, *a, **kw):
+        pass
+
+    def with_structured_output(self, output_format):
+        return self
+
+    def invoke(self, memory):
+        # Assumes Context model has at least location and goals
+        return {"location": "Office", "goals": ["Small talk"]}
 
     def __str__(self):
         return "dummy"
@@ -85,7 +110,7 @@ def test_persona_dialog_generator(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
+    gen = PersonaDialogGenerator(persona_a=persona_a, persona_b=persona_b, model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
 
@@ -94,17 +119,21 @@ def test_persona_dialog_generator_personas(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
+    gen = PersonaDialogGenerator(persona_a=persona_a,
+                                 speaker_a="Speaker1",
+                                 persona_b=persona_b,
+                                 speaker_b="Speaker2",
+                                 model=MODEL)
     dialog = gen()
-    assert "A" in dialog.personas
-    assert "B" in dialog.personas
+    assert "A" == dialog.personas["Speaker1"]["name"]
+    assert "B" == dialog.personas["Speaker2"]["name"]
 
 
 def test_persona_dialog_generator_with_agents(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLM)
-    persona_a = Agent(Persona(), "A", DummyLLM())
-    persona_b = Agent(Persona(), "B", DummyLLM())
-    gen = PersonaDialogGenerator(persona_a, persona_b, MODEL)
+    persona_a = Agent(Persona(), "A", model=DummyLLM())
+    persona_b = Agent(Persona(), "B", model=DummyLLM())
+    gen = PersonaDialogGenerator(persona_a=persona_a, persona_b=persona_b, model=MODEL)
     dialog = gen()
     assert hasattr(dialog, "turns")
     assert "A" in dialog.personas
@@ -127,8 +156,7 @@ def test_persona_generator_function_dependency(monkeypatch):
         return "Dancying"
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     gen = PersonaGenerator(DummyPersona)
-    gen.set_attribute_generators(name=["Loco Polaco", "Loca Polaca"],
-                                 hobby=get_hobby)
+    gen.set(name=["Loco Polaco", "Loca Polaca"], hobby=get_hobby)
 
     p = gen.generate()
     assert (p.name[-1] == "a" and p.hobby == "Party") or (p.name[-1] == "o" and p.hobby == "Dancying")
@@ -162,7 +190,7 @@ def test_persona_generator_csv_template(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.csv")
     gen = PersonaGenerator(DummyPersona)
-    gen.set_attribute_generators(
+    gen.set(
         name="{{csv:name:%s}}" % csv_path,
         age="{{20-30}}"
     )
@@ -176,7 +204,7 @@ def test_persona_generator_tsv_template(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.tsv")
     gen = PersonaGenerator(DummyPersona)
-    gen.set_attribute_generators(
+    gen.set(
         name="{{tsv:name:%s}}" % csv_path,
         age="{{20-30}}"
     )
@@ -216,3 +244,54 @@ def test_persona_dialog_generator_example_dialogs(monkeypatch):
     assert gen.example_dialogs[0] == example_dialog
     _ = gen()
     assert example_dialog.turns[0].text in gen.messages[0].content
+
+
+def test_persona_dialog_generator_with_context_in_constructor(monkeypatch):
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
+    ctx = Context(location="Cafe", goals=["Casual chat"])
+    persona_a = Persona(name="A")
+    persona_b = Persona(name="B")
+    gen = PersonaDialogGenerator(persona_a, persona_b, context=ctx)
+    dialog = gen()
+    assert "Cafe" in gen.dialogue_details
+    assert hasattr(dialog, "turns")
+
+
+def test_persona_dialog_generator_with_context_at_generate(monkeypatch):
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
+    ctx = Context(location="Library", goals=["Study"])
+    persona_a = Persona(name="A")
+    persona_b = Persona(name="B")
+    gen = PersonaDialogGenerator(persona_a, persona_b)
+    dialog = gen(context=ctx)
+    assert "Library" in gen.prompt()
+    assert hasattr(dialog, "turns")
+
+
+def test_context_generator_basic(monkeypatch):
+    """
+    Verify that ContextGenerator generates a Context object via structured LLM output.
+    """
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
+    ctx = Context(location="Library", goals=["Study"])
+    gen = ContextGenerator(context=ctx)
+    ctx = gen.generate()
+    assert ctx.location == "Library"
+    assert isinstance(ctx.goals, list)
+
+
+def test_context_generator_attribute_overrides(monkeypatch):
+    """
+    Verify that set works (list / LLM delegation) and fills values.
+    """
+    monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
+    ctx = Context()
+    gen = ContextGenerator(context=ctx)
+    gen.set(
+        location=["Cafe", "Library"],
+        # Delegate goals to LLM ("*" means fill via LLM) so DummyContextLLM sets it
+        goals="*"
+    )
+    ctx = gen.generate()
+    assert ctx.location in ["Cafe", "Library"]
+    assert isinstance(ctx.goals, list) and len(ctx.goals) > 0

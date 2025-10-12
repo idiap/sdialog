@@ -1,10 +1,7 @@
 """
-datasets: Dataset Utilities for Synthetic Dialogue Generation
-
 This module provides utilities for loading, parsing, and describing dialogue datasets, including the STAR dataset.
-It supports extracting scenarios, flowcharts, personas, and constructing Agent objects for simulation.
+It supports extracting scenarios, flowcharts, personas, and constructing dataset-specific Agent objects for simulation.
 """
-
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
@@ -15,13 +12,17 @@ import json
 from tqdm.auto import tqdm
 
 from . import Dialog, Turn, Event
-from .personas import Persona, Agent
+from .agents import Agent
+from .personas import Persona
 from .orchestrators import InstructionListOrchestrator, SimpleResponseOrchestrator
 
 
 class STAR:
     """
     Utility class for interacting with the STAR dialogue dataset.
+
+        - Paper: https://arxiv.org/abs/2010.11853
+        - Github: https://github.com/RasaHQ/STAR
 
     Provides methods for loading dialogues, extracting scenarios, flowcharts, responses, and constructing
     Agent objects for simulation and evaluation.
@@ -35,21 +36,23 @@ class STAR:
         """
         Sets the root path for the STAR dataset.
 
-        :param path: Path to the STAR dataset root.
+        :param path: Path to the STAR dataset root directory.
         :type path: str
+        :return: None
+        :rtype: None
         """
         STAR._path = path
 
     @staticmethod
     def read_graph(task_name, as_dot: bool = True):
         """
-        Reads the action graph for a given task.
+        Read the action graph for a given task.
 
-        :param task_name: Name of the task.
+        :param task_name: Name of the task (folder name under tasks/).
         :type task_name: str
-        :param as_dot: If True, returns DOT format; else, returns dict.
+        :param as_dot: If True, return a DOT string; else return the raw graph dict.
         :type as_dot: bool
-        :return: The graph in DOT or dict format.
+        :return: Graph in DOT format or raw dictionary mapping edges.
         :rtype: Union[str, dict]
         """
         with open(os.path.join(STAR._path, f"tasks/{task_name}/{task_name}.json")) as reader:
@@ -62,29 +65,46 @@ class STAR:
     @staticmethod
     def read_graph_responses(task_name, as_dict: bool = False):
         """
-        Reads example responses for each node in a task's graph.
+        Read example responses associated with each node/action in a task graph.
+
+        Placeholders of the form {variable[:format]} are uppercased for visibility.
 
         :param task_name: Name of the task.
         :type task_name: str
-        :param as_dict: If True, returns as dict; else, as JSON string.
+        :param as_dict: If True, return a dict; otherwise a JSON-formatted string.
         :type as_dict: bool
-        :return: Example responses.
-        :rtype: Union[str, dict]
+        :return: Mapping node -> example response, or JSON dump.
+        :rtype: Union[dict, str]
         """
         with open(os.path.join(STAR._path, f"tasks/{task_name}/responses.json")) as reader:
+            responses = json.load(reader)
             responses = {key: re.sub(r"{(.+?)(?::\w+?)?}", lambda m: m.group(1).upper(), value)
                          for key, value in responses.items()
                          if key != "out_of_scope"}
             return responses if as_dict else json.dumps(responses, indent=2)
 
     @staticmethod
+    def get_task_names():
+        """
+        List all available task names (directory names under tasks/).
+
+        :return: List of task names.
+        :rtype: List[str]
+        """
+        return [
+            task_name
+            for task_name in os.listdir(os.path.join(STAR._path, "tasks"))
+            if os.path.isdir(os.path.join(STAR._path, "tasks", task_name))
+        ]
+
+    @staticmethod
     def get_dialog(id):
         """
-        Loads a dialogue by ID.
+        Load a dialogue by numeric ID.
 
-        :param id: Dialogue ID.
+        :param id: Dialogue ID (filename without extension).
         :type id: int
-        :return: The loaded dialogue object.
+        :return: Dialog object with turns and events populated.
         :rtype: Dialog
         """
         dialog_path = os.path.join(STAR._path, f"dialogues/{id}.json")
@@ -108,7 +128,7 @@ class STAR:
                     agent=e["Agent"],
                     action=e["Action"],
                     actionLabel=e["ActionLabel"] if "ActionLabel" in e else None,
-                    text=e["Text"],
+                    content=e["Text"],
                     timestamp=e["UnixTime"],
                 )
                 for e in dialog["Events"]
@@ -121,17 +141,17 @@ class STAR:
     @staticmethod
     def get_dialogs(domain: str = None, task_name: str = None, happy: bool = None, multitask: bool = None):
         """
-        Loads all dialogues matching the specified criteria.
+        Load all dialogues matching optional filter criteria.
 
-        :param domain: Filter by domain.
-        :type domain: str
-        :param task_name: Filter by task name.
-        :type task_name: str
-        :param happy: Filter by 'happy path' status.
-        :type happy: bool
-        :param multitask: Filter by multitask status.
-        :type multitask: bool
-        :return: List of matching dialogues.
+        :param domain: Domain filter (must appear in Scenario['Domains']).
+        :type domain: Optional[str]
+        :param task_name: Task name filter (must appear in WizardCapabilities).
+        :type task_name: Optional[str]
+        :param happy: Filter by 'happy path' flag.
+        :type happy: Optional[bool]
+        :param multitask: Filter by multitask flag.
+        :type multitask: Optional[bool]
+        :return: List of Dialog objects matching filters.
         :rtype: List[Dialog]
         """
         dialogs = []
@@ -156,11 +176,11 @@ class STAR:
     @staticmethod
     def get_dialog_scenario(id):
         """
-        Loads the scenario for a given dialogue.
+        Load scenario metadata for a given dialogue.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: Scenario metadata.
+        :return: Scenario dictionary.
         :rtype: dict
         """
         with open(os.path.join(STAR._path, f"dialogues/{id}.json")) as reader:
@@ -169,14 +189,14 @@ class STAR:
     @staticmethod
     def get_dialog_first_turn(id, speaker: str = None):
         """
-        Gets the first turn for a given dialogue and speaker.
+        Get the first turn for a given dialogue (optionally constrained to a speaker).
 
         :param id: Dialogue ID.
         :type id: int
-        :param speaker: Speaker name (optional).
-        :type speaker: str
-        :return: The first turn.
-        :rtype: Turn
+        :param speaker: Speaker name filter (e.g., 'User' or 'Wizard'); if None, first participant turn is returned.
+        :type speaker: Optional[str]
+        :return: First matching turn or None if not found.
+        :rtype: Optional[Turn]
         """
         with open(os.path.join(STAR._path, f"dialogues/{id}.json")) as reader:
             for event in json.load(reader)["Events"]:
@@ -189,7 +209,7 @@ class STAR:
     @staticmethod
     def get_dialog_task_names(id):
         """
-        Gets the task names for a given dialogue.
+        Get all task names (WizardCapabilities -> Task) for a dialogue.
 
         :param id: Dialogue ID.
         :type id: int
@@ -202,11 +222,11 @@ class STAR:
     @staticmethod
     def get_dialog_responses(id):
         """
-        Gets example responses for all tasks in a dialogue.
+        Get example response dictionaries for each task in a dialogue.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: List of response dicts.
+        :return: List of response dicts (one per task).
         :rtype: List[dict]
         """
         tasks = STAR.get_dialog_task_names(id)
@@ -215,11 +235,11 @@ class STAR:
     @staticmethod
     def get_dialog_graphs(id):
         """
-        Gets action graphs for all tasks in a dialogue.
+        Get raw action graphs (dict form) for all tasks in a dialogue.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: List of graphs.
+        :return: List of graph dicts.
         :rtype: List[dict]
         """
         tasks = STAR.get_dialog_task_names(id)
@@ -228,11 +248,11 @@ class STAR:
     @staticmethod
     def get_dialog_events(id):
         """
-        Gets all events for a given dialogue.
+        Get all events for a dialogue.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: List of events.
+        :return: List of event dictionaries from the JSON file.
         :rtype: List[dict]
         """
         with open(os.path.join(STAR._path, f"dialogues/{id}.json")) as reader:
@@ -241,12 +261,12 @@ class STAR:
     @staticmethod
     def get_dialog_user_instructions(id):
         """
-        Gets user instructions for a dialogue, mapped by turn index.
+        Get user guide instructions mapped to the (user) turn index where each applies.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: Mapping from turn index to instruction text.
-        :rtype: dict
+        :return: Mapping user_turn_index -> instruction text.
+        :rtype: Dict[int, str]
         """
 
         def get_user_n_turns_before(turn_ix, events):
@@ -262,11 +282,11 @@ class STAR:
     @staticmethod
     def get_dialog_graphs_and_responses(id):
         """
-        Gets both graphs and responses for all tasks in a dialogue.
+        Convenience loader returning both graphs and responses for all tasks.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: Graphs and responses.
+        :return: Tuple (graphs list, responses list).
         :rtype: Tuple[List[dict], List[dict]]
         """
         return STAR.get_dialog_graphs(id), STAR.get_dialog_responses(id)
@@ -274,11 +294,11 @@ class STAR:
     @staticmethod
     def get_scenario_description(scenario):
         """
-        Generates a natural language description of a scenario, including flowcharts.
+        Build a natural language description of a scenario including embedded DOT graphs and example responses.
 
-        :param scenario: Scenario metadata.
+        :param scenario: Scenario dictionary (as returned by get_dialog_scenario).
         :type scenario: dict
-        :return: Natural language scenario description.
+        :return: Multi-section textual description.
         :rtype: str
         """
         # Let's generate the graph description for each task:
@@ -333,11 +353,11 @@ Finally, the following should be considered regarding the conversation:
     @staticmethod
     def get_dialog_scenario_description(id):
         """
-        Gets the scenario and its description for a dialogue.
+        Retrieve scenario metadata and its natural language description.
 
         :param id: Dialogue ID.
         :type id: int
-        :return: Scenario and description.
+        :return: Tuple (scenario dict, description string).
         :rtype: Tuple[dict, str]
         """
         scenario = STAR.get_dialog_scenario(id)
@@ -346,11 +366,11 @@ Finally, the following should be considered regarding the conversation:
     @staticmethod
     def get_user_persona_for_scenario(scenario):
         """
-        Constructs a Persona object for the user in a scenario.
+        Construct a Persona object representing the user under the given scenario.
 
         :param scenario: Scenario metadata.
         :type scenario: dict
-        :return: The user persona.
+        :return: User persona object.
         :rtype: Persona
         """
         dialogue_details = f"""
@@ -380,11 +400,11 @@ The following should be considered regarding the conversation:
     @staticmethod
     def get_flowchart_description_for_scenario(scenario):
         """
-        Generates a flowchart description for a scenario.
+        Build a markdown-like description with DOT graphs and example responses for each task.
 
         :param scenario: Scenario metadata.
         :type scenario: dict
-        :return: Flowchart description.
+        :return: Combined flowchart description text.
         :rtype: str
         """
         flowcharts = ""
@@ -408,11 +428,11 @@ where UPPERCASE words above are just example placeholders. You MUST fill in thos
     @staticmethod
     def get_system_persona_for_scenario(scenario):
         """
-        Constructs a Persona object for the system/assistant in a scenario.
+        Construct a Persona object representing the system/assistant for the scenario.
 
         :param scenario: Scenario metadata.
         :type scenario: dict
-        :return: The system persona.
+        :return: System persona object.
         :rtype: Persona
         """
         dialogue_details = f"""In the conversation, the AI assistant is instructed to follow specific action flowcharts to address the tasks. Flowcharts are defined as graph described using DOT.
@@ -427,13 +447,13 @@ The actual DOT for the current tasks are:
     @staticmethod
     def get_agents_for_scenario(scenario, model_name: str = None):
         """
-        Constructs Agent objects for the user and system for a scenario.
+        Create (system, user) Agent objects for a scenario (personas only; no orchestration).
 
         :param scenario: Scenario metadata.
         :type scenario: dict
-        :param model_name: Model name or LLM to use.
-        :type model_name: str
-        :return: (system, user) agents.
+        :param model_name: Optional model name / identifier for agent LLM configuration.
+        :type model_name: Optional[str]
+        :return: Tuple (system_agent, user_agent).
         :rtype: Tuple[Agent, Agent]
         """
         user = Agent(STAR.get_user_persona_for_scenario(scenario), name="User", can_finish=True)
@@ -445,15 +465,17 @@ The actual DOT for the current tasks are:
     @staticmethod
     def get_agents_from_dialogue(id, model_name: str = None, set_first_utterance: bool = False):
         """
-        Constructs Agent objects for a dialogue, optionally setting the first utterance.
+        Create (system, user) Agent objects derived from a dialogue's scenario.
+
+        Optionally set an initial first system utterance (heuristic).
 
         :param id: Dialogue ID.
         :type id: int
-        :param model_name: Model name or LLM to use.
-        :type model_name: str
-        :param set_first_utterance: If True, sets the first utterance.
+        :param model_name: Optional model name / identifier for agent LLM configuration.
+        :type model_name: Optional[str]
+        :param set_first_utterance: If True, assign a first system utterance.
         :type set_first_utterance: bool
-        :return: (system, user) agents.
+        :return: Tuple (system_agent, user_agent).
         :rtype: Tuple[Agent, Agent]
         """
         scenario = STAR.get_dialog_scenario(id)
@@ -471,15 +493,15 @@ The actual DOT for the current tasks are:
     @staticmethod
     def get_agents_from_dialogue_with_orchestration(id, model_name: str = None, set_first_utterance: bool = False):
         """
-        Constructs Agent objects with orchestration for a dialogue.
+        Create (system, user) Agent objects with attached orchestrators for responses/instructions.
 
         :param id: Dialogue ID.
         :type id: int
-        :param model_name: Model name or LLM to use.
-        :type model_name: str
-        :param set_first_utterance: If True, sets the first utterance.
+        :param model_name: Optional model name / identifier for agent LLM configuration.
+        :type model_name: Optional[str]
+        :param set_first_utterance: If True, assign a first system utterance.
         :type set_first_utterance: bool
-        :return: (system, user) agents with orchestrators.
+        :return: Tuple (system_agent_with_orchestrator, user_agent_with_orchestrator).
         :rtype: Tuple[Agent, Agent]
         """
         system, user = STAR.get_agents_from_dialogue(id, model_name, set_first_utterance)

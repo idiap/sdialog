@@ -2,7 +2,7 @@ import csv
 import os
 
 from sdialog.config import config
-from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version
+from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version, Context
 
 
 PATH_TEST_DATA = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
@@ -19,10 +19,10 @@ def test_turn_and_event():
     assert turn.speaker == "Alice"
     assert turn.text == "Hello!"
 
-    event = Event(agent="system", action="utter", text="Hi", timestamp=123)
+    event = Event(agent="system", action="utter", content="Hi", timestamp=123)
     assert event.agent == "system"
     assert event.action == "utter"
-    assert event.text == "Hi"
+    assert event.content == "Hi"
     assert event.timestamp == 123
 
 
@@ -56,7 +56,7 @@ def test_dialog_to_file_and_from_file(tmp_path):
 
 
 def test_instruction_event():
-    event = Event(agent="user", action="instruct", text="Do this", timestamp=1)
+    event = Event(agent="user", action="instruct", content="Do this", timestamp=1)
     instr = Instruction(text="Do this", events=event)
     assert instr.text == "Do this"
     assert instr.events == event
@@ -84,17 +84,17 @@ def test_dialog_length():
 
 
 def test_set_llm():
-    from sdialog.config import config, set_llm
-    set_llm("test-model")
+    from sdialog.config import config, llm
+    llm("test-model")
     assert config["llm"]["model"] == "test-model"
 
 
 def test_set_llm_params():
-    from sdialog.config import config, set_llm_params, set_llm
-    set_llm_params(temperature=0.5, seed=42)
+    from sdialog.config import config, llm_params, llm
+    llm_params(temperature=0.5, seed=42)
     assert config["llm"]["temperature"] == 0.5
     assert config["llm"]["seed"] == 42
-    set_llm("test-model", temperature=0.3, seed=33)
+    llm("test-model", temperature=0.3, seed=33)
     assert config["llm"]["temperature"] == 0.3
     assert config["llm"]["seed"] == 33
 
@@ -168,8 +168,8 @@ def test_dialog_rename_speaker():
     turns = [Turn(speaker="Alice", text="Hello!"),
              Turn(speaker="Bob", text="Hi Alice!"),
              Turn(speaker="Alice", text="How are you?")]
-    events = [Event(agent="Alice", action="utter", text="Hello!", timestamp=1),
-              Event(agent="Bob", action="utter", text="Hi Alice!", timestamp=2)]
+    events = [Event(agent="Alice", action="utter", content="Hello!", timestamp=1),
+              Event(agent="Bob", action="utter", content="Hi Alice!", timestamp=2)]
     dialog = Dialog(turns=turns, events=events)
 
     # Rename Alice to Carol (case-sensitive)
@@ -198,3 +198,26 @@ def test_dialog_clone():
 
     assert len(dialog) == 2
     assert len(dialog_clone) == 3
+
+
+def test_context_initialization():
+    ctx = Context(location="Office",
+                  goals=["Discuss project"],
+                  constraints="Be concise",
+                  topics=["AI", "ML"],
+                  notes="Kickoff")
+    assert ctx.location == "Office"
+    assert ctx.goals == ["Discuss project"]
+    assert ctx.constraints == "Be concise"
+    assert ctx.topics == ["AI", "ML"]
+    assert ctx.notes == "Kickoff"
+
+
+def test_context_print(capsys):
+    ctx = Context(location="Lab", goals=["Study"])
+    ctx.print()
+    out = capsys.readouterr().out
+    assert "Context" in out
+    assert "location" in out.lower()
+    assert "Lab" in out
+    assert "Study" in out

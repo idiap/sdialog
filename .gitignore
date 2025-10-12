@@ -1,4 +1,6 @@
 dist
+_build
+docs_html
 *.egg-info
 .*
 __*__
