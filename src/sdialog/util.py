@@ -170,7 +170,7 @@ def get_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
-def get_llm_default_params(model_name: str, llm_params: dict) -> float:
+def get_llm_default_params(model_name: str, llm_params: dict, retry: bool = True) -> float:
     """
     Get the default parameters for the model if not already specified, and merges them into `llm_params`.
 
@@ -218,14 +218,16 @@ def get_llm_default_params(model_name: str, llm_params: dict) -> float:
             defaults["temperature"] = 0.8
     except Exception as e:
         logger.error(f"Error getting default parameters for model '{model_name}': {e}. Is Ollama server running?")
-        logger.info("Trying to run the Ollama server...")
-        try:
-            subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            sleep(5)  # Give it some time to start
-            logger.info("Ollama server started. Retrying the request.")
-            return get_llm_default_params(model_name, llm_params)
-        except Exception as e:
-            logger.error(f"Failed to start Ollama server: {e}")
+        if retry:
+            logger.info("Trying to run the Ollama server...")
+            try:
+                logger.info("Running 'ollama serve' command...")
+                subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                sleep(5)  # Give it some time to start
+                logger.info("Retrying to get model parameters...")
+                return get_llm_default_params(model_name, llm_params, retry=False)
+            except Exception as e:
+                logger.error(f"Failed to start Ollama server: {e}")
 
     for k, v in list(defaults.items()):
         if k in llm_params and llm_params[k] is not None:

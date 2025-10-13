@@ -19,6 +19,8 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
 from threading import Lock
 
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
 try:
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import StreamingResponse, JSONResponse
@@ -34,6 +36,12 @@ except ImportError:
 from .agents import Agent
 
 logger = logging.getLogger(__name__)
+
+_role2msg_class = {
+    "user": HumanMessage,
+    "system": SystemMessage,
+    "assistant": AIMessage
+}
 
 
 class ChatMessage(BaseModel):
@@ -86,22 +94,6 @@ class ChatCompletionResponse(BaseModel):
     usage: Optional[Dict[str, int]] = Field(None, description="Token usage information")
 
 
-class ChatCompletionStreamChoice(BaseModel):
-    """OpenAI-compatible streaming choice."""
-    index: int = Field(..., description="Index of the choice")
-    delta: Dict[str, Any] = Field(..., description="Delta containing partial message")
-    finish_reason: Optional[str] = Field(None, description="Reason for finishing")
-
-
-class ChatCompletionStreamResponse(BaseModel):
-    """OpenAI-compatible streaming response."""
-    id: str = Field(..., description="Unique identifier for the completion")
-    object: str = Field("chat.completion.chunk", description="Object type")
-    created: int = Field(..., description="Unix timestamp of creation")
-    model: str = Field(..., description="Model used for completion")
-    choices: List[ChatCompletionStreamChoice] = Field(..., description="List of streaming choices")
-
-
 class Server:
     """
     Static server class for serving SDialog agents as OpenAI-compatible API.
@@ -114,6 +106,39 @@ class Server:
     _agents: Dict[str, Agent] = {}
     _agent_locks: Dict[str, Lock] = {}
     _app: Optional[FastAPI] = None
+    _stateless: bool = False
+
+    @classmethod
+    def _setup_agent(cls, agent: Agent, model_name: Optional[str], stateless: bool = None) -> str:
+        """
+        Set up the agent for serving, including model name processing and FastAPI app creation.
+
+        :param agent: The SDialog agent to serve.
+        :type agent: Agent
+        :param model_name: Model name to expose in the API (defaults to agent's model name).
+        :type model_name: Optional[str]
+        :param stateless: If True, the agent will not maintain memory between requests.
+        :type stateless: bool
+        :return: The processed model name.
+        :rtype: str
+        """
+        if model_name is None:
+            model_name = getattr(agent, 'name', 'sdialog-agent')
+        if ":" not in model_name:
+            model_name = f"{model_name}:latest"
+
+        if stateless is not None:
+            cls._stateless = stateless
+
+        # Register the agent
+        cls._agents[model_name] = agent
+        cls._agent_locks[model_name] = Lock()
+
+        # Create FastAPI app if not exists
+        if cls._app is None:
+            cls._create_app()
+
+        return model_name
 
     @classmethod
     def serve(cls,
@@ -121,6 +146,7 @@ class Server:
               model_name: Optional[str] = None,
               host: str = "0.0.0.0",
               port: int = 8000,
+              stateless: bool = False,
               log_level: str = "info") -> None:
         """
         Serve an SDialog agent as an OpenAI-compatible RESTful API.
@@ -138,6 +164,9 @@ class Server:
         :type host: str
         :param port: Port number to bind the server to.
         :type port: int
+        :param stateless: If True, the agent will not maintain memory between requests and the
+                          full context must be provided with each request.
+        :type stateless: bool
         :param log_level: Logging level for the server.
         :type log_level: str
 
@@ -149,18 +178,8 @@ class Server:
             # - Standard environments: uses uvicorn.run() directly
             # - Jupyter/existing event loop: falls back to threaded server
         """
-        if model_name is None:
-            model_name = getattr(agent, 'name', 'sdialog-agent')
-        if ":" not in model_name:
-            model_name = f"{model_name}:latest"
-
-        # Register the agent
-        cls._agents[model_name] = agent
-        cls._agent_locks[model_name] = Lock()
-
-        # Create FastAPI app if not exists
-        if cls._app is None:
-            cls._create_app()
+        # Common setup logic
+        model_name = cls._setup_agent(agent, model_name, stateless)
 
         logger.info(f"Starting server for agent '{model_name}' on {host}:{port}")
 
@@ -175,7 +194,7 @@ class Server:
                     del cls._agents[model_name]
                     del cls._agent_locks[model_name]
                 # Use the threaded version as fallback
-                return cls.serve_in_thread(agent, model_name, host, port, log_level)
+                return cls.serve_in_thread(agent, model_name, host, port, stateless, log_level)
             else:
                 # Re-raise if it's a different RuntimeError
                 raise
@@ -186,6 +205,7 @@ class Server:
                           model_name: Optional[str] = None,
                           host: str = "0.0.0.0",
                           port: int = 8000,
+                          stateless: bool = False,
                           log_level: str = "info") -> None:
         """
         Serve an SDialog agent as an OpenAI-compatible RESTful API (async version).
@@ -201,21 +221,14 @@ class Server:
         :type host: str
         :param port: Port number to bind the server to.
         :type port: int
+        :param stateless: If True, the agent will not maintain memory between requests and the
+                          full context must be provided with each request.
+        :type stateless: bool
         :param log_level: Logging level for the server.
         :type log_level: str
         """
-        if model_name is None:
-            model_name = getattr(agent, 'name', 'sdialog-agent')
-        if ":" not in model_name:
-            model_name = f"{model_name}:latest"
-
-        # Register the agent
-        cls._agents[model_name] = agent
-        cls._agent_locks[model_name] = Lock()
-
-        # Create FastAPI app if not exists
-        if cls._app is None:
-            cls._create_app()
+        # Common setup logic
+        model_name = cls._setup_agent(agent, model_name, stateless)
 
         logger.info(f"Starting async server for agent '{model_name}' on {host}:{port}")
 
@@ -238,6 +251,7 @@ class Server:
                         model_name: Optional[str] = None,
                         host: str = "0.0.0.0",
                         port: int = 8000,
+                        stateless: bool = False,
                         log_level: str = "info"):
         """
         Serve an SDialog agent in a separate thread (alternative for Jupyter).
@@ -254,6 +268,9 @@ class Server:
         :type host: str
         :param port: Port number to bind the server to.
         :type port: int
+        :param stateless: If True, the agent will not maintain memory between requests and the
+                          full context must be provided with each request.
+        :type stateless: bool
         :param log_level: Logging level for the server.
         :type log_level: str
         :return: The thread object running the server.
@@ -261,23 +278,23 @@ class Server:
         """
         import threading
 
+        if model_name is None:
+            model_name = getattr(agent, 'name', 'sdialog-agent')
+        if ":" not in model_name:
+            model_name = f"{model_name}:latest"
+
         def run_server():
             # Create a new event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                    cls.serve_async(agent, model_name, host, port, log_level)
+                    cls.serve_async(agent, model_name, host, port, stateless, log_level)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
             finally:
                 loop.close()
-
-        if model_name is None:
-            model_name = getattr(agent, 'name', 'sdialog-agent')
-        if ":" not in model_name:
-            model_name = f"{model_name}:latest"
 
         logger.info(f"Starting threaded server for agent '{model_name}' on {host}:{port}")
         thread = threading.Thread(target=run_server, daemon=True)
@@ -423,6 +440,9 @@ class Server:
         @cls._app.post("/api/chat")
         async def ollama_chat(request: OllamaChatRequest):
             """Ollama-compatible chat endpoint."""
+
+            logger.info(f"Ollama chat request for model '{request.model}' with {len(request.messages)} messages")
+
             # Convert Ollama request to OpenAI format
             openai_request = ChatCompletionRequest(
                 model=request.model,
@@ -496,6 +516,25 @@ class Server:
             return
 
     @classmethod
+    def _get_input_from_request(cls, agent: Agent, request: ChatCompletionRequest) -> Optional[Union[str, List]]:
+        if cls._stateless:
+            return [_role2msg_class[msg.role](content=msg.content)
+                    for msg in request.messages
+                    if msg.role in _role2msg_class]
+        else:
+            user_messages = [msg for msg in request.messages if msg.role == "user"]
+            last_user_message = user_messages[-1].content if user_messages else ""
+
+            # If Open WebUI task message, ignore
+            if last_user_message.startswith("### Task:"):
+                logger.info("Open WebUI task message detected [ignored]")
+                return None
+
+            cls._maybe_reset_agent_for_request(agent, request.messages)
+
+            return last_user_message
+
+    @classmethod
     async def _non_stream_response(cls, request: ChatCompletionRequest) -> Union[JSONResponse, StreamingResponse]:
         """
         Handle chat completion requests.
@@ -517,29 +556,24 @@ class Server:
 
         try:
             with agent_lock:
-                # Get the last user message (new message to process)
-                user_messages = [msg for msg in request.messages if msg.role == "user"]
-                if not user_messages:
-                    raise HTTPException(status_code=400, detail="No user messages found in request")
-
-                last_user_message = user_messages[-1].content
+                user_input = cls._get_input_from_request(agent, request)
 
                 # If Open WebUI task message, ignore
-                if last_user_message.startswith("### Task:"):
+                if user_input is None:
                     logger.info("Open WebUI task message detected [ignored]")
                     events = []
                 else:
-                    # Heuristically detect new chat sessions and reset agent if needed
-                    cls._maybe_reset_agent_for_request(agent, request.messages)
-
                     # Generate response with events
-                    events = agent(last_user_message, return_events=True)
+                    events = agent(user_input, return_events=True)
 
                 return cls._create_response(request, events)
 
         except Exception as e:
-            logger.error(f"Error processing chat completion: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+            if type(e) is HTTPException and e.status_code == 400:
+                raise e
+            else:
+                logger.error(f"Error processing chat completion: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
     @classmethod
     def _create_response(cls, request: ChatCompletionRequest, events: List) -> JSONResponse:
@@ -554,12 +588,14 @@ class Server:
         :rtype: JSONResponse
         """
         # TODO: Implement as with _stream_response.
-        #       For now, return a default empty response (only streaming supported for now)
+        #       For now, return just the generated text, no events
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
         created = int(datetime.now().timestamp())
 
+        content = "" if not events else events[-1].content if events[-1].action == "utter" else ""
+
         # If no choices were created, create a default empty response
-        default_message = ChatMessage(role="assistant", content="")
+        default_message = ChatMessage(role="assistant", content=content)
         choices = [ChatCompletionChoice(
             index=0,
             message=default_message,
@@ -597,34 +633,15 @@ class Server:
 
         try:
             with agent_lock:
-                # Get the last user message
-                user_messages = [msg for msg in request.messages if msg.role == "user"]
-                if not user_messages:
-                    error_response = {"error": "No user messages found in request"}
-                    yield json.dumps(error_response) + "\n"
-                    return
+                user_input = cls._get_input_from_request(agent, request)
 
-                last_user_message = user_messages[-1].content
-
-                # If Open WebUI task message, ignore and return an immediate done chunk
-                if isinstance(last_user_message, str) and last_user_message.startswith("### Task:"):
-                    final_chunk = {
-                        "model": request.model,
-                        "created_at": datetime.now().isoformat() + "Z",
-                        "message": {
-                            "role": "assistant",
-                            "content": ""
-                        },
-                        "done": True
-                    }
-                    yield json.dumps(final_chunk) + "\n"
-                    return
-
-                # Heuristically detect new chat sessions and reset agent if needed
-                cls._maybe_reset_agent_for_request(agent, request.messages)
-
-                # Generate response with events
-                events = agent(last_user_message, return_events=True)
+                # If Open WebUI task message, ignore
+                if user_input is None:
+                    logger.info("Open WebUI task message detected [ignored]")
+                    events = []
+                else:
+                    # Generate response with events
+                    events = agent(user_input, return_events=True)
 
                 # Pre-index tool outputs by call_id for quick lookup when we see the corresponding call event
                 outputs_by_call_id = {}
@@ -767,7 +784,7 @@ class Server:
             yield json.dumps(error_response) + "\n"
 
     @classmethod
-    def add_agent(cls, agent: Agent, model_name: str) -> None:
+    def add_agent(cls, agent: Agent, model_name: str = None) -> None:
         """
         Add an agent to the server without starting it.
 
@@ -776,8 +793,7 @@ class Server:
         :param model_name: Model name to use for the agent.
         :type model_name: str
         """
-        cls._agents[model_name] = agent
-        cls._agent_locks[model_name] = Lock()
+        model_name = cls._setup_agent(agent, model_name)
         logger.info(f"Added agent '{model_name}' to server")
 
     @classmethod
