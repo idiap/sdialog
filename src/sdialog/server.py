@@ -538,8 +538,11 @@ class Server:
                 return cls._create_response(request, events)
 
         except Exception as e:
-            logger.error(f"Error processing chat completion: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+            if type(e) is HTTPException and e.status_code == 400:
+                raise e
+            else:
+                logger.error(f"Error processing chat completion: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
     @classmethod
     def _create_response(cls, request: ChatCompletionRequest, events: List) -> JSONResponse:
