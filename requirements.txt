@@ -55,3 +55,13 @@ pytest-cov
 # Used to interface with local or hosted large-language-model backends
 ollama
 openai
+
+# === Audio processing ===
+soundfile
+librosa
+sox
+jams
+pyloudnorm
+pyroomacoustics
+datasets<=3.6.0
+huggingface_hub[cli]

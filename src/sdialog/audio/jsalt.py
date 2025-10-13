@@ -6,6 +6,7 @@ This module provides classes for medical room generation.
 # SPDX-License-Identifier: MIT
 import time
 import math
+import random
 from enum import Enum
 from typing import Tuple, Dict, Any, Optional
 from sdialog.audio.room import Room, Dimensions3D
@@ -89,6 +90,9 @@ class MedicalRoomGenerator(RoomGenerator):
 
         if len(args) > 1:
             raise ValueError("Only room_type is allowed")
+
+        if args["room_type"] == "random":
+            args["room_type"] = random.choice(list(RoomRole.__members__.values()))
 
         floor_area, name, description = self.ROOM_SIZES[args["room_type"]]
 
