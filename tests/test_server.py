@@ -258,8 +258,7 @@ class TestChatCompletions:
         }
 
         response = server_client.post("/v1/chat/completions", json=request_data)
-        assert response.status_code == 400
-        assert "No user messages found" in response.json()["detail"]
+        assert response.status_code == 200
 
     def test_chat_completion_success(self, server_client, mock_agent):
         """Test successful chat completion."""

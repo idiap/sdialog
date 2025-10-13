@@ -18,8 +18,8 @@ from collections import defaultdict
 from typing import List, Union, Optional, Tuple
 
 from langchain_core.tools import tool
-from langchain_core.messages.base import messages_to_dict
 from langchain_core.language_models.base import BaseLanguageModel
+from langchain_core.messages.base import BaseMessage, messages_to_dict
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from .config import config
@@ -189,9 +189,9 @@ class Agent:
 
         # Initialize memory based on whether we have a custom system_prompt or persona
         if system_prompt:
-            self.memory = [SystemMessage(system_prompt)]
+            self._memory = [SystemMessage(system_prompt)]
         elif persona and self._system_prompt_template:
-            self.memory = [SystemMessage(self._system_prompt_template.render(
+            self._memory = [SystemMessage(self._system_prompt_template.render(
                 persona=self.persona.prompt(),
                 context=self._context,
                 example_dialogs=self._example_dialogs,
@@ -201,7 +201,8 @@ class Agent:
                 stop_word=self._STOP_WORD
             ))]
         else:
-            self.memory = []
+            self._memory = []
+        self._stateless_memory = None
 
         if system_prompt:
             logger.debug(f"Initialized agent '{self.name}' with model '{str(model)}' "
@@ -217,6 +218,13 @@ class Agent:
         self.add_orchestrators(orchestrators)
         self.add_inspectors(inspectors)
         self.reset()
+
+    @property
+    def memory(self) -> List[BaseMessage]:
+        """
+        The conversation memory as a list of messages.
+        """
+        return self._memory if self._stateless_memory is None else self._stateless_memory
 
     @property
     def _hooked_responses(self):
@@ -270,23 +278,31 @@ class Agent:
             pass
         return None
 
-    def __call__(self, utterance: str = "", return_events: bool = False) -> str:
+    def __call__(self, utterance: Union[str, List[BaseMessage]] = "", return_events: bool = False) -> str:
         """
         Processes an input utterance and generates a response.
 
-        :param utterance: The input utterance from the other agent or user.
-        :type utterance: str
+        :param utterance: The input utterance from the other agent or, in case of stateless operation,
+                          the full context as a list of Langchain messages.
+        :type utterance: Union[str, List[BaseMessage]]
         :param return_events: If True, returns a list of events instead of just the response string.
         :type return_events: bool
         :return: The agent's response or events, or None if finished.
         :rtype: Union[str, List[Event], None]
         """
-        if self._finished:
-            return None
+        # If stateless
+        if isinstance(utterance, list):
+            if len(self._memory) > 0:
+                utterance.insert(0, self._memory[0])  # Always keep the original system prompt / persona
+            self._stateless_memory = utterance
+        else:
+            self._stateless_memory = None
+            if self._finished:
+                return None
 
-        if utterance:
-            utterance = self._preprocessing_fn(utterance) if self._preprocessing_fn else utterance
-            self.memory.append(HumanMessage(content=utterance))
+            if utterance:
+                utterance = self._preprocessing_fn(utterance) if self._preprocessing_fn else utterance
+                self.memory.append(HumanMessage(content=utterance))
 
         if return_events:
             events = []
@@ -510,6 +526,7 @@ class Agent:
     def serve(self,
               host: str = "0.0.0.0",
               port: int = 1333,
+              stateless: bool = False,
               log_level: str = "info"):
         """
         Starts a REST API server to interact with the agent.
@@ -518,12 +535,15 @@ class Agent:
         :type host: str
         :param port: Port number to listen on.
         :type port: int
+        :param stateless: If True, the server does not maintain conversation state (as such the full context
+                          must be provided with each request).
+        :type stateless: bool
         :param log_level: Logging level for the server.
         :type log_level: str
         """
         from .server import Server
 
-        return Server.serve(agent=self, host=host, port=port, log_level=log_level)
+        return Server.serve(agent=self, host=host, port=port, stateless=stateless, log_level=log_level)
 
     def response_lookahead(self, message: str = None):
         """
