@@ -27,8 +27,8 @@ langchain-openai
 langchain-google-genai
 langchain-aws
 langchain-ollama
-langchain==0.3.26; python_version < "3.10"
-langchain>=0.3.26; python_version >= "3.10"
+langchain<0.4.0; python_version < "3.10"
+langchain>=0.4.0; python_version >= "3.10"
 
 # === Machine learning & NLP dependencies ===
 sentence-transformers
@@ -37,15 +37,8 @@ simpleneighbors
 scikit-learn
 scipy
 pydantic
-
-# === Transformers and Torch compatibility handling ===
-# For Python 3.9 (older typing syntax), use last compatible releases
-transformers==4.56.2; python_version < "3.10"
-torch==2.3.0; python_version < "3.10"
-
-# For Python 3.10+ (supports PEP 604 typing)
-transformers>=4.57.0; python_version >= "3.10"
-torch>=2.4.0; python_version >= "3.10"
+transformers
+torch
 
 # === Testing ===
 pytest
