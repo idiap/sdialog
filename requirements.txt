@@ -37,6 +37,7 @@ simpleneighbors
 scikit-learn
 scipy
 pydantic
+transformers<=4.56.2; python_version < "3.10"
 transformers
 torch
 
