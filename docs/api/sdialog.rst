@@ -144,3 +144,14 @@ sdialog.util
    :member-order: groupwise
    :members:
    :show-inheritance:
+
+
+----
+
+sdialog.server
+--------------
+
+.. automodule:: sdialog.server
+   :member-order: groupwise
+   :members:
+   :show-inheritance:

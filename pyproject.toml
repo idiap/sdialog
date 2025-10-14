@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 77.0.3"]
+requires = ["setuptools >= 64.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -40,6 +40,9 @@ Documentation = "https://sdialog.readthedocs.io"
 [tool.setuptools.dynamic]
 version = {attr = "sdialog.util.__version__"}
 dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 
 [tool.setuptools.package-data]

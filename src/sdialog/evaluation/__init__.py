@@ -128,10 +128,12 @@ class LinguisticFeatureScore(BaseDialogScore):
     :param feature: List of feature names to compute. If ``None`` (default) compute all.
                     If the resulting set has size 1, ``__call__`` / ``score`` returns a single float; otherwise a dict.
                     Available features:
+
                       - ``"mean-turn-length"``: average number of words per dialogue turn.
                       - ``"hesitation-rate"``: percentage of hesitation tokens over total words (%).
                       - ``"gunning-fog"``: Gunning Fog readability index.
                       - ``"flesch-reading-ease"``: Flesch Reading Ease score.
+
     :type feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"]]]
     :param name: Internal score name (defaults to ``"linguistic_features"`` or
                  the single feature name if only one provided).
