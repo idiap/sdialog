@@ -19,6 +19,7 @@ dscaper_data/
 *.tar
 old.git
 tutorials/demo_dialog_doctor_patient.json
+tutorials/demo_dialog_doctor_patient_no_age_no_gender.json
 tutorials/customer_support_dialogue.json
 tutorials/=0.9.4
 tutorials/dscaper

@@ -7,6 +7,7 @@ This module provides functionality to generate audio from text utterances in a d
 # SPDX-License-Identifier: MIT
 import os
 import torch
+import random
 import logging
 import numpy as np
 from tqdm import tqdm
@@ -62,6 +63,17 @@ def attribute_voice_to_persona(
     Attributes a voice to a persona.
     """
     for speaker, persona in dialog.personas.items():
+
+        # Check if the information about the voice is already in the persona, else add a random information
+        if "gender" not in persona or persona["gender"] is None:
+            persona["gender"] = random.choice(["male", "female"])
+            logging.warning(f"Gender not found in the persona {speaker}, a random gender has been added")
+        if "age" not in persona or persona["age"] is None:
+            persona["age"] = random.randint(18, 65)
+            logging.warning(f"Age not found in the persona {speaker}, a random age has been added")
+        if "language" not in persona or persona["language"] is None:
+            persona["language"] = "english"
+            logging.warning(f"Language not found in the persona {speaker}, english has been considered by default")
 
         persona["voice"] = voice_database.get_voice(
             gender=persona["gender"],
