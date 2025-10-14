@@ -27,6 +27,111 @@ from sdialog.audio import (
 )
 
 
+@staticmethod
+def to_audio(
+    dialog: Dialog,
+    dir_audio: str = "./outputs_to_audio",
+    dialog_dir_name: str = None,
+    dscaper_data_path: Optional[str] = "./dscaper_data",
+    room_name: Optional[str] = None,
+    do_step_1: bool = True,
+    do_step_2: bool = False,
+    do_step_3: bool = False
+) -> AudioDialog:
+    """
+    Convert a dialog into an audio dialog.
+    """
+
+    if do_step_3 and not do_step_2:
+        raise ValueError("The step 3 requires the step 2 to be done")
+    if do_step_2 and not do_step_1:
+        raise ValueError("The step 2 requires the step 1 to be done")
+
+    if room_name is not None and not do_step_3:
+        raise ValueError("The room name is only used if the step 3 is done")
+
+    _dialog: AudioDialog = AudioDialog.from_dialog(dialog)
+    _voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+    _tts_engine = KokoroTTS()
+
+    os.makedirs(dir_audio, exist_ok=True)
+
+    if do_step_2 or do_step_3:
+
+        import scaper
+
+        if not dscaper_data_path:
+            raise ValueError("The dSCAPER data path is not provided")
+
+        os.makedirs(dscaper_data_path, exist_ok=True)
+        _dsc = scaper.Dscaper(dscaper_base_path=dscaper_data_path)
+
+    else:
+        _dsc = None
+
+    # Initialize the audio pipeline
+    _audio_pipeline = AudioPipeline(
+        voice_database=_voice_database,
+        tts_pipeline=_tts_engine,
+        dscaper=_dsc,
+        dir_audio=dir_audio,
+    )
+
+    if do_step_2 or do_step_3:
+        _audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
+
+    if do_step_3:
+
+        from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+        from sdialog.audio.audio_utils import SourceVolume, SourceType
+        from sdialog.audio.room import SpeakerSide, Role, RoomPosition
+
+        _room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+
+        _room.place_speaker_around_furniture(
+            speaker_name=Role.SPEAKER_1,
+            furniture_name="desk",
+            max_distance=1.0,
+            side=SpeakerSide.FRONT
+        )
+        _room.place_speaker_around_furniture(
+            speaker_name=Role.SPEAKER_2,
+            furniture_name="desk",
+            max_distance=1.0,
+            side=SpeakerSide.BACK
+        )
+
+        _environment = {
+            "room": _room,
+            "background_effect": "white_noise",
+            "foreground_effect": "ac_noise_minimal",
+            "foreround_effect_position": RoomPosition.TOP_RIGHT,
+            "source_volumes": {
+                SourceType.ROOM: SourceVolume.HIGH,
+                SourceType.BACKGROUND: SourceVolume.VERY_LOW
+            },
+            "kwargs_pyroom": {
+                "ray_tracing": True,
+                "air_absorption": True
+            }
+        }
+
+    else:
+        _environment = {}
+
+    _dialog: AudioDialog = _audio_pipeline.inference(
+        _dialog,
+        environment=_environment,
+        do_step_1=do_step_1,
+        do_step_2=do_step_2,
+        do_step_3=do_step_3,
+        dialog_dir_name=dialog_dir_name,
+        room_name=room_name
+    )
+
+    return _dialog
+
+
 class AudioPipeline:
     """
     Audio pipeline.
