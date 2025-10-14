@@ -62,11 +62,13 @@ def attribute_voice_to_persona(
     Attributes a voice to a persona.
     """
     for speaker, persona in dialog.personas.items():
+
         persona["voice"] = voice_database.get_voice(
             gender=persona["gender"],
             age=persona["age"],
             lang=persona["language"]
         )["voice"]
+
     return dialog
 
 

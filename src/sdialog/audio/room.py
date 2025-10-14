@@ -544,15 +544,15 @@ class Room(BaseModel):
 
     def get_bottom_left_corner(self) -> Position3D:
         return Position3D(
-            x=self.dimensions.width * 0.01,
-            y=self.dimensions.length * 0.99,
+            y=self.dimensions.length * 0.01,
+            x=self.dimensions.width * 0.99,
             z=self.dimensions.height * 0.99
         )
 
     def get_top_right_corner(self) -> Position3D:
         return Position3D(
-            x=self.dimensions.width * 0.99,
-            y=self.dimensions.length * 0.01,
+            y=self.dimensions.length * 0.99,
+            x=self.dimensions.width * 0.01,
             z=self.dimensions.height * 0.99
         )
 
@@ -841,8 +841,8 @@ class Room(BaseModel):
                 x_px, y_px = pos_to_pixels(pos)
 
                 # Ensure points are within room bounds (allow reaching exact edges)
-                x_px = max(start_x, min(x_px, start_x + room_width_px - 1))
-                y_px = max(start_y, min(y_px, start_y + room_length_px - 1))
+                x_px = max(start_x + 5, min(x_px, start_x + room_width_px - 5))
+                y_px = max(start_y + 5, min(y_px, start_y + room_length_px - 5))
 
                 # Draw corner point as a small circle
                 draw.circle(
