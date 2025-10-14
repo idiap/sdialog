@@ -214,8 +214,6 @@ class AudioPipeline:
                 generate_dscaper_timeline
             )
 
-            logging.info("#################################### Generating timeline from dSCAPER for dialogue")
-
             # Send the utterances to dSCAPER
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
 
