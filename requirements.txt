@@ -28,7 +28,7 @@ langchain-google-genai
 langchain-aws
 langchain-ollama
 langchain<0.4.0; python_version < "3.10"
-langchain>=0.4.0; python_version >= "3.10"
+langchain; python_version >= "3.10"
 
 # === Machine learning & NLP dependencies ===
 sentence-transformers
