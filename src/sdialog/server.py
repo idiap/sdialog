@@ -156,6 +156,7 @@ class Server:
         if model_names is not None and len(model_names) != len(agents):
             raise ValueError("Length of model_name list must match length of agent list")
 
+        model_name = None
         for ix, agent in enumerate(agents):
 
             if model_names is None:
@@ -230,7 +231,7 @@ class Server:
                 # Starting server for agents on localhost:1333
                 # > 2 registered agents: Scientist:latest, Bot:latest
         """
-        model_names = cls._setup_agents(agents, model_names, stateless)
+        cls._setup_agents(agents, model_names, stateless)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"> {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -333,7 +334,7 @@ class Server:
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                    cls.serve_async(agents, model_names, host, port, stateless, log_level)
+                    cls.serve_async(agents, host, port, stateless, model_names, log_level)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
