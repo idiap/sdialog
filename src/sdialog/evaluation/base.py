@@ -49,8 +49,8 @@ class LLMJudgeYesNoOutput(BaseModel):
     :param reason: Optional explanatory reason (string or list).
     :type reason: Optional[Union[str, List[str]]]
     """
-    positive: Union[bool, List[bool]]
     reason: Optional[Union[str, List[str]]] = None
+    positive: Union[bool, List[bool]]
 
 
 class LLMJudgeScoreOutput(BaseModel):
@@ -62,8 +62,8 @@ class LLMJudgeScoreOutput(BaseModel):
     :param reason: Optional explanatory reason.
     :type reason: Optional[str]
     """
-    score: Union[int, float] = None
     reason: Optional[str] = None
+    score: Union[int, float] = None
 
 
 class BaseDialogEmbedder(ABC):
@@ -458,7 +458,9 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         """Initialize the score evaluator."""
         self.dialog_score = dialog_score
         if not name:
-            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "") + f"-{dialog_score.name}"
+            self.name = upper_camel_to_dash(self.__class__.__name__).replace("-evaluator", "")
+            if dialog_score.name:
+                self.name += f"-{dialog_score.name}"
         else:
             self.name = name
         self.datasets_scores = {}
@@ -672,11 +674,17 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
         else:
             desc = f"Computing {self.name} embeddings for dataset "
             desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
-        embs = np.array([self.dialog_embedder(dialogue)
-                         for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
 
-        if self.enable_plotting:
-            self.datasets_embs[dataset_name] = embs  # Store the embeddings for later use
+        # Skipping "reference" dataset name
+        if dataset_name == "reference" and hasattr(self, "reference_embs"):
+            embs = self.reference_embs
+        else:
+            embs = np.array([self.dialog_embedder(dialogue)
+                            for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)])
+
+            if self.enable_plotting:
+                self.datasets_embs[dataset_name] = embs  # Store the embeddings for later use
+
         results = self.__eval__(embs)
         return (results, embs) if return_embs else results
 

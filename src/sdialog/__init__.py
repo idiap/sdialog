@@ -654,7 +654,7 @@ class Dialog(BaseModel):
                     if speaker is None:
                         raise ValueError(f"Missing speaker in row {ix}: {row}")
                     if not text:
-                        logger.warning(f"File '{path}': Empty text in row {ix}: {row}. Skipping this turn.")
+                        logger.debug(f"File '{path}': Empty text in row {ix}: {row}. Skipping this turn.")
                         continue
                     turns.append((speaker.strip(), text.strip()))
 

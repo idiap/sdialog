@@ -184,7 +184,7 @@ class Server:
     def serve(cls,
               agents: Union[Agent, List[Agent]],
               host: str = "0.0.0.0",
-              port: int = 8000,
+              port: int = 1333,
               stateless: bool = True,
               model_names: Optional[Union[str, List[str]]] = None,
               log_level: str = "info") -> None:
@@ -253,7 +253,7 @@ class Server:
     async def serve_async(cls,
                           agents: Union[Agent, List[Agent]],
                           host: str = "0.0.0.0",
-                          port: int = 8000,
+                          port: int = 1333,
                           stateless: bool = True,
                           model_names: Optional[Union[str, List[str]]] = None,
                           log_level: str = "info") -> None:
@@ -299,7 +299,7 @@ class Server:
     def serve_in_thread(cls,
                         agents: Union[Agent, List[Agent]],
                         host: str = "0.0.0.0",
-                        port: int = 8000,
+                        port: int = 1333,
                         stateless: bool = True,
                         model_names: Optional[Union[str, List[str]]] = None,
                         log_level: str = "info") -> None:
