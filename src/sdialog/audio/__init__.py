@@ -79,7 +79,7 @@ def attribute_voice_to_persona(
             gender=persona["gender"],
             age=persona["age"],
             lang=persona["language"]
-        )["voice"]
+        ).voice
 
     return dialog
 
