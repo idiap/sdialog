@@ -163,13 +163,7 @@ class Dialog(BaseModel):
 
     def to_audio(
         self,
-        do_step_1: bool = True,
-        do_step_2: bool = False,
-        do_step_3: bool = False,
-        dir_audio: str = "./outputs_to_audio",
-        dialog_dir_name: str = None,
-        dscaper_data_path: Optional[str] = "./dscaper_data",
-        room_name: Optional[str] = None
+        **kwargs: dict
     ) -> "AudioDialog":
         """
         Convert the dialogue to an audio dialogue.
@@ -178,13 +172,7 @@ class Dialog(BaseModel):
 
         return to_audio(
             self,
-            do_step_1=do_step_1,
-            do_step_2=do_step_2,
-            do_step_3=do_step_3,
-            dir_audio=dir_audio,
-            dialog_dir_name=dialog_dir_name,
-            dscaper_data_path=dscaper_data_path,
-            room_name=room_name
+            **kwargs
         )
 
     def __len__(self):

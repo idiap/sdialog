@@ -15,11 +15,12 @@ from datasets import load_dataset
 from typing import List, Optional, Union
 
 from sdialog import Dialog
-from sdialog.audio.audio_utils import Role
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.audio.room import Room, RoomPosition
 from sdialog.audio.audio_dialog import AudioDialog
+from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+from sdialog.audio.audio_utils import Role, SourceType, SourceVolume, SpeakerSide
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
 from sdialog.audio import (
     generate_utterances_audios,
@@ -37,7 +38,34 @@ def to_audio(
     room_name: Optional[str] = None,
     do_step_1: bool = True,
     do_step_2: bool = False,
-    do_step_3: bool = False
+    do_step_3: bool = False,
+    tts_engine: BaseTTS = KokoroTTS(),
+    voice_database: BaseVoiceDatabase = HuggingfaceVoiceDatabase("sdialog/voices-kokoro"),
+    dscaper_datasets: List[str] = ["sdialog/background", "sdialog/foreground"],
+    room: Room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION}),
+    speaker_positions: dict[Role, dict] = {
+        Role.SPEAKER_1: {
+            "furniture_name": "center",
+            "max_distance": 1.0,
+            "side": SpeakerSide.FRONT
+        },
+        Role.SPEAKER_2: {
+            "furniture_name": "center",
+            "max_distance": 1.0,
+            "side": SpeakerSide.BACK
+        }
+    },
+    background_effect: str = "white_noise",
+    foreground_effect: str = "ac_noise_minimal",
+    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT,
+    kwargs_pyroom: dict = {
+        "ray_tracing": True,
+        "air_absorption": True
+    },
+    source_volumes: dict[SourceType, SourceVolume] = {
+        SourceType.ROOM: SourceVolume.HIGH,
+        SourceType.BACKGROUND: SourceVolume.VERY_LOW
+    }
 ) -> AudioDialog:
     """
     Convert a dialog into an audio dialog.
@@ -52,8 +80,6 @@ def to_audio(
         raise ValueError("The room name is only used if the step 3 is done")
 
     _dialog: AudioDialog = AudioDialog.from_dialog(dialog)
-    _voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-    _tts_engine = KokoroTTS()
 
     os.makedirs(dir_audio, exist_ok=True)
 
@@ -72,49 +98,34 @@ def to_audio(
 
     # Initialize the audio pipeline
     _audio_pipeline = AudioPipeline(
-        voice_database=_voice_database,
-        tts_pipeline=_tts_engine,
+        voice_database=voice_database,
+        tts_pipeline=tts_engine,
         dscaper=_dsc,
         dir_audio=dir_audio,
     )
 
     if do_step_2 or do_step_3:
-        _audio_pipeline.populate_dscaper(["sdialog/background", "sdialog/foreground"])
+        _audio_pipeline.populate_dscaper(dscaper_datasets)
 
     if do_step_3:
 
-        from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-        from sdialog.audio.audio_utils import SourceVolume, SourceType
-        from sdialog.audio.room import SpeakerSide, Role, RoomPosition
+        # Place the speakers around the furnitures in the room
+        for _role, _kwargs in speaker_positions.items():
 
-        _room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
-
-        _room.place_speaker_around_furniture(
-            speaker_name=Role.SPEAKER_1,
-            furniture_name="desk",
-            max_distance=1.0,
-            side=SpeakerSide.FRONT
-        )
-        _room.place_speaker_around_furniture(
-            speaker_name=Role.SPEAKER_2,
-            furniture_name="desk",
-            max_distance=1.0,
-            side=SpeakerSide.BACK
-        )
+            room.place_speaker_around_furniture(
+                speaker_name=_role,
+                furniture_name=_kwargs["furniture_name"],
+                max_distance=_kwargs["max_distance"],
+                side=_kwargs["side"]
+            )
 
         _environment = {
-            "room": _room,
-            "background_effect": "white_noise",
-            "foreground_effect": "ac_noise_minimal",
-            "foreround_effect_position": RoomPosition.TOP_RIGHT,
-            "source_volumes": {
-                SourceType.ROOM: SourceVolume.HIGH,
-                SourceType.BACKGROUND: SourceVolume.VERY_LOW
-            },
-            "kwargs_pyroom": {
-                "ray_tracing": True,
-                "air_absorption": True
-            }
+            "room": room,
+            "background_effect": background_effect,
+            "foreground_effect": foreground_effect,
+            "foreround_effect_position": foreground_effect_position,
+            "source_volumes": source_volumes,
+            "kwargs_pyroom": kwargs_pyroom
         }
 
     else:
