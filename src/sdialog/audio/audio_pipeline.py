@@ -11,15 +11,16 @@ import numpy as np
 from tqdm import tqdm
 import soundfile as sf
 
-from typing import List, Optional
 from datasets import load_dataset
+from typing import List, Optional, Union
 
 from sdialog import Dialog
+from sdialog.audio.audio_utils import Role
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
 from sdialog.audio.room import Room, RoomPosition
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase
+from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
 from sdialog.audio import (
     generate_utterances_audios,
     save_utterances_audios,
@@ -233,14 +234,17 @@ class AudioPipeline:
         return np.concatenate([turn.get_audio() for turn in dialog.turns])
 
     def inference(
-            self,
-            dialog: Dialog,
-            environment: dict = {},
-            do_step_1: Optional[bool] = True,
-            do_step_2: Optional[bool] = False,
-            do_step_3: Optional[bool] = False,
-            dialog_dir_name: Optional[str] = None,
-            room_name: Optional[str] = None) -> AudioDialog:
+        self,
+        dialog: Dialog,
+        environment: dict = {},
+        do_step_1: Optional[bool] = True,
+        do_step_2: Optional[bool] = False,
+        do_step_3: Optional[bool] = False,
+        dialog_dir_name: Optional[str] = None,
+        room_name: Optional[str] = None,
+        voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
+        keep_duplicate: bool = True
+    ) -> AudioDialog:
         """
         Run the audio pipeline.
         """
@@ -281,7 +285,9 @@ class AudioPipeline:
             dialog: AudioDialog = generate_utterances_audios(
                 dialog,
                 voice_database=self.voice_database,
-                tts_pipeline=self.tts_pipeline
+                tts_pipeline=self.tts_pipeline,
+                voices=voices,
+                keep_duplicate=keep_duplicate
             )
 
             # Save the utterances audios to the project path

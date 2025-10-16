@@ -12,20 +12,24 @@ import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
+from typing import Union
 from sdialog.audio.room import Room
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.voice_database import BaseVoiceDatabase
-from sdialog.audio.audio_utils import AudioUtils, SourceVolume
+from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+from sdialog.audio.audio_utils import AudioUtils, SourceVolume, Role
 from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def generate_utterances_audios(
-        dialog: AudioDialog,
-        voice_database: BaseVoiceDatabase,
-        tts_pipeline: BaseTTS) -> AudioDialog:
+    dialog: AudioDialog,
+    voice_database: BaseVoiceDatabase,
+    tts_pipeline: BaseTTS,
+    voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
+    keep_duplicate: bool = True
+) -> AudioDialog:
     """
     Generates audio for each utterance in a Dialog object.
 
@@ -36,12 +40,17 @@ def generate_utterances_audios(
     """
 
     # Attribute the voice to the persona of the dialog
-    dialog = attribute_voice_to_persona(dialog, voice_database=voice_database)
+    dialog = attribute_voice_to_persona(
+        dialog,
+        voice_database=voice_database,
+        voices=voices,
+        keep_duplicate=keep_duplicate
+    )
 
     for turn in tqdm(dialog.turns, desc="Generating utterances audios"):
 
         # Get the voice of the turn
-        turn.voice = dialog.personas[turn.speaker]["voice"]
+        turn.voice = dialog.personas[turn.speaker]["voice"].voice
 
         # Generate the utterance audio
         utterance_audio, sampling_rate = generate_utterance(
@@ -57,8 +66,11 @@ def generate_utterances_audios(
 
 
 def attribute_voice_to_persona(
-        dialog: AudioDialog,
-        voice_database: BaseVoiceDatabase) -> AudioDialog:
+    dialog: AudioDialog,
+    voice_database: BaseVoiceDatabase,
+    voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
+    keep_duplicate: bool = True
+) -> AudioDialog:
     """
     Attributes a voice to a persona.
     """
@@ -68,18 +80,42 @@ def attribute_voice_to_persona(
         if "gender" not in persona or persona["gender"] is None:
             persona["gender"] = random.choice(["male", "female"])
             logging.warning(f"Gender not found in the persona {speaker}, a random gender has been added")
+
         if "age" not in persona or persona["age"] is None:
             persona["age"] = random.randint(18, 65)
             logging.warning(f"Age not found in the persona {speaker}, a random age has been added")
+
         if "language" not in persona or persona["language"] is None:
             persona["language"] = "english"
             logging.warning(f"Language not found in the persona {speaker}, english has been considered by default")
 
-        persona["voice"] = voice_database.get_voice(
-            gender=persona["gender"],
-            age=persona["age"],
-            lang=persona["language"]
-        ).voice
+        # Get the role of the speaker (speaker_1 or speaker_2)
+        role: Role = dialog.speakers_roles[speaker]
+
+        if voices is not None and voices != {} and role not in voices:
+            raise ValueError(f"Voice for role {role} not found in the voices dictionary")
+
+        # If no voices are provided, get a voice from the voice database based on the gender, age and language
+        if voices is None or voices == {}:
+            persona["voice"] = voice_database.get_voice(
+                gender=persona["gender"],
+                age=persona["age"],
+                lang=persona["language"],
+                keep_duplicate=keep_duplicate
+            )
+
+        # If the voice of the speaker is provided as a Voice object
+        elif isinstance(voices[role], Voice):
+            persona["voice"] = voices[role]
+
+        # If the voice of the speaker is provided as an identifier (like "am_echo")
+        elif isinstance(voices[role], tuple):
+            _identifier, _language = voices[role]
+            persona["voice"] = voice_database.get_voice_by_identifier(
+                _identifier,
+                _language,
+                keep_duplicate=keep_duplicate
+            )
 
     return dialog
 

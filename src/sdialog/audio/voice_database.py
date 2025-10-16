@@ -7,10 +7,10 @@ This module provides a voice database.
 import os
 import random
 import logging
-from typing import List
-from collections import defaultdict, Counter
-from sdialog.util import dict_to_table
 from pydantic import BaseModel
+from typing import List, Union
+from sdialog.util import dict_to_table
+from collections import defaultdict, Counter
 
 
 def is_a_audio_file(file: str) -> bool:
@@ -80,7 +80,7 @@ class BaseVoiceDatabase:
         """
         self._used_voices = {}
 
-    def get_statistics(self, pretty: bool = False, pretty_format: str = "markdown") -> dict | str:
+    def get_statistics(self, pretty: bool = False, pretty_format: str = "markdown") -> Union[dict, str]:
         """
         Get comprehensive statistics about the voice database.
 
@@ -287,6 +287,30 @@ class BaseVoiceDatabase:
             language=lang.lower(),
             language_code=language_code.lower()
         ))
+
+    def get_voice_by_identifier(
+        self,
+        identifier: str,
+        lang: str,
+        keep_duplicate: bool = True  # If True, the voice will be returned even if it is already used
+    ) -> Voice:
+        """
+        Get a voice by its identifier.
+        """
+        if lang not in self._data:
+            raise ValueError(f"Language {lang} not found in the database")
+
+        for (gender, age), voices in self._data[lang].items():
+            for voice in voices:
+                if voice.identifier == identifier:
+                    if not keep_duplicate:
+                        if voice.identifier in self._used_voices[lang]:
+                            raise ValueError(f"Voice with identifier {identifier} is already used")
+                        self._used_voices[lang].append(voice.identifier)
+                    return voice
+
+        raise ValueError(f"Voice with identifier {identifier} not found in the database")
+        return None
 
     def get_voice(
             self,
