@@ -15,12 +15,12 @@ from datasets import load_dataset
 from typing import List, Optional, Union
 
 from sdialog import Dialog
+from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
-from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
-from sdialog.audio.audio_utils import Role, SourceType, SourceVolume, SpeakerSide
+from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
 from sdialog.audio import (
     generate_utterances_audios,
@@ -89,7 +89,7 @@ def to_audio(
 
     if do_step_2 or do_step_3:
 
-        import scaper
+        import scaper  # noqa: F401
 
         if not dscaper_data_path:
             raise ValueError("The dSCAPER data path is not provided")
@@ -151,7 +151,7 @@ def to_audio(
 
 class AudioPipeline:
     """
-    Audio pipeline.
+    Audio generation pipeline.
     """
 
     def __init__(
@@ -162,7 +162,7 @@ class AudioPipeline:
             sampling_rate: Optional[int] = 24_000,
             dscaper=None):
         """
-        Initialize the audio pipeline.
+        Initialize the audio generation pipeline.
         """
 
         self.dir_audio = dir_audio
@@ -190,8 +190,8 @@ class AudioPipeline:
         if self._dscaper is None:
             raise ValueError("The dSCAPER is not provided to the audio pipeline")
         else:
-            from scaper import Dscaper
-            from scaper.dscaper_datatypes import DscaperAudio
+            from scaper import Dscaper  # noqa: F401
+            from scaper.dscaper_datatypes import DscaperAudio  # noqa: F401
             if not isinstance(self._dscaper, Dscaper):
                 raise ValueError("The dSCAPER is not a Dscaper instance")
 
@@ -353,12 +353,12 @@ class AudioPipeline:
 
             logging.info("Starting step 2...")
 
-            from scaper import Dscaper
+            from scaper import Dscaper  # noqa: F401
 
             if not isinstance(self._dscaper, Dscaper):
                 raise ValueError("The dSCAPER is not a Dscaper instance")
 
-            from sdialog.audio.audio_scaper_utils import (
+            from sdialog.audio.dscaper_utils import (
                 send_utterances_to_dscaper,
                 generate_dscaper_timeline
             )

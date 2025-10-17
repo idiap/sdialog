@@ -2,10 +2,16 @@ import os
 import shutil
 import logging
 
-import scaper
-from sdialog.audio.audio_dialog import AudioDialog
-from sdialog.audio.room import AudioSource, RoomPosition, Room
-from scaper.dscaper_datatypes import DscaperAudio, DscaperTimeline, DscaperEvent, DscaperGenerate, DscaperBackground
+import scaper  # noqa: F401
+from sdialog.audio.dialog import AudioDialog
+from sdialog.audio.room import AudioSource, RoomPosition
+from scaper.dscaper_datatypes import (
+    DscaperAudio,
+    DscaperTimeline,
+    DscaperEvent,
+    DscaperGenerate,
+    DscaperBackground
+)  # noqa: F401
 
 
 def send_utterances_to_dscaper(

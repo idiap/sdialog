@@ -13,7 +13,7 @@ from enum import Enum
 from dataclasses import dataclass
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
-from sdialog.audio.audio_utils import BodyPosture, Furniture, RoomMaterials, SpeakerSide, Role
+from sdialog.audio.utils import BodyPosture, Furniture, RoomMaterials, SpeakerSide, Role
 
 
 @dataclass

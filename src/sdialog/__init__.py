@@ -168,7 +168,7 @@ class Dialog(BaseModel):
         """
         Convert the dialogue to an audio dialogue.
         """
-        from sdialog.audio.audio_pipeline import to_audio
+        from sdialog.audio.pipeline import to_audio
 
         return to_audio(
             self,

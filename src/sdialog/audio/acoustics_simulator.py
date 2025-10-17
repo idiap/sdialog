@@ -9,15 +9,15 @@ import logging
 import numpy as np
 import soundfile as sf
 from typing import List
+from sdialog.audio.utils import SourceVolume
 from sdialog.audio.room import Room, AudioSource
-from sdialog.audio.audio_utils import SourceVolume
 from sdialog.audio.room import (
     RoomPosition,
     DirectivityType
 )
 
 
-class RoomAcousticsSimulator:
+class AcousticsSimulator:
     """
     Simulates sound based on room acoustics based on room definition,
     sound sources provided and microphone(s) setup.

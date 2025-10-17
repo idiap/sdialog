@@ -11,9 +11,9 @@ import numpy as np
 import soundfile as sf
 from sdialog import Dialog
 from typing import List, Union
+from sdialog.audio.utils import Role
 from sdialog.audio.room import AudioSource
-from sdialog.audio.audio_utils import Role
-from sdialog.audio.audio_turn import AudioTurn
+from sdialog.audio.turn import AudioTurn
 
 
 class AudioDialog(Dialog):

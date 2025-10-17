@@ -14,11 +14,11 @@ from tqdm import tqdm
 import soundfile as sf
 from typing import Union
 from sdialog.audio.room import Room
+from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.tts_engine import BaseTTS
-from sdialog.audio.audio_dialog import AudioDialog
+from sdialog.audio.utils import AudioUtils, SourceVolume, Role
+from sdialog.audio.acoustics_simulator import AcousticsSimulator
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
-from sdialog.audio.audio_utils import AudioUtils, SourceVolume, Role
-from sdialog.audio.room_acoustics_simulator import RoomAcousticsSimulator
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -179,7 +179,7 @@ def generate_audio_room_accoustic(
     """
 
     # Create the room acoustics simulator
-    room_acoustics = RoomAcousticsSimulator(room=room, kwargs_pyroom=kwargs_pyroom)
+    room_acoustics = AcousticsSimulator(room=room, kwargs_pyroom=kwargs_pyroom)
 
     _audio_accoustic = room_acoustics.simulate(
         sources=dialog.get_audio_sources(),

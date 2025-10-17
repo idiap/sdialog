@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Tuple, Dict, Any, Optional
 from sdialog.audio.room import Room, Dimensions3D
 from sdialog.audio.room_generator import RoomGenerator
-from sdialog.audio.audio_utils import Furniture, RGBAColor, RoomMaterials
+from sdialog.audio.utils import Furniture, RGBAColor, RoomMaterials
 
 
 class RoomRole(str, Enum):

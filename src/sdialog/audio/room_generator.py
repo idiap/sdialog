@@ -8,7 +8,7 @@ import time
 import random
 from abc import abstractmethod
 from typing import Tuple, Dict, Any, Optional
-from sdialog.audio.audio_utils import Furniture, RoomMaterials
+from sdialog.audio.utils import Furniture, RoomMaterials
 from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
 
 
