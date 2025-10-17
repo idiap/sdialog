@@ -277,6 +277,7 @@ class AudioPipeline:
 
         # Check if the ray tracing is enabled and the directivity is set to something else than omnidirectional
         if (
+            "kwargs_pyroom" in environment and
             "ray_tracing" in environment["kwargs_pyroom"] and
             environment["kwargs_pyroom"]["ray_tracing"] and
             room.directivity_type is not None and
