@@ -65,11 +65,15 @@ def to_audio(
     source_volumes: dict[SourceType, SourceVolume] = {
         SourceType.ROOM: SourceVolume.HIGH,
         SourceType.BACKGROUND: SourceVolume.VERY_LOW
-    }
+    },
+    audio_file_format: str = "wav"
 ) -> AudioDialog:
     """
     Convert a dialog into an audio dialog.
     """
+
+    if audio_file_format not in ["mp3", "wav", "flac"]:
+        raise ValueError(f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}")
 
     if do_step_3 and not do_step_2:
         raise ValueError("The step 3 requires the step 2 to be done")
@@ -138,7 +142,8 @@ def to_audio(
         do_step_2=do_step_2,
         do_step_3=do_step_3,
         dialog_dir_name=dialog_dir_name,
-        room_name=room_name
+        room_name=room_name,
+        audio_file_format=audio_file_format
     )
 
     return _dialog
@@ -254,11 +259,18 @@ class AudioPipeline:
         dialog_dir_name: Optional[str] = None,
         room_name: Optional[str] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-        keep_duplicate: bool = True
+        keep_duplicate: bool = True,
+        audio_file_format: str = "wav"
     ) -> AudioDialog:
         """
         Run the audio pipeline.
         """
+
+        if audio_file_format not in ["mp3", "wav", "flac"]:
+            raise ValueError((
+                "The audio file format must be either mp3, wav or flac."
+                f"You provided: {audio_file_format}"
+            ))
 
         # Create variables from the environment
         room = environment["room"] if "room" in environment else None
@@ -273,7 +285,7 @@ class AudioPipeline:
             dialog.audio_dir_path,
             dialog_directory,
             "exported_audios",
-            "audio_pipeline_step1.wav"
+            f"audio_pipeline_step1.{audio_file_format}"
         )
 
         # Path to save the audio dialog
@@ -359,7 +371,8 @@ class AudioPipeline:
                     environment["background_effect"]
                     if "background_effect" in environment
                     else "white_noise"
-                )
+                ),
+                audio_file_format=audio_file_format
             )
             logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
             logging.info("Step 2 done!")
@@ -412,7 +425,8 @@ class AudioPipeline:
                 dialog_directory=dialog_directory,
                 room_name=room_name,
                 kwargs_pyroom=environment["kwargs_pyroom"] if "kwargs_pyroom" in environment else {},
-                source_volumes=environment["source_volumes"] if "source_volumes" in environment else {}
+                source_volumes=environment["source_volumes"] if "source_volumes" in environment else {},
+                audio_file_format=audio_file_format
             )
 
             logging.info(f"Room accoustic generated for dialogue {dialog.id}!")

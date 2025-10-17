@@ -57,7 +57,8 @@ def generate_dscaper_timeline(
         sampling_rate: int = 24_000,
         background_effect: str = "white_noise",
         foreground_effect: str = "ac_noise_minimal",
-        foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+        foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT,
+        audio_file_format: str = "wav"
 ) -> AudioDialog:
     """
     Generates a dSCAPER timeline for a Dialog object.
@@ -69,6 +70,13 @@ def generate_dscaper_timeline(
     :return: A Dialog object with dSCAPER timeline.
     :rtype: AudioDialog
     """
+
+    if audio_file_format not in ["mp3", "wav", "flac"]:
+        raise ValueError((
+            "The audio file format must be either mp3, wav or flac."
+            f"You provided: {audio_file_format}"
+        ))
+
     timeline_name = dialog_directory
     total_duration = dialog.get_combined_audio().shape[0] / sampling_rate
     dialog.total_duration = total_duration
@@ -161,7 +169,7 @@ def generate_dscaper_timeline(
         dialog.audio_dir_path,
         dialog_directory,
         "exported_audios",
-        "audio_pipeline_step2.wav"
+        f"audio_pipeline_step2.{audio_file_format}"
     )
     shutil.copy(audio_output_path, dialog.audio_step_2_filepath)
 

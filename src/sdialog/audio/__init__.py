@@ -138,10 +138,11 @@ def generate_utterance(
 
 
 def save_utterances_audios(
-        dialog: AudioDialog,
-        dir_audio: str,
-        project_path: str,
-        sampling_rate: int = 24_000) -> AudioDialog:
+    dialog: AudioDialog,
+    dir_audio: str,
+    project_path: str,
+    sampling_rate: int = 24_000
+) -> AudioDialog:
     """
     Save the utterances audios to the given path.
     """
@@ -165,12 +166,14 @@ def save_utterances_audios(
 
 
 def generate_audio_room_accoustic(
-        dialog: AudioDialog,
-        room: Room,
-        dialog_directory: str,
-        room_name: str,
-        kwargs_pyroom: dict = {},
-        source_volumes: dict[str, SourceVolume] = {}) -> AudioDialog:
+    dialog: AudioDialog,
+    room: Room,
+    dialog_directory: str,
+    room_name: str,
+    kwargs_pyroom: dict = {},
+    source_volumes: dict[str, SourceVolume] = {},
+    audio_file_format: str = "wav"
+) -> AudioDialog:
     """
     Generates the audio room accoustic.
     """
@@ -189,7 +192,7 @@ def generate_audio_room_accoustic(
         dialog_directory,
         "exported_audios",
         "rooms",
-        f"audio_pipeline_step3-{room_name}.wav"
+        f"audio_pipeline_step3-{room_name}.{audio_file_format}"
     )
     sf.write(
         current_room_audio_path,
