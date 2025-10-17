@@ -79,7 +79,7 @@ class IndexTTS(BaseTTS):
         """
         Initializes the IndexTTS model.
         """
-        from indextts.infer import IndexTTS
+        from indextts.infer import IndexTTS # noqa: F401
 
         self.pipeline = IndexTTS(model_dir=model_dir, cfg_path=cfg_path, device=device)
 

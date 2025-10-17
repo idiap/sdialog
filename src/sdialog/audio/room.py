@@ -1139,7 +1139,9 @@ class Room(BaseModel):
         else:
 
             if directivity is not None:
-                logging.warning("The given directivity is not taken into account for non-custom directivity type")
+                logging.warning(
+                    "The given directivity is not taken into account for non-custom directivity type"
+                )
 
             # Compute the azimuth and colatitude based on the directivity type
             _azimuth, _colatitude = self.directivity_type_to_azimuth_colatitude(

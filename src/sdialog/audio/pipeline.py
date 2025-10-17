@@ -177,7 +177,7 @@ class AudioPipeline:
 
         self._dscaper = dscaper
 
-        self.sampling_rate = sampling_rate  # TODO: Need to be set to the same as the TTS model
+        self.sampling_rate = sampling_rate
 
     def populate_dscaper(
             self,
@@ -271,6 +271,8 @@ class AudioPipeline:
                 "The audio file format must be either mp3, wav or flac."
                 f"You provided: {audio_file_format}"
             ))
+        else:
+            logging.info(f"[Initialization] Audio file format for generation is set to {audio_file_format}")
 
         # Create variables from the environment
         room: Room = environment["room"] if "room" in environment else None
@@ -292,9 +294,7 @@ class AudioPipeline:
 
         # Override the dialog directory name if provided otherwise use the dialog id as the directory name
         dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
-
         dialog.audio_dir_path = self.dir_audio
-        logging.info(f"Dialog audio dir path: {dialog.audio_dir_path}")
 
         dialog.audio_step_1_filepath = os.path.join(
             dialog.audio_dir_path,
@@ -311,14 +311,22 @@ class AudioPipeline:
             "audio_dialog.json"
         )
 
+        # Load the audio dialog from the existing file
         if os.path.exists(audio_dialog_save_path):
-            # Load the audio dialog from the existing file
             dialog = AudioDialog.from_file(audio_dialog_save_path)
-            logging.info(f"Audio dialog loaded from the existing file ({dialog.id}) successfully!")
+            logging.info(
+                f"[Initialization] Dialogue ({dialog.id}) has been loaded successfully from "
+                f"the existing file: {audio_dialog_save_path} !"
+            )
+        else:
+            logging.info(
+                f"[Initialization] No existing file found for the dialogue ({dialog.id}), "
+                "starting from scratch..."
+            )
 
         if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
 
-            logging.info(f"Generating utterances audios from dialogue {dialog.id}")
+            logging.info(f"[Step 1] Generating audio recordings from the utterances of the dialogue: {dialog.id}")
 
             dialog: AudioDialog = generate_utterances_audios(
                 dialog,
@@ -346,12 +354,10 @@ class AudioPipeline:
                 dialog.get_combined_audio(),
                 self.sampling_rate
             )
-            logging.info(f"Step 1 audio saved to {dialog.audio_step_1_filepath}")
+            logging.info(f"[Step 1] Audio files have been saved here: {dialog.audio_step_1_filepath}")
 
         # If the user want to generate the timeline from dSCAPER (whatever if the timeline is already generated or not)
         if self._dscaper is not None and do_step_2:
-
-            logging.info("Starting step 2...")
 
             from scaper import Dscaper  # noqa: F401
 
@@ -363,11 +369,13 @@ class AudioPipeline:
                 generate_dscaper_timeline
             )
 
+            logging.info("[Step 2] Sending utterances to dSCAPER...")
+
             # Send the utterances to dSCAPER
             dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
 
             # Generate the timeline from dSCAPER
-            logging.info(f"Generating timeline from dSCAPER for dialogue {dialog.id}")
+            logging.info("[Step 2] Generating timeline from dSCAPER...")
             dialog: AudioDialog = generate_dscaper_timeline(
                 dialog=dialog,
                 _dscaper=self._dscaper,
@@ -389,22 +397,22 @@ class AudioPipeline:
                 ),
                 audio_file_format=audio_file_format
             )
-            logging.info(f"Timeline generated from dSCAPER for dialogue {dialog.id}")
-            logging.info("Step 2 done!")
+            logging.info("[Step 2] Has been completed!")
 
         elif do_step_2 and self._dscaper is None:
 
-            logging.warning(
-                "The dSCAPER is not set, which make the generation of the timeline impossible"
+            raise ValueError(
+                "The dSCAPER is not set, which makes the generation of the timeline impossible"
             )
 
         # Generate the audio room accoustic
-        if room is not None and self._dscaper is not None and do_step_3:
+        if (
+            do_step_3 and
+            room is not None and
+            self._dscaper is not None
+        ):
 
-            logging.info("Starting step 3...")
-
-            if room is None:
-                raise ValueError("The room is not set, which make the generation of the room accoustic impossible")
+            logging.info("[Step 3] Starting...")
 
             if not isinstance(environment["room"], Room):
                 raise ValueError("The room must be a Room object")
@@ -413,25 +421,20 @@ class AudioPipeline:
             if not do_step_2 and len(dialog.audio_step_2_filepath) < 1:
 
                 logging.warning((
-                    "The timeline from dSCAPER is not generated, which"
-                    "make the generation of the room accoustic impossible"
+                    "[Step 3] The timeline from dSCAPER is not generated, which"
+                    "makes the generation of the room accoustic impossible"
                 ))
 
                 # Save the audio dialog to a json file
                 dialog.to_file(audio_dialog_save_path)
-                logging.info(f"Audio dialog saved to the existing file ({dialog.id}) successfully!")
+                logging.info(f"[Step 3] Audio dialog saved to the existing file ({dialog.id}) successfully!")
 
                 return dialog
 
-            logging.info(f"Generating room accoustic for dialogue {dialog.id}")
+            logging.info(f"[Step 3] Generating room accoustic for dialogue {dialog.id}")
 
             # Override the room name if provided otherwise use the hash of the room
             room_name = room_name if room_name is not None else room.name
-
-            # TODO: Remove this after testing
-            logging.info("Internal audio sources length:")
-            logging.info(str(len(dialog.get_audio_sources())))
-            logging.info("-"*25)
 
             # Generate the audio room accoustic from the dialog and room object
             dialog: AudioDialog = generate_audio_room_accoustic(
@@ -444,16 +447,16 @@ class AudioPipeline:
                 audio_file_format=audio_file_format
             )
 
-            logging.info(f"Room accoustic generated for dialogue {dialog.id}!")
-            logging.info("Step 3 done!")
+            logging.info(f"[Step 3] Room accoustic generated for dialogue {dialog.id}!")
+            logging.info("[Step 3] Done!")
 
-        elif do_step_3:
-            logging.warning(
-                "The room or the dSCAPER is not set, which make the generation of the room accoustic audio impossible"
+        elif do_step_3 and (room is None or self._dscaper is None):
+
+            raise ValueError(
+                "The room or the dSCAPER is not set, which makes the generation of the room accoustic audios impossible"
             )
 
         # Save the audio dialog to a json file
         dialog.to_file(audio_dialog_save_path)
-        logging.info(f"Audio dialog saved to the existing file ({dialog.id}) successfully at the end of the pipeline!")
 
         return dialog

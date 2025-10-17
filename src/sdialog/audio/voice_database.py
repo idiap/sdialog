@@ -425,34 +425,35 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                 lang = d["language"].lower()
             else:
                 lang = "english"
-                logging.warning("Language not found, english has been considered by default")
+                logging.warning("[Voice Database] Language not found, english has been considered by default")
 
             if "language_code" in d and d["language_code"] is not None:
                 lang_code = d["language_code"].lower()
             else:
                 lang_code = "e"
-                logging.warning("Language code not found, e has been considered by default")
+                logging.warning("[Voice Database] Language code not found, e has been considered by default")
 
             if "gender" in d and d["gender"] is not None:
                 gender = self._gender_to_gender(d["gender"])
             else:
                 gender = random.choice(["male", "female"]).lower()
                 logging.warning(
-                    f"Gender not found, a random gender ({gender}) has been considered by default"
+                    f"[Voice Database] Gender not found, a random gender ({gender}) has been considered by default"
                 )
 
             if "age" in d and d["age"] is not None:
                 age = int(d["age"])
             else:
                 age = random.randint(18, 65)
-                logging.warning(f"Age not found, a random age ({age}) has been considered by default")
+                logging.warning(f"[Voice Database] Age not found, a random age ({age}) has been considered by default")
 
             if "identifier" in d and d["identifier"] is not None:
                 identifier = str(d["identifier"])
             else:
                 identifier = f"voice_{counter}"
                 logging.warning(
-                    f"Identifier not found, a random identifier ({identifier}) has been considered by default"
+                    "[Voice Database] Identifier not found, "
+                    f"a random identifier ({identifier}) has been considered by default"
                 )
 
             if "audio" in d and d["audio"] is not None:
@@ -480,7 +481,7 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
             ))
             counter += 1
 
-        logging.info(f"Voice database populated with {counter} voices")
+        logging.info(f"[Voice Database] Has been populated with {counter} voices")
 
 
 class LocalVoiceDatabase(BaseVoiceDatabase):
@@ -623,4 +624,4 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
             ))
             counter += 1
 
-        logging.info(f"Voice database populated with {counter} voices")
+        logging.info(f"[Voice Database] Has been populated with {counter} voices")

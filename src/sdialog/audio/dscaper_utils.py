@@ -45,13 +45,13 @@ def send_utterances_to_dscaper(
             count_audio_added += 1
             turn.is_stored_in_dscaper = True
 
-    logging.info("="*30)
-    logging.info("# Audio sent to dSCAPER")
-    logging.info("="*30)
-    logging.info(f"Already present: {count_audio_present}")
-    logging.info(f"Correctly added: {count_audio_added}")
-    logging.info(f"Errors: {count_audio_error}")
-    logging.info("="*30)
+    logging.info("[dSCAPER] " + "="*30)
+    logging.info("[dSCAPER] " + "# Audio sent to dSCAPER")
+    logging.info("[dSCAPER] " + "="*30)
+    logging.info("[dSCAPER] " + f"Already present: {count_audio_present}")
+    logging.info("[dSCAPER] " + f"Correctly added: {count_audio_added}")
+    logging.info("[dSCAPER] " + f"Errors: {count_audio_error}")
+    logging.info("[dSCAPER] " + "="*30)
 
     return dialog
 
@@ -123,7 +123,6 @@ def generate_dscaper_timeline(
 
         # The role is used here to identify the source of emission of the audio
         # We consider that it is immutable and will not change over the dialog timeline
-        # TODO: Make the position dynamic from one turn to another
         _speaker_role = dialog.speakers_roles[turn.speaker]
 
         _event_metadata = DscaperEvent(

@@ -44,7 +44,6 @@ class Furniture(BaseModel):
         return self.z + self.height
 
 
-# TODO: Add Float as heritance for the serialization of the model
 class BodyPosture(Enum):
     """
     Body posture height in meters.
