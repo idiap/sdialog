@@ -45,14 +45,22 @@ _role2msg_class = {
 
 
 class ChatMessage(BaseModel):
-    """OpenAI-compatible chat message."""
+    """
+    OpenAI-compatible chat message.
+
+    :meta private:
+    """
     role: str = Field(..., description="Role of the message sender")
     content: str = Field(..., description="Content of the message")
     name: Optional[str] = Field(None, description="Name of the speaker")
 
 
 class ChatCompletionRequest(BaseModel):
-    """OpenAI-compatible chat completion request."""
+    """
+    OpenAI-compatible chat completion request.
+
+    :meta private:
+    """
     model: str = Field(..., description="Model identifier")
     messages: List[ChatMessage] = Field(..., description="List of messages")
     temperature: Optional[float] = Field(None, description="Sampling temperature")
@@ -62,7 +70,11 @@ class ChatCompletionRequest(BaseModel):
 
 
 class OllamaChatRequest(BaseModel):
-    """Ollama-compatible chat request."""
+    """
+    Ollama-compatible chat request.
+
+    :meta private:
+    """
     model: str = Field(..., description="Model identifier")
     messages: List[ChatMessage] = Field(..., description="List of messages")
     stream: Optional[bool] = Field(False, description="Whether to stream the response")
@@ -70,7 +82,11 @@ class OllamaChatRequest(BaseModel):
 
 
 class OllamaChatResponse(BaseModel):
-    """Ollama-compatible chat response."""
+    """
+    Ollama-compatible chat response.
+
+    :meta private:
+    """
     model: str = Field(..., description="Model used")
     created_at: str = Field(..., description="Creation timestamp")
     message: ChatMessage = Field(..., description="Response message")
@@ -78,14 +94,22 @@ class OllamaChatResponse(BaseModel):
 
 
 class ChatCompletionChoice(BaseModel):
-    """OpenAI-compatible choice in chat completion response."""
+    """
+    OpenAI-compatible choice in chat completion response.
+
+    :meta private:
+    """
     index: int = Field(..., description="Index of the choice")
     message: ChatMessage = Field(..., description="Generated message")
     finish_reason: Optional[str] = Field(None, description="Reason for finishing")
 
 
 class ChatCompletionResponse(BaseModel):
-    """OpenAI-compatible chat completion response."""
+    """
+    OpenAI-compatible chat completion response.
+
+    :meta private:
+    """
     id: str = Field(..., description="Unique identifier for the completion")
     object: str = Field("chat.completion", description="Object type")
     created: int = Field(..., description="Unix timestamp of creation")
@@ -109,30 +133,46 @@ class Server:
     _stateless: bool = False
 
     @classmethod
-    def _setup_agent(cls, agent: Agent, model_name: Optional[str], stateless: bool = None) -> str:
+    def _setup_agents(cls,
+                      agents: Union[Agent, List[Agent]],
+                      model_names: Optional[Union[str, List[str]]] = None,
+                      stateless: bool = None) -> str:
         """
         Set up the agent for serving, including model name processing and FastAPI app creation.
 
-        :param agent: The SDialog agent to serve.
-        :type agent: Agent
-        :param model_name: Model name to expose in the API (defaults to agent's model name).
-        :type model_name: Optional[str]
+        :param agents: The SDialog agent or a list of agents to serve.
+        :type agents: Union[Agent, List[Agent]]
+        :param model_names: Model names to expose in the API (defaults to agent's name).
+        :type model_names: Optional[Union[str, List[str]]]
         :param stateless: If True, the agent will not maintain memory between requests.
         :type stateless: bool
         :return: The processed model name.
         :rtype: str
         """
-        if model_name is None:
-            model_name = getattr(agent, 'name', 'sdialog-agent')
-        if ":" not in model_name:
-            model_name = f"{model_name}:latest"
+        if not isinstance(agents, list):
+            agents = [agents]
+        if model_names is not None and not isinstance(model_names, list):
+            model_names = [model_names]
+        if model_names is not None and len(model_names) != len(agents):
+            raise ValueError("Length of model_name list must match length of agent list")
+
+        model_name = None
+        for ix, agent in enumerate(agents):
+
+            if model_names is None:
+                model_name = getattr(agent, 'name', f'sdialog-agent-{len(cls._agents)}')
+            else:
+                model_name = model_names[ix]
+
+            if ":" not in model_name:
+                model_name = f"{model_name}:latest"
+
+            # Register the agent
+            cls._agents[model_name] = agent
+            cls._agent_locks[model_name] = Lock()
 
         if stateless is not None:
             cls._stateless = stateless
-
-        # Register the agent
-        cls._agents[model_name] = agent
-        cls._agent_locks[model_name] = Lock()
 
         # Create FastAPI app if not exists
         if cls._app is None:
@@ -142,24 +182,22 @@ class Server:
 
     @classmethod
     def serve(cls,
-              agent: Agent,
-              model_name: Optional[str] = None,
+              agents: Union[Agent, List[Agent]],
               host: str = "0.0.0.0",
-              port: int = 8000,
-              stateless: bool = False,
+              port: int = 1333,
+              stateless: bool = True,
+              model_names: Optional[Union[str, List[str]]] = None,
               log_level: str = "info") -> None:
         """
-        Serve an SDialog agent as an OpenAI-compatible RESTful API.
+        Serve SDialog agents as an OpenAI-compatible RESTful API.
 
         This method automatically detects the environment and chooses the appropriate
         server startup method. In standard environments (command line, scripts), it
         uses uvicorn.run(). In Jupyter notebooks or other environments with existing
         event loops, it automatically falls back to a threaded server.
 
-        :param agent: The SDialog agent to serve.
-        :type agent: Agent
-        :param model_name: Model name to expose in the API (defaults to agent's model name).
-        :type model_name: Optional[str]
+        :param agents: The SDialog agent or a list of agents to serve.
+        :type agents: Union[Agent, List[Agent]]
         :param host: Host address to bind the server to.
         :type host: str
         :param port: Port number to bind the server to.
@@ -167,21 +205,36 @@ class Server:
         :param stateless: If True, the agent will not maintain memory between requests and the
                           full context must be provided with each request.
         :type stateless: bool
+        :param model_names: Model names to expose in the API (defaults to agent's name).
+        :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
 
-        Examples:
-            # Works in any environment (command line, scripts, Jupyter)
-            Server.serve(agent, "my-model")
 
-            # The method automatically detects and handles:
-            # - Standard environments: uses uvicorn.run() directly
-            # - Jupyter/existing event loop: falls back to threaded server
+        Example:
+
+            .. code-block:: python
+
+                from sdialog import Persona
+                from sdialog.agents import Agent
+                from sdialog.server import Server
+
+                # Create two agents
+                user = Agent(persona=Persona(name="Dr. Nebula", role="Astrobotanist seeking alien spores"),
+                             name="Scientist")
+                bot = Agent(persona=Persona(name="StationCore", role="Sarcastic habitat control AI"),
+                            name="Bot")
+
+                # Serve them as an OpenAI-compatible API
+                Server.serve([user, bot], port=1333)
+                # Output:
+                # Starting server for agents on localhost:1333
+                # > 2 registered agents: Scientist:latest, Bot:latest
         """
-        # Common setup logic
-        model_name = cls._setup_agent(agent, model_name, stateless)
+        cls._setup_agents(agents, model_names, stateless)
 
-        logger.info(f"Starting server for agent '{model_name}' on {host}:{port}")
+        logger.info(f"Starting server for agents on {host}:{port}")
+        logger.info(f"> {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
 
         try:
             uvicorn.run(cls._app, host=host, port=port, log_level=log_level)
@@ -189,34 +242,29 @@ class Server:
             if "asyncio.run() cannot be called from a running event loop" in str(e):
                 logger.info("Detected existing event loop (likely Jupyter environment). "
                             "Falling back to threaded server...")
-                # Remove the agent we just added since serve_in_thread will add it again
-                if model_name in cls._agents:
-                    del cls._agents[model_name]
-                    del cls._agent_locks[model_name]
                 # Use the threaded version as fallback
-                return cls.serve_in_thread(agent, model_name, host, port, stateless, log_level)
+                # Agents were already added in _setup_agents
+                return cls.serve_in_thread([], host, port, stateless, None, log_level)
             else:
                 # Re-raise if it's a different RuntimeError
                 raise
 
     @classmethod
     async def serve_async(cls,
-                          agent: Agent,
-                          model_name: Optional[str] = None,
+                          agents: Union[Agent, List[Agent]],
                           host: str = "0.0.0.0",
-                          port: int = 8000,
-                          stateless: bool = False,
+                          port: int = 1333,
+                          stateless: bool = True,
+                          model_names: Optional[Union[str, List[str]]] = None,
                           log_level: str = "info") -> None:
         """
-        Serve an SDialog agent as an OpenAI-compatible RESTful API (async version).
+        Serve SDialog agents as an OpenAI-compatible RESTful API (async version).
 
         This method is designed for use in environments with existing event loops,
         such as Jupyter notebooks, where uvicorn.run() would fail.
 
-        :param agent: The SDialog agent to serve.
-        :type agent: Agent
-        :param model_name: Model name to expose in the API (defaults to agent's model name).
-        :type model_name: Optional[str]
+        :param agents: The SDialog agent or a list of agents to serve.
+        :type agents: Union[Agent, List[Agent]]
         :param host: Host address to bind the server to.
         :type host: str
         :param port: Port number to bind the server to.
@@ -224,13 +272,15 @@ class Server:
         :param stateless: If True, the agent will not maintain memory between requests and the
                           full context must be provided with each request.
         :type stateless: bool
+        :param model_names: Model names to expose in the API (defaults to agent's name).
+        :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
         """
-        # Common setup logic
-        model_name = cls._setup_agent(agent, model_name, stateless)
+        cls._setup_agents(agents, model_names, stateless)
 
-        logger.info(f"Starting async server for agent '{model_name}' on {host}:{port}")
+        logger.info(f"Starting server for agents on {host}:{port}")
+        logger.info(f"- {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
 
         # Create uvicorn server configuration
         config = uvicorn.Config(
@@ -247,23 +297,21 @@ class Server:
 
     @classmethod
     def serve_in_thread(cls,
-                        agent: Agent,
-                        model_name: Optional[str] = None,
+                        agents: Union[Agent, List[Agent]],
                         host: str = "0.0.0.0",
-                        port: int = 8000,
-                        stateless: bool = False,
-                        log_level: str = "info"):
+                        port: int = 1333,
+                        stateless: bool = True,
+                        model_names: Optional[Union[str, List[str]]] = None,
+                        log_level: str = "info") -> None:
         """
-        Serve an SDialog agent in a separate thread (alternative for Jupyter).
+        Serve SDialog agents in a separate thread (alternative for Jupyter).
 
         This method runs the server in a separate thread, allowing it to coexist
         with Jupyter's event loop without conflicts. It's automatically used as
         a fallback by the main serve() method when an event loop conflict is detected.
 
-        :param agent: The SDialog agent to serve.
-        :type agent: Agent
-        :param model_name: Model name to expose in the API (defaults to agent's model name).
-        :type model_name: Optional[str]
+        :param agents: The SDialog agent or a list of agents to serve.
+        :type agents: Union[Agent, List[Agent]]
         :param host: Host address to bind the server to.
         :type host: str
         :param port: Port number to bind the server to.
@@ -271,6 +319,8 @@ class Server:
         :param stateless: If True, the agent will not maintain memory between requests and the
                           full context must be provided with each request.
         :type stateless: bool
+        :param model_names: Model names to expose in the API (defaults to agent's name).
+        :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
         :return: The thread object running the server.
@@ -278,25 +328,20 @@ class Server:
         """
         import threading
 
-        if model_name is None:
-            model_name = getattr(agent, 'name', 'sdialog-agent')
-        if ":" not in model_name:
-            model_name = f"{model_name}:latest"
-
         def run_server():
             # Create a new event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                    cls.serve_async(agent, model_name, host, port, stateless, log_level)
+                    cls.serve_async(agents, host, port, stateless, model_names, log_level)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
             finally:
                 loop.close()
 
-        logger.info(f"Starting threaded server for agent '{model_name}' on {host}:{port}")
+        logger.info("Starting threaded server...")
         thread = threading.Thread(target=run_server, daemon=True)
         thread.start()
 
@@ -793,7 +838,7 @@ class Server:
         :param model_name: Model name to use for the agent.
         :type model_name: str
         """
-        model_name = cls._setup_agent(agent, model_name)
+        model_name = cls._setup_agents(agent, model_name)
         logger.info(f"Added agent '{model_name}' to server")
 
     @classmethod

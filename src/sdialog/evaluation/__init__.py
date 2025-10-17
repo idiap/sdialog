@@ -128,10 +128,12 @@ class LinguisticFeatureScore(BaseDialogScore):
     :param feature: List of feature names to compute. If ``None`` (default) compute all.
                     If the resulting set has size 1, ``__call__`` / ``score`` returns a single float; otherwise a dict.
                     Available features:
+
                       - ``"mean-turn-length"``: average number of words per dialogue turn.
                       - ``"hesitation-rate"``: percentage of hesitation tokens over total words (%).
                       - ``"gunning-fog"``: Gunning Fog readability index.
                       - ``"flesch-reading-ease"``: Flesch Reading Ease score.
+
     :type feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"]]]
     :param name: Internal score name (defaults to ``"linguistic_features"`` or
                  the single feature name if only one provided).
@@ -142,14 +144,23 @@ class LinguisticFeatureScore(BaseDialogScore):
     def __init__(self,
                  feature: Optional[List[Literal["mean-turn-length", "hesitation-rate",
                                                 "gunning-fog", "flesch-reading-ease"]]] = None,
-                 name: str = "linguistic_features",
+                 name: str = None,
                  speaker: Optional[str] = None):
         """Initialize scorer."""
+        if isinstance(feature, str):
+            feature = [feature]
+
+        # Check all features valid
+        valid_features = {"mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"}
+        if feature and not all(f in valid_features for f in feature):
+            raise ValueError(f"Invalid feature(s): {feature}. Must be one or more of: {valid_features}")
+
         # If a single feature is requested, allow name override with that feature for clearer downstream tables
-        effective_name = name
-        if feature and len(feature) == 1 and name == "linguistic_features":
-            effective_name = feature[0]
-        super().__init__(name=effective_name or "")
+        if name is None:
+            if feature and isinstance(feature, list) and len(feature) == 1:
+                name = feature[0]
+
+        super().__init__(name=name or "")
         self.feature = feature
         self.speaker = speaker
 
@@ -494,6 +505,12 @@ class LLMJudgeYesNo(BaseDialogScore, BaseLLMJudge):
         prompt = self.prompt_template.render(**render_kwargs)
         output = BaseLLMJudge.__call__(self, prompt)
         output = self.output_format.model_validate(output)
+
+        if isinstance(output.positive, list) and not output.positive:
+            if len(dialogs) > 1:
+                output.positive = [False] * len(dialogs)
+            else:
+                output.positive = False
 
         return output
 
@@ -1035,13 +1052,13 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
         for i, label in enumerate(unique_labels):
             idx = all_labels == label
             plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
-                        label=label if label != "reference" else None,
+                        label=label,
                         alpha=0.15 if label == "reference" else 0.7,
                         color="black" if label == "reference" else colors[i % len(colors)])
         for label in ["reference"] + list(dialog_embs.keys()):
             idx = all_labels == f"centroid-{label}"
             plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
-                        label="Reference centroid" if label == "reference" else None,
+                        label="reference centroid" if label == "reference" else None,
                         linewidths=3 if label == "reference" else 2,
                         alpha=1,  # if label == "reference" else 0.7,
                         color="black" if label == "reference" else colors[unique_labels.index(label) % len(colors)],
@@ -1685,6 +1702,7 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         plot.title(f"Boxplot of {title}")
         plot.boxplot(list(dialog_scores.values()),
                      labels=list(dialog_scores.keys()))
+        plt.xticks(rotation=45, ha='right')
         plot.xlabel("datasets")
         plot.ylabel(name or self.dialog_score.name)
 
@@ -1697,12 +1715,15 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         :return: Dict of statistics, or a single value if a target statistic was specified.
         :rtype: Union[dict, float]
         """
+        if len(dialog_scores) == 0:
+            logger.warning(f"No valid scores to compute statistics for {self.name}. Returning zeros.")
+
         stats = {
-            "mean": np.mean(dialog_scores),
-            "std": np.std(dialog_scores),
-            "min": np.min(dialog_scores),
-            "max": np.max(dialog_scores),
-            "median": np.median(dialog_scores)
+            "mean": np.mean(dialog_scores) if len(dialog_scores) > 0 else 0.0,
+            "std": np.std(dialog_scores) if len(dialog_scores) > 0 else 0.0,
+            "min": np.min(dialog_scores) if len(dialog_scores) > 0 else 0.0,
+            "max": np.max(dialog_scores) if len(dialog_scores) > 0 else 0.0,
+            "median": np.median(dialog_scores) if len(dialog_scores) > 0 else 0.0
         }
         return stats[self.stat] if self.stat in stats else stats
 
@@ -1799,6 +1820,7 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         for bar in bars:
             height = bar.get_height()
             plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%", ha='center', va='bottom')
+        plot.xticks(rotation=45, ha='right')
         plot.ylabel(f"Percentage of {metric or self.dialog_score.name} (%)")
         plot.xlabel("datasets")
         plot.title(f"Percentage of {metric or self.dialog_score.name} per dataset")
@@ -1899,13 +1921,13 @@ class DatasetComparator:
                 dataset_name += 1
             results[dataset_name] = {}
             for evaluator in self.evaluators:
-                evaluator_name = evaluator.name
                 score = evaluator(dataset, dataset_name=dataset_name)
                 if isinstance(score, dict):
                     for metric, value in score.items():
-                        results[dataset_name][f"{evaluator_name}-{metric}"] = value
+                        metric = f"{evaluator.name}-{metric}" if evaluator.name else metric
+                        results[dataset_name][metric] = value
                 else:
-                    results[dataset_name][evaluator_name] = score
+                    results[dataset_name][evaluator.name] = score
 
         if output == "dict" or output is dict:
             return results

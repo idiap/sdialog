@@ -14,6 +14,3 @@ From: nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04
 %labels
     Author sergio.burdisso@idiap.ch
     Version v1.0.0
-
-%help
-    This is the container for everything we need to run our JSALT tutorials (Ollama, LangChain, DSPy, CUDA Pytorch, etc.)

@@ -526,7 +526,7 @@ class Agent:
     def serve(self,
               host: str = "0.0.0.0",
               port: int = 1333,
-              stateless: bool = False,
+              stateless: bool = True,
               log_level: str = "info"):
         """
         Starts a REST API server to interact with the agent.
@@ -543,7 +543,7 @@ class Agent:
         """
         from .server import Server
 
-        return Server.serve(agent=self, host=host, port=port, stateless=stateless, log_level=log_level)
+        return Server.serve(agents=self, host=host, port=port, stateless=stateless, log_level=log_level)
 
     def response_lookahead(self, message: str = None):
         """
