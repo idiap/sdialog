@@ -44,15 +44,28 @@ class Position3D:
     def to_list(self):
         return [self.x, self.y, self.z]
 
-    def distance_to(self, other_position: "Position3D") -> float:
+    def distance_to(
+        self,
+        other_position: "Position3D",
+        dimensions: int = 3
+    ) -> float:
         """
         Calculate the euclidean distance between two positions.
+        By default, the distance is calculated in 3D.
         """
-        return (
-            (self.x - other_position.x) ** 2
-            + (self.y - other_position.y) ** 2
-            + (self.z - other_position.z) ** 2
-        ) ** 0.5
+        if dimensions == 2:
+            return (
+                (self.x - other_position.x) ** 2
+                + (self.y - other_position.y) ** 2
+            ) ** 0.5
+        elif dimensions == 3:
+            return (
+                (self.x - other_position.x) ** 2
+                + (self.y - other_position.y) ** 2
+                + (self.z - other_position.z) ** 2
+            ) ** 0.5
+        else:
+            raise ValueError(f"Invalid dimensions: {dimensions}")
 
     @classmethod
     def from_list(cls, position_list: List[float]) -> "Position3D":
@@ -758,14 +771,17 @@ class Room(BaseModel):
         """
         return self.dimensions.width * self.dimensions.length * self.dimensions.height
 
-    def get_speaker_distances_to_microphone(self) -> dict[str, float]:
+    def get_speaker_distances_to_microphone(self, dimensions: int = 3) -> dict[str, float]:
         """
-        Get the distances between speakers and the microphone.
+        Get the distances between speakers and the microphone in 2D or 3D.
         """
-        return {
-            speaker_name: coordinates.distance_to(self.mic_position_3d)
-            for speaker_name, coordinates in self.speakers_positions.items()
-        }
+        if dimensions in [2, 3]:
+            return {
+                speaker_name: coordinates.distance_to(self.mic_position_3d, dimensions=dimensions)
+                for speaker_name, coordinates in self.speakers_positions.items()
+            }
+        else:
+            raise ValueError(f"Invalid dimensions: {dimensions}")
 
     def to_image(
         self,
