@@ -161,6 +161,20 @@ class Dialog(BaseModel):
 
     _path: Optional[str] = None
 
+    def to_audio(
+        self,
+        **kwargs: dict
+    ) -> "AudioDialog":
+        """
+        Convert the dialogue to an audio dialogue.
+        """
+        from sdialog.audio.pipeline import to_audio
+
+        return to_audio(
+            self,
+            **kwargs
+        )
+
     def __len__(self):
         """
         Returns the number of turns in the dialogue.

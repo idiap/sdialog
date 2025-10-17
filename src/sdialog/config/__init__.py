@@ -8,7 +8,7 @@ import os
 import yaml
 import logging
 
-from ..util import CacheDialogScore, ollama_check_and_pull_model, is_ollama_model_name
+from ..util import ollama_check_and_pull_model, is_ollama_model_name
 
 PROMPT_YAML_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 logger = logging.getLogger(__name__)
@@ -60,7 +60,6 @@ def cache(enable):
     :type enable: bool
     """
     config["cache"]["enabled"] = enable
-    CacheDialogScore.set_enable_cache(enable)
 
     if enable:
         logger.info("Caching enabled. Cache path: %s", config["cache"]["path"])
@@ -81,7 +80,6 @@ def cache_path(path):
     :type path: str
     """
     config["cache"]["path"] = path
-    CacheDialogScore.set_cache_path(path)
 
 
 def set_cache(path, enable=True):
