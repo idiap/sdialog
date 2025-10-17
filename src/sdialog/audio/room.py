@@ -119,11 +119,13 @@ class MicrophonePosition(str, Enum):
     Different microphone placement options
     """
 
-    TABLE_SMARTPHONE = "table_smartphone"
+    DESK_SMARTPHONE = "desk_smartphone"
     MONITOR = "monitor"
     WALL_MOUNTED = "wall_mounted"
     CEILING_CENTERED = "ceiling_centered"
-    CHEST_POCKET = "chest_pocket"
+    CHEST_POCKET_SPEAKER_1 = "chest_pocket_speaker_1"
+    CHEST_POCKET_SPEAKER_2 = "chest_pocket_speaker_2"
+    MIDDLE_SPEAKERS = "middle_speakers"
     CUSTOM = "custom"
 
 
@@ -229,6 +231,17 @@ class Room(BaseModel):
 
         self.speakers_positions[speaker_name] = position
 
+        if (
+            self.mic_position == MicrophonePosition.MIDDLE_SPEAKERS and
+            Role.SPEAKER_1 in self.speakers_positions and
+            Role.SPEAKER_2 in self.speakers_positions
+        ):
+            self.mic_position_3d = Position3D(
+                x=(self.speakers_positions[Role.SPEAKER_1].x + self.speakers_positions[Role.SPEAKER_2].x) / 2,
+                y=(self.speakers_positions[Role.SPEAKER_1].y + self.speakers_positions[Role.SPEAKER_2].y) / 2,
+                z=BodyPosture.STANDING.value-0.3
+            )
+
     def place_speaker_around_furniture(
         self,
         speaker_name: str,
@@ -265,6 +278,17 @@ class Room(BaseModel):
 
         # Add the speaker to the room
         self.speakers_positions[speaker_name] = position
+
+        if (
+            self.mic_position == MicrophonePosition.MIDDLE_SPEAKERS and
+            Role.SPEAKER_1 in self.speakers_positions and
+            Role.SPEAKER_2 in self.speakers_positions
+        ):
+            self.mic_position_3d = Position3D(
+                x=(self.speakers_positions[Role.SPEAKER_1].x + self.speakers_positions[Role.SPEAKER_2].x) / 2,
+                y=(self.speakers_positions[Role.SPEAKER_1].y + self.speakers_positions[Role.SPEAKER_2].y) / 2,
+                z=BodyPosture.STANDING.value-0.3
+            )
 
     def _clamp_position_to_room_bounds(self, x: float, y: float, z: float) -> Position3D:
         """
@@ -1027,33 +1051,57 @@ def microphone_to_position(
         z = max(0.1, min(z, height - 0.05))  # Smaller top margin for ceiling mics
         return Position3D.from_list([x, y, z])
 
-    # TODO: Make more dynamic
-
     # Map microphone positions
-    if mic_pos == MicrophonePosition.TABLE_SMARTPHONE:
+    if mic_pos == MicrophonePosition.DESK_SMARTPHONE:
+
+        if "desk" not in room.furnitures:
+            raise ValueError((
+                "Desk furniture is not found in the room, you can add it with the add_furniture method"
+                " or change the mic_position to a different position"
+            ))
+
         return clamp_position(
             room.furnitures["desk"].x + 0.3,
             room.furnitures["desk"].y + 0.2,
             room.furnitures["desk"].get_top_z()
         )
+
     elif mic_pos == MicrophonePosition.MONITOR:
+
+        if "monitor" not in room.furnitures:
+            raise ValueError((
+                "Monitor furniture is not found in the room, you can add it with the add_furniture method"
+                " or change the mic_position to a different position"
+            ))
+
         return clamp_position(
             room.furnitures["monitor"].x + 0.1,
             room.furnitures["monitor"].y,
             room.furnitures["monitor"].get_top_z()
         )
+
     elif mic_pos == MicrophonePosition.WALL_MOUNTED:
-        wall_x = width * 0.95  # Near far wall
-        wall_y = length * 0.6  # Center-ish of the wall
-        return clamp_position(wall_x, wall_y, BodyPosture.STANDING.value)
+        return clamp_position(width * 0.01, length * 0.50, BodyPosture.STANDING.value)
+
     elif mic_pos == MicrophonePosition.CEILING_CENTERED:
-        return clamp_position(room.furnitures["center"].x, room.furnitures["center"].y, height - 0.1)
-    elif mic_pos == MicrophonePosition.CHEST_POCKET:
-        doctor_pos = (room.furnitures["desk"].x, room.furnitures["desk"].y)  # Doctor at desk
-        return clamp_position(doctor_pos.x, doctor_pos.y, BodyPosture.STANDING.value-0.3)
+        return clamp_position(width * 0.50, length * 0.50, height - 0.1)
+
+    elif mic_pos == MicrophonePosition.MIDDLE_SPEAKERS:
+        speaker_1_position = room.speakers_positions[Role.SPEAKER_1]
+        speaker_2_position = room.speakers_positions[Role.SPEAKER_2]
+        return clamp_position(
+            (speaker_1_position.x + speaker_2_position.x) / 2,
+            (speaker_1_position.y + speaker_2_position.y) / 2,
+            BodyPosture.STANDING.value-0.3
+        )
+
+    elif mic_pos in [MicrophonePosition.CHEST_POCKET_SPEAKER_1, MicrophonePosition.CHEST_POCKET_SPEAKER_2]:
+        speaker_position = room.speakers_positions[Role.SPEAKER_1 if "speaker_1" in mic_pos else Role.SPEAKER_2]
+        return clamp_position(speaker_position.x, speaker_position.y, BodyPosture.STANDING.value-0.3)
+
     elif mic_pos == MicrophonePosition.CUSTOM:
         if position_3D is None:
-            raise ValueError("Custom position is required")
+            raise ValueError("Custom 3D position is required, you can use the mic_position_3d attribute to set it")
         return position_3D
 
     # Fallback to center position at monitor height
