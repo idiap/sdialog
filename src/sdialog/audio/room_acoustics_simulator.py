@@ -12,7 +12,8 @@ from typing import List
 from sdialog.audio.room import Room, AudioSource
 from sdialog.audio.audio_utils import SourceVolume
 from sdialog.audio.room import (
-    RoomPosition
+    RoomPosition,
+    DirectivityType
 )
 
 
@@ -49,11 +50,21 @@ class RoomAcousticsSimulator:
             self._pyroom.mic_array = None
 
         # Add microphone at new position
-        self._pyroom.add_microphone_array(
-            pra.MicrophoneArray(
-                np.array([self.room.mic_position_3d.to_list()]).T, self._pyroom.fs
+        if (
+            self.room.directivity_type is None or
+            self.room.directivity_type == DirectivityType.OMNIDIRECTIONAL
+        ):
+            self._pyroom.add_microphone_array(
+                pra.MicrophoneArray(
+                    np.array([self.room.mic_position_3d.to_list()]).T, self._pyroom.fs
+                )
             )
-        )
+        else:
+            _directivity: pra.directivities.Cardioid = self.room.microphone_directivity.to_pyroomacoustics()
+            self._pyroom.add_microphone(
+                self.room.mic_position_3d.to_list(),
+                directivity=_directivity
+            )
 
     def _create_pyroom(
         self,
@@ -91,8 +102,11 @@ class RoomAcousticsSimulator:
             **kwargs_pyroom
         )
 
-        if "ray_tracing" in kwargs_pyroom:
+        if "ray_tracing" in kwargs_pyroom and kwargs_pyroom["ray_tracing"]:
             _accoustic_room.set_ray_tracing()
+
+        if "air_absorption" in kwargs_pyroom and kwargs_pyroom["air_absorption"]:
+            _accoustic_room.set_air_absorption()
 
         return _accoustic_room
 

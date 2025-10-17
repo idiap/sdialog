@@ -17,9 +17,9 @@ from typing import List, Optional, Union
 from sdialog import Dialog
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.tts_engine import KokoroTTS
-from sdialog.audio.room import Room, RoomPosition
 from sdialog.audio.audio_dialog import AudioDialog
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+from sdialog.audio.room import Room, RoomPosition, DirectivityType
 from sdialog.audio.audio_utils import Role, SourceType, SourceVolume, SpeakerSide
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
 from sdialog.audio import (
@@ -273,7 +273,21 @@ class AudioPipeline:
             ))
 
         # Create variables from the environment
-        room = environment["room"] if "room" in environment else None
+        room: Room = environment["room"] if "room" in environment else None
+
+        # Check if the ray tracing is enabled and the directivity is set to something else than omnidirectional
+        if (
+            "ray_tracing" in environment["kwargs_pyroom"] and
+            environment["kwargs_pyroom"]["ray_tracing"] and
+            room.directivity_type is not None and
+            room.directivity_type != DirectivityType.OMNIDIRECTIONAL
+        ):
+            raise ValueError((
+                "The ray tracing is enabled with a non-omnidirectional directivity, "
+                "which make the generation of the room accoustic audio impossible.\n"
+                "The microphone directivity must be set to omnidirectional "
+                "(pyroomacoustics only supports omnidirectional directivity for ray tracing)."
+            ))
 
         # Override the dialog directory name if provided otherwise use the dialog id as the directory name
         dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"

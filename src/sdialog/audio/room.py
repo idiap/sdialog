@@ -5,6 +5,8 @@ This module provides classes for the room specification.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Pawel Cyrta <pawel@cyrta.com>
 # SPDX-License-Identifier: MIT
 import time
+import math
+import logging
 import hashlib
 import numpy as np
 from enum import Enum
@@ -129,6 +131,52 @@ class MicrophonePosition(str, Enum):
     CUSTOM = "custom"
 
 
+class DirectivityType(str, Enum):
+    """
+    Type of the directivity for a speaker microphone
+    """
+    CUSTOM = "custom"
+
+    OMNIDIRECTIONAL = "omnidirectional"
+
+    NORTH = "north"
+    SOUTH = "south"
+    EAST = "east"
+    WEST = "west"
+
+    NORTH_EAST = "north_east"
+    NORTH_WEST = "north_west"
+    SOUTH_EAST = "south_east"
+    SOUTH_WEST = "south_west"
+
+    SPEAKER_1 = Role.SPEAKER_1.value
+    SPEAKER_2 = Role.SPEAKER_2.value
+    MIDDLE_SPEAKERS = "middle_speakers"
+
+
+class MicrophoneDirectivity(BaseModel):
+    """
+    Represents a directivity of an audio source
+    """
+    azimuth: int = 0
+    colatitude: int = 0
+    gain: float = 1.0
+
+    def to_pyroomacoustics(self):
+        """
+        Convert the microphone directivity to a pyroomacoustics directivity.
+        """
+        import pyroomacoustics as pra
+        from pyroomacoustics import DirectionVector
+        return pra.directivities.Cardioid(
+            DirectionVector(
+                azimuth=self.azimuth,
+                colatitude=self.colatitude
+            ),
+            gain=self.gain
+        )
+
+
 class AudioSource(BaseModel):
     """
     Represents an object, speaker that makes sounds in the room
@@ -192,6 +240,8 @@ class Room(BaseModel):
 
     mic_position: MicrophonePosition = MicrophonePosition.CEILING_CENTERED
     mic_position_3d: Position3D = None
+    directivity_type: Optional[DirectivityType] = DirectivityType.OMNIDIRECTIONAL
+    microphone_directivity: Optional[MicrophoneDirectivity] = None
 
     # Furniture available in the room
     furnitures: dict[str, Furniture] = {}
@@ -203,7 +253,103 @@ class Room(BaseModel):
         "arbitrary_types_allowed": True,
     }
 
-    speakers_positions: dict[str, Position3D] = {}
+    speakers_positions: dict[str, Position3D] = {}  # dict[speaker_name, speaker_position]
+
+    def directivity_type_to_azimuth_colatitude(self, type: DirectivityType) -> Tuple[int, int]:
+        """
+        Convert a directivity type to an azimuth and colatitude.
+        """
+
+        if type == DirectivityType.OMNIDIRECTIONAL:
+            return 0, 0
+
+        elif type == DirectivityType.NORTH:
+            return 0, 90
+        elif type == DirectivityType.SOUTH:
+            return 180, 90
+        elif type == DirectivityType.EAST:
+            return 90, 90
+        elif type == DirectivityType.WEST:
+            return -90, 90
+
+        elif type == DirectivityType.NORTH_EAST:
+            return 45, 90
+        elif type == DirectivityType.NORTH_WEST:
+            return -45, 90
+        elif type == DirectivityType.SOUTH_EAST:
+            return 135, 90
+        elif type == DirectivityType.SOUTH_WEST:
+            return -135, 90
+
+        elif type in [DirectivityType.SPEAKER_1, DirectivityType.SPEAKER_2]:
+            """
+            The microphone will aim at the speaker.
+            """
+
+            if type.value not in self.speakers_positions:
+                raise ValueError((
+                    f"Speaker {type.value} is not set, the microphone directivity can't be computed."
+                    f"Available speakers: {', '.join(self.speakers_positions.keys())}"
+                ))
+
+            speaker_position = self.speakers_positions[type.value]
+
+            azimuth = math.atan2(
+                speaker_position.y - self.mic_position_3d.y,
+                speaker_position.x - self.mic_position_3d.x
+            )
+
+            colatitude = math.atan2(
+                speaker_position.z - self.mic_position_3d.z,
+                math.sqrt(
+                    (speaker_position.x - self.mic_position_3d.x)**2 +
+                    (speaker_position.y - self.mic_position_3d.y)**2
+                )
+            )
+
+            # Ensure colatitude is in range [0, π] as required by pyroomacoustics
+            if colatitude < 0:
+                colatitude += math.pi
+
+            return int(azimuth * 180 / math.pi), int(colatitude * 180 / math.pi)
+
+        elif type == DirectivityType.MIDDLE_SPEAKERS:
+            """
+            The microphone will aim at the position between the two speakers.
+            """
+
+            if Role.SPEAKER_1 not in self.speakers_positions or Role.SPEAKER_2 not in self.speakers_positions:
+                raise ValueError("Speakers positions are not set, the microphone directivity can't be computed")
+
+            speaker_1_position = self.speakers_positions[Role.SPEAKER_1]
+            speaker_2_position = self.speakers_positions[Role.SPEAKER_2]
+
+            # Calculer le point milieu entre les deux speakers
+            middle_x = (speaker_1_position.x + speaker_2_position.x) / 2
+            middle_y = (speaker_1_position.y + speaker_2_position.y) / 2
+            middle_z = (speaker_1_position.z + speaker_2_position.z) / 2
+
+            # Calculer l'angle depuis le microphone vers le point milieu
+            azimuth = math.atan2(
+                middle_y - self.mic_position_3d.y,
+                middle_x - self.mic_position_3d.x
+            )
+
+            colatitude = math.atan2(
+                middle_z - self.mic_position_3d.z,
+                math.sqrt(
+                    (middle_x - self.mic_position_3d.x)**2 +
+                    (middle_y - self.mic_position_3d.y)**2
+                )
+            )
+
+            # Ensure colatitude is in range [0, π] as required by pyroomacoustics
+            if colatitude < 0:
+                colatitude += math.pi
+
+            return int(azimuth * 180 / math.pi), int(colatitude * 180 / math.pi)
+
+        raise ValueError(f"Directivity type {type} is not supported")
 
     def room_position_to_position3d(
         self,
@@ -953,6 +1099,48 @@ class Room(BaseModel):
 
         return img
 
+    def set_directivity(
+        self,
+        direction: DirectivityType = DirectivityType.OMNIDIRECTIONAL,
+        directivity: MicrophoneDirectivity = None,
+    ):
+        """
+        Apply a directivity to the microphone based on the directivity type.
+        """
+
+        if direction not in [_dt for _dt in DirectivityType]:
+            raise ValueError(f"Directivity type {direction} is not supported")
+
+        # Add the microphone directivity if not already set
+        if direction == DirectivityType.CUSTOM:
+
+            if directivity is None:
+                raise ValueError("Microphone directivity is required for custom directivity type")
+
+            self.directivity_type = direction
+            self.microphone_directivity = directivity
+
+        else:
+
+            if directivity is not None:
+                logging.warning("The given directivity is not taken into account for non-custom directivity type")
+
+            # Compute the azimuth and colatitude based on the directivity type
+            _azimuth, _colatitude = self.directivity_type_to_azimuth_colatitude(
+                direction
+                if direction is not None
+                else DirectivityType.OMNIDIRECTIONAL
+            )
+
+            self.directivity_type = direction
+
+            # Build the microphone directivity
+            self.microphone_directivity = MicrophoneDirectivity(
+                azimuth=_azimuth,
+                colatitude=_colatitude,
+                gain=1.0
+            )
+
     def model_post_init(self, __context: Any) -> None:
         """
         Post init function to set the microphone position 3D.
@@ -990,6 +1178,12 @@ class Room(BaseModel):
             self,
             self.mic_position,
             position_3D=self.mic_position_3d
+        )
+
+        # Set the directivity of the microphone
+        self.set_directivity(
+            direction=self.directivity_type,
+            directivity=self.microphone_directivity
         )
 
         # Set the name of the room if not already set
