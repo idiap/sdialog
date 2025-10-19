@@ -1,6 +1,55 @@
 """
-This module provides classes for the room specification.
+This module provides comprehensive room specification classes for acoustics simulation.
+
+The module includes classes for defining 3D room environments, spatial positioning,
+acoustic materials, and audio source management. These classes enable realistic
+room acoustics simulation with support for complex room geometries, furniture
+placement, and acoustic material modeling.
+
+Key Components:
+
+  - Position3D: 3D coordinate positioning system
+  - Dimensions3D: 3D room dimensions and volume calculations
+  - Room: Main room class with acoustics simulation support
+  - AudioSource: Audio source positioning and characteristics
+  - Furniture: 3D furniture models for room simulation
+  - Directivity: Microphone and speaker directivity patterns
+  - RoomPosition: Room positioning and orientation system
+
+Room Acoustics Features:
+
+  - 3D room geometry with customizable dimensions
+  - Acoustic material modeling for walls, floor, and ceiling
+  - Furniture placement and acoustic obstacle modeling
+  - Microphone and speaker positioning with directivity
+  - Room acoustics simulation integration
+  - Spatial audio source management
+
+Example:
+
+    .. code-block:: python
+
+        from sdialog.audio.room import Room, Position3D, Dimensions3D
+        from sdialog.audio.utils import RoomMaterials, WallMaterial
+
+        # Create room dimensions
+        dimensions = Dimensions3D(width=5.0, length=4.0, height=3.0)
+
+        # Create room materials
+        materials = RoomMaterials(
+            walls=WallMaterial.WOODEN_LINING,
+            floor=FloorMaterial.CARPET_HAIRY,
+            ceiling=CeilingMaterial.FIBRE_ABSORBER
+        )
+
+        # Create room with microphone position
+        room = Room(
+            dimensions=dimensions,
+            materials=materials,
+            mic_position=Position3D(2.5, 2.0, 1.5)
+        )
 """
+
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Pawel Cyrta <pawel@cyrta.com>
 # SPDX-License-Identifier: MIT
@@ -19,7 +68,32 @@ from sdialog.audio.utils import BodyPosture, Furniture, RoomMaterials, SpeakerSi
 @dataclass
 class Position3D:
     """
-    3D position coordinates in meters
+    3D position coordinates for spatial positioning in room acoustics simulation.
+
+    This class represents a 3D position in meters within a room environment,
+    providing coordinate-based positioning for speakers, microphones, furniture,
+    and other objects in room acoustics simulation. It includes utility methods
+    for distance calculations, coordinate transformations, and data conversion.
+
+    Key Features:
+
+      - 3D coordinate system (x, y, z) in meters
+      - Distance calculations in 2D or 3D space
+      - Coordinate validation and error handling
+      - Data conversion to various formats (array, list)
+      - Spatial positioning utilities
+
+    Coordinate System:
+        - X-axis: Horizontal position (width)
+        - Y-axis: Depth position (length)
+        - Z-axis: Vertical position (height)
+
+    :ivar x: X-coordinate in meters (horizontal position).
+    :vartype x: float
+    :ivar y: Y-coordinate in meters (depth position).
+    :vartype y: float
+    :ivar z: Z-coordinate in meters (height position).
+    :vartype z: float
     """
 
     x: float
@@ -27,21 +101,54 @@ class Position3D:
     z: float
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
+        """
+        Initializes a 3D position with the specified coordinates.
+
+        :param x: X-coordinate in meters (default: 0.0).
+        :type x: float
+        :param y: Y-coordinate in meters (default: 0.0).
+        :type y: float
+        :param z: Z-coordinate in meters (default: 0.0).
+        :type z: float
+        """
         self.x = x
         self.y = y
         self.z = z
 
     def __post_init__(self):
+        """
+        Validates coordinates after initialization.
+
+        :raises ValueError: If any coordinate is negative.
+        """
         if any(coord < 0 for coord in [self.x, self.y, self.z]):
             raise ValueError("Coordinates must be non-negative")
 
     def __str__(self):
+        """
+        Returns a string representation of the position.
+
+        :return: String representation in format "pos: [x, y, z]".
+        :rtype: str
+        """
         return f"pos: [{self.x}, {self.y}, {self.z}]"
 
     def to_array(self) -> np.ndarray:
+        """
+        Converts the position to a numpy array.
+
+        :return: Numpy array containing [x, y, z] coordinates.
+        :rtype: np.ndarray
+        """
         return np.array([self.x, self.y, self.z])
 
     def to_list(self):
+        """
+        Converts the position to a Python list.
+
+        :return: List containing [x, y, z] coordinates.
+        :rtype: List[float]
+        """
         return [self.x, self.y, self.z]
 
     def distance_to(
@@ -50,8 +157,18 @@ class Position3D:
         dimensions: int = 3
     ) -> float:
         """
-        Calculate the euclidean distance between two positions.
-        By default, the distance is calculated in 3D.
+        Calculates the Euclidean distance to another position.
+
+        This method computes the straight-line distance between this position
+        and another position, supporting both 2D and 3D distance calculations.
+
+        :param other_position: The other position to calculate distance to.
+        :type other_position: Position3D
+        :param dimensions: Number of dimensions for distance calculation (2 or 3, default: 3).
+        :type dimensions: int
+        :return: The Euclidean distance in meters.
+        :rtype: float
+        :raises ValueError: If dimensions is not 2 or 3.
         """
         if dimensions == 2:
             return (
@@ -69,6 +186,15 @@ class Position3D:
 
     @classmethod
     def from_list(cls, position_list: List[float]) -> "Position3D":
+        """
+        Creates a Position3D from a list of coordinates.
+
+        :param position_list: List containing [x, y, z] coordinates.
+        :type position_list: List[float]
+        :return: A new Position3D object.
+        :rtype: Position3D
+        :raises ValueError: If the list doesn't contain exactly 3 coordinates.
+        """
         if len(position_list) != 3:
             raise ValueError("Position must have exactly 3 coordinates [x, y, z]")
         return cls(x=position_list[0], y=position_list[1], z=position_list[2])
@@ -77,7 +203,31 @@ class Position3D:
 @dataclass
 class Dimensions3D:
     """
-    3D dimensions in meters
+    3D dimensions for room geometry in room acoustics simulation.
+
+    This class represents the 3D dimensions of a room in meters, providing
+    width, length, and height measurements for room geometry definition.
+    It includes validation, volume calculations, and data conversion utilities.
+
+    Key Features:
+
+      - 3D dimension system (width, length, height) in meters
+      - Dimension validation and error handling
+      - Volume calculation for room acoustics
+      - Data conversion to various formats (list)
+      - Room geometry utilities
+
+    Dimension System:
+        - Width: X-axis dimension (horizontal)
+        - Length: Y-axis dimension (depth)
+        - Height: Z-axis dimension (vertical)
+
+    :ivar width: Width in meters (x-axis dimension).
+    :vartype width: float
+    :ivar length: Length in meters (y-axis dimension).
+    :vartype length: float
+    :ivar height: Height in meters (z-axis dimension).
+    :vartype height: float
     """
 
     width: float  # x-axis
@@ -85,17 +235,44 @@ class Dimensions3D:
     height: float  # z-axis
 
     def __post_init__(self):
+        """
+        Validates dimensions after initialization.
+
+        :raises ValueError: If any dimension is not positive.
+        """
         if any(dim <= 0 for dim in [self.width, self.length, self.height]):
             raise ValueError("All dimensions must be positive")
 
     def __str__(self):
+        """
+        Returns a string representation of the dimensions.
+
+        :return: String representation in format "dim: [width, length, height]".
+        :rtype: str
+        """
         return f"dim: [{self.width}, {self.length}, {self.height}]"
 
     def to_list(self):
+        """
+        Converts the dimensions to a Python list.
+
+        :return: List containing [width, length, height] dimensions.
+        :rtype: List[float]
+        """
         return [self.width, self.length, self.height]
 
     @property
     def volume(self) -> float:
+        """
+        Calculates the volume of the room.
+
+        This property computes the total volume of the room by multiplying
+        width, length, and height. The volume is used in room acoustics
+        calculations for reverberation time and acoustic modeling.
+
+        :return: The room volume in cubic meters.
+        :rtype: float
+        """
         return self.width * self.length * self.height
 
     @property
@@ -243,7 +420,56 @@ def get_room_id():
 
 class Room(BaseModel):
     """
-    Class to handle a room for audio simulation.
+    Main room class for comprehensive room acoustics simulation.
+
+    This class represents a complete room environment for acoustics simulation,
+    including 3D geometry, acoustic materials, furniture placement, microphone
+    positioning, and audio source management. It provides the foundation for
+    realistic room acoustics modeling and simulation.
+
+    Key Features:
+
+      - 3D room geometry with customizable dimensions
+      - Acoustic material modeling for all surfaces
+      - Furniture placement and acoustic obstacle modeling
+      - Microphone positioning with directivity patterns
+      - Audio source management and positioning
+      - Room acoustics simulation integration
+      - Spatial audio processing support
+
+    Room Components:
+
+      - Dimensions: 3D room geometry (width, length, height)
+      - Materials: Acoustic properties of walls, floor, and ceiling
+      - Furniture: 3D objects that affect acoustics
+      - Microphone: Recording position and directivity
+      - Audio Sources: Speaker positions and characteristics
+      - Acoustics: Reverberation and acoustic modeling
+
+    :ivar id: Unique identifier for the room.
+    :vartype id: str
+    :ivar name: Human-readable name for the room.
+    :vartype name: str
+    :ivar description: Description of the room and its purpose.
+    :vartype description: str
+    :ivar dimensions: 3D room dimensions in meters.
+    :vartype dimensions: Dimensions3D
+    :ivar mic_position: Microphone position type (ceiling, floor, etc.).
+    :vartype mic_position: MicrophonePosition
+    :ivar mic_position_3d: 3D microphone position for acoustics simulation.
+    :vartype mic_position_3d: Position3D
+    :ivar directivity_type: Microphone directivity pattern type.
+    :vartype directivity_type: Optional[DirectivityType]
+    :ivar microphone_directivity: Microphone directivity configuration.
+    :vartype microphone_directivity: Optional[MicrophoneDirectivity]
+    :ivar furnitures: Dictionary of furniture objects in the room.
+    :vartype furnitures: dict[str, Furniture]
+    :ivar materials: Acoustic materials for room surfaces.
+    :vartype materials: RoomMaterials
+    :ivar reverberation_time_ratio: Reverberation time ratio for acoustics.
+    :vartype reverberation_time_ratio: Optional[float]
+    :ivar speakers_positions: Dictionary mapping speaker names to positions.
+    :vartype speakers_positions: dict[str, Position3D]
     """
     id: str = Field(default_factory=get_room_id)
     name: str = "Room"
@@ -270,7 +496,16 @@ class Room(BaseModel):
 
     def directivity_type_to_azimuth_colatitude(self, type: DirectivityType) -> Tuple[int, int]:
         """
-        Convert a directivity type to an azimuth and colatitude.
+        Converts a directivity type to azimuth and colatitude coordinates.
+
+        This method maps directivity types to their corresponding azimuth
+        and colatitude values for microphone directivity configuration
+        in room acoustics simulation.
+
+        :param type: The directivity type to convert.
+        :type type: DirectivityType
+        :return: A tuple containing (azimuth, colatitude) in degrees.
+        :rtype: Tuple[int, int]
         """
 
         if type == DirectivityType.OMNIDIRECTIONAL:

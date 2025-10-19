@@ -1,5 +1,45 @@
 """
-This module provides the audio pipeline for generating audio from a dialog.
+This module provides a comprehensive audio pipeline for generating audio from dialogues.
+
+The module includes the main audio processing pipeline that orchestrates the complete
+audio generation workflow, from text-to-speech conversion to room acoustics simulation.
+It provides a high-level interface for generating realistic audio dialogues with
+support for multiple TTS engines, voice databases, and room acoustics simulation.
+
+Key Features:
+
+  - Complete audio generation pipeline from dialogue to audio
+  - Multi-step audio processing workflow
+  - Integration with TTS engines and voice databases
+  - Room acoustics simulation support
+  - Background and foreground audio mixing
+  - Flexible configuration and customization
+
+Audio Processing Pipeline:
+
+  1. Step 1: Text-to-speech conversion and voice assignment
+  2. Step 2: Audio combination and processing
+  3. Step 3: Room acoustics simulation
+  4. Optional: Background/foreground audio mixing with dscaper
+
+Example:
+
+    .. code-block:: python
+
+        from sdialog.audio import to_audio, KokoroTTS, HuggingfaceVoiceDatabase
+        from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+
+        # Generate audio from dialogue
+        audio_dialog = to_audio(
+            dialog=dialog,
+            dir_audio="./outputs",
+            do_step_1=True,
+            do_step_2=True,
+            do_step_3=True,
+            tts_engine=KokoroTTS(),
+            voice_database=HuggingfaceVoiceDatabase("sdialog/voices-kokoro"),
+            room=MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+        )
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -69,7 +109,56 @@ def to_audio(
     audio_file_format: str = "wav"
 ) -> AudioDialog:
     """
-    Convert a dialog into an audio dialog.
+    Convert a dialogue into an audio dialogue with comprehensive audio processing.
+
+    This function provides a high-level interface for converting text dialogues
+    into realistic audio dialogues with support for multiple processing steps:
+    text-to-speech conversion, audio combination, and room acoustics simulation.
+
+    The function orchestrates the complete audio generation pipeline, including
+    voice assignment, audio processing, and room acoustics simulation using
+    the dSCAPER framework for realistic audio environments.
+
+    :param dialog: The input dialogue to convert to audio.
+    :type dialog: Dialog
+    :param dir_audio: Directory path for storing audio outputs.
+    :type dir_audio: str
+    :param dialog_dir_name: Custom name for the dialogue directory.
+    :type dialog_dir_name: str
+    :param dscaper_data_path: Path to dSCAPER data directory.
+    :type dscaper_data_path: Optional[str]
+    :param room_name: Custom name for the room configuration.
+    :type room_name: Optional[str]
+    :param do_step_1: Enable text-to-speech conversion and voice assignment.
+    :type do_step_1: bool
+    :param do_step_2: Enable audio combination and dSCAPER timeline generation.
+    :type do_step_2: bool
+    :param do_step_3: Enable room acoustics simulation.
+    :type do_step_3: bool
+    :param tts_engine: Text-to-speech engine for audio generation.
+    :type tts_engine: BaseTTS
+    :param voice_database: Voice database for speaker selection.
+    :type voice_database: BaseVoiceDatabase
+    :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
+    :type dscaper_datasets: List[str]
+    :param room: Room configuration for acoustics simulation.
+    :type room: Room
+    :param speaker_positions: Speaker positioning configuration.
+    :type speaker_positions: dict[Role, dict]
+    :param background_effect: Background audio effect type.
+    :type background_effect: str
+    :param foreground_effect: Foreground audio effect type.
+    :type foreground_effect: str
+    :param foreground_effect_position: Position for foreground effects.
+    :type foreground_effect_position: RoomPosition
+    :param kwargs_pyroom: PyRoomAcoustics configuration parameters.
+    :type kwargs_pyroom: dict
+    :param source_volumes: Volume levels for different audio sources.
+    :type source_volumes: dict[SourceType, SourceVolume]
+    :param audio_file_format: Audio file format (wav, mp3, flac).
+    :type audio_file_format: str
+    :return: Audio dialogue with processed audio data.
+    :rtype: AudioDialog
     """
 
     if audio_file_format not in ["mp3", "wav", "flac"]:
@@ -151,7 +240,38 @@ def to_audio(
 
 class AudioPipeline:
     """
-    Audio generation pipeline.
+    Comprehensive audio generation pipeline for dialogue processing.
+
+    AudioPipeline orchestrates the complete audio generation workflow from text
+    dialogues to realistic audio dialogues with room acoustics simulation. It
+    provides a flexible framework for multi-step audio processing including
+    text-to-speech conversion, audio combination, and room acoustics simulation.
+
+    Key Features:
+
+      - Multi-step audio processing pipeline (TTS, combination, acoustics)
+      - Integration with TTS engines and voice databases
+      - Room acoustics simulation using pyroomacoustics
+      - dSCAPER integration for realistic audio environments
+      - Flexible configuration and customization options
+      - Support for multiple audio file formats
+
+    Pipeline Steps:
+
+      1. Step 1: Text-to-speech conversion and voice assignment
+      2. Step 2: Audio combination and dSCAPER timeline generation
+      3. Step 3: Room acoustics simulation and final audio processing
+
+    :ivar dir_audio: Base directory for audio file storage.
+    :vartype dir_audio: str
+    :ivar tts_pipeline: Text-to-speech engine for audio generation.
+    :vartype tts_pipeline: BaseTTS
+    :ivar voice_database: Voice database for speaker selection.
+    :vartype voice_database: BaseVoiceDatabase
+    :ivar _dscaper: dSCAPER instance for audio environment simulation.
+    :vartype _dscaper: Optional[Dscaper]
+    :ivar sampling_rate: Audio sampling rate in Hz.
+    :vartype sampling_rate: int
     """
 
     def __init__(
@@ -162,7 +282,21 @@ class AudioPipeline:
             sampling_rate: Optional[int] = 24_000,
             dscaper=None):
         """
-        Initialize the audio generation pipeline.
+        Initialize the audio generation pipeline with configuration.
+
+        Creates a new AudioPipeline instance with the specified configuration
+        for audio processing, TTS engine, voice database, and dSCAPER integration.
+
+        :param dir_audio: Base directory for audio file storage.
+        :type dir_audio: Optional[str]
+        :param tts_pipeline: Text-to-speech engine for audio generation.
+        :type tts_pipeline: Optional[BaseTTS]
+        :param voice_database: Voice database for speaker selection.
+        :type voice_database: Optional[BaseVoiceDatabase]
+        :param sampling_rate: Audio sampling rate in Hz.
+        :type sampling_rate: Optional[int]
+        :param dscaper: dSCAPER instance for audio environment simulation.
+        :type dscaper: Optional[Dscaper]
         """
 
         self.dir_audio = dir_audio
@@ -182,9 +316,21 @@ class AudioPipeline:
     def populate_dscaper(
             self,
             datasets: List[str],
-            split: str = "train") -> int:
+            split: str = "train") -> dict:
         """
-        Populate the dSCAPER with the audio recordings.
+        Populate the dSCAPER with audio recordings from Hugging Face datasets.
+
+        Downloads and stores audio recordings from specified Hugging Face datasets
+        into the dSCAPER library for use in audio environment simulation. This
+        method processes each dataset and stores the audio files with appropriate
+        metadata for later use in timeline generation.
+
+        :param datasets: List of Hugging Face dataset names to populate.
+        :type datasets: List[str]
+        :param split: Dataset split to use (train, validation, test).
+        :type split: str
+        :return: Dictionary with statistics about the population process.
+        :rtype: dict
         """
 
         if self._dscaper is None:
@@ -245,7 +391,16 @@ class AudioPipeline:
             self,
             dialog: AudioDialog) -> np.ndarray:
         """
-        Combines multiple audio segments into a single master audio track.
+        Combine multiple audio segments into a single master audio track.
+
+        Concatenates all audio segments from the dialogue turns into a single
+        continuous audio track. This creates a baseline audio representation
+        of the entire dialogue for further processing and analysis.
+
+        :param dialog: Audio dialogue containing turns with audio data.
+        :type dialog: AudioDialog
+        :return: Combined audio data as numpy array.
+        :rtype: np.ndarray
         """
         return np.concatenate([turn.get_audio() for turn in dialog.turns])
 
@@ -263,7 +418,35 @@ class AudioPipeline:
         audio_file_format: str = "wav"
     ) -> AudioDialog:
         """
-        Run the audio pipeline.
+        Execute the complete audio generation pipeline.
+
+        Runs the multi-step audio generation pipeline with configurable steps:
+        text-to-speech conversion, audio combination, and room acoustics simulation.
+        The method handles the complete workflow from text dialogue to realistic
+        audio dialogue with room acoustics simulation.
+
+        :param dialog: Input dialogue to process.
+        :type dialog: Dialog
+        :param environment: Environment configuration for room acoustics.
+        :type environment: dict
+        :param do_step_1: Enable text-to-speech conversion and voice assignment.
+        :type do_step_1: Optional[bool]
+        :param do_step_2: Enable audio combination and dSCAPER timeline generation.
+        :type do_step_2: Optional[bool]
+        :param do_step_3: Enable room acoustics simulation.
+        :type do_step_3: Optional[bool]
+        :param dialog_dir_name: Custom name for the dialogue directory.
+        :type dialog_dir_name: Optional[str]
+        :param room_name: Custom name for the room configuration.
+        :type room_name: Optional[str]
+        :param voices: Voice assignments for different speaker roles.
+        :type voices: dict[Role, Union[Voice, tuple[str, str]]]
+        :param keep_duplicate: Allow duplicate voice assignments.
+        :type keep_duplicate: bool
+        :param audio_file_format: Audio file format (wav, mp3, flac).
+        :type audio_file_format: str
+        :return: Processed audio dialogue with all audio data.
+        :rtype: AudioDialog
         """
 
         if audio_file_format not in ["mp3", "wav", "flac"]:

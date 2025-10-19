@@ -1,6 +1,48 @@
 """
-This module provides a class for simulating room acoustics.
+This module provides comprehensive room acoustics simulation capabilities.
+
+The module includes the AcousticsSimulator class that enables realistic
+room acoustics simulation using the pyroomacoustics library. It supports
+complex room geometries, acoustic materials, microphone positioning,
+and audio source management for high-quality acoustic environment modeling.
+
+Key Features:
+
+  - Room acoustics simulation using pyroomacoustics
+  - Support for complex room geometries and materials
+  - Microphone positioning with directivity patterns
+  - Audio source management and positioning
+  - Reverberation and acoustic effect modeling
+  - High-quality audio processing and simulation
+
+Acoustics Simulation Process:
+
+  1. Room geometry and material setup
+  2. Microphone positioning and directivity configuration
+  3. Audio source placement and characteristics
+  4. Acoustic simulation with pyroomacoustics
+  5. Audio processing and output generation
+
+Example:
+
+    .. code-block:: python
+
+        from sdialog.audio import AcousticsSimulator, Room
+        from sdialog.audio.utils import SourceVolume
+
+        # Create room configuration
+        room = Room(dimensions=(5.0, 4.0, 3.0))
+
+        # Initialize acoustics simulator
+        simulator = AcousticsSimulator(room=room)
+
+        # Simulate room acoustics
+        audio_output = simulator.simulate(
+            sources=audio_sources,
+            source_volumes={"speaker_1": SourceVolume.MEDIUM}
+        )
 """
+
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
@@ -19,8 +61,43 @@ from sdialog.audio.room import (
 
 class AcousticsSimulator:
     """
-    Simulates sound based on room acoustics based on room definition,
-    sound sources provided and microphone(s) setup.
+    Comprehensive room acoustics simulator using pyroomacoustics.
+
+    This class provides realistic room acoustics simulation by modeling
+    sound propagation, reflection, and absorption in 3D room environments.
+    It integrates with the pyroomacoustics library to provide high-quality
+    acoustic modeling with support for complex room geometries, materials,
+    and audio source positioning.
+
+    Key Features:
+
+      - Room acoustics simulation using pyroomacoustics
+      - Support for complex room geometries and materials
+      - Microphone positioning with directivity patterns
+      - Audio source management and positioning
+      - Reverberation and acoustic effect modeling
+      - High-quality audio processing and simulation
+
+    Simulation Process:
+
+      1. Room geometry and material setup
+      2. Microphone positioning and directivity configuration
+      3. Audio source placement and characteristics
+      4. Acoustic simulation with pyroomacoustics
+      5. Audio processing and output generation
+
+    :ivar sampling_rate: Audio sampling rate in Hz (default: 44100).
+    :vartype sampling_rate: int
+    :ivar ref_db: Reference decibel level for audio processing.
+    :vartype ref_db: int
+    :ivar audiosources: List of audio sources for simulation.
+    :vartype audiosources: List[AudioSource]
+    :ivar room: Room configuration for acoustics simulation.
+    :vartype room: Room
+    :ivar kwargs_pyroom: Additional parameters for pyroomacoustics.
+    :vartype kwargs_pyroom: dict
+    :ivar _pyroom: Internal pyroomacoustics room object.
+    :vartype _pyroom: Any
     """
 
     def __init__(
@@ -30,7 +107,21 @@ class AcousticsSimulator:
         kwargs_pyroom: dict = {}
     ):
         """
-        Initialize the room acoustics simulator.
+        Initializes the room acoustics simulator.
+
+        This constructor sets up the acoustics simulator with the specified
+        room configuration, sampling rate, and pyroomacoustics parameters.
+        It creates the internal pyroomacoustics room object and configures
+        the microphone positioning and directivity.
+
+        :param room: Room configuration for acoustics simulation.
+        :type room: Room
+        :param sampling_rate: Audio sampling rate in Hz (default: 44100).
+        :type sampling_rate: int
+        :param kwargs_pyroom: Additional parameters for pyroomacoustics.
+        :type kwargs_pyroom: dict
+        :raises ValueError: If room is not provided.
+        :raises ImportError: If pyroomacoustics is not installed.
         """
         import pyroomacoustics as pra
 
@@ -73,7 +164,29 @@ class AcousticsSimulator:
         kwargs_pyroom: dict = {}
     ):
         """
-        Create a pyroomacoustics room based on the room definition.
+        Creates a pyroomacoustics room object based on the room definition.
+
+        This method constructs the internal pyroomacoustics room object
+        using the provided room configuration, including dimensions,
+        materials, and acoustic properties. It handles both material-based
+        and reverberation time-based room setup.
+
+        Room setup process:
+        1. Determine acoustic materials (from room materials or reverberation time)
+        2. Create pyroomacoustics ShoeBox room with dimensions
+        3. Configure materials and acoustic properties
+        4. Set up room acoustics simulation parameters
+
+        :param room: Room configuration for acoustics simulation.
+        :type room: Room
+        :param sampling_rate: Audio sampling rate in Hz (default: 44100).
+        :type sampling_rate: int
+        :param kwargs_pyroom: Additional parameters for pyroomacoustics.
+        :type kwargs_pyroom: dict
+        :return: Configured pyroomacoustics room object.
+        :rtype: Any
+        :raises ImportError: If pyroomacoustics is not installed.
+        :raises ValueError: If room configuration is invalid.
         """
         import pyroomacoustics as pra
 
@@ -171,7 +284,29 @@ class AcousticsSimulator:
         reset: bool = False
     ):
         """
-        Simulate the audio sources in the room.
+        Simulates room acoustics for the given audio sources.
+
+        This method performs the complete room acoustics simulation process,
+        including audio source placement, volume adjustment, and acoustic
+        processing using pyroomacoustics. It returns the processed audio
+        with room acoustics effects applied.
+
+        Simulation process:
+        1. Optionally reset the room acoustics simulator
+        2. Add audio sources with specified volumes
+        3. Perform room acoustics simulation
+        4. Process and return the resulting audio
+
+        :param sources: List of audio sources to simulate in the room.
+        :type sources: List[AudioSource]
+        :param source_volumes: Dictionary mapping source identifiers to volume levels.
+        :type source_volumes: dict[str, SourceVolume]
+        :param reset: If True, resets the room acoustics simulator before simulation.
+        :type reset: bool
+        :return: Processed audio with room acoustics effects applied.
+        :rtype: np.ndarray
+        :raises ValueError: If audio sources are invalid or empty.
+        :raises RuntimeError: If simulation fails.
         """
 
         if reset:
@@ -188,7 +323,18 @@ class AcousticsSimulator:
 
     def reset(self):
         """
-        Reset the room acoustics simulator.
+        Resets the room acoustics simulator to its initial state.
+
+        This method clears the internal pyroomacoustics room object and
+        resets the simulator to its initial state. It's useful for
+        starting a new simulation or clearing previous simulation data.
+
+        Reset process:
+        1. Delete the existing pyroomacoustics room object
+        2. Clear the internal room reference
+        3. Prepare for new simulation setup
+
+        :raises RuntimeError: If reset fails due to internal state issues.
         """
 
         del self._pyroom

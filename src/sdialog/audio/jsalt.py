@@ -1,6 +1,46 @@
 """
-This module provides classes for medical room generation.
+This module provides specialized room generation for medical environments.
+
+The module includes the MedicalRoomGenerator class that creates realistic
+medical room configurations with appropriate dimensions, furniture placement,
+and acoustic properties. It supports various medical room types including
+consultation rooms, examination rooms, treatment rooms, and surgical suites.
+
+Key Features:
+
+  - Medical room type definitions with standardized dimensions
+  - Realistic furniture placement for medical environments
+  - Aspect ratio calculations for proper room proportions
+  - Support for various medical room configurations
+  - Integration with room acoustics simulation
+
+Medical Room Types:
+
+  - Consultation: Small consultation rooms (4.5m²)
+  - Examination: Standard examination rooms (6m²)
+  - Treatment: Treatment rooms (8m²)
+  - Patient Room: Patient rooms (9.5m²)
+  - Surgery: Operating rooms (12m²)
+  - Waiting: Waiting rooms (15m²)
+  - Emergency: Emergency rooms (18m²)
+  - Office: Medical offices (20m²)
+
+Example:
+
+    .. code-block:: python
+
+        from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+
+        # Create medical room generator
+        generator = MedicalRoomGenerator()
+
+        # Generate examination room
+        room = generator.generate(args={"room_type": RoomRole.EXAMINATION})
+
+        # Generate random medical room
+        random_room = generator.generate(args={"room_type": "random"})
 """
+
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
@@ -16,7 +56,29 @@ from sdialog.audio.utils import Furniture, RGBAColor, RoomMaterials
 
 class RoomRole(str, Enum):
     """
-    Defines the functional role of the room and dimentions that comes with it.
+    Defines the functional role of medical rooms and their associated dimensions.
+
+    This enumeration provides standardized medical room types with predefined
+    dimensions and characteristics. Each room type is designed for specific
+    medical functions and includes appropriate size specifications for
+    realistic room acoustics simulation.
+
+    :ivar CONSULTATION: Small consultation rooms (4.5m²).
+    :vartype CONSULTATION: str
+    :ivar EXAMINATION: Standard examination rooms (6m²).
+    :vartype EXAMINATION: str
+    :ivar TREATMENT: Treatment rooms (8m²).
+    :vartype TREATMENT: str
+    :ivar PATIENT_ROOM: Patient rooms (9.5m²).
+    :vartype PATIENT_ROOM: str
+    :ivar SURGERY: Operating rooms (12m²).
+    :vartype SURGERY: str
+    :ivar WAITING: Waiting rooms (15m²).
+    :vartype WAITING: str
+    :ivar EMERGENCY: Emergency rooms (18m²).
+    :vartype EMERGENCY: str
+    :ivar OFFICE: Medical offices (20m²).
+    :vartype OFFICE: str
     """
 
     CONSULTATION = "consultation"
@@ -31,8 +93,25 @@ class RoomRole(str, Enum):
 
 class MedicalRoomGenerator(RoomGenerator):
     """
-    A room generator is a class that generates a room to be handled by the dialog.
-    creating standardized room personas with different configurations
+    Medical room generator for creating realistic medical environment configurations.
+
+    MedicalRoomGenerator extends the base RoomGenerator to create specialized
+    medical room configurations with appropriate dimensions, furniture placement,
+    and acoustic properties. It supports various medical room types with
+    standardized dimensions and realistic furniture arrangements.
+
+    Key Features:
+
+      - Medical room type definitions with standardized dimensions
+      - Realistic furniture placement for medical environments
+      - Aspect ratio calculations for proper room proportions
+      - Support for various medical room configurations
+      - Integration with room acoustics simulation
+
+    :ivar ROOM_SIZES: Dictionary mapping room types to dimensions and descriptions.
+    :vartype ROOM_SIZES: Dict[RoomRole, Tuple[float, str, str]]
+    :ivar ROOM_ASPECT_RATIOS: Dictionary mapping floor areas to aspect ratios.
+    :vartype ROOM_ASPECT_RATIOS: Dict[float, Tuple[float, float]]
     """
 
     def __init__(self, seed: Optional[int] = time.time_ns()):
@@ -66,9 +145,18 @@ class MedicalRoomGenerator(RoomGenerator):
 
     def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:
         """
-        Calculate room dimensions from floor area
-        floor_area: float
-        aspect_ratio: Tuple[float, float]
+        Calculate room dimensions from floor area and aspect ratio.
+
+        Computes the width, length, and height of a room based on the specified
+        floor area and aspect ratio. The height is fixed at 2.5 meters for
+        medical rooms to maintain realistic proportions.
+
+        :param floor_area: Floor area of the room in square meters.
+        :type floor_area: float
+        :param aspect_ratio: Width to length ratio as a tuple (width_ratio, length_ratio).
+        :type aspect_ratio: Tuple[float, float]
+        :return: Room dimensions with calculated width, length, and height.
+        :rtype: Dimensions3D
         """
 
         w_ratio, l_ratio = aspect_ratio
@@ -80,9 +168,17 @@ class MedicalRoomGenerator(RoomGenerator):
 
     def generate(self, args: Dict[str, Any]) -> Room:
         """
-        Generate a room based on predefined medical room setups.
-        args:
-            room_type: RoomRole
+        Generate a medical room based on predefined room type configurations.
+
+        Creates a complete medical room configuration with appropriate dimensions,
+        furniture placement, and acoustic properties based on the specified
+        room type. The room includes standard medical furniture such as desks,
+        monitors, examination benches, sinks, and cupboards.
+
+        :param args: Dictionary containing room generation parameters.
+        :type args: Dict[str, Any]
+        :return: Complete medical room configuration with furniture and materials.
+        :rtype: Room
         """
 
         if "room_type" not in args:

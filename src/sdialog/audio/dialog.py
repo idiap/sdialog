@@ -1,5 +1,36 @@
 """
-This module provides a dialog class for audio generation.
+This module provides an extended dialogue class for audio generation and processing.
+
+The AudioDialog class extends the base Dialog class with audio-specific functionality,
+including audio turn management, audio source handling, and room acoustics simulation
+support. It maintains compatibility with the base Dialog interface while adding
+comprehensive audio processing capabilities.
+
+Key Features:
+
+  - Audio turn management with individual audio data per turn
+  - Audio source collection and organization for room acoustics simulation
+  - Combined audio generation and management
+  - File path tracking for different audio processing stages
+  - Speaker role mapping and identification
+  - Serialization support for audio dialogue data
+
+Example:
+
+    .. code-block:: python
+
+        from sdialog.audio import AudioDialog
+        from sdialog import Dialog
+
+        # Convert regular dialog to audio dialog
+        audio_dialog = AudioDialog.from_dialog(dialog)
+
+        # Access audio-specific properties
+        print(f"Total duration: {audio_dialog.total_duration}")
+        print(f"Audio sources: {len(audio_dialog.get_audio_sources())}")
+
+        # Save audio dialog with metadata
+        audio_dialog.to_file("audio_dialog.json")
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -18,7 +49,7 @@ from sdialog.audio.turn import AudioTurn
 
 class AudioDialog(Dialog):
     """
-    Represents a dialogue with audio turns.
+    Extended dialogue class with comprehensive audio processing capabilities.
     """
 
     turns: List[AudioTurn] = []
@@ -41,31 +72,62 @@ class AudioDialog(Dialog):
 
     def set_audio_sources(self, audio_sources: List[AudioSource]):
         """
-        Set the audio sources of the dialog.
+        Sets the audio sources for room acoustics simulation.
+
+        Audio sources represent the spatial positions and characteristics of
+        each speaker in the dialogue for room acoustics simulation. This
+        method replaces the current list of audio sources.
+
+        :param audio_sources: List of AudioSource objects representing speaker positions.
+        :type audio_sources: List[AudioSource]
         """
         self.audio_sources = audio_sources
 
     def add_audio_source(self, audio_source: AudioSource):
         """
-        Add an audio source to the dialog.
+        Adds a single audio source to the dialogue's audio sources list.
+
+        This method appends a new AudioSource to the existing list, allowing
+        for incremental building of the audio sources collection.
+
+        :param audio_source: AudioSource object to add to the dialogue.
+        :type audio_source: AudioSource
         """
         self.audio_sources.append(audio_source)
 
     def get_audio_sources(self) -> List[AudioSource]:
         """
-        Get the audio sources of the dialog.
+        Retrieves the list of audio sources for room acoustics simulation.
+
+        :return: List of AudioSource objects representing speaker positions and characteristics.
+        :rtype: List[AudioSource]
         """
         return self.audio_sources
 
     def set_combined_audio(self, audio: np.ndarray):
         """
-        Set the combined audio of the dialog.
+        Sets the combined audio data for the entire dialogue.
+
+        The combined audio represents the concatenated audio from all turns
+        in the dialogue, typically used for room acoustics simulation or
+        final audio export.
+
+        :param audio: Numpy array containing the combined audio data.
+        :type audio: np.ndarray
         """
         self._combined_audio = audio
 
     def get_combined_audio(self) -> np.ndarray:
         """
-        Get the combined audio of the dialog.
+        Retrieves the combined audio data for the entire dialogue.
+
+        If the combined audio is not already loaded in memory, it will be
+        loaded from the audio_step_1_filepath. This method provides lazy
+        loading of audio data to optimize memory usage.
+
+        :return: Numpy array containing the combined audio data.
+        :rtype: np.ndarray
+        :raises FileNotFoundError: If the audio file path is invalid or file doesn't exist.
         """
         if self._combined_audio is None:
             # load the combined audio from the audio_step_1_filepath
@@ -75,24 +137,44 @@ class AudioDialog(Dialog):
     @staticmethod
     def from_dialog(dialog: Dialog):
         """
-        Create an AudioDialog object from a Dialog object.
+        Creates an AudioDialog object from a base Dialog object.
+
+        This static method converts a regular Dialog object into an AudioDialog
+        by copying all attributes and converting Turn objects to AudioTurn objects.
+        It also establishes speaker role mappings based on the dialogue structure.
+
+        The conversion process:
+        1. Creates a new AudioDialog instance
+        2. Copies all attributes from the base Dialog
+        3. Converts each Turn to an AudioTurn using from_turn()
+        4. Identifies the first two speakers and assigns them roles
+        5. Creates bidirectional mappings between speaker names and roles
+
+        :param dialog: The base Dialog object to convert.
+        :type dialog: Dialog
+        :return: A new AudioDialog object with audio-specific functionality.
+        :rtype: AudioDialog
+        :raises IndexError: If the dialog has fewer than 2 turns (speakers).
         """
 
         audio_dialog = AudioDialog()
 
+        # Copy all attributes from the base dialog
         for attr in dialog.__dict__:
             setattr(audio_dialog, attr, getattr(dialog, attr))
 
+        # Convert regular turns to audio turns
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
 
+        # Identify speakers from the first two turns
         speaker_1 = audio_dialog.turns[0].speaker
         speaker_2 = audio_dialog.turns[1].speaker
 
-        # Identify the speaker 1 and 2 by their names
+        # Create role mappings for speaker identification
         audio_dialog.speakers_names[Role.SPEAKER_1] = speaker_1
         audio_dialog.speakers_names[Role.SPEAKER_2] = speaker_2
 
-        # Reverse mapping the roles of the speakers
+        # Create reverse mappings for role lookup
         audio_dialog.speakers_roles[speaker_1] = Role.SPEAKER_1
         audio_dialog.speakers_roles[speaker_2] = Role.SPEAKER_2
 
@@ -101,40 +183,64 @@ class AudioDialog(Dialog):
     @staticmethod
     def from_dict(data: dict):
         """
-        Creates a AudioDialog object from a dictionary.
+        Creates an AudioDialog object from a dictionary representation.
 
-        :param data: The dictionary containing dialogue data.
+        This method deserializes an AudioDialog from a dictionary containing
+        all the dialogue data including audio-specific attributes. It uses
+        Pydantic's model validation to ensure data integrity.
+
+        :param data: Dictionary containing serialized AudioDialog data.
         :type data: dict
-        :return: The created AudioDialog object.
+        :return: A new AudioDialog object created from the dictionary data.
         :rtype: AudioDialog
+        :raises ValidationError: If the dictionary data is invalid or incomplete.
         """
         return AudioDialog.model_validate(data)
-        # return Dialog.model_validate(data)
 
-    def from_json(self, json_str: str):
+    @staticmethod
+    def from_json(json_str: str):
         """
-        Creates a AudioDialog object from a JSON string.
+        Creates an AudioDialog object from a JSON string representation.
 
-        :param json_str: The JSON string containing audio dialog data.
+        This method deserializes an AudioDialog from a JSON string by first
+        parsing the JSON and then using from_dict() to create the object.
+
+        :param json_str: JSON string containing serialized AudioDialog data.
         :type json_str: str
-        :return: The created AudioDialog object.
+        :return: A new AudioDialog object created from the JSON data.
         :rtype: AudioDialog
+        :raises json.JSONDecodeError: If the JSON string is malformed.
+        :raises ValidationError: If the parsed data is invalid or incomplete.
         """
         return AudioDialog.from_dict(json.loads(json_str))
 
     def to_file(self, path: str = None, makedir: bool = True, overwrite: bool = True):
         """
-        Saves the audio dialog to a JSON file.
+        Saves the AudioDialog object to a JSON file with comprehensive metadata.
 
-        :param path: Output file path, if not provided, uses the same path used to load the audio dialog.
-        :type path: str
+        This method serializes the AudioDialog object to JSON format, including
+        all audio-specific attributes, file paths, and processing metadata.
+        It provides flexible path handling and directory creation options.
+
+        Path resolution:
+        1. If path is provided, use it directly
+        2. If no path but _path exists (from loading), use _path
+        3. Otherwise, raise ValueError
+
+        :param path: Output file path for the JSON file. If None, uses the path
+                    from which the dialog was loaded (if available).
+        :type path: Optional[str]
         :param makedir: If True, creates parent directories as needed.
         :type makedir: bool
-        :param overwrite: If True, overwrites the file if it already exists.
+        :param overwrite: If True, overwrites existing files. If False, raises
+                         FileExistsError if file already exists.
         :type overwrite: bool
+        :raises ValueError: If no path is provided and no loading path is available.
+        :raises FileExistsError: If file exists and overwrite is False.
+        :raises OSError: If directory creation fails or file writing fails.
         """
         if not path:
-            if self._path:
+            if hasattr(self, '_path') and self._path:
                 path = self._path
             else:
                 raise ValueError("No path provided to save the audio dialog and no loading path available. "
@@ -148,7 +254,6 @@ class AudioDialog(Dialog):
 
         with open(path, "w", newline='') as writer:
             writer.write(self.model_dump_json(indent=2))
-            # writer.write(self.json(string=True))
 
     @staticmethod
     def from_file(path: str) -> Union["AudioDialog", List["AudioDialog"]]:
