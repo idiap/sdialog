@@ -840,14 +840,13 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
         Populate the voice database.
         The metadata file can be a csv, tsv or json file.
         The metadata file must contain the following columns: identifier, gender, age, voice, language, language_code.
-            - "voice" or "file_name" column:
-                - file_name: can be a relative path or an absolute path
-                - voice: can be the name of the voice like "am_echo"
-            - language column can be a string like "english" or "french".
-            - language_code column can be a string like "e" or "f".
-            - identifier column can be a string like "am_echo" or "am_echo_2".
-            - gender column can be a string like "male" or "female".
-            - age column can be an integer like 20 or 30.
+
+        - "voice" or "file_name" column: path to audio file or voice name (e.g., "am_echo")
+        - language column can be a string like "english" or "french".
+        - language_code column can be a string like "e" or "f".
+        - identifier column can be a string like "am_echo" or "am_echo_2".
+        - gender column can be a string like "male" or "female".
+        - age column can be an integer like 20 or 30.
         """
         import pandas as pd
 
