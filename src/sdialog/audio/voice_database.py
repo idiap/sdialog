@@ -41,7 +41,7 @@ class Voice(BaseModel):
     identifier: str
     voice: str  # Can be a path or the voice string
     language: str = "english"
-    language_code: str = "e"
+    language_code: str = "a"
 
 
 class BaseVoiceDatabase:
@@ -312,6 +312,25 @@ class BaseVoiceDatabase:
         raise ValueError(f"Voice with identifier {identifier} not found in the database")
         return None
 
+    def _gender_to_gender(
+            self,
+            gender: str) -> str:
+        """
+        Convert the gender to the gender.
+        """
+        gender = gender.lower()
+
+        if gender == "m":
+            return "male"
+
+        if gender == "f":
+            return "female"
+
+        if gender not in ["male", "female"]:
+            raise ValueError(f"Invalid gender: {gender}")
+
+        return gender
+
     def get_voice(
             self,
             gender: str,
@@ -384,25 +403,6 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         self.dataset_name = dataset_name
         self.subset = subset
         BaseVoiceDatabase.__init__(self)
-
-    def _gender_to_gender(
-            self,
-            gender: str) -> str:
-        """
-        Convert the gender to the gender.
-        """
-        gender = gender.lower()
-
-        if gender == "m":
-            return "male"
-
-        if gender == "f":
-            return "female"
-
-        if gender not in ["male", "female"]:
-            raise ValueError(f"Invalid gender: {gender}")
-
-        return gender
 
     def populate(self) -> dict:
         """
@@ -518,25 +518,6 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
         ):
             raise ValueError(f"Metadata file is not a csv / tsv / json file: {self.metadata_file}")
 
-    def _gender_to_gender(
-            self,
-            gender: str) -> str:
-        """
-        Convert the gender to the gender.
-        """
-        gender = gender.lower()
-
-        if gender == "m":
-            return "male"
-
-        if gender == "f":
-            return "female"
-
-        if gender not in ["male", "female"]:
-            raise ValueError(f"Invalid gender: {gender}")
-
-        return gender
-
     def populate(self) -> dict:
         """
         Populate the voice database.
@@ -618,6 +599,88 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
                 gender=gender,
                 age=age,
                 identifier=str(row["identifier"]),
+                voice=voice,
+                language=lang,
+                language_code=lang_code
+            ))
+            counter += 1
+
+        logging.info(f"[Voice Database] Has been populated with {counter} voices")
+
+
+class VoiceDatabase(BaseVoiceDatabase):
+    """
+    Voice database.
+    """
+
+    def __init__(self, data: list[dict]):
+        self._input_data = data
+        BaseVoiceDatabase.__init__(self)
+
+    def populate(self) -> dict:
+        """
+        Populate the voice database.
+        The data will be a list of dictionaries that must contain the following keys:
+            - "voice": can be the name of the voice like "am_echo"
+            - "language": can be a string like "english" or "french".
+            - "language_code": can be a string like "e" or "f".
+            - "identifier": can be a string like "am_echo" or "am_echo_2".
+            - "gender": can be a string like "male" or "female".
+            - "age": can be an integer like 20 or 30.
+        """
+
+        # check if the metadata is a list of dictionaries
+        if not isinstance(self._input_data, list) or not all(isinstance(item, dict) for item in self._input_data):
+            raise ValueError(f"Data is not a list of dictionaries: {self._input_data}")
+
+        counter = 0
+
+        self._data = {}
+
+        for item in self._input_data:
+
+            if "voice" not in item:
+                raise ValueError(f"Voice column does not exist in the data: {item}")
+            else:
+                voice = item["voice"]
+
+            if "language" not in item:
+                raise ValueError(f"Language column does not exist in the data: {item}")
+            else:
+                lang = item["language"]
+
+            if "language_code" not in item:
+                raise ValueError(f"Language code column does not exist in the data: {item}")
+            else:
+                lang_code = item["language_code"]
+
+            if "identifier" not in item:
+                raise ValueError(f"Identifier column does not exist in the data: {item}")
+            else:
+                identifier = str(item["identifier"])
+
+            if "gender" not in item:
+                raise ValueError(f"Gender column does not exist in the data: {item}")
+            else:
+                gender = self._gender_to_gender(item["gender"])
+
+            if "age" not in item:
+                raise ValueError(f"Age column does not exist in the data: {item}")
+            else:
+                age = int(item["age"])
+
+            if lang not in self._data:
+                self._data[lang] = {}
+
+            key = (gender, age)
+
+            if key not in self._data[lang]:
+                self._data[lang][key] = []
+
+            self._data[lang][key].append(Voice(
+                gender=gender,
+                age=age,
+                identifier=identifier,
                 voice=voice,
                 language=lang,
                 language_code=lang_code

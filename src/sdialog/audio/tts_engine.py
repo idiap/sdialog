@@ -37,7 +37,7 @@ class KokoroTTS(BaseTTS):
 
     def __init__(
             self,
-            lang_code="a"):
+            lang_code: str = "a"):
         """
         Initializes the Kokoro model.
         """
