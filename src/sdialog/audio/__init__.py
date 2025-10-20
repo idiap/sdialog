@@ -4,7 +4,7 @@ This module provides comprehensive functionality for generating audio from text 
 The audio module extends the core sdialog functionality by adding:
 
   - Audio generation from text using various TTS engines (Kokoro, IndexTTS)
-  - Voice database management with support for multiple languages and speaker characteristics
+  - Voice databases with speaker characteristics (gender, age, language)
   - Room acoustics simulation for realistic audio environments
   - Audio dialogue processing with turn-based audio generation
   - Integration with external audio processing libraries (pyroomacoustics, scaper)

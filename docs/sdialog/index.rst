@@ -609,7 +609,7 @@ Ready to dive deeper? Here's how we can inspect multiple layers simultaneously a
 
 ----
 
-Audio Generation & Processing
+Audio Generation
 =============================
 
 The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
@@ -619,8 +619,8 @@ Audio Module Overview
 
 The audio module provides:
 
-- **Audio Generation**: Text-to-speech conversion using various TTS engines (Kokoro, IndexTTS)
-- **Voice Management**: Voice databases with multilingual speaker characteristics
+- **Audio Generation**: Text-to-speech conversion using various TTS engines (Kokoro, IndexTTS, custom TTS engines)
+- **Voice Management**: Voice databases with speaker characteristics (gender, age, language)
 - **Acoustic Simulation**: Realistic room environments with reverberation effects
 - **Audio Pipeline**: Complete dialogue processing with turn-based audio generation
 - **Integration**: Compatibility with external audio processing libraries (pyroomacoustics, scaper)
@@ -1073,15 +1073,15 @@ SDialog supports multilingual audio generation with custom TTS engines:
     # Use custom TTS for Spanish
     spanish_tts = XTTSEngine(lang_code="es")
     
-    # Create multilingual voice database
-    multilingual_voices = LocalVoiceDatabase(
-        directory_audios="./multilingual_voices/",
-        metadata_file="./multilingual_voices/metadata.csv"
+    # Create spanish voice database
+    spanish_voices = LocalVoiceDatabase(
+        directory_audios="./spanish_voices/",
+        metadata_file="./spanish_voices/metadata.csv"
     )
     
     # Generate Spanish audio
     audio_pipeline = AudioPipeline(
-        voice_database=multilingual_voices,
+        voice_database=spanish_voices,
         tts_pipeline=spanish_tts,
         dir_audio="./spanish_audio_outputs"
     )
@@ -1103,14 +1103,14 @@ SDialog supports multilingual audio generation with custom TTS engines:
     from sdialog.audio.utils import Role
     
     # Assign specific voices from your voice database for different languages
-    multilingual_voices = {
+    spanish_voices = {
         Role.SPEAKER_1: ("spanish_male_1", "spanish"),
         Role.SPEAKER_2: ("spanish_female_1", "spanish")
     }
     
     spanish_audio = audio_pipeline.inference(
         spanish_dialog,
-        voices=multilingual_voices
+        voices=spanish_voices
     )
 
 ----

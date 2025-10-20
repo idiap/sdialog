@@ -1010,15 +1010,15 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
     # Use custom TTS for Spanish
     spanish_tts = XTTSEngine(lang_code="es")
     
-    # Create multilingual voice database
-    multilingual_voices = LocalVoiceDatabase(
-        directory_audios="./multilingual_voices/",
-        metadata_file="./multilingual_voices/metadata.csv"
+    # Create spanish voice database
+    spanish_voices = LocalVoiceDatabase(
+        directory_audios="./spanish_voices/",
+        metadata_file="./spanish_voices/metadata.csv"
     )
     
     # Generate Spanish audio
     audio_pipeline = AudioPipeline(
-        voice_database=multilingual_voices,
+        voice_database=spanish_voices,
         tts_pipeline=spanish_tts,
         dir_audio="./spanish_audio_outputs"
     )
@@ -1040,14 +1040,14 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
     from sdialog.audio.utils import Role
     
     # Assign specific voices from your voice database for different languages
-    multilingual_voices = {
+    spanish_voices = {
         Role.SPEAKER_1: ("spanish_male_1", "spanish"),
         Role.SPEAKER_2: ("spanish_female_1", "spanish")
     }
     
     spanish_audio = audio_pipeline.inference(
         spanish_dialog,
-        voices=multilingual_voices
+        voices=spanish_voices
     )
 
 Custom Room Generator
