@@ -27,7 +27,7 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Pawel Cyrta <pawel@cyrta.com>, Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Pawel Cyrta <pawel@cyrta.com>
 # SPDX-License-Identifier: MIT
 import time
 import random
@@ -59,7 +59,7 @@ class RoomGenerator:
 
     def __init__(self, seed: Optional[int] = None):
         self.seed = seed if seed is not None else time.time_ns()
-        random.seed(seed)
+        self.rng = random.Random(self.seed) if self.seed is not None else random
 
     @abstractmethod
     def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:
@@ -148,8 +148,7 @@ class BasicRoomGenerator(RoomGenerator):
         width = width_ratio * k
         length = length_ratio * k
 
-        random.seed(self.seed)
-        height = random.choice(self.floor_heights)
+        height = self.rng.choice(self.floor_heights)
 
         return Dimensions3D(width=width, length=length, height=height)
 
@@ -173,8 +172,7 @@ class BasicRoomGenerator(RoomGenerator):
         if len(args) > 1:
             raise ValueError("Only room_size is allowed")
 
-        random.seed(self.seed)
-        aspect_ratio = random.choice(self.aspect_ratio)
+        aspect_ratio = self.rng.choice(self.aspect_ratio)
 
         dims = self.calculate_room_dimensions(args["room_size"], aspect_ratio)
 

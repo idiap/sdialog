@@ -36,7 +36,8 @@ Example:
         audio_dialog = generate_utterances_audios(
             dialog=audio_dialog,
             voice_database=voice_db,
-            tts_pipeline=tts
+            tts_pipeline=tts,
+            seed=42
         )
 
         # Simulate room acoustics
@@ -75,7 +76,8 @@ def generate_utterances_audios(
     voice_database: BaseVoiceDatabase,
     tts_pipeline: BaseTTS,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-    keep_duplicate: bool = True
+    keep_duplicate: bool = True,
+    seed: int = None
 ) -> AudioDialog:
     """
     Generates audio for each utterance in an AudioDialog object using the specified TTS engine.
@@ -102,6 +104,8 @@ def generate_utterances_audios(
     :param keep_duplicate: If True, allows the same voice to be used multiple times.
                           If False, ensures each voice is used only once.
     :type keep_duplicate: bool
+    :param seed: Seed for random number generator.
+    :type seed: int
     :return: The AudioDialog object with generated audio for each turn.
     :rtype: AudioDialog
     """
@@ -111,7 +115,8 @@ def generate_utterances_audios(
         dialog,
         voice_database=voice_database,
         voices=voices,
-        keep_duplicate=keep_duplicate
+        keep_duplicate=keep_duplicate,
+        seed=seed
     )
 
     for turn in tqdm(dialog.turns, desc="Generating utterances audios"):
@@ -136,7 +141,8 @@ def attribute_voice_to_persona(
     dialog: AudioDialog,
     voice_database: BaseVoiceDatabase,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-    keep_duplicate: bool = True
+    keep_duplicate: bool = True,
+    seed: int = None
 ) -> AudioDialog:
     """
     Assigns appropriate voices to speakers based on their persona characteristics.
@@ -160,6 +166,8 @@ def attribute_voice_to_persona(
     :type voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]]
     :param keep_duplicate: If True, allows voice reuse across speakers.
     :type keep_duplicate: bool
+    :param seed: Seed for random number generator.
+    :type seed: int
     :return: The AudioDialog with voice assignments added to each persona.
     :rtype: AudioDialog
     """
@@ -190,7 +198,8 @@ def attribute_voice_to_persona(
                 gender=persona["gender"],
                 age=persona["age"],
                 lang=persona["language"],
-                keep_duplicate=keep_duplicate
+                keep_duplicate=keep_duplicate,
+                seed=seed
             )
 
         # If the voice of the speaker is provided as a Voice object

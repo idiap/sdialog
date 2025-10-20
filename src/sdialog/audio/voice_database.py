@@ -33,7 +33,7 @@ Example:
         voice_db = HuggingfaceVoiceDatabase("sdialog/voices-libritts")
 
         # Get voice based on speaker characteristics
-        voice = voice_db.get_voice(gender="female", age=25, lang="english")
+        voice = voice_db.get_voice(gender="female", age=25, lang="english", seed=42)
 
         # Initialize with local files
         local_db = LocalVoiceDatabase(
@@ -523,7 +523,8 @@ class BaseVoiceDatabase:
             gender: str,
             age: int,
             lang: str = "english",
-            keep_duplicate: bool = True) -> Voice:
+            keep_duplicate: bool = True,
+            seed: int = None) -> Voice:
         """
         Retrieves a voice based on speaker characteristics with intelligent matching.
 
@@ -549,6 +550,8 @@ class BaseVoiceDatabase:
         :type lang: str
         :param keep_duplicate: If True, allows voice reuse. If False, ensures each voice is used only once.
         :type keep_duplicate: bool
+        :param seed: Seed for random number generator.
+        :type seed: int
         :return: A Voice object matching the specified characteristics.
         :rtype: Voice
         :raises ValueError: If the language is not found in the database.
@@ -568,12 +571,8 @@ class BaseVoiceDatabase:
 
             # Get the list of ages for this gender
             _ages = [_age for (_gender, _age) in self._data[lang].keys() if _gender == gender]
-            # add shuffle the list
-            random.shuffle(_ages)
-            random.shuffle(_ages)
-            random.shuffle(_ages)
 
-            # Get the closest age for this gender
+            # Get the voices for the closest age for this gender
             age = min(_ages, key=lambda x: abs(x - age))
 
         # Get the voices from the database for this gender, age and language
@@ -594,8 +593,15 @@ class BaseVoiceDatabase:
         if len(_subset) == 0:
             raise ValueError("No voice found for this gender, age and language")
 
-        # Randomly sample a voice from the database for this gender, age and language
-        final_voice: Voice = random.choice(_subset)
+        # Make a deterministic copy and sort by stable key to remove any source-order nondeterminism
+        _subset.sort(key=lambda v: str(v.identifier))
+
+        # Use a local RNG to avoid mutating global state and ensure determinism when seed is provided
+        rng = random.Random(seed) if seed is not None else random
+
+        # Shuffle and sample deterministically with the local RNG
+        rng.shuffle(_subset)
+        final_voice: Voice = rng.choice(_subset)
 
         # Add the voice to the list of used voices
         if not keep_duplicate:

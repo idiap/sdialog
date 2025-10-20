@@ -780,7 +780,7 @@ SDialog supports multiple voice database types for flexible voice selection. Let
     print(voices_kokoro.get_statistics(pretty=True))
     
     # Select voices based on characteristics
-    female_voice = voices_libritts.get_voice(gender="female", age=25)
+    female_voice = voices_libritts.get_voice(gender="female", age=25, seed=42)
     # Prevent voice reuse
     male_voice = voices_libritts.get_voice(gender="male", age=30, keep_duplicate=False)
     

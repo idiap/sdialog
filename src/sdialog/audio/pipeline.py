@@ -106,7 +106,8 @@ def to_audio(
         SourceType.ROOM: SourceVolume.HIGH,
         SourceType.BACKGROUND: SourceVolume.VERY_LOW
     },
-    audio_file_format: str = "wav"
+    audio_file_format: str = "wav",
+    seed: int = None
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -157,6 +158,8 @@ def to_audio(
     :type source_volumes: dict[SourceType, SourceVolume]
     :param audio_file_format: Audio file format (wav, mp3, flac).
     :type audio_file_format: str
+    :param seed: Seed for random number generator.
+    :type seed: int
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -232,7 +235,8 @@ def to_audio(
         do_step_3=do_step_3,
         dialog_dir_name=dialog_dir_name,
         room_name=room_name,
-        audio_file_format=audio_file_format
+        audio_file_format=audio_file_format,
+        seed=seed
     )
 
     return _dialog
@@ -415,7 +419,8 @@ class AudioPipeline:
         room_name: Optional[str] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
         keep_duplicate: bool = True,
-        audio_file_format: str = "wav"
+        audio_file_format: str = "wav",
+        seed: int = None
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -445,6 +450,8 @@ class AudioPipeline:
         :type keep_duplicate: bool
         :param audio_file_format: Audio file format (wav, mp3, flac).
         :type audio_file_format: str
+        :param seed: Seed for random number generator.
+        :type seed: int
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
         """
@@ -516,7 +523,8 @@ class AudioPipeline:
                 voice_database=self.voice_database,
                 tts_pipeline=self.tts_pipeline,
                 voices=voices,
-                keep_duplicate=keep_duplicate
+                keep_duplicate=keep_duplicate,
+                seed=seed
             )
 
             # Save the utterances audios to the project path

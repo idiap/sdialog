@@ -122,7 +122,10 @@ def generate_dscaper_timeline(
         background_effect: str = "white_noise",
         foreground_effect: str = "ac_noise_minimal",
         foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT,
-        audio_file_format: str = "wav"
+        audio_file_format: str = "wav",
+        seed: int = 0,
+        referent_db: int = -40,
+        reverberation: int = 0
 ) -> AudioDialog:
     """
     Generate a dSCAPER timeline for realistic audio environment simulation.
@@ -148,6 +151,12 @@ def generate_dscaper_timeline(
     :type foreground_effect_position: RoomPosition
     :param audio_file_format: Audio file format for output (wav, mp3, flac).
     :type audio_file_format: str
+    :param seed: Seed for random number generator.
+    :type seed: int
+    :param referent_db: Referent dB for audio level normalization.
+    :type referent_db: int
+    :param reverberation: Reverberation time in seconds.
+    :type reverberation: int
     :return: Audio dialogue with generated timeline and audio sources.
     :rtype: AudioDialog
     """
@@ -217,10 +226,10 @@ def generate_dscaper_timeline(
     resp = _dscaper.generate_timeline(
         timeline_name,
         DscaperGenerate(
-            seed=0,
+            seed=seed if seed is not None else 0,
             save_isolated_positions=True,
-            ref_db=-40,
-            reverb=0,
+            ref_db=referent_db,
+            reverb=reverberation,
             save_isolated_events=False
         ),
     )
