@@ -237,11 +237,11 @@ class AcousticsSimulator:
             self.audiosources.append(audio_source)
 
             # Get the position of the audio source
-            if audio_source.position.startswith("no_type"):
+            if audio_source.position.startswith("no_type"):  # no_type is the background sound
                 _position3d = self.room.room_position_to_position3d(RoomPosition.CENTER)
-            elif audio_source.position.startswith("room-"):
+            elif audio_source.position.startswith("room-"):  # room- is the foreground sound
                 _position3d = self.room.room_position_to_position3d(audio_source.position)
-            elif audio_source.position.startswith("speaker_"):
+            elif audio_source.position.startswith("speaker_"):  # speaker_ is the speaker sound
                 _position3d = self.room.speakers_positions[audio_source.position]
 
             # Load the audio file from the file system for the audio source

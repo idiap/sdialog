@@ -983,9 +983,9 @@ class Room(BaseModel):
 
     def get_roof_center(self) -> Position3D:
         return Position3D(
-            x=self.dimensions.width * 0.50,
-            y=self.dimensions.length * 0.50,
-            z=self.dimensions.height * 0.99
+            x=self.dimensions.length * 0.50,
+            y=self.dimensions.width * 0.50,
+            z=self.dimensions.height * 0.90
         )
 
     def add_furnitures(self, furnitures: dict[str, Furniture]):
@@ -1393,6 +1393,25 @@ class Room(BaseModel):
                 colatitude=_colatitude,
                 gain=1.0
             )
+
+    def set_mic_position(
+        self,
+        mic_position: MicrophonePosition,
+        position_3D: Optional[Position3D] = None
+    ):
+        """
+        Set the microphone position.
+
+        :param mic_position: The microphone position.
+        :type mic_position: MicrophonePosition
+        :param position_3D: The 3D position of the microphone.
+        :type position_3D: Optional[Position3D]
+        :return: None
+        """
+
+        self.mic_position = mic_position
+        self.mic_position_3d = microphone_to_position(self, self.mic_position, position_3D=position_3D)
+        self.set_directivity(direction=self.directivity_type, directivity=self.microphone_directivity)
 
     def model_post_init(self, __context: Any) -> None:
         """
