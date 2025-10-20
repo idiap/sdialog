@@ -167,7 +167,7 @@ class TestChatModels:
         request = OllamaChatRequest(model="test-model", messages=messages)
         assert request.model == "test-model"
         assert len(request.messages) == 1
-        assert request.stream is False
+        assert request.stream is True  # Enabled by default
 
 
 class TestAPIEndpoints:
@@ -308,7 +308,7 @@ class TestOllamaChat:
         assert response.status_code == 200
         data = response.json()
         assert data["model"] == "test-model:latest"
-        assert data["done"] is True
+        assert "done" not in data  # 'done' field removed for non-streaming
         assert "message" in data
 
     def test_ollama_chat_with_options(self, server_client, mock_agent):

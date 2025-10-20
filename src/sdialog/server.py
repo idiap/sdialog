@@ -95,7 +95,7 @@ class OllamaChatResponse(BaseModel):
 
 class OllamaChatResponseNonStreaming(BaseModel):
     """
-    Ollama-compatible chat response.
+    Ollama-compatible chat non-streaming response.
 
     :meta private:
     """
@@ -498,7 +498,8 @@ class Server:
         async def ollama_chat(request: OllamaChatRequest):
             """Ollama-compatible chat endpoint."""
 
-            logger.info(f"Ollama chat {'streaming' if request.stream else 'non-streaming'} request for model '{request.model}' with {len(request.messages)} messages")
+            logger.info(f"Ollama chat {'streaming' if request.stream else 'non-streaming'} "
+                        f"request for model '{request.model}' with {len(request.messages)} messages")
 
             # Convert Ollama request to OpenAI format
             openai_request = ChatCompletionRequest(
