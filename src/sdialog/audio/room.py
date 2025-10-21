@@ -694,7 +694,8 @@ class Room(BaseModel):
         Returns:
             Position3D: Position clamped to room bounds
         """
-        margin = 0.1  # 10cm safety margin from walls
+        # Use adaptive margin based on room size
+        margin = min(0.2, min(self.dimensions.width, self.dimensions.length) * 0.1)  # 20cm or 10% of smallest dimension
         clamped_x = max(margin, min(x, self.dimensions.width - margin))
         clamped_y = max(margin, min(y, self.dimensions.length - margin))
         clamped_z = max(0.1, min(z, self.dimensions.height - 0.05))  # Smaller top margin
@@ -710,7 +711,8 @@ class Room(BaseModel):
         Returns:
             bool: True if position is valid, False otherwise
         """
-        margin = 0.1  # 10cm safety margin from walls
+        # Use adaptive margin based on room size
+        margin = min(0.2, min(self.dimensions.width, self.dimensions.length) * 0.1)  # 20cm or 10% of smallest dimension
 
         # Check if position is within room bounds
         if (x < margin or x > self.dimensions.width - margin or
@@ -763,11 +765,14 @@ class Room(BaseModel):
         min_y = furniture.y - max_distance
         max_y = furniture.y + furniture.depth + max_distance
 
+        # Use adaptive margin based on room size
+        margin = min(0.2, min(self.dimensions.width, self.dimensions.length) * 0.1)  # 20cm or 10% of smallest dimension
+
         # Ensure the position is within room bounds
-        min_x = max(0.1, min_x)  # 10cm margin from walls
-        max_x = min(self.dimensions.width - 0.1, max_x)
-        min_y = max(0.1, min_y)
-        max_y = min(self.dimensions.length - 0.1, max_y)
+        min_x = max(margin, min_x)
+        max_x = min(self.dimensions.width - margin, max_x)
+        min_y = max(margin, min_y)
+        max_y = min(self.dimensions.length - margin, max_y)
 
         # Generate random position
         attempts = 0
@@ -801,8 +806,8 @@ class Room(BaseModel):
                 if distance_to_furniture <= max_distance:
                     # Check if position is valid (no collision with other furniture and within room bounds)
                     if self._is_position_valid(clamped_x, clamped_y):
-                        # Use furniture height for z coordinate (standing height)
-                        z_position = furniture.get_top_z() + 0.1  # Slightly above furniture
+                        # Use human standing height instead of furniture height for more realistic positioning
+                        z_position = min(BodyPosture.STANDING.value, self.dimensions.height - 0.3)  # Standing height
                         return Position3D(clamped_x, clamped_y, z_position)
 
             attempts += 1
@@ -811,7 +816,7 @@ class Room(BaseModel):
         # with some offset
         fallback_x = furniture.x + furniture.width + 0.1
         fallback_y = furniture.y + furniture.depth + 0.1
-        fallback_z = furniture.get_top_z() + 0.1
+        fallback_z = min(BodyPosture.STANDING.value, self.dimensions.height - 0.3)  # Standing height with margin
 
         # Ensure fallback is within room bounds using the clamp method
         return self._clamp_position_to_room_bounds(fallback_x, fallback_y, fallback_z)
@@ -872,11 +877,14 @@ class Room(BaseModel):
         else:
             raise ValueError(f"Invalid side: {side}")
 
+        # Use adaptive margin based on room size
+        margin = min(0.2, min(self.dimensions.width, self.dimensions.length) * 0.1)  # 20cm or 10% of smallest dimension
+
         # Ensure the position is within room bounds
-        x_min = max(0.1, x_min)  # 10cm margin from walls
-        x_max = min(self.dimensions.width - 0.1, x_max)
-        y_min = max(0.1, y_min)
-        y_max = min(self.dimensions.length - 0.1, y_max)
+        x_min = max(margin, x_min)
+        x_max = min(self.dimensions.width - margin, x_max)
+        y_min = max(margin, y_min)
+        y_max = min(self.dimensions.length - margin, y_max)
 
         # Generate random position within the specified side corridor
         attempts = 0
@@ -913,7 +921,7 @@ class Room(BaseModel):
             fallback_x = furniture.x + furniture.width + 0.1
             fallback_y = furniture_center_y
 
-        fallback_z = furniture.get_top_z() + 0.1
+        fallback_z = min(BodyPosture.STANDING.value, self.dimensions.height - 0.3)  # Standing height with margin
 
         # Ensure fallback is within room bounds
         return self._clamp_position_to_room_bounds(fallback_x, fallback_y, fallback_z)
@@ -955,37 +963,37 @@ class Room(BaseModel):
 
     def get_top_left_corner(self) -> Position3D:
         return Position3D(
-            x=self.dimensions.width * 0.01,
+            x=self.dimensions.width * 0.01,   # Top-left: x=0.01, y=0.01
             y=self.dimensions.length * 0.01,
-            z=self.dimensions.height * 0.99
+            z=self.dimensions.height - 0.5     # 50cm margin from ceiling
         )
 
     def get_bottom_left_corner(self) -> Position3D:
         return Position3D(
-            y=self.dimensions.length * 0.01,
-            x=self.dimensions.width * 0.99,
-            z=self.dimensions.height * 0.99
+            x=self.dimensions.width * 0.01,   # Bottom-left: x=0.01, y=0.99
+            y=self.dimensions.length * 0.99,
+            z=self.dimensions.height - 0.5     # 50cm margin from ceiling
         )
 
     def get_top_right_corner(self) -> Position3D:
         return Position3D(
-            y=self.dimensions.length * 0.99,
-            x=self.dimensions.width * 0.01,
-            z=self.dimensions.height * 0.99
+            x=self.dimensions.width * 0.99,   # Top-right: x=0.99, y=0.01
+            y=self.dimensions.length * 0.01,
+            z=self.dimensions.height - 0.5     # 50cm margin from ceiling
         )
 
     def get_bottom_right_corner(self) -> Position3D:
         return Position3D(
-            x=self.dimensions.width * 0.99,
+            x=self.dimensions.width * 0.99,   # Bottom-right: x=0.99, y=0.99
             y=self.dimensions.length * 0.99,
-            z=self.dimensions.height * 0.99
+            z=self.dimensions.height - 0.5     # 50cm margin from ceiling
         )
 
     def get_roof_center(self) -> Position3D:
         return Position3D(
-            x=self.dimensions.length * 0.50,
-            y=self.dimensions.width * 0.50,
-            z=self.dimensions.height * 0.90
+            x=self.dimensions.width * 0.50,    # Center: x=width/2, y=length/2
+            y=self.dimensions.length * 0.50,
+            z=self.dimensions.height - 0.5     # 50cm margin from ceiling for pyroomacoustics compatibility
         )
 
     def add_furnitures(self, furnitures: dict[str, Furniture]):
@@ -1249,16 +1257,16 @@ class Room(BaseModel):
                 y_px = start_y + int(pos.y * scale)
                 return x_px, y_px
 
-            # Draw corner points
+            # Draw corner points with improved label positioning
             corner_positions = [
-                (top_left, "TL"),
-                (top_right, "TR"),
-                (bottom_left, "BL"),
-                (bottom_right, "BR"),
-                (roof_center, "RC")
+                (top_left, "TL", "top-left"),
+                (top_right, "TR", "top-right"),
+                (bottom_left, "BL", "bottom-left"),
+                (bottom_right, "BR", "bottom-right"),
+                (roof_center, "RC", "center")
             ]
 
-            for pos, label in corner_positions:
+            for pos, label, position_type in corner_positions:
                 x_px, y_px = pos_to_pixels(pos)
 
                 # Ensure points are within room bounds (allow reaching exact edges)
@@ -1274,24 +1282,33 @@ class Room(BaseModel):
                     width=1
                 )
 
-                # Add corner label
+                # Add corner label with improved positioning
                 if font:
                     # Get text size for positioning
                     bbox = draw.textbbox((0, 0), label, font=font)
                     text_width = bbox[2] - bbox[0]
                     text_height = bbox[3] - bbox[1]
 
-                    # Position text near the corner point
-                    text_x = x_px + 6  # Position to the right of the point
-                    text_y = y_px - text_height // 2  # Center vertically
+                    # Position text based on corner type to avoid overlaps
+                    if position_type == "top-left":
+                        text_x = x_px + 8  # To the right
+                        text_y = y_px + 8  # Below
+                    elif position_type == "top-right":
+                        text_x = x_px - text_width - 8  # To the left
+                        text_y = y_px + 8  # Below
+                    elif position_type == "bottom-left":
+                        text_x = x_px + 8  # To the right
+                        text_y = y_px - text_height - 8  # Above
+                    elif position_type == "bottom-right":
+                        text_x = x_px - text_width - 8  # To the left
+                        text_y = y_px - text_height - 8  # Above
+                    else:  # center
+                        text_x = x_px - text_width // 2  # Centered horizontally
+                        text_y = y_px - text_height - 8  # Above
 
                     # Make sure text doesn't go outside the image bounds
-                    if text_x + text_width > 512:
-                        text_x = x_px - text_width - 6  # Position to the left instead
-                    if text_y < 0:
-                        text_y = 5
-                    elif text_y + text_height > 512:
-                        text_y = 512 - text_height - 5
+                    text_x = max(5, min(text_x, 512 - text_width - 5))
+                    text_y = max(5, min(text_y, 512 - text_height - 5))
 
                     draw.text((text_x, text_y), label, fill='blue', font=font)
 
