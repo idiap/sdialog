@@ -77,7 +77,7 @@ class OllamaChatRequest(BaseModel):
     """
     model: str = Field(..., description="Model identifier")
     messages: List[ChatMessage] = Field(..., description="List of messages")
-    stream: Optional[bool] = Field(False, description="Whether to stream the response")
+    stream: Optional[bool] = Field(True, description="Whether to stream the response")
     options: Optional[Dict[str, Any]] = Field(None, description="Additional options")
 
 
@@ -91,6 +91,17 @@ class OllamaChatResponse(BaseModel):
     created_at: str = Field(..., description="Creation timestamp")
     message: ChatMessage = Field(..., description="Response message")
     done: bool = Field(True, description="Whether the response is complete")
+
+
+class OllamaChatResponseNonStreaming(BaseModel):
+    """
+    Ollama-compatible chat non-streaming response.
+
+    :meta private:
+    """
+    model: str = Field(..., description="Model used")
+    created_at: str = Field(..., description="Creation timestamp")
+    message: ChatMessage = Field(..., description="Response message")
 
 
 class ChatCompletionChoice(BaseModel):
@@ -168,6 +179,7 @@ class Server:
                 model_name = f"{model_name}:latest"
 
             # Register the agent
+            agent._can_finish = False  # Disable internal end-of-dialog detection; turn-taking is client-driven
             cls._agents[model_name] = agent
             cls._agent_locks[model_name] = Lock()
 
@@ -486,7 +498,8 @@ class Server:
         async def ollama_chat(request: OllamaChatRequest):
             """Ollama-compatible chat endpoint."""
 
-            logger.info(f"Ollama chat request for model '{request.model}' with {len(request.messages)} messages")
+            logger.info(f"Ollama chat {'streaming' if request.stream else 'non-streaming'} "
+                        f"request for model '{request.model}' with {len(request.messages)} messages")
 
             # Convert Ollama request to OpenAI format
             openai_request = ChatCompletionRequest(
@@ -510,11 +523,10 @@ class Server:
                 if isinstance(openai_response, JSONResponse):
                     openai_data = json.loads(openai_response.body.decode())
 
-                    ollama_response = OllamaChatResponse(
+                    ollama_response = OllamaChatResponseNonStreaming(
                         model=request.model,
                         created_at=datetime.now().isoformat() + "Z",
-                        message=openai_data["choices"][0]["message"],
-                        done=True
+                        message=openai_data["choices"][0]["message"]
                     )
 
                     return JSONResponse(content=ollama_response.model_dump())
