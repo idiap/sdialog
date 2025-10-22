@@ -46,6 +46,7 @@ Example:
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import os
+import librosa
 import logging
 import numpy as np
 from tqdm import tqdm
@@ -420,7 +421,8 @@ class AudioPipeline:
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
         keep_duplicate: bool = True,
         audio_file_format: str = "wav",
-        seed: int = None
+        seed: int = None,
+        re_sampling_rate: Optional[int] = None
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -452,6 +454,8 @@ class AudioPipeline:
         :type audio_file_format: str
         :param seed: Seed for random number generator.
         :type seed: int
+        :param re_sampling_rate: Re-sampling rate for the output audio.
+        :type re_sampling_rate: Optional[int]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
         """
@@ -547,6 +551,26 @@ class AudioPipeline:
             )
             logging.info(f"[Step 1] Audio files have been saved here: {dialog.audio_step_1_filepath}")
 
+            # If the user want to re-sample the output audio to a different sampling rate
+            if re_sampling_rate is not None and os.path.exists(dialog.audio_step_1_filepath):
+
+                logging.info(f"[Step 1] Re-sampling audio to {re_sampling_rate} Hz...")
+
+                y_resampled = librosa.resample(
+                    y=dialog.get_combined_audio().T,
+                    orig_sr=self.sampling_rate,
+                    target_sr=re_sampling_rate
+                )
+
+                # Overwrite the audio file with the new sampling rate
+                sf.write(
+                    dialog.audio_step_1_filepath,
+                    y_resampled,
+                    re_sampling_rate
+                )
+
+                logging.info(f"[Step 1] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
+
         # If the user want to generate the timeline from dSCAPER (whatever if the timeline is already generated or not)
         if self._dscaper is not None and do_step_2:
 
@@ -589,6 +613,28 @@ class AudioPipeline:
                 audio_file_format=audio_file_format
             )
             logging.info("[Step 2] Has been completed!")
+
+            # If the user want to re-sample the output audio to a different sampling rate
+            if re_sampling_rate is not None and os.path.exists(dialog.audio_step_2_filepath):
+
+                logging.info(f"[Step 2] Re-sampling audio to {re_sampling_rate} Hz...")
+
+                y, sr = librosa.load(dialog.audio_step_2_filepath, sr=None)
+
+                y_resampled = librosa.resample(
+                    y=y,
+                    orig_sr=sr,
+                    target_sr=re_sampling_rate
+                )
+
+                # Overwrite the audio file with the new sampling rate
+                sf.write(
+                    dialog.audio_step_2_filepath,
+                    y_resampled,
+                    re_sampling_rate
+                )
+
+                logging.info(f"[Step 2] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
 
         elif do_step_2 and self._dscaper is None:
 
@@ -640,6 +686,34 @@ class AudioPipeline:
 
             logging.info(f"[Step 3] Room accoustic generated for dialogue {dialog.id}!")
             logging.info("[Step 3] Done!")
+
+            # If the user want to re-sample the output audio to a different sampling rate
+            if re_sampling_rate is not None:
+
+                for config_name, config_data in dialog.audio_step_3_filepaths.items():
+                    audio_path = config_data["audio_path"]
+                    if os.path.exists(audio_path):
+                        logging.info(f"[Step 3] Re-sampling audio for '{config_name}' to {re_sampling_rate} Hz...")
+
+                        y, sr = librosa.load(audio_path, sr=None)
+
+                        y_resampled = librosa.resample(
+                            y=y,
+                            orig_sr=sr,
+                            target_sr=re_sampling_rate
+                        )
+
+                        # Overwrite the audio file with the new sampling rate
+                        sf.write(
+                            audio_path,
+                            y_resampled,
+                            re_sampling_rate
+                        )
+
+                        logging.info(
+                            f"[Step 3] Audio for '{config_name}' has been "
+                            f"re-sampled successfully to {re_sampling_rate} Hz!"
+                        )
 
         elif do_step_3 and (room is None or self._dscaper is None):
 
