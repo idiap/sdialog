@@ -316,11 +316,35 @@ class AcousticsSimulator:
             self.reset()
             self._pyroom = self._create_pyroom(self.room, self.sampling_rate, self.kwargs_pyroom)
 
-        self._add_sources(sources, source_volumes)
-        self._pyroom.simulate()
-        mixed_signal = self._pyroom.mic_array.signals[0, :]
+        try:
+            self._add_sources(sources, source_volumes)
 
+            logging.info("[Step 3] Simulating room acoustics...")
+            self._pyroom.simulate()
+
+        except ValueError as e:
+
+            if "zero-size array to reduction operation maximum" in str(e):
+                raise ValueError(
+                    "[Step 3] Simulation failed: The distance between the sources (speakers, background or foreground) "
+                    "and the microphone is too large for the current room dimensions. "
+                    "Please place sources closer to the microphone or increase the room size."
+                ) from e
+
+            elif "The source must be added inside the room" in str(e):
+                raise ValueError(
+                    "[Step 3] Simulation failed: One or more audio sources (speakers, background or foreground) "
+                    "are positioned outside the room boundaries. Please check that all speakers, "
+                    "foreground and background sound positions are within the room dimensions. "
+                    "You can use the `room.to_image()` method to visualize the room and its components."
+                ) from e
+
+            else:
+                raise e
+
+        mixed_signal = self._pyroom.mic_array.signals[0, :]
         mixed_signal = self.apply_snr(mixed_signal, -0.03)  # scale audio to max 1dB
+
         return mixed_signal
 
     def reset(self):
