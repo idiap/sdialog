@@ -819,7 +819,6 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
 
         self.directory_audios = directory_audios
         self.metadata_file = metadata_file
-        BaseVoiceDatabase.__init__(self)
 
         # check if the directory audios exists
         if not os.path.exists(self.directory_audios):
@@ -839,6 +838,8 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
             and not self.metadata_file.endswith(".json")
         ):
             raise ValueError(f"Metadata file is not a csv / tsv / json file: {self.metadata_file}")
+
+        BaseVoiceDatabase.__init__(self)
 
     def populate(self) -> dict:
         """

@@ -7,16 +7,15 @@ from unittest.mock import MagicMock, patch
 from sdialog import Turn, Dialog
 from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room_generator import BasicRoomGenerator
-from sdialog.audio.utils import Role, AudioUtils, Furniture
+from sdialog.audio.utils import Role, AudioUtils, Furniture, SpeakerSide
 from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
-from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, LocalVoiceDatabase
+from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, LocalVoiceDatabase, is_a_audio_file, VoiceDatabase
 from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.pipeline import AudioPipeline, to_audio
 from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
-from sdialog.audio.room import RoomPosition
 
 
 def test_position3d_initialization():
@@ -233,7 +232,7 @@ def local_voice_db_setup():
     shutil.rmtree(temp_dir)
 
 
-def test_local_voice_database(local_voice_db_setup):
+def test_local_voice_database_setup(local_voice_db_setup):
     audio_dir, metadata_file = local_voice_db_setup
     db = LocalVoiceDatabase(directory_audios=audio_dir, metadata_file=metadata_file)
 
@@ -708,6 +707,240 @@ def test_generate_dscaper_timeline(mock_dscaper, dscaper_dialog, tmp_path):
     assert result_dialog.get_audio_sources()[0].name == "speaker_1"
 
 
+# Tests for voice_database.py
+def test_is_a_audio_file():
+    """Tests the audio file extension checker."""
+    assert is_a_audio_file("test.wav")
+    assert is_a_audio_file("hello.MP3")
+    assert not is_a_audio_file("document.txt")
+    assert not is_a_audio_file("archive.zip")
+
+
+@pytest.fixture
+def in_memory_db():
+    """Returns an in-memory VoiceDatabase for testing."""
+    data = [
+        {"gender": "m", "age": 25, "identifier": "id1", "voice": "voice1",
+         "language": "english", "language_code": "en"},
+        {"gender": "female", "age": 30, "identifier": "id2", "voice": "voice2",
+         "language": "english", "language_code": "en"},
+        {"gender": "male", "age": 25, "identifier": "id3", "voice": "voice3",
+         "language": "french", "language_code": "fr"},
+    ]
+    return VoiceDatabase(data)
+
+
+def test_voice_database_gender_conversion(in_memory_db):
+    """Tests the internal _gender_to_gender method."""
+    assert in_memory_db._gender_to_gender("m") == "male"
+    assert in_memory_db._gender_to_gender("F") == "female"
+    with pytest.raises(ValueError):
+        in_memory_db._gender_to_gender("unknown")
+
+
+def test_voice_database_get_by_identifier(in_memory_db):
+    """Tests retrieving a voice by its identifier."""
+    voice = in_memory_db.get_voice_by_identifier("id1", "english")
+    assert voice.identifier == "id1"
+
+    with pytest.raises(ValueError, match="not found in the database"):
+        in_memory_db.get_voice_by_identifier("nonexistent", "english")
+
+    with pytest.raises(ValueError, match="Language englishs not found"):
+        in_memory_db.get_voice_by_identifier("id1", "englishs")
+
+
+def test_voice_database_reset_used_voices(in_memory_db):
+    """Tests the reset functionality for used voices."""
+    # Use a voice
+    in_memory_db.get_voice("male", 25, "english", keep_duplicate=False)
+    assert "english" in in_memory_db._used_voices
+    assert "id1" in in_memory_db._used_voices["english"]
+
+    # Reset
+    in_memory_db.reset_used_voices()
+    assert in_memory_db._used_voices == {}
+
+
+def test_voice_database_get_statistics(in_memory_db):
+    """Tests the statistics generation."""
+    stats_dict = in_memory_db.get_statistics()
+    assert stats_dict["num_languages"] == 2
+    assert stats_dict["overall"]["total"] == 3
+
+    stats_pretty = in_memory_db.get_statistics(pretty=True)
+    assert isinstance(stats_pretty, str)
+    assert "Voice Database Statistics" in stats_pretty
+    assert "english" in stats_pretty
+
+
+def test_voice_database_populate_errors():
+    """Tests error handling in VoiceDatabase populate method."""
+    with pytest.raises(ValueError, match="is not a list of dictionaries"):
+        VoiceDatabase("not a list")
+
+    with pytest.raises(ValueError, match="Voice column does not exist"):
+        VoiceDatabase([{"gender": "m", "age": 25, "identifier": "id1",
+                        "language": "english", "language_code": "en"}])
+
+
+def test_huggingface_voice_database_populate_with_mock():
+    """Tests the HuggingfaceVoiceDatabase with a mocked datasets module."""
+    from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
+
+    mock_dataset_content = [
+        # Entry with full metadata
+        {"gender": "f", "age": 45, "identifier": "hf1", "audio": {"path": "p1.wav"},
+         "language": "german", "language_code": "de"},
+        # Entry with missing optional fields
+        {"gender": "male", "age": 50, "identifier": "hf2", "voice": "voice_hf2"},
+        # Entry with missing mandatory fields that should be randomized
+        {"identifier": "hf3", "voice": "voice_hf3"},
+    ]
+
+    # Create a mock for the 'datasets' module
+    mock_datasets_module = MagicMock()
+    mock_datasets_module.load_dataset.return_value = {"train": mock_dataset_content}
+
+    # Use patch.dict to temporarily replace the 'datasets' module in sys.modules
+    with patch.dict('sys.modules', {'datasets': mock_datasets_module}):
+        db = HuggingfaceVoiceDatabase("fake/dataset")
+
+        # Verify population
+        assert len(db.get_data()) > 0
+        assert "german" in db.get_data()
+        assert "english" in db.get_data()  # Default language
+
+        # Check if a specific voice was added correctly
+        voice = db.get_voice_by_identifier("hf1", "german")
+        assert voice.age == 45
+        assert voice.language_code == "de"
+
+        # Check that random values were filled in
+        voice3 = db.get_voice_by_identifier("hf3", "english")
+        assert isinstance(voice3.age, int)
+        assert voice3.gender in ["male", "female"]
+
+
+def test_local_voice_database_linter(tmp_path):
+    """Tests the LocalVoiceDatabase with different metadata files."""
+    from sdialog.audio.voice_database import LocalVoiceDatabase
+
+    audio_dir = tmp_path / "audios"
+    audio_dir.mkdir()
+    (audio_dir / "voice1.wav").touch()
+
+    # Test with CSV
+    csv_file = tmp_path / "metadata.csv"
+    csv_file.write_text("identifier,gender,age,file_name,language\nid1,male,30,voice1.wav,english")
+    db_csv = LocalVoiceDatabase(str(audio_dir), str(csv_file))
+    assert db_csv.get_voice_by_identifier("id1", "english").age == 30
+
+    # Test with JSON
+    json_file = tmp_path / "metadata.json"
+    json_content = ('[{"identifier": "id2", "gender": "f", "age": 40, '
+                    '"voice": "id2_voice", "language": "french"}]')
+    json_file.write_text(json_content)
+    db_json = LocalVoiceDatabase(str(audio_dir), str(json_file))
+    assert db_json.get_voice_by_identifier("id2", "french").age == 40
+
+    # Test error handling
+    with pytest.raises(ValueError, match="Directory audios does not exist"):
+        LocalVoiceDatabase("nonexistent_dir", str(csv_file))
+
+    with pytest.raises(ValueError, match="Metadata file does not exist"):
+        LocalVoiceDatabase(str(audio_dir), "nonexistent.csv")
+
+    bad_csv = tmp_path / "bad.csv"
+    bad_csv.write_text("id,sex,years")  # Missing required columns
+    with pytest.raises(ValueError, match="Voice or file_name column does not exist"):
+        LocalVoiceDatabase(str(audio_dir), str(bad_csv))
+
+
+# Tests for room.py
+def test_position3d():
+    """Tests the Position3D class."""
+    pos1 = Position3D(1, 2, 3)
+    assert pos1.x == 1
+    assert pos1.to_list() == [1, 2, 3]
+
+    with pytest.raises(ValueError, match="Coordinates must be non-negative"):
+        Position3D(-1, 2, 3)
+
+    pos2 = Position3D(4, 6, 3)
+    assert pos1.distance_to(pos2, dimensions=2) == 5.0
+    assert pos1.distance_to(pos2, dimensions=3) == 5.0
+
+    with pytest.raises(ValueError, match="Invalid dimensions"):
+        pos1.distance_to(pos2, dimensions=4)
+
+    pos3 = Position3D.from_list([5, 6, 7])
+    assert pos3.x == 5
+    with pytest.raises(ValueError, match="must have exactly 3 coordinates"):
+        Position3D.from_list([1, 2])
+
+
+def test_dimensions3d():
+    """Tests the Dimensions3D class."""
+    dims = Dimensions3D(width=3, length=4, height=5)
+    assert dims.volume == 60
+    assert dims.floor_area == 12
+    assert dims.to_list() == [3, 4, 5]
+
+    with pytest.raises(ValueError, match="All dimensions must be positive"):
+        Dimensions3D(width=3, length=0, height=5)
+
+
+@pytest.fixture
+def room_instance():
+    """Returns a Room instance for testing."""
+    room = Room(
+        dimensions=Dimensions3D(width=10, length=10, height=3),
+        furnitures={
+            "desk": Furniture(name="desk", x=2, y=2, width=1.5, depth=0.7, height=0.8)
+        }
+    )
+    return room
+
+
+def test_room_speaker_placement(room_instance):
+    """Tests speaker placement logic in the Room."""
+    # Place speaker at a specific position
+    pos = Position3D(8, 8, 1.7)
+    room_instance.place_speaker(Role.SPEAKER_1, pos)
+    assert room_instance.speakers_positions[Role.SPEAKER_1] == pos
+
+    # Test placing outside room bounds
+    with pytest.raises(ValueError, match="Position pos: \\[11, 5, 1.7\\] is not valid, the speaker wasn't placed"):
+        room_instance.place_speaker(Role.SPEAKER_2, Position3D(11, 5, 1.7))
+
+    # Test placing around furniture
+    room_instance.place_speaker_around_furniture(Role.SPEAKER_2, "desk", side=SpeakerSide.FRONT)
+    speaker2_pos = room_instance.speakers_positions[Role.SPEAKER_2]
+    assert speaker2_pos.y < room_instance.furnitures["desk"].y
+    assert speaker2_pos.x >= room_instance.furnitures["desk"].x
+
+
+def test_room_directivity(room_instance):
+    """Tests microphone directivity logic."""
+    # Aim at speaker 1
+    room_instance.speakers_positions[Role.SPEAKER_1] = Position3D(x=2, y=8, z=1.7)
+    room_instance.mic_position_3d = Position3D(x=5, y=5, z=1.5)
+
+    room_instance.set_directivity(DirectivityType.SPEAKER_1)
+    # Azimuth should point towards speaker 1 (positive Y, negative X => around 135 degrees)
+    assert room_instance.microphone_directivity.azimuth in range(130, 140)
+
+    # Aim between speakers
+    room_instance.speakers_positions[Role.SPEAKER_2] = Position3D(x=8, y=8, z=1.7)
+    room_instance.set_directivity(DirectivityType.MIDDLE_SPEAKERS)
+    # Azimuth should point between speakers (positive Y, center X => around 90 degrees)
+    assert room_instance.microphone_directivity.azimuth in range(85, 95)
+
+    with pytest.raises(ValueError, match="Microphone directivity is required for custom directivity type"):
+        room_instance.set_directivity(DirectivityType.CUSTOM)
+
+
 def test_room_role_enum():
     assert RoomRole.CONSULTATION == "consultation"
-    assert RoomRole.SURGERY == "surgery"
+    assert RoomRole.EXAMINATION == "examination"

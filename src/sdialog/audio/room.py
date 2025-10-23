@@ -114,7 +114,7 @@ class Position3D:
 
         # Check if the coordinates are valid
         if x < 0 or y < 0 or z < 0:
-            raise ValueError("Coordinates must be positive")
+            raise ValueError("Coordinates must be non-negative")
 
         self.x = x
         self.y = y
