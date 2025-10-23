@@ -98,6 +98,7 @@ def send_utterances_to_dscaper(
                 turn.is_stored_in_dscaper = True
             else:
                 logging.error(f"Problem storing audio for turn {turn.audio_path}")
+                logging.error(f"Error: {resp.content['description']}")
                 count_audio_error += 1
         else:
             count_audio_added += 1

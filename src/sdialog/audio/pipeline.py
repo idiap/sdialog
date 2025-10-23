@@ -622,21 +622,9 @@ class AudioPipeline:
                 dialog=dialog,
                 _dscaper=self._dscaper,
                 dialog_directory=dialog_directory,
-                foreground_effect=(
-                    environment["foreground_effect"]
-                    if "foreground_effect" in environment
-                    else "ac_noise_low"
-                ),
-                foreground_effect_position=(
-                    environment["foreground_effect_position"]
-                    if "foreground_effect_position" in environment
-                    else RoomPosition.TOP_RIGHT
-                ),
-                background_effect=(
-                    environment["background_effect"]
-                    if "background_effect" in environment
-                    else "white_noise"
-                ),
+                foreground_effect=environment.get("foreground_effect") or "ac_noise_low",
+                foreground_effect_position=environment.get("foreground_effect_position") or RoomPosition.TOP_RIGHT,
+                background_effect=environment.get("background_effect") or "white_noise",
                 audio_file_format=audio_file_format
             )
             logging.info("[Step 2] Has been completed!")
