@@ -473,11 +473,11 @@ class AudioPipeline:
 
         # Check if the ray tracing is enabled and the directivity is set to something else than omnidirectional
         if (
-            "kwargs_pyroom" in environment and
-            "ray_tracing" in environment["kwargs_pyroom"] and
-            environment["kwargs_pyroom"]["ray_tracing"] and
-            room.directivity_type is not None and
-            room.directivity_type != DirectivityType.OMNIDIRECTIONAL
+            "kwargs_pyroom" in environment
+            and "ray_tracing" in environment["kwargs_pyroom"]
+            and environment["kwargs_pyroom"]["ray_tracing"]
+            and room.directivity_type is not None
+            and room.directivity_type != DirectivityType.OMNIDIRECTIONAL
         ):
             raise ValueError((
                 "The ray tracing is enabled with a non-omnidirectional directivity, "
@@ -644,9 +644,9 @@ class AudioPipeline:
 
         # Generate the audio room accoustic
         if (
-            do_step_3 and
-            room is not None and
-            self._dscaper is not None
+            do_step_3
+            and room is not None
+            and self._dscaper is not None
         ):
 
             logging.info("[Step 3] Starting...")

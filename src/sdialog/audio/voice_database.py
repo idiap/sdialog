@@ -82,14 +82,14 @@ def is_a_audio_file(file: str) -> bool:
     """
     file = file.lower()
     if (
-        ".wav" in file or
-        ".mp3" in file or
-        ".m4a" in file or
-        ".ogg" in file or
-        ".flac" in file or
-        ".aiff" in file or
-        ".aif" in file or
-        ".aac" in file
+        ".wav" in file
+        or ".mp3" in file
+        or ".m4a" in file
+        or ".ogg" in file
+        or ".flac" in file
+        or ".aiff" in file
+        or ".aif" in file
+        or ".aac" in file
     ):
         return True
     return False
@@ -835,9 +835,8 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
 
         # check if the metadata file is a csv / tsv / json file
         if (
-            not self.metadata_file.endswith(".csv") and
-            not self.metadata_file.endswith(".tsv") and
-            not self.metadata_file.endswith(".json")
+            not self.metadata_file.endswith(".csv") and not self.metadata_file.endswith(".tsv")
+            and not self.metadata_file.endswith(".json")
         ):
             raise ValueError(f"Metadata file is not a csv / tsv / json file: {self.metadata_file}")
 

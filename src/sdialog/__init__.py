@@ -158,15 +158,19 @@ class Dialog(BaseModel):
     turns: Optional[List[Turn]] = Field(default_factory=list)
     events: Optional[List[Event]] = None
     notes: Optional[str] = None
-
     _path: Optional[str] = None
 
     def to_audio(
         self,
         **kwargs: dict
-    ) -> "AudioDialog":
+    ):
         """
         Convert the dialogue to an audio dialogue.
+
+        :param kwargs: Additional keyword arguments to pass to the to_audio function.
+        :type kwargs: dict
+        :return: An AudioDialog object.
+        :rtype: AudioDialog
         """
         from sdialog.audio.pipeline import to_audio
 

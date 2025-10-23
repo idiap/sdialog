@@ -103,13 +103,13 @@ def send_utterances_to_dscaper(
             count_audio_added += 1
             turn.is_stored_in_dscaper = True
 
-    logging.info("[dSCAPER] " + "="*30)
+    logging.info("[dSCAPER] " + "=" * 30)
     logging.info("[dSCAPER] " + "# Audio sent to dSCAPER")
-    logging.info("[dSCAPER] " + "="*30)
+    logging.info("[dSCAPER] " + "=" * 30)
     logging.info("[dSCAPER] " + f"Already present: {count_audio_present}")
     logging.info("[dSCAPER] " + f"Correctly added: {count_audio_added}")
     logging.info("[dSCAPER] " + f"Errors: {count_audio_error}")
-    logging.info("[dSCAPER] " + "="*30)
+    logging.info("[dSCAPER] " + "=" * 30)
 
     return dialog
 

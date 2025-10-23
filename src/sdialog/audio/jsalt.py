@@ -120,27 +120,27 @@ class MedicalRoomGenerator(RoomGenerator):
         # Standard room sizes (floor area in m²): size, name, description
         self.ROOM_SIZES: Dict[RoomRole, Tuple[float, str, str]] = {
             RoomRole.CONSULTATION: (4.5, "consultation_room", "consultation room"),
-            RoomRole.EXAMINATION:  (6,   "examination_room",  "examination room"),
-            RoomRole.TREATMENT:    (8,   "treatment_room",    "treatment room"),
-            RoomRole.PATIENT_ROOM: (9.5, "patient_room",      "patient room"),
-            RoomRole.SURGERY:      (12,  "surgery_room",      "surgery room"),
-            RoomRole.WAITING:      (15,  "waiting_room",      "waiting room"),
-            RoomRole.EMERGENCY:    (18,  "emergency_room",    "emergency room"),
-            RoomRole.OFFICE:       (20,  "office_room",       "office room"),
+            RoomRole.EXAMINATION: (6, "examination_room", "examination room"),
+            RoomRole.TREATMENT: (8, "treatment_room", "treatment room"),
+            RoomRole.PATIENT_ROOM: (9.5, "patient_room", "patient room"),
+            RoomRole.SURGERY: (12, "surgery_room", "surgery room"),
+            RoomRole.WAITING: (15, "waiting_room", "waiting room"),
+            RoomRole.EMERGENCY: (18, "emergency_room", "emergency room"),
+            RoomRole.OFFICE: (20, "office_room", "office room"),
         }
 
         # Standard aspect ratios for different room sizes (width:length)
         self.ROOM_ASPECT_RATIOS = {
             4.5: (1.5, 1.0),  # 2.12 x 2.12m (compact square)
-            6:   (1.5, 1.0),  # 2.45 x 2.45m
-            8:   (1.6, 1.0),  # 3.58 x 2.24m (slightly rectangular)
+            6: (1.5, 1.0),  # 2.45 x 2.45m
+            8: (1.6, 1.0),  # 3.58 x 2.24m (slightly rectangular)
             9.5: (1.7, 1.0),  # 4.0 x 2.35m
-            12:  (1.8, 1.0),  # 4.65 x 2.58m
-            15:  (2.0, 1.0),  # 5.48 x 2.74m
-            18:  (2.2, 1.0),  # 6.26 x 2.87m
-            20:  (2.5, 1.0),  # 7.07 x 2.83m
-            24:  (2.4, 1.0),  # 7.59 x 3.16m
-            32:  (2.8, 1.0),  # 9.49 x 3.37m (long rectangular)
+            12: (1.8, 1.0),  # 4.65 x 2.58m
+            15: (2.0, 1.0),  # 5.48 x 2.74m
+            18: (2.2, 1.0),  # 6.26 x 2.87m
+            20: (2.5, 1.0),  # 7.07 x 2.83m
+            24: (2.4, 1.0),  # 7.59 x 3.16m
+            32: (2.8, 1.0),  # 9.49 x 3.37m (long rectangular)
         }
 
     def calculate_room_dimensions(self, floor_area: float, aspect_ratio: Tuple[float, float]) -> Dimensions3D:

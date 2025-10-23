@@ -142,8 +142,8 @@ class AcousticsSimulator:
 
         # Add microphone at new position
         if (
-            self.room.directivity_type is None or
-            self.room.directivity_type == DirectivityType.OMNIDIRECTIONAL
+            self.room.directivity_type is None
+            or self.room.directivity_type == DirectivityType.OMNIDIRECTIONAL
         ):
             self._pyroom.add_microphone_array(
                 pra.MicrophoneArray(

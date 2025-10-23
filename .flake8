@@ -2,5 +2,5 @@
 max-line-length = 120
 exclude =
     .venv,
-    ./dscaper
+    ./tutorials/dscaper
     ./git

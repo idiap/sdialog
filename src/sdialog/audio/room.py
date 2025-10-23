@@ -550,8 +550,8 @@ class Room(BaseModel):
             colatitude = math.atan2(
                 speaker_position.z - self.mic_position_3d.z,
                 math.sqrt(
-                    (speaker_position.x - self.mic_position_3d.x)**2 +
-                    (speaker_position.y - self.mic_position_3d.y)**2
+                    (speaker_position.x - self.mic_position_3d.x)**2
+                    + (speaker_position.y - self.mic_position_3d.y)**2
                 )
             )
 
@@ -586,8 +586,8 @@ class Room(BaseModel):
             colatitude = math.atan2(
                 middle_z - self.mic_position_3d.z,
                 math.sqrt(
-                    (middle_x - self.mic_position_3d.x)**2 +
-                    (middle_y - self.mic_position_3d.y)**2
+                    (middle_x - self.mic_position_3d.x)**2
+                    + (middle_y - self.mic_position_3d.y)**2
                 )
             )
 
@@ -626,14 +626,14 @@ class Room(BaseModel):
         self.speakers_positions[speaker_name] = position
 
         if (
-            self.mic_position == MicrophonePosition.MIDDLE_SPEAKERS and
-            Role.SPEAKER_1 in self.speakers_positions and
-            Role.SPEAKER_2 in self.speakers_positions
+            self.mic_position == MicrophonePosition.MIDDLE_SPEAKERS
+            and Role.SPEAKER_1 in self.speakers_positions
+            and Role.SPEAKER_2 in self.speakers_positions
         ):
             self.mic_position_3d = Position3D(
                 x=(self.speakers_positions[Role.SPEAKER_1].x + self.speakers_positions[Role.SPEAKER_2].x) / 2,
                 y=(self.speakers_positions[Role.SPEAKER_1].y + self.speakers_positions[Role.SPEAKER_2].y) / 2,
-                z=BodyPosture.STANDING.value-0.3
+                z=BodyPosture.STANDING.value - 0.3
             )
 
     def place_speaker_around_furniture(
@@ -674,14 +674,14 @@ class Room(BaseModel):
         self.speakers_positions[speaker_name] = position
 
         if (
-            self.mic_position == MicrophonePosition.MIDDLE_SPEAKERS and
-            Role.SPEAKER_1 in self.speakers_positions and
-            Role.SPEAKER_2 in self.speakers_positions
+            self.mic_position == MicrophonePosition.MIDDLE_SPEAKERS
+            and Role.SPEAKER_1 in self.speakers_positions
+            and Role.SPEAKER_2 in self.speakers_positions
         ):
             self.mic_position_3d = Position3D(
                 x=(self.speakers_positions[Role.SPEAKER_1].x + self.speakers_positions[Role.SPEAKER_2].x) / 2,
                 y=(self.speakers_positions[Role.SPEAKER_1].y + self.speakers_positions[Role.SPEAKER_2].y) / 2,
-                z=BodyPosture.STANDING.value-0.3
+                z=BodyPosture.STANDING.value - 0.3
             )
 
     def _clamp_position_to_room_bounds(self, x: float, y: float, z: float) -> Position3D:
@@ -715,8 +715,10 @@ class Room(BaseModel):
         margin = min(0.2, min(self.dimensions.width, self.dimensions.length) * 0.1)  # 20cm or 10% of smallest dimension
 
         # Check if position is within room bounds
-        if (x < margin or x > self.dimensions.width - margin or
-                y < margin or y > self.dimensions.length - margin):
+        if (
+            x < margin or x > self.dimensions.width - margin
+            or y < margin or y > self.dimensions.length - margin
+        ):
             return False
 
         # Check for collision with any furniture
@@ -738,8 +740,10 @@ class Room(BaseModel):
             bool: True if position collides with furniture, False otherwise
         """
         # Check if position is within furniture bounds
-        return (furniture.x <= x <= furniture.x + furniture.width and
-                furniture.y <= y <= furniture.y + furniture.depth)
+        return (
+            furniture.x <= x <= furniture.x + furniture.width
+            and furniture.y <= y <= furniture.y + furniture.depth
+        )
 
     def _get_random_position_around_furniture(
         self,
@@ -790,10 +794,10 @@ class Room(BaseModel):
             # Check if the position is outside the furniture (not overlapping)
             # Position is outside furniture if it's not within furniture bounds
             is_outside_furniture = (
-                clamped_x < furniture.x or
-                clamped_x > furniture.x + furniture.width or
-                clamped_y < furniture.y or
-                clamped_y > furniture.y + furniture.depth
+                clamped_x < furniture.x
+                or clamped_x > furniture.x + furniture.width
+                or clamped_y < furniture.y
+                or clamped_y > furniture.y + furniture.depth
             )
 
             if is_outside_furniture:
@@ -944,8 +948,10 @@ class Room(BaseModel):
         distance_to_bottom = abs(y - (furniture.y + furniture.depth))
 
         # If point is inside furniture, calculate distance to nearest edge
-        if (furniture.x <= x <= furniture.x + furniture.width and
-                furniture.y <= y <= furniture.y + furniture.depth):
+        if (
+            furniture.x <= x <= furniture.x + furniture.width
+            and furniture.y <= y <= furniture.y + furniture.depth
+        ):
             # Point is inside furniture, return distance to nearest edge
             return min(distance_to_left, distance_to_right, distance_to_top, distance_to_bottom)
         else:
@@ -1575,12 +1581,12 @@ def microphone_to_position(
         return clamp_position(
             (speaker_1_position.x + speaker_2_position.x) / 2,
             (speaker_1_position.y + speaker_2_position.y) / 2,
-            BodyPosture.STANDING.value-0.3
+            BodyPosture.STANDING.value - 0.3
         )
 
     elif mic_pos in [MicrophonePosition.CHEST_POCKET_SPEAKER_1, MicrophonePosition.CHEST_POCKET_SPEAKER_2]:
         speaker_position = room.speakers_positions[Role.SPEAKER_1 if "speaker_1" in mic_pos else Role.SPEAKER_2]
-        return clamp_position(speaker_position.x, speaker_position.y, BodyPosture.STANDING.value-0.3)
+        return clamp_position(speaker_position.x, speaker_position.y, BodyPosture.STANDING.value - 0.3)
 
     elif mic_pos == MicrophonePosition.CUSTOM:
         if position_3D is None:
