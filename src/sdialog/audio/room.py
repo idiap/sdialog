@@ -111,6 +111,11 @@ class Position3D:
         :param z: Z-coordinate in meters (default: 0.0).
         :type z: float
         """
+
+        # Check if the coordinates are valid
+        if x < 0 or y < 0 or z < 0:
+            raise ValueError("Coordinates must be positive")
+
         self.x = x
         self.y = y
         self.z = z
@@ -618,6 +623,9 @@ class Room(BaseModel):
         """
         Place a speaker in the room.
         """
+
+        if speaker_name not in [Role.SPEAKER_1, Role.SPEAKER_2]:
+            raise ValueError(f"Speaker name {speaker_name} is not valid, the speaker wasn't placed")
 
         # Check is the coordinates are valid
         if not self._is_position_valid(position.x, position.y):
