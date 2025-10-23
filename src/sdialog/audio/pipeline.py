@@ -685,7 +685,22 @@ class AudioPipeline:
                 room_name=room_name,
                 kwargs_pyroom=environment["kwargs_pyroom"] if "kwargs_pyroom" in environment else {},
                 source_volumes=environment["source_volumes"] if "source_volumes" in environment else {},
-                audio_file_format=audio_file_format
+                audio_file_format=audio_file_format,
+                background_effect=(
+                    environment["background_effect"]
+                    if "background_effect" in environment
+                    else "white_noise"
+                ),
+                foreground_effect=(
+                    environment["foreground_effect"]
+                    if "foreground_effect" in environment
+                    else "ac_noise_minimal"
+                ),
+                foreground_effect_position=(
+                    environment["foreground_effect_position"]
+                    if "foreground_effect_position" in environment
+                    else RoomPosition.TOP_RIGHT
+                )
             )
 
             logging.info(f"[Step 3] Room accoustic generated for dialogue {dialog.id}!")

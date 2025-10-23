@@ -61,9 +61,9 @@ import numpy as np
 from tqdm import tqdm
 import soundfile as sf
 from typing import Union
-from sdialog.audio.room import Room
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.tts_engine import BaseTTS
+from sdialog.audio.room import Room, RoomPosition
 from sdialog.audio.utils import AudioUtils, SourceVolume, Role
 from sdialog.audio.acoustics_simulator import AcousticsSimulator
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
@@ -299,7 +299,10 @@ def generate_audio_room_accoustic(
     room_name: str,
     kwargs_pyroom: dict = {},
     source_volumes: dict[str, SourceVolume] = {},
-    audio_file_format: str = "wav"
+    audio_file_format: str = "wav",
+    background_effect: str = "white_noise",
+    foreground_effect: str = "ac_noise_minimal",
+    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
 ) -> AudioDialog:
     """
     Generates room acoustics simulation for the dialogue audio.
@@ -329,6 +332,12 @@ def generate_audio_room_accoustic(
     :type source_volumes: dict[str, SourceVolume]
     :param audio_file_format: Output audio file format (default: "wav").
     :type audio_file_format: str
+    :param background_effect: Background audio effect type.
+    :type background_effect: str
+    :param foreground_effect: Foreground audio effect type.
+    :type foreground_effect: str
+    :param foreground_effect_position: Position for foreground effects.
+    :type foreground_effect_position: RoomPosition
     :return: The AudioDialog with room acoustics simulation results and file paths.
     :rtype: AudioDialog
     """
@@ -363,7 +372,12 @@ def generate_audio_room_accoustic(
         "audio_path": current_room_audio_path,
         "microphone_position": room.mic_position,
         "room_name": room_name,
-        "room": room
+        "room": room,
+        "source_volumes": source_volumes,
+        "kwargs_pyroom": kwargs_pyroom,
+        "background_effect": background_effect,
+        "foreground_effect": foreground_effect,
+        "foreground_effect_position": foreground_effect_position
     }
 
     return dialog
