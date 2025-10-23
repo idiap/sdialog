@@ -39,10 +39,10 @@ Example:
 
 import torch
 import numpy as np
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 
-class BaseTTS:
+class BaseTTS(ABC):
     """
     Abstract base class for text-to-speech (TTS) engines.
 

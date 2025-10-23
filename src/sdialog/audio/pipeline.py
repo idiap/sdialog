@@ -70,45 +70,27 @@ from sdialog.audio import (
 )
 
 
-@staticmethod
 def to_audio(
     dialog: Dialog,
-    dir_audio: str = "./outputs_to_audio",
-    dialog_dir_name: str = None,
+    dir_audio: Optional[str] = "./outputs_to_audio",
+    dialog_dir_name: Optional[str] = None,
     dscaper_data_path: Optional[str] = "./dscaper_data",
     room_name: Optional[str] = None,
-    do_step_1: bool = True,
-    do_step_2: bool = False,
-    do_step_3: bool = False,
-    tts_engine: BaseTTS = KokoroTTS(),
-    voice_database: BaseVoiceDatabase = HuggingfaceVoiceDatabase("sdialog/voices-kokoro"),
-    dscaper_datasets: List[str] = ["sdialog/background", "sdialog/foreground"],
-    room: Room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION}),
-    speaker_positions: dict[Role, dict] = {
-        Role.SPEAKER_1: {
-            "furniture_name": "center",
-            "max_distance": 1.0,
-            "side": SpeakerSide.FRONT
-        },
-        Role.SPEAKER_2: {
-            "furniture_name": "center",
-            "max_distance": 1.0,
-            "side": SpeakerSide.BACK
-        }
-    },
-    background_effect: str = "white_noise",
-    foreground_effect: str = "ac_noise_minimal",
-    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT,
-    kwargs_pyroom: dict = {
-        "ray_tracing": True,
-        "air_absorption": True
-    },
-    source_volumes: dict[SourceType, SourceVolume] = {
-        SourceType.ROOM: SourceVolume.HIGH,
-        SourceType.BACKGROUND: SourceVolume.VERY_LOW
-    },
-    audio_file_format: str = "wav",
-    seed: int = None,
+    do_step_1: Optional[bool] = True,
+    do_step_2: Optional[bool] = False,
+    do_step_3: Optional[bool] = False,
+    tts_engine: Optional[BaseTTS] = None,
+    voice_database: Optional[BaseVoiceDatabase] = None,
+    dscaper_datasets: Optional[List[str]] = None,
+    room: Optional[Room] = None,
+    speaker_positions: Optional[dict[Role, dict]] = None,
+    background_effect: Optional[str] = None,
+    foreground_effect: Optional[str] = None,
+    foreground_effect_position: Optional[RoomPosition] = None,
+    kwargs_pyroom: Optional[dict] = None,
+    source_volumes: Optional[dict[SourceType, SourceVolume]] = None,
+    audio_file_format: Optional[str] = "wav",
+    seed: Optional[int] = None,
     re_sampling_rate: Optional[int] = None
 ) -> AudioDialog:
     """
@@ -167,6 +149,47 @@ def to_audio(
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
+
+    if foreground_effect_position is None:
+        foreground_effect_position = RoomPosition.TOP_RIGHT
+
+    if source_volumes is None:
+        source_volumes = {
+            SourceType.ROOM: SourceVolume.HIGH,
+            SourceType.BACKGROUND: SourceVolume.VERY_LOW
+        }
+
+    if kwargs_pyroom is None:
+        kwargs_pyroom = {
+            "ray_tracing": True,
+            "air_absorption": True
+        }
+
+    if tts_engine is None:
+        tts_engine = KokoroTTS()
+
+    if dscaper_datasets is None:
+        dscaper_datasets = ["sdialog/background", "sdialog/foreground"]
+
+    if voice_database is None:
+        voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+
+    if room is None:
+        room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+
+    if speaker_positions is None:
+        speaker_positions = {
+                Role.SPEAKER_1: {
+                    "furniture_name": "center",
+                    "max_distance": 1.0,
+                    "side": SpeakerSide.FRONT
+                },
+                Role.SPEAKER_2: {
+                    "furniture_name": "center",
+                    "max_distance": 1.0,
+                    "side": SpeakerSide.BACK
+                }
+            }
 
     if audio_file_format not in ["mp3", "wav", "flac"]:
         raise ValueError(f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}")
