@@ -108,7 +108,8 @@ def to_audio(
         SourceType.BACKGROUND: SourceVolume.VERY_LOW
     },
     audio_file_format: str = "wav",
-    seed: int = None
+    seed: int = None,
+    re_sampling_rate: Optional[int] = None
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -161,6 +162,8 @@ def to_audio(
     :type audio_file_format: str
     :param seed: Seed for random number generator.
     :type seed: int
+    :param re_sampling_rate: Re-sampling rate for the output audio.
+    :type re_sampling_rate: Optional[int]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -220,7 +223,7 @@ def to_audio(
             "room": room,
             "background_effect": background_effect,
             "foreground_effect": foreground_effect,
-            "foreround_effect_position": foreground_effect_position,
+            "foreground_effect_position": foreground_effect_position,
             "source_volumes": source_volumes,
             "kwargs_pyroom": kwargs_pyroom
         }
@@ -237,7 +240,8 @@ def to_audio(
         dialog_dir_name=dialog_dir_name,
         room_name=room_name,
         audio_file_format=audio_file_format,
-        seed=seed
+        seed=seed,
+        re_sampling_rate=re_sampling_rate
     )
 
     return _dialog
