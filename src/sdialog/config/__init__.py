@@ -8,7 +8,7 @@ import os
 import yaml
 import logging
 
-from ..util import ollama_check_and_pull_model, is_ollama_model_name
+from ..util import CacheDialogScore, ollama_check_and_pull_model, is_ollama_model_name
 
 PROMPT_YAML_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 logger = logging.getLogger(__name__)

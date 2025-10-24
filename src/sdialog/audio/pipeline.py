@@ -179,17 +179,17 @@ def to_audio(
 
     if speaker_positions is None:
         speaker_positions = {
-                Role.SPEAKER_1: {
-                    "furniture_name": "center",
-                    "max_distance": 1.0,
-                    "side": SpeakerSide.FRONT
-                },
-                Role.SPEAKER_2: {
-                    "furniture_name": "center",
-                    "max_distance": 1.0,
-                    "side": SpeakerSide.BACK
-                }
+            Role.SPEAKER_1: {
+                "furniture_name": "center",
+                "max_distance": 1.0,
+                "side": SpeakerSide.FRONT
+            },
+            Role.SPEAKER_2: {
+                "furniture_name": "center",
+                "max_distance": 1.0,
+                "side": SpeakerSide.BACK
             }
+        }
 
     if audio_file_format not in ["mp3", "wav", "flac"]:
         raise ValueError(f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}")
