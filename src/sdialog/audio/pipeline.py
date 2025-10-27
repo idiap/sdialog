@@ -379,10 +379,6 @@ class AudioPipeline:
 
         self.impulse_response_database = impulse_response_database
 
-        if self.impulse_response_database is None:
-            from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
-            self.impulse_response_database = HuggingFaceImpulseResponseDatabase("sdialog/impulse-responses")
-
     def populate_dscaper(
             self,
             datasets: List[str],
@@ -531,6 +527,14 @@ class AudioPipeline:
             Microphone simulation via `recording_devices` requires the `impulse_response_database`
             to be set on the `AudioPipeline` instance.
         """
+
+        if self.impulse_response_database is None and recording_devices is not None:
+            logging.warning(
+                "[Initialization] The impulse response database is not set, "
+                "using the default Hugging Face database for microphone simulation..."
+            )
+            from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
+            self.impulse_response_database = HuggingFaceImpulseResponseDatabase("sdialog/impulse-responses")
 
         if audio_file_format not in ["mp3", "wav", "flac"]:
             raise ValueError((

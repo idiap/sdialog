@@ -3,6 +3,9 @@ import shutil
 import pytest
 import numpy as np
 from unittest.mock import MagicMock, patch
+import json
+import pandas as pd
+import soundfile as sf
 
 from sdialog import Turn, Dialog
 from sdialog.audio.turn import AudioTurn
@@ -16,6 +19,8 @@ from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.pipeline import AudioPipeline, to_audio
 from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
+from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+from sdialog.audio.processing import AudioProcessor
 
 
 def test_position3d_initialization():
@@ -563,13 +568,14 @@ def mock_dependencies():
         yield {
             "tts": mock_tts, "db": mock_db, "scaper": mock_scaper,
             "gen_utt": mock_gen_utt, "save_utt": mock_save_utt,
-            "librosa": mock_librosa, "gen_room": mock_gen_room
+            "librosa": mock_librosa, "gen_room": mock_gen_room,
+            "ir_db": MagicMock()
         }
 
 
 def test_audio_pipeline_initialization(mock_dependencies):
     """Tests that AudioPipeline initializes with default components if none are provided."""
-    pipeline = AudioPipeline()
+    pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
     assert isinstance(pipeline.tts_pipeline, MagicMock)
     assert isinstance(pipeline.voice_database, MagicMock)
     mock_dependencies["tts"].assert_called_once()
@@ -578,7 +584,7 @@ def test_audio_pipeline_initialization(mock_dependencies):
 
 def test_audio_pipeline_inference_step1(mock_dependencies, audio_dialog_instance, tmp_path):
     """Tests that inference correctly calls step 1 functions."""
-    pipeline = AudioPipeline(dir_audio=str(tmp_path))
+    pipeline = AudioPipeline(dir_audio=str(tmp_path), impulse_response_database=mock_dependencies["ir_db"])
 
     # Manually create the directory structure that the pipeline expects to exist.
     dialog_dir = tmp_path / f"dialog_{audio_dialog_instance.id}"
@@ -605,7 +611,7 @@ def test_audio_pipeline_inference_resampling(mock_dependencies, audio_dialog_ins
     step1_file.touch()
     audio_dialog_instance.audio_step_1_filepath = str(step1_file)
 
-    pipeline = AudioPipeline(dir_audio=str(tmp_path))
+    pipeline = AudioPipeline(dir_audio=str(tmp_path), impulse_response_database=mock_dependencies["ir_db"])
     pipeline.inference(audio_dialog_instance, do_step_1=False, re_sampling_rate=16000)
 
     # This is a bit indirect. We check if librosa.resample was called.
@@ -636,7 +642,7 @@ def test_audio_pipeline_master_audio(audio_dialog_instance, mock_dependencies):
     for turn in audio_dialog_instance.turns:
         turn.set_audio(audio_chunk, 16000)
 
-    pipeline = AudioPipeline()
+    pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
     mastered = pipeline.master_audio(audio_dialog_instance)
 
     assert len(mastered) == len(audio_chunk) * len(audio_dialog_instance.turns)
@@ -944,3 +950,174 @@ def test_room_directivity(room_instance):
 def test_room_role_enum():
     assert RoomRole.CONSULTATION == "consultation"
     assert RoomRole.EXAMINATION == "examination"
+
+
+@pytest.fixture(scope="module")
+def temp_ir_db_setup():
+    temp_dir = "tests/data/temp_ir_db_for_test"
+    audio_dir = os.path.join(temp_dir, "audio")
+    os.makedirs(audio_dir, exist_ok=True)
+
+    # Create dummy audio file
+    dummy_wav_path = os.path.join(audio_dir, "my_ir.wav")
+    sf.write(dummy_wav_path, np.random.randn(1000), 16000)
+
+    # Create metadata files
+    metadata = {"identifier": "my_ir", "file_name": "my_ir.wav"}
+
+    # CSV
+    csv_path = os.path.join(temp_dir, "metadata.csv")
+    pd.DataFrame([metadata]).to_csv(csv_path, index=False)
+
+    # TSV
+    tsv_path = os.path.join(temp_dir, "metadata.tsv")
+    pd.DataFrame([metadata]).to_csv(tsv_path, index=False, sep='	')
+
+    # JSON
+    json_path = os.path.join(temp_dir, "metadata.json")
+    with open(json_path, "w") as f:
+        json.dump([metadata], f)
+
+    yield temp_dir, audio_dir, [csv_path, tsv_path, json_path]
+
+    shutil.rmtree(temp_dir)
+
+
+def test_local_ir_db_populate_csv(temp_ir_db_setup):
+    temp_dir, audio_dir, paths = temp_ir_db_setup
+    db = LocalImpulseResponseDatabase(metadata_file=paths[0], directory=audio_dir)
+    assert "my_ir" in db.get_data()
+    assert db.get_ir("my_ir").endswith("my_ir.wav")
+
+
+def test_local_ir_db_populate_tsv(temp_ir_db_setup):
+    temp_dir, audio_dir, paths = temp_ir_db_setup
+    db = LocalImpulseResponseDatabase(metadata_file=paths[1], directory=audio_dir)
+    assert "my_ir" in db.get_data()
+
+
+def test_local_ir_db_populate_json(temp_ir_db_setup):
+    temp_dir, audio_dir, paths = temp_ir_db_setup
+    db = LocalImpulseResponseDatabase(metadata_file=paths[2], directory=audio_dir)
+    assert "my_ir" in db.get_data()
+
+
+def test_local_ir_db_get_ir_with_enum(temp_ir_db_setup):
+    temp_dir, audio_dir, paths = temp_ir_db_setup
+    metadata = [{"identifier": "OD-FBVET30-CND-AU-1-P20-50", "file_name": "my_ir.wav"}]
+    csv_path = os.path.join(temp_dir, "enum_meta.csv")
+    pd.DataFrame(metadata).to_csv(csv_path, index=False)
+
+    db = LocalImpulseResponseDatabase(metadata_file=csv_path, directory=audio_dir)
+    assert db.get_ir(RecordingDevice.LCT_440).endswith("my_ir.wav")
+
+
+def test_local_ir_db_errors(temp_ir_db_setup):
+    temp_dir, audio_dir, paths = temp_ir_db_setup
+    with pytest.raises(ValueError, match="Metadata file not found"):
+        LocalImpulseResponseDatabase(metadata_file="nonexistent.csv", directory=audio_dir)
+
+    with pytest.raises(ValueError, match="Audio directory is not a directory"):
+        LocalImpulseResponseDatabase(metadata_file=paths[0], directory="nonexistent_dir")
+
+    bad_metadata_path = os.path.join(temp_dir, "bad_meta.txt")
+    with open(bad_metadata_path, "w") as f:
+        f.write("bad metadata")
+    with pytest.raises(ValueError, match="Metadata file is not a csv / tsv / json file"):
+        LocalImpulseResponseDatabase(metadata_file=bad_metadata_path, directory=audio_dir)
+
+    # Metadata with missing audio file
+    bad_audio_meta = [{"identifier": "bad_ir", "file_name": "nonexistent.wav"}]
+    bad_audio_meta_path = os.path.join(temp_dir, "bad_audio_meta.csv")
+    pd.DataFrame(bad_audio_meta).to_csv(bad_audio_meta_path, index=False)
+    with pytest.raises(ValueError, match="Audio file not found at path"):
+        LocalImpulseResponseDatabase(metadata_file=bad_audio_meta_path, directory=audio_dir)
+
+    db = LocalImpulseResponseDatabase(metadata_file=paths[0], directory=audio_dir)
+    with pytest.raises(ValueError, match="Impulse response with identifier 'nonexistent_ir' not found."):
+        db.get_ir("nonexistent_ir")
+
+
+@pytest.fixture
+def audio_processor_setup(tmp_path):
+    input_audio_path = tmp_path / "input.wav"
+    output_audio_path = tmp_path / "output.wav"
+    ir_path = tmp_path / "ir.wav"
+
+    sf.write(input_audio_path, np.random.randn(16000), 16000)
+    sf.write(ir_path, np.random.randn(1000), 16000)
+
+    mock_db = MagicMock()
+    mock_db.get_ir.return_value = str(ir_path)
+
+    return input_audio_path, output_audio_path, mock_db, ir_path
+
+
+def test_apply_microphone_effect_mono(audio_processor_setup):
+    input_path, output_path, mock_db, _ = audio_processor_setup
+    AudioProcessor.apply_microphone_effect(
+        input_audio_path=str(input_path),
+        output_audio_path=str(output_path),
+        device="dummy_device",
+        impulse_response_database=mock_db
+    )
+    assert os.path.exists(output_path)
+    audio, sr = sf.read(output_path)
+    assert sr == 16000
+
+
+def test_apply_microphone_effect_stereo(audio_processor_setup, tmp_path):
+    input_path, output_path, mock_db, _ = audio_processor_setup
+    stereo_input_path = tmp_path / "stereo_input.wav"
+    sf.write(stereo_input_path, np.random.randn(16000, 2), 16000)
+
+    AudioProcessor.apply_microphone_effect(
+        input_audio_path=str(stereo_input_path),
+        output_audio_path=str(output_path),
+        device="dummy_device",
+        impulse_response_database=mock_db
+    )
+    assert os.path.exists(output_path)
+    audio, sr = sf.read(output_path)
+    assert audio.ndim == 1  # Check that output is mono
+
+
+@patch('sdialog.audio.processing.sf.read')
+@patch('sdialog.audio.processing.librosa.resample')
+def test_apply_microphone_effect_resampling(mock_resample, mock_sf_read, audio_processor_setup):
+    input_path, output_path, mock_db, ir_path = audio_processor_setup
+    # original audio at 16k, ir at 8k
+    mock_sf_read.side_effect = [
+        (np.random.randn(16000), 16000),  # input audio
+        (np.random.randn(8000), 8000)    # impulse response
+    ]
+    AudioProcessor.apply_microphone_effect(
+        input_audio_path=str(input_path),
+        output_audio_path=str(output_path),
+        device="dummy_device",
+        impulse_response_database=mock_db
+    )
+    mock_resample.assert_called_once()
+
+
+@patch('sdialog.audio.processing.sf.write')
+def test_apply_microphone_effect_gain(mock_sf_write, audio_processor_setup):
+    input_path, output_path, mock_db, _ = audio_processor_setup
+
+    # Run with default gain
+    AudioProcessor.apply_microphone_effect(str(input_path), str(output_path), "dummy", mock_db)
+    audio_default = mock_sf_write.call_args_list[0][0][1]
+
+    # Run with custom gain
+    output_path_custom = output_path.with_name("output_custom.wav")
+    AudioProcessor.apply_microphone_effect(str(input_path), str(output_path_custom), "dummy", mock_db, gain_db=-5.0)
+    audio_custom = mock_sf_write.call_args_list[1][0][1]
+
+    assert np.max(np.abs(audio_custom)) > np.max(np.abs(audio_default))
+
+
+def test_apply_microphone_effect_ir_not_found(audio_processor_setup):
+    input_path, output_path, mock_db, _ = audio_processor_setup
+    mock_db.get_ir.return_value = "nonexistent_ir.wav"
+    with pytest.raises(ValueError, match="Impulse response path not found"):
+        AudioProcessor.apply_microphone_effect(str(input_path), str(output_path), "dummy", mock_db)
