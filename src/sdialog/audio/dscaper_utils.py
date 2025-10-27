@@ -197,7 +197,7 @@ def generate_dscaper_timeline(
         label=["const", foreground_effect],
         source_file=["choose", "[]"],
         event_time=["const", "0"],
-        event_duration=["const", str(f"{total_duration:.1f}")],
+        event_duration=["const", str(f"{total_duration:.1f}")],  # Force loop
         position=foreground_effect_position,
     )
     _dscaper.add_event(timeline_name, foreground_metadata)

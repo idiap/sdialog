@@ -18,7 +18,34 @@ from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, Rec
 
 
 class AudioProcessor:
-    """A class for processing audio signals."""
+    """
+    A class for processing audio signals. It provides functionalities to
+    apply various audio effects, such as microphone simulation through
+    convolution with impulse responses.
+
+    This class is designed to work with audio files and relies on an
+    impulse response database to apply realistic microphone and environmental
+    effects.
+
+    Example:
+        .. code-block:: python
+
+            from sdialog.audio.processing import AudioProcessor
+            from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+            impulse_response_database = LocalImpulseResponseDatabase(
+                "path/to/your/impulse_response_database",
+                metadata_file="path/to/your/metadata.csv"
+            )
+            AudioProcessor.apply_microphone_effect(
+                input_audio_path="path/to/your/input.wav",
+                output_audio_path="path/to/your/output.wav",
+                device=RecordingDevice.SHURE_SM57,
+                impulse_response_database=impulse_response_database
+            )
+
+    Note:
+        This class uses static methods, so you don't need to instantiate it.
+    """
 
     DEFAULT_GAIN_REDUCTION_DB = -10.0
 
@@ -34,15 +61,24 @@ class AudioProcessor:
         Applies a microphone effect to an audio signal by convolving it with an
         impulse response from the database.
 
+        The function loads an audio file, retrieves a specified impulse
+        response, and applies it to the audio. The sample rates of the audio
+        and impulse response are matched by resampling the impulse response if
+        necessary. The resulting audio is then saved to a specified output
+        path. A gain reduction can be applied to prevent clipping.
+
         :param input_audio_path: Path to the input audio file.
         :type input_audio_path: str
         :param output_audio_path: Path to save the processed audio file.
         :type output_audio_path: str
-        :param device: The identifier of the impulse response to use.
+        :param device: The recording device or its identifier to select the
+                       impulse response.
         :type device: Union[RecordingDevice, str]
-        :param impulse_response_database: The database for impulse responses.
+        :param impulse_response_database: The database containing impulse
+                                          responses.
         :type impulse_response_database: ImpulseResponseDatabase
         :param gain_db: The gain in decibels to apply to the processed audio.
+                        If None, a default gain reduction is used.
         :type gain_db: Optional[float]
         """
 

@@ -12,7 +12,27 @@ from typing import Union
 class RecordingDevice(str, Enum):
     """
     An enumeration of supported recording devices.
-    Inherits from `str` to allow for custom device identifiers.
+
+    This class provides a standardized way to refer to different recording
+    devices, which are used to select the appropriate impulse response for
+    audio processing. It inherits from `str` and `Enum` to allow for both
+    enum-style access and string-based identifiers.
+
+    Example:
+        .. code-block:: python
+
+            from sdialog.audio.impulse_response_database import RecordingDevice
+            # Accessing a device by its enum member name
+            device = RecordingDevice.LCT_440
+            print(device)
+            # Using the string value directly
+            device_str = "OD-FBVET30-CND-AU-1-P20-50"
+            if device_str == RecordingDevice.LCT_440:
+                print("Device identified correctly.")
+
+    Note:
+        The string values correspond to specific impulse response identifiers
+        in the impulse response database.
     """
     LCT_440 = "OD-FBVET30-CND-AU-1-P20-50"
     SHURE_SM57 = "OD-FBVET30-DYN-57-P05-20"
@@ -33,7 +53,18 @@ class RecordingDevice(str, Enum):
 
 
 class ImpulseResponseDatabase(abc.ABC):
-    """Abstract base class for an impulse response database."""
+    """
+    Abstract base class for an impulse response database.
+
+    This class defines the interface for an impulse response database, which
+    is used to store and retrieve impulse responses for audio processing.
+    Subclasses must implement the `_populate` method to load the impulse
+    response data from a specific source.
+
+    :ivar _data: A dictionary mapping impulse response identifiers to their
+                 corresponding audio file paths.
+    :vartype _data: dict[str, str]
+    """
 
     def __init__(self):
         self._data: dict[str, str] = {}
@@ -76,13 +107,33 @@ class LocalImpulseResponseDatabase(ImpulseResponseDatabase):
     """
     An impulse response database that loads data from a local directory.
 
-    The directory is expected to contain a metadata file (metadata.json,
-    metadata.csv, or metadata.tsv) that maps impulse response identifiers
-    to audio file paths.
+    This class provides an implementation of `ImpulseResponseDatabase` that
+    loads impulse response data from a local filesystem. It expects a
+    directory containing the audio files and a metadata file (in JSON, CSV,
+    or TSV format) that maps impulse response identifiers to their
+    corresponding file names.
+
+    The metadata file must contain 'identifier' and 'file_name' columns.
+
+    Example:
+        .. code-block:: python
+
+            from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase
+            # Create a dummy metadata file and audio file
+            with open("metadata.csv", "w") as f:
+                f.write("identifier,file_name\\n")
+                f.write("my_ir,my_ir.wav\\n")
+            import soundfile as sf
+            import numpy as np
+            sf.write("my_ir.wav", np.random.randn(1000), 16000)
+            # Initialize the database and retrieve an impulse response
+            db = LocalImpulseResponseDatabase(metadata_file="metadata.csv", directory=".")
+            ir_path = db.get_ir("my_ir")
+            print(ir_path)
 
     :ivar metadata_file: The path to the metadata file.
     :vartype metadata_file: str
-    :ivar directory: The path to the audio directory.
+    :ivar directory: The path to the directory containing the audio files.
     :vartype directory: str
     """
     def __init__(self, metadata_file: str, directory: str):
@@ -133,9 +184,27 @@ class LocalImpulseResponseDatabase(ImpulseResponseDatabase):
 class HuggingFaceImpulseResponseDatabase(ImpulseResponseDatabase):
     """
     An impulse response database that loads data from a Hugging Face Hub dataset.
-    :ivar repo_id: The repository identifier of the Hugging Face Hub dataset.
+
+    This class provides an implementation of `ImpulseResponseDatabase` that
+    loads impulse response data from a dataset on the Hugging Face Hub. It
+    can load a dataset from a repository ID or a local path.
+
+    The dataset is expected to have 'identifier' and 'audio' columns, where
+    'audio' is a dictionary containing a 'path' key.
+
+    Example:
+        .. code-block:: python
+
+            from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
+            # Initialize the database with a Hugging Face Hub dataset
+            # Note: This requires the 'datasets' library to be installed.
+            # db = HuggingFaceImpulseResponseDatabase(repo_id="your_username/your_dataset_repo")
+            # ir_path = db.get_ir("some_ir_identifier")
+
+    :ivar repo_id: The repository ID of the Hugging Face Hub dataset, or a
+                   local path to the dataset.
     :vartype repo_id: str
-    :ivar subset: The subset of the Hugging Face Hub dataset to use.
+    :ivar subset: The subset of the dataset to use (e.g., "train", "test").
     :vartype subset: str
     """
 

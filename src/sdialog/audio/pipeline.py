@@ -526,6 +526,10 @@ class AudioPipeline:
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
+
+        .. note::
+            Microphone simulation via `recording_devices` requires the `impulse_response_database`
+            to be set on the `AudioPipeline` instance.
         """
 
         if audio_file_format not in ["mp3", "wav", "flac"]:

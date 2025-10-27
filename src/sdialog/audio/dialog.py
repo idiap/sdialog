@@ -287,18 +287,18 @@ class AudioDialog(Dialog):
         from IPython.display import Audio, display
 
         if len(self.audio_step_1_filepath) > 0:
-            print("-"*25)
+            print("-" * 25)
             print("Step 1:")
-            print("-"*25)
+            print("-" * 25)
             display(Audio(
                 self.audio_step_1_filepath,
                 autoplay=False
             ))
 
         if len(self.audio_step_2_filepath) > 0:
-            print("-"*25)
+            print("-" * 25)
             print("Step 2:")
-            print("-"*25)
+            print("-" * 25)
             display(Audio(
                 self.audio_step_2_filepath,
                 autoplay=False
@@ -306,9 +306,9 @@ class AudioDialog(Dialog):
 
         if len(self.audio_step_3_filepaths) > 0:
 
-            print("-"*25)
+            print("-" * 25)
             print("- Room Configurations")
-            print("-"*25)
+            print("-" * 25)
 
             # For each room configuration, display the original audio and the processed audio
             for config_name in self.audio_step_3_filepaths:
@@ -326,9 +326,9 @@ class AudioDialog(Dialog):
                     and "audio_paths_post_processing" in self.audio_step_3_filepaths[config_name]
                     and len(self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]) > 0
                 ):
-                    print("#"*10)
+                    print("#" * 10)
                     print("Processed audio:")
-                    print("#"*10)
+                    print("#" * 10)
 
                     # For each recording device, display the processed audio
                     for _rd in self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]:

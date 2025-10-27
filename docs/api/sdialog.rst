@@ -254,3 +254,19 @@ sdialog.audio.pipeline
    :member-order: bysource
    :members:
    :show-inheritance:
+
+sdialog.audio.impulse_response_database
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.impulse_response_database
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.processing
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.processing
+   :member-order: bysource
+   :members:
+   :show-inheritance:

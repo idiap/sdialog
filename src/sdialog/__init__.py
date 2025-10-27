@@ -166,11 +166,30 @@ class Dialog(BaseModel):
     ):
         """
         Convert the dialogue to an audio dialogue.
-
+        This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
+        All keyword arguments are passed to it.
+        :param dir_audio: Directory path for storing audio outputs.
+        :type dir_audio: str
+        :param do_step_1: Enable text-to-speech conversion and voice assignment.
+        :type do_step_1: bool
+        :param do_step_2: Enable audio combination and dSCAPER timeline generation.
+        :type do_step_2: bool
+        :param do_step_3: Enable room acoustics simulation.
+        :type do_step_3: bool
+        :param tts_engine: Text-to-speech engine for audio generation.
+        :type tts_engine: sdialog.audio.tts_engine.BaseTTS
+        :param voice_database: Voice database for speaker selection.
+        :type voice_database: sdialog.audio.voice_database.BaseVoiceDatabase
+        :param room: Room configuration for acoustics simulation.
+        :type room: sdialog.audio.room.Room
+        :param recording_devices: The identifiers of the recording devices to simulate.
+        :type recording_devices: Optional[List[Union[str, "sdialog.audio.impulse_response_database.RecordingDevice"]]]
+        :param impulse_response_database: The database for impulse responses.
+        :type impulse_response_database: Optional["sdialog.audio.impulse_response_database.ImpulseResponseDatabase"]
         :param kwargs: Additional keyword arguments to pass to the to_audio function.
         :type kwargs: dict
         :return: An AudioDialog object.
-        :rtype: AudioDialog
+        :rtype: "sdialog.audio.dialog.AudioDialog"
         """
         from sdialog.audio.pipeline import to_audio
 

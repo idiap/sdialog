@@ -650,6 +650,14 @@ Core Components
     - :class:`~sdialog.audio.room_generator.RoomGenerator`: Automatic room generation
     - Integration with pyroomacoustics for acoustic effects
 
+**Impulse Response Databases** (:class:`~sdialog.audio.impulse_response_database.ImpulseResponseDatabase`)
+    Impulse response management for microphone effect simulation. Implementations:
+    - :class:`~sdialog.audio.impulse_response_database.HuggingFaceImpulseResponseDatabase`: IRs from Hugging Face
+    - :class:`~sdialog.audio.impulse_response_database.LocalImpulseResponseDatabase`: Local IR database
+
+**Audio Processor** (:class:`~sdialog.audio.processing.AudioProcessor`)
+    Applies audio effects, such as microphone simulation by convolving audio with an impulse response.
+
 Complete Usage Example
 ----------------------
 
@@ -1001,6 +1009,36 @@ SDialog supports multiple voice database types for flexible voice selection:
 
     # Unavailable voice for this language (an error will be raised)
     female_voice_spanish = quick_voices.get_voice(gender="female", age=25, lang="spanish")
+
+Microphone Effects Simulation
+-----------------------------
+
+SDialog allows you to simulate various microphone effects by applying impulse responses to your generated audio. This is useful for creating more realistic audio by simulating different recording environments and devices.
+
+.. code-block:: python
+
+    from sdialog.audio.processing import AudioProcessor
+    from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+    import soundfile as sf
+    import numpy as np
+
+    # Create dummy files for the example
+    with open("metadata.csv", "w") as f:
+        f.write("identifier,file_name\\n")
+        f.write("my_ir,my_ir.wav\\n")
+    sf.write("my_ir.wav", np.random.randn(16000), 16000)
+    sf.write("input.wav", np.random.randn(16000 * 3), 16000)
+
+    # Use a local impulse response database
+    ir_db = LocalImpulseResponseDatabase(metadata_file="metadata.csv", directory=".")
+
+    # Apply a microphone effect
+    AudioProcessor.apply_microphone_effect(
+        input_audio_path="input.wav",
+        output_audio_path="output.wav",
+        device=RecordingDevice.SHURE_SM57,  # Or a custom device identifier like "my_ir"
+        impulse_response_database=ir_db
+    )
 
 Quick Audio Generation
 -----------------------

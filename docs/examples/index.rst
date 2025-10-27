@@ -853,6 +853,55 @@ SDialog supports multiple voice database types for flexible voice selection. Let
     except ValueError as e:
         print("Expected error:", e)
 
+
+Impulse Response Database and Microphone Effects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+SDialog allows you to simulate different microphone effects by convolving audio with impulse responses.
+You can use a local database or one from the Hugging Face Hub.
+
+**Using a Local Impulse Response Database**:
+
+.. code-block:: python
+
+    from sdialog.audio.processing import AudioProcessor
+    from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+    import soundfile as sf
+    import numpy as np
+
+    # Create a dummy metadata file and audio file for the example
+    with open("metadata.csv", "w") as f:
+        f.write("identifier,file_name\\n")
+        f.write("my_ir,my_ir.wav\\n")
+    sf.write("my_ir.wav", np.random.randn(16000), 16000)
+
+    # Initialize the database
+    impulse_response_database = LocalImpulseResponseDatabase(
+        metadata_file="metadata.csv",
+        directory="."
+    )
+    # Assume input.wav exists
+    sf.write("input.wav", np.random.randn(16000 * 3), 16000)
+
+    AudioProcessor.apply_microphone_effect(
+        input_audio_path="input.wav",
+        output_audio_path="output_mic_effect.wav",
+        device="my_ir", # or RecordingDevice.SHURE_SM57 for built-in devices
+        impulse_response_database=impulse_response_database
+    )
+
+
+**Using a HuggingFace Impulse Response Database**:
+
+.. code-block:: python
+
+    from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
+
+    # This requires the 'datasets' library
+    hf_db = HuggingFaceImpulseResponseDatabase(repo_id="your_username/your_ir_dataset")
+    ir_path = hf_db.get_ir("some_ir_identifier")
+
+
 Advanced Audio Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 For more control over the audio generation process, let's use the full AudioPipeline with custom configurations!
