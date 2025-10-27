@@ -14,6 +14,7 @@ dscaper_data/
 *.ogg
 *.zip
 !tests/data/my_custom_voices.zip
+!tests/data/my_custom_ir.zip
 !tests/data/demo_dialog_doctor_patient.json
 !tests/data/customer_support_dialogue.json
 *.tar
