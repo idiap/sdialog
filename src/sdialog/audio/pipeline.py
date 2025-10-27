@@ -93,7 +93,7 @@ def to_audio(
     audio_file_format: Optional[str] = "wav",
     seed: Optional[int] = None,
     re_sampling_rate: Optional[int] = None,
-    recording_device: Optional[Union[RecordingDevice, str]] = None,
+    recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
     impulse_response_database: Optional[ImpulseResponseDatabase] = None
 ) -> AudioDialog:
     """
@@ -149,8 +149,8 @@ def to_audio(
     :type seed: int
     :param re_sampling_rate: Re-sampling rate for the output audio.
     :type re_sampling_rate: Optional[int]
-    :param recording_device: The identifier of the recording device to simulate.
-    :type recording_device: Optional[RecordingDevice]
+    :param recording_devices: The identifiers of the recording devices to simulate.
+    :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
     :param impulse_response_database: The database for impulse responses.
     :type impulse_response_database: Optional[ImpulseResponseDatabase]
     :return: Audio dialogue with processed audio data.
@@ -290,7 +290,7 @@ def to_audio(
         audio_file_format=audio_file_format,
         seed=seed,
         re_sampling_rate=re_sampling_rate,
-        recording_device=recording_device
+        recording_devices=recording_devices
     )
 
     return _dialog
@@ -488,7 +488,7 @@ class AudioPipeline:
         audio_file_format: str = "wav",
         seed: int = None,
         re_sampling_rate: Optional[int] = None,
-        recording_device: Optional[Union[RecordingDevice, str]] = None
+        recording_devices: Optional[List[Union[RecordingDevice, str]]] = None
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -522,8 +522,8 @@ class AudioPipeline:
         :type seed: int
         :param re_sampling_rate: Re-sampling rate for the output audio.
         :type re_sampling_rate: Optional[int]
-        :param recording_device: The identifier of the recording device to simulate.
-        :type recording_device: Optional[Union[RecordingDevice, str]]
+        :param recording_devices: The identifiers of the recording devices to simulate.
+        :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
         """
@@ -793,66 +793,73 @@ class AudioPipeline:
             )
 
         # Apply microphone effect if a recording device is specified
-        if recording_device is not None and do_step_3:
+        if recording_devices is not None and do_step_3:
 
             if self.impulse_response_database is None:
                 raise ValueError("The impulse response database is not set, simulation of the microphone is impossible")
 
-            logging.info(f"[Post-Processing] Applying microphone effect for device: {recording_device}")
+            logging.info(f"[Post-Processing] Applying microphone effect for devices: {recording_devices}")
 
             if not dialog.audio_step_3_filepaths or len(dialog.audio_step_3_filepaths) == 0:
                 raise ValueError("[Post-Processing] No room acoustics audio found to apply post-processing on.")
 
             for _room_name, room_data in list(dialog.audio_step_3_filepaths.items()):
 
+                # Process only the room with the same name as the one specified
                 if room_name is not None and room_name != _room_name:
                     continue
 
                 input_audio_path = room_data["audio_path"]
 
+                # Check if the input audio (step 3) path exists
                 if not os.path.exists(input_audio_path):
                     raise ValueError(f"[Post-Processing] Input audio path not found: {input_audio_path}")
 
-                output_audio_name = (
-                    f"audio_post_processing-{_room_name}-"
-                    f"{recording_device.value if isinstance(recording_device, RecordingDevice) else recording_device}"
-                    f".{audio_file_format}"
-                )
-
-                output_audio_path = os.path.join(
-                    dialog.audio_dir_path,
-                    dialog_directory,
-                    "exported_audios",
-                    "post_processing",
-                    output_audio_name
-                )
-
-                # Create the directory if it doesn't exist
-                os.makedirs(os.path.dirname(output_audio_path), exist_ok=True)
-
+                # If the audio paths post processing are not in the room data, create a new dictionary
                 if "audio_paths_post_processing" not in room_data:
                     room_data["audio_paths_post_processing"] = {}
 
-                if str(recording_device) in room_data["audio_paths_post_processing"]:
-                    logging.warning(
-                        f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
-                        f" and room configuration: {_room_name}. Skipping..."
+                # For each recording device, apply the microphone effect
+                for recording_device in recording_devices:
+
+                    if str(recording_device) in room_data["audio_paths_post_processing"]:
+                        logging.warning(
+                            f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
+                            f" and room configuration: {_room_name}. Skipping..."
+                        )
+                        continue
+
+                    output_audio_name = (
+                        f"audio_post_processing-{_room_name}-"
+                        f"{str(recording_device)}"
+                        f".{audio_file_format}"
                     )
-                    continue
 
-                AudioProcessor.apply_microphone_effect(
-                    input_audio_path=input_audio_path,
-                    output_audio_path=output_audio_path,
-                    device=recording_device,
-                    impulse_response_database=self.impulse_response_database
-                )
+                    # Build the path to save the output audio
+                    output_audio_path = os.path.join(
+                        dialog.audio_dir_path,
+                        dialog_directory,
+                        "exported_audios",
+                        "post_processing",
+                        output_audio_name
+                    )
 
-                room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+                    # Create the directory if it doesn't exist
+                    os.makedirs(os.path.dirname(output_audio_path), exist_ok=True)
 
-                logging.info(
-                    f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
-                    f"Output saved to: {output_audio_path}"
-                )
+                    AudioProcessor.apply_microphone_effect(
+                        input_audio_path=input_audio_path,
+                        output_audio_path=output_audio_path,
+                        device=recording_device,
+                        impulse_response_database=self.impulse_response_database
+                    )
+
+                    room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+
+                    logging.info(
+                        f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
+                        f"Output saved to: {output_audio_path}"
+                    )
 
         # Save the audio dialog to a json file
         dialog.to_file(audio_dialog_save_path)

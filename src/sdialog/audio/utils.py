@@ -310,6 +310,7 @@ class SourceVolume(Enum):
     MEDIUM = 0.02
     HIGH = 0.05
     VERY_HIGH = 0.07
+    EXTREMELY_HIGH = 0.10
 
 
 class AudioUtils:

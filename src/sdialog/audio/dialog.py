@@ -279,3 +279,60 @@ class AudioDialog(Dialog):
 
     def to_string(self):
         return self.model_dump_json(indent=4)
+
+    def display(self):
+        """
+        Displays the audio dialog.
+        """
+        from IPython.display import Audio, display
+
+        if len(self.audio_step_1_filepath) > 0:
+            print("-"*25)
+            print("Step 1:")
+            print("-"*25)
+            display(Audio(
+                self.audio_step_1_filepath,
+                autoplay=False
+            ))
+
+        if len(self.audio_step_2_filepath) > 0:
+            print("-"*25)
+            print("Step 2:")
+            print("-"*25)
+            display(Audio(
+                self.audio_step_2_filepath,
+                autoplay=False
+            ))
+
+        if len(self.audio_step_3_filepaths) > 0:
+
+            print("-"*25)
+            print("- Room Configurations")
+            print("-"*25)
+
+            # For each room configuration, display the original audio and the processed audio
+            for config_name in self.audio_step_3_filepaths:
+
+                print(f"> Room Configuration: {config_name}")
+                print("Original audio:")
+                display(Audio(
+                    self.audio_step_3_filepaths[config_name]["audio_path"],
+                    autoplay=False
+                ))
+
+                # If the room configuration has processed audio, display it
+                if (
+                    config_name in self.audio_step_3_filepaths
+                    and "audio_paths_post_processing" in self.audio_step_3_filepaths[config_name]
+                    and len(self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]) > 0
+                ):
+                    print("#"*10)
+                    print("Processed audio:")
+                    print("#"*10)
+
+                    # For each recording device, display the processed audio
+                    for _rd in self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]:
+                        display(Audio(
+                            self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"][_rd],
+                            autoplay=False
+                        ))

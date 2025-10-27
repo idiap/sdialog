@@ -28,6 +28,9 @@ class RecordingDevice(str, Enum):
     NEUMANN_U67_TUBE = "OD-FBVET30-LD-67NOS-P09-40-LC"
     RBN_CN_2 = "OD-FBVET30-RBN-CN-2-P09-100"
 
+    def __str__(self):
+        return self.value
+
 
 class ImpulseResponseDatabase(abc.ABC):
     """Abstract base class for an impulse response database."""
@@ -42,6 +45,14 @@ class ImpulseResponseDatabase(abc.ABC):
         Loads all impulse responses into memory.
         """
         raise NotImplementedError
+
+    def get_data(self) -> dict[str, str]:
+        """
+        Returns the data of the impulse response database.
+        :return: The data of the impulse response database.
+        :rtype: dict[str, str]
+        """
+        return self._data
 
     def get_ir(self, identifier: Union[str, RecordingDevice]) -> str:
         """
@@ -71,12 +82,12 @@ class LocalImpulseResponseDatabase(ImpulseResponseDatabase):
 
     :ivar metadata_file: The path to the metadata file.
     :vartype metadata_file: str
-    :ivar audio_directory: The path to the audio directory.
-    :vartype audio_directory: str
+    :ivar directory: The path to the audio directory.
+    :vartype directory: str
     """
-    def __init__(self, metadata_file: str, audio_directory: str):
+    def __init__(self, metadata_file: str, directory: str):
         self.metadata_file = metadata_file
-        self.audio_directory = audio_directory
+        self.directory = directory
         ImpulseResponseDatabase.__init__(self)
 
     def _populate(self) -> None:
@@ -90,8 +101,8 @@ class LocalImpulseResponseDatabase(ImpulseResponseDatabase):
         if not os.path.exists(self.metadata_file):
             raise ValueError(f"Metadata file not found at path: {self.metadata_file}")
 
-        if not os.path.isdir(self.audio_directory):
-            raise ValueError(f"Audio directory is not a directory: {self.audio_directory}")
+        if not os.path.isdir(self.directory):
+            raise ValueError(f"Audio directory is not a directory: {self.directory}")
 
         if self.metadata_file.endswith(".csv"):
             metadata = pd.read_csv(self.metadata_file)
@@ -103,11 +114,16 @@ class LocalImpulseResponseDatabase(ImpulseResponseDatabase):
         else:
             raise ValueError(f"Metadata file is not a csv / tsv / json file: {self.metadata_file}")
 
-        # Load the metadata
-        for index, row in metadata.iterrows():
+        # Convert the metadata to a list of dictionaries
+        if isinstance(metadata, pd.DataFrame):
+            metadata = metadata.to_dict(orient="records")
 
-            audio_path = os.path.join(self.audio_directory, str(row["audio"]))
+        # Load the metadata into the database
+        for row in metadata:
 
+            audio_path = os.path.join(self.directory, str(row["file_name"]))
+
+            # Check if the audio file exists
             if os.path.exists(audio_path):
                 self._data[str(row["identifier"])] = audio_path
             else:
