@@ -57,12 +57,13 @@ from typing import List, Optional, Union
 
 from sdialog import Dialog
 from sdialog.audio.dialog import AudioDialog
-from sdialog.audio.tts_engine import BaseTTS
-from sdialog.audio.tts_engine import KokoroTTS
+from sdialog.audio.processing import AudioProcessor
+from sdialog.audio.tts_engine import BaseTTS, KokoroTTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
 from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
+from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio import (
     generate_utterances_audios,
     save_utterances_audios,
@@ -91,7 +92,9 @@ def to_audio(
     source_volumes: Optional[dict[SourceType, SourceVolume]] = None,
     audio_file_format: Optional[str] = "wav",
     seed: Optional[int] = None,
-    re_sampling_rate: Optional[int] = None
+    re_sampling_rate: Optional[int] = None,
+    recording_device: Optional[Union[RecordingDevice, str]] = None,
+    impulse_response_database: Optional[ImpulseResponseDatabase] = None
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -146,6 +149,10 @@ def to_audio(
     :type seed: int
     :param re_sampling_rate: Re-sampling rate for the output audio.
     :type re_sampling_rate: Optional[int]
+    :param recording_device: The identifier of the recording device to simulate.
+    :type recording_device: Optional[RecordingDevice]
+    :param impulse_response_database: The database for impulse responses.
+    :type impulse_response_database: Optional[ImpulseResponseDatabase]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -194,17 +201,34 @@ def to_audio(
     if audio_file_format not in ["mp3", "wav", "flac"]:
         raise ValueError(f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}")
 
-    if do_step_3 and not do_step_2:
-        raise ValueError("The step 3 requires the step 2 to be done")
     if do_step_2 and not do_step_1:
         raise ValueError("The step 2 requires the step 1 to be done")
 
     if room_name is not None and not do_step_3:
         raise ValueError("The room name is only used if the step 3 is done")
 
-    _dialog: AudioDialog = AudioDialog.from_dialog(dialog)
+    # Build the path to save the audio dialog
+    if dialog_dir_name is not None and dir_audio is not None:
+        audio_dialog_save_path = os.path.join(
+            dir_audio,
+            dialog_dir_name,
+            "exported_audios",
+            "audio_dialog.json"
+        )
+    else:
+        audio_dialog_save_path = None
+
+    # Load the audio dialog from the existing file if it exists
+    if audio_dialog_save_path is not None and os.path.exists(audio_dialog_save_path):
+        _dialog: AudioDialog = AudioDialog.from_file(audio_dialog_save_path)
+    else:
+        _dialog: AudioDialog = AudioDialog.from_dialog(dialog)
 
     os.makedirs(dir_audio, exist_ok=True)
+
+    if do_step_3 and not do_step_2:
+        if not os.path.exists(_dialog.audio_step_2_filepath):
+            raise ValueError("The step 3 requires the step 2 to be done")
 
     if do_step_2 or do_step_3:
 
@@ -225,6 +249,7 @@ def to_audio(
         tts_pipeline=tts_engine,
         dscaper=_dsc,
         dir_audio=dir_audio,
+        impulse_response_database=impulse_response_database
     )
 
     if do_step_2 or do_step_3:
@@ -264,7 +289,8 @@ def to_audio(
         room_name=room_name,
         audio_file_format=audio_file_format,
         seed=seed,
-        re_sampling_rate=re_sampling_rate
+        re_sampling_rate=re_sampling_rate,
+        recording_device=recording_device
     )
 
     return _dialog
@@ -304,15 +330,19 @@ class AudioPipeline:
     :vartype _dscaper: Optional[Dscaper]
     :ivar sampling_rate: Audio sampling rate in Hz.
     :vartype sampling_rate: int
+    :ivar impulse_response_database: The database for impulse responses.
+    :vartype impulse_response_database: Optional[ImpulseResponseDatabase]
     """
 
     def __init__(
-            self,
-            dir_audio: Optional[str] = "./outputs",
-            tts_pipeline: Optional[BaseTTS] = None,
-            voice_database: Optional[BaseVoiceDatabase] = None,
-            sampling_rate: Optional[int] = 24_000,
-            dscaper=None):
+        self,
+        dir_audio: Optional[str] = "./outputs",
+        tts_pipeline: Optional[BaseTTS] = None,
+        voice_database: Optional[BaseVoiceDatabase] = None,
+        sampling_rate: Optional[int] = 24_000,
+        dscaper=None,
+        impulse_response_database: Optional[ImpulseResponseDatabase] = None
+    ):
         """
         Initialize the audio generation pipeline with configuration.
 
@@ -329,6 +359,8 @@ class AudioPipeline:
         :type sampling_rate: Optional[int]
         :param dscaper: dSCAPER instance for audio environment simulation.
         :type dscaper: Optional[Dscaper]
+        :param impulse_response_database: The database for impulse responses.
+        :type impulse_response_database: Optional[ImpulseResponseDatabase]
         """
 
         self.dir_audio = dir_audio
@@ -344,6 +376,12 @@ class AudioPipeline:
         self._dscaper = dscaper
 
         self.sampling_rate = sampling_rate
+
+        self.impulse_response_database = impulse_response_database
+
+        if self.impulse_response_database is None:
+            from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
+            self.impulse_response_database = HuggingFaceImpulseResponseDatabase("sdialog/impulse-responses")
 
     def populate_dscaper(
             self,
@@ -449,7 +487,8 @@ class AudioPipeline:
         keep_duplicate: bool = True,
         audio_file_format: str = "wav",
         seed: int = None,
-        re_sampling_rate: Optional[int] = None
+        re_sampling_rate: Optional[int] = None,
+        recording_device: Optional[Union[RecordingDevice, str]] = None
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -483,6 +522,8 @@ class AudioPipeline:
         :type seed: int
         :param re_sampling_rate: Re-sampling rate for the output audio.
         :type re_sampling_rate: Optional[int]
+        :param recording_device: The identifier of the recording device to simulate.
+        :type recording_device: Optional[Union[RecordingDevice, str]]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
         """
@@ -750,6 +791,68 @@ class AudioPipeline:
             raise ValueError(
                 "The room or the dSCAPER is not set, which makes the generation of the room accoustic audios impossible"
             )
+
+        # Apply microphone effect if a recording device is specified
+        if recording_device is not None and do_step_3:
+
+            if self.impulse_response_database is None:
+                raise ValueError("The impulse response database is not set, simulation of the microphone is impossible")
+
+            logging.info(f"[Post-Processing] Applying microphone effect for device: {recording_device}")
+
+            if not dialog.audio_step_3_filepaths or len(dialog.audio_step_3_filepaths) == 0:
+                raise ValueError("[Post-Processing] No room acoustics audio found to apply post-processing on.")
+
+            for _room_name, room_data in list(dialog.audio_step_3_filepaths.items()):
+
+                if room_name is not None and room_name != _room_name:
+                    continue
+
+                input_audio_path = room_data["audio_path"]
+
+                if not os.path.exists(input_audio_path):
+                    raise ValueError(f"[Post-Processing] Input audio path not found: {input_audio_path}")
+
+                output_audio_name = (
+                    f"audio_post_processing-{_room_name}-"
+                    f"{recording_device.value if isinstance(recording_device, RecordingDevice) else recording_device}"
+                    f".{audio_file_format}"
+                )
+
+                output_audio_path = os.path.join(
+                    dialog.audio_dir_path,
+                    dialog_directory,
+                    "exported_audios",
+                    "post_processing",
+                    output_audio_name
+                )
+
+                # Create the directory if it doesn't exist
+                os.makedirs(os.path.dirname(output_audio_path), exist_ok=True)
+
+                if "audio_paths_post_processing" not in room_data:
+                    room_data["audio_paths_post_processing"] = {}
+
+                if str(recording_device) in room_data["audio_paths_post_processing"]:
+                    logging.warning(
+                        f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
+                        f" and room configuration: {_room_name}. Skipping..."
+                    )
+                    continue
+
+                AudioProcessor.apply_microphone_effect(
+                    input_audio_path=input_audio_path,
+                    output_audio_path=output_audio_path,
+                    device=recording_device,
+                    impulse_response_database=self.impulse_response_database
+                )
+
+                room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+
+                logging.info(
+                    f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
+                    f"Output saved to: {output_audio_path}"
+                )
 
         # Save the audio dialog to a json file
         dialog.to_file(audio_dialog_save_path)

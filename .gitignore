@@ -27,6 +27,8 @@ tutorials/dscaper_data
 tutorials/dscaper_data_customer_support
 tutorials/audio_outputs
 tutorials/audio_outputs_customer_support
+tutorials/dscaper_data_impulse_response
+tutorials/audio_outputs_impulse_response
 tutorials/my_custom_voices
 tutorials/room.png
 *audio_dialog.json

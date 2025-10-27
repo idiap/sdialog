@@ -368,6 +368,20 @@ def generate_audio_room_accoustic(
     if room_name in dialog.audio_step_3_filepaths:
         logging.warning(f"Room '{room_name}' already exists in the dialog")
 
+    # If the audio paths post processing are already in the dialog, use them, otherwise create a new dictionary
+    if (
+        room_name in dialog.audio_step_3_filepaths
+        and "audio_paths_post_processing" in dialog.audio_step_3_filepaths[room_name]
+        and dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"] != {}
+    ):
+        audio_paths_post_processing = dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"]
+        logging.info(
+            f"Existing audio paths for the post processing stage "
+            f"already exist for room name: '{room_name}' and are kept unchanged"
+        )
+    else:
+        audio_paths_post_processing = {}
+
     dialog.audio_step_3_filepaths[room_name] = {
         "audio_path": current_room_audio_path,
         "microphone_position": room.mic_position,
@@ -377,7 +391,8 @@ def generate_audio_room_accoustic(
         "kwargs_pyroom": kwargs_pyroom,
         "background_effect": background_effect,
         "foreground_effect": foreground_effect,
-        "foreground_effect_position": foreground_effect_position
+        "foreground_effect_position": foreground_effect_position,
+        "audio_paths_post_processing": audio_paths_post_processing
     }
 
     return dialog
