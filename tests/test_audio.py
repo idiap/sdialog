@@ -689,7 +689,7 @@ def mock_dependencies():
          patch('sdialog.audio.pipeline.HuggingfaceVoiceDatabase') as mock_db, \
          patch('sdialog.audio.pipeline.scaper', create=True) as mock_scaper, \
          patch('sdialog.audio.pipeline.generate_utterances_audios') as mock_gen_utt, \
-         patch('sdialog.audio.pipeline.save_utterances_audios') as mock_save_utt, \
+         patch('sdialog.audio.dialog.AudioDialog.save_utterances_audios') as mock_save_utt, \
          patch('sdialog.audio.pipeline.librosa', create=True) as mock_librosa, \
          patch('sdialog.audio.pipeline.generate_audio_room_accoustic') as mock_gen_room:
         yield {
@@ -724,7 +724,6 @@ def test_audio_pipeline_inference_step1(mock_dependencies, audio_dialog_instance
         turn.set_audio(np.zeros(10), 16000)
 
     mock_dependencies["gen_utt"].return_value = dialog_with_audio
-    mock_dependencies["save_utt"].return_value = dialog_with_audio
 
     pipeline.inference(audio_dialog_instance, do_step_1=True)
 

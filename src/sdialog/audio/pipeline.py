@@ -66,7 +66,6 @@ from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceData
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio import (
     generate_utterances_audios,
-    save_utterances_audios,
     generate_audio_room_accoustic
 )
 
@@ -608,10 +607,9 @@ class AudioPipeline:
             )
 
             # Save the utterances audios to the project path
-            dialog: AudioDialog = save_utterances_audios(
-                dialog,
-                self.dir_audio,
-                project_path=f"{dialog.audio_dir_path}/{dialog_directory}"
+            dialog.save_utterances_audios(
+                dir_audio=self.dir_audio,
+                project_path=os.path.join(dialog.audio_dir_path, dialog_directory)
             )
 
             # Combine the audio segments into a single master audio track as a baseline

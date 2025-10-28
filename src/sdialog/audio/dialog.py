@@ -340,6 +340,47 @@ class AudioDialog(Dialog):
                             autoplay=False
                         ))
 
+    def save_utterances_audios(
+        self,
+        dir_audio: str,
+        project_path: str,
+        sampling_rate: int = 24_000
+    ) -> None:
+        """
+        Saves individual utterance audio files to the specified directory structure.
+
+        This function creates the necessary directory structure and saves each turn's
+        audio as a separate WAV file. It also calculates timing information for each
+        utterance and updates the AudioTurn objects with file paths and timing data.
+
+        Directory structure created:
+        - {project_path}/utterances/ - Individual utterance audio files
+        - {project_path}/exported_audios/ - Combined audio files
+        - {project_path}/exported_audios/rooms/ - Room acoustics simulation results
+
+        :param dir_audio: Base directory path for audio storage.
+        :type dir_audio: str
+        :param project_path: Project-specific path for organizing audio files.
+        :type project_path: str
+        :param sampling_rate: Audio sampling rate for saving files (default: 24000 Hz).
+        :type sampling_rate: int
+        """
+
+        self.audio_dir_path = dir_audio.rstrip("/")
+        os.makedirs(f"{project_path}/utterances", exist_ok=True)
+        os.makedirs(f"{project_path}/exported_audios", exist_ok=True)
+        os.makedirs(f"{project_path}/exported_audios/rooms", exist_ok=True)
+
+        current_time = 0.0
+
+        for idx, turn in enumerate(self.turns):
+            turn.audio_path = f"{project_path}/utterances/{idx}_{turn.speaker}.wav"
+            turn.audio_duration = turn.get_audio().shape[0] / sampling_rate
+            turn.audio_start_time = current_time
+            current_time += turn.audio_duration
+
+            sf.write(turn.audio_path, turn.get_audio(), sampling_rate)
+
     def persona_to_voice(
         self,
         voice_database: BaseVoiceDatabase,
