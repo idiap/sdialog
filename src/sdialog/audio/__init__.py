@@ -55,7 +55,6 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import torch
-import random
 import logging
 import numpy as np
 from tqdm import tqdm
@@ -111,8 +110,7 @@ def generate_utterances_audios(
     """
 
     # Attribute the voice to the persona of the dialog
-    dialog = attribute_voice_to_persona(
-        dialog,
+    dialog.persona_to_voice(
         voice_database=voice_database,
         voices=voices,
         keep_duplicate=keep_duplicate,
@@ -133,87 +131,6 @@ def generate_utterances_audios(
 
         # Set the utterance audio to the turn
         turn.set_audio(utterance_audio, sampling_rate)
-
-    return dialog
-
-
-def attribute_voice_to_persona(
-    dialog: AudioDialog,
-    voice_database: BaseVoiceDatabase,
-    voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-    keep_duplicate: bool = True,
-    seed: int = None
-) -> AudioDialog:
-    """
-    Assigns appropriate voices to speakers based on their persona characteristics.
-
-    This function analyzes each speaker's persona information (gender, age, language)
-    and assigns a suitable voice from the voice database. If persona information is
-    missing, default values are assigned with appropriate warnings.
-
-    Voice assignment logic:
-    1. If explicit voices are provided, use them for the specified roles
-    2. If no explicit voices, select from database based on persona characteristics
-    3. Handle missing persona information by assigning random/default values
-    4. Support both Voice objects and voice identifier tuples
-
-    :param dialog: The AudioDialog object containing speaker personas.
-    :type dialog: AudioDialog
-    :param voice_database: Database containing available voices with metadata.
-    :type voice_database: BaseVoiceDatabase
-    :param voices: Optional dictionary mapping speaker roles to specific voices.
-                  Keys are Role enums, values can be Voice objects or (identifier, language) tuples.
-    :type voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]]
-    :param keep_duplicate: If True, allows voice reuse across speakers.
-    :type keep_duplicate: bool
-    :param seed: Seed for random number generator.
-    :type seed: int
-    :return: The AudioDialog with voice assignments added to each persona.
-    :rtype: AudioDialog
-    """
-    for speaker, persona in dialog.personas.items():
-
-        # Check if the information about the voice is already in the persona, else add a random information
-        if "gender" not in persona or persona["gender"] is None:
-            persona["gender"] = random.choice(["male", "female"])
-            logging.warning(f"Gender not found in the persona {speaker}, a random gender has been added")
-
-        if "age" not in persona or persona["age"] is None:
-            persona["age"] = random.randint(18, 65)
-            logging.warning(f"Age not found in the persona {speaker}, a random age has been added")
-
-        if "language" not in persona or persona["language"] is None:
-            persona["language"] = "english"
-            logging.warning(f"Language not found in the persona {speaker}, english has been considered by default")
-
-        # Get the role of the speaker (speaker_1 or speaker_2)
-        role: Role = dialog.speakers_roles[speaker]
-
-        if voices is not None and voices != {} and role not in voices:
-            raise ValueError(f"Voice for role {role} not found in the voices dictionary")
-
-        # If no voices are provided, get a voice from the voice database based on the gender, age and language
-        if voices is None or voices == {}:
-            persona["voice"] = voice_database.get_voice(
-                gender=persona["gender"],
-                age=persona["age"],
-                lang=persona["language"],
-                keep_duplicate=keep_duplicate,
-                seed=seed
-            )
-
-        # If the voice of the speaker is provided as a Voice object
-        elif isinstance(voices[role], Voice):
-            persona["voice"] = voices[role]
-
-        # If the voice of the speaker is provided as an identifier (like "am_echo")
-        elif isinstance(voices[role], tuple):
-            _identifier, _language = voices[role]
-            persona["voice"] = voice_database.get_voice_by_identifier(
-                _identifier,
-                _language,
-                keep_duplicate=keep_duplicate
-            )
 
     return dialog
 

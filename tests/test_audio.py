@@ -554,6 +554,133 @@ def test_audio_dialog_to_file_errors(audio_dialog_instance, tmp_path):
         audio_dialog_instance.to_file(str(file_path), overwrite=False)
 
 
+@pytest.fixture
+def dialog_with_personas():
+    """Returns a Dialog instance with personas for testing persona_to_voice."""
+    dialog = Dialog(
+        turns=[
+            Turn(speaker="Alice", text="Hello"),
+            Turn(speaker="Bob", text="Hi there"),
+        ],
+        personas={
+            "Alice": {"gender": "female", "age": 30, "language": "english"},
+            "Bob": {"gender": "male", "age": 40, "language": "english"},
+        }
+    )
+    return AudioDialog.from_dialog(dialog)
+
+
+def test_persona_to_voice_no_voices_provided(dialog_with_personas):
+    """Tests voice assignment from database when no explicit voices are given."""
+    mock_voice_db = MagicMock(spec=BaseVoiceDatabase)
+    mock_voice_db.get_voice.side_effect = [
+        Voice(identifier="v_female", gender="female", age=30, voice="f.wav", language="english"),
+        Voice(identifier="v_male", gender="male", age=40, voice="m.wav", language="english"),
+    ]
+
+    dialog_with_personas.persona_to_voice(mock_voice_db)
+
+    assert mock_voice_db.get_voice.call_count == 2
+    # The order of calls is not guaranteed, so we check the arguments of each call
+    call_args_list = mock_voice_db.get_voice.call_args_list
+    alice_call = next((c for c in call_args_list if c.kwargs.get("gender") == "female"), None)
+    bob_call = next((c for c in call_args_list if c.kwargs.get("gender") == "male"), None)
+    assert alice_call is not None
+    assert alice_call.kwargs["age"] == 30
+    assert alice_call.kwargs["lang"] == "english"
+
+    assert bob_call is not None
+    assert bob_call.kwargs["age"] == 40
+    assert bob_call.kwargs["lang"] == "english"
+
+    assert dialog_with_personas.personas["Alice"]["voice"].identifier == "v_female"
+    assert dialog_with_personas.personas["Bob"]["voice"].identifier == "v_male"
+
+
+def test_persona_to_voice_missing_persona_info(dialog_with_personas):
+    """Tests that default values are used for missing persona info."""
+    # Remove age and language from Alice's persona
+    dialog_with_personas.personas["Alice"] = {"gender": "female"}
+
+    mock_voice_db = MagicMock(spec=BaseVoiceDatabase)
+    mock_voice_db.get_voice.return_value = Voice(
+        identifier="v_random", gender="female", age=25, voice="r.wav", language="english"
+    )
+
+    with patch('logging.warning') as mock_warning:
+        dialog_with_personas.persona_to_voice(mock_voice_db, seed=42)
+        assert mock_warning.call_count == 2  # one for age, one for language
+
+    call_args_list = mock_voice_db.get_voice.call_args_list
+    alice_call = next((c for c in call_args_list if c.kwargs.get("gender") == "female"), None)
+
+    assert alice_call is not None
+    assert isinstance(alice_call.kwargs["age"], int)
+    assert alice_call.kwargs["lang"] == "english"
+
+
+def test_persona_to_voice_with_voice_objects(dialog_with_personas):
+    """Tests voice assignment using provided Voice objects."""
+    mock_voice_db = MagicMock(spec=BaseVoiceDatabase)
+    voice1 = Voice(identifier="v1", gender="female", age=30, voice="v1.wav", language="english")
+    voice2 = Voice(identifier="v2", gender="male", age=40, voice="v2.wav", language="english")
+    voices = {
+        Role.SPEAKER_1: voice1,
+        Role.SPEAKER_2: voice2,
+    }
+
+    dialog_with_personas.persona_to_voice(mock_voice_db, voices=voices)
+
+    mock_voice_db.get_voice.assert_not_called()
+    mock_voice_db.get_voice_by_identifier.assert_not_called()
+
+    assert dialog_with_personas.personas["Alice"]["voice"] == voice1
+    assert dialog_with_personas.personas["Bob"]["voice"] == voice2
+
+
+def test_persona_to_voice_with_identifiers(dialog_with_personas):
+    """Tests voice assignment using provided (identifier, language) tuples."""
+    mock_voice_db = MagicMock(spec=BaseVoiceDatabase)
+    voice1 = Voice(identifier="id1", gender="female", age=30, voice="v1.wav", language="english")
+    voice2 = Voice(identifier="id2", gender="male", age=40, voice="v2.wav", language="english")
+    mock_voice_db.get_voice_by_identifier.side_effect = [voice1, voice2]
+
+    voices = {
+        Role.SPEAKER_1: ("id1", "english"),
+        Role.SPEAKER_2: ("id2", "english"),
+    }
+
+    dialog_with_personas.persona_to_voice(mock_voice_db, voices=voices)
+
+    mock_voice_db.get_voice.assert_not_called()
+    assert mock_voice_db.get_voice_by_identifier.call_count == 2
+    call_args_list = mock_voice_db.get_voice_by_identifier.call_args_list
+
+    alice_call = next((c for c in call_args_list if c.args[0] == "id1"), None)
+    bob_call = next((c for c in call_args_list if c.args[0] == "id2"), None)
+
+    assert alice_call is not None
+    assert alice_call.args[1] == "english"
+
+    assert bob_call is not None
+    assert bob_call.args[1] == "english"
+    assert dialog_with_personas.personas["Alice"]["voice"] == voice1
+    assert dialog_with_personas.personas["Bob"]["voice"] == voice2
+
+
+def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
+    """Tests that a ValueError is raised if a role is missing from the voices dict."""
+    mock_voice_db = MagicMock(spec=BaseVoiceDatabase)
+    voice1 = Voice(identifier="v1", gender="female", age=30, voice="v1.wav", language="english")
+    voices = {
+        Role.SPEAKER_1: voice1,
+        # SPEAKER_2 is missing
+    }
+
+    with pytest.raises(ValueError, match="Voice for role speaker_2 not found in the voices dictionary"):
+        dialog_with_personas.persona_to_voice(mock_voice_db, voices=voices)
+
+
 # Tests for AudioPipeline
 @pytest.fixture
 def mock_dependencies():

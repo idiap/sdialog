@@ -403,3 +403,6 @@ class Role(str, Enum):
     """
     SPEAKER_1 = "speaker_1"
     SPEAKER_2 = "speaker_2"
+
+    def __str__(self):
+        return self.value
