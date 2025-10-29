@@ -1217,6 +1217,7 @@ def test_apply_microphone_effect_resampling(mock_resample, mock_sf_read, audio_p
         (np.random.randn(16000), 16000),  # input audio
         (np.random.randn(8000), 8000)    # impulse response
     ]
+    mock_resample.return_value = np.random.randn(16000)  # Provide a return value for the mock
     AudioProcessor.apply_microphone_effect(
         input_audio_path=str(input_path),
         output_audio_path=str(output_path),
@@ -1227,19 +1228,22 @@ def test_apply_microphone_effect_resampling(mock_resample, mock_sf_read, audio_p
 
 
 @patch('sdialog.audio.processing.sf.write')
-def test_apply_microphone_effect_gain(mock_sf_write, audio_processor_setup):
+def test_apply_microphone_effect_rms_normalization(mock_sf_write, audio_processor_setup):
+    """Tests that the RMS of the output audio is normalized to the input audio's RMS."""
     input_path, output_path, mock_db, _ = audio_processor_setup
 
-    # Run with default gain
+    # Read original audio to get its RMS
+    original_audio, _ = sf.read(input_path)
+    original_rms = np.sqrt(np.mean(original_audio**2))
+
+    # Run the effect
     AudioProcessor.apply_microphone_effect(str(input_path), str(output_path), "dummy", mock_db)
-    audio_default = mock_sf_write.call_args_list[0][0][1]
 
-    # Run with custom gain
-    output_path_custom = output_path.with_name("output_custom.wav")
-    AudioProcessor.apply_microphone_effect(str(input_path), str(output_path_custom), "dummy", mock_db, gain_db=-5.0)
-    audio_custom = mock_sf_write.call_args_list[1][0][1]
+    # Get the processed audio from the mock
+    processed_audio = mock_sf_write.call_args[0][1]
+    processed_rms = np.sqrt(np.mean(processed_audio**2))
 
-    assert np.max(np.abs(audio_custom)) > np.max(np.abs(audio_default))
+    assert np.isclose(original_rms, processed_rms)
 
 
 def test_apply_microphone_effect_ir_not_found(audio_processor_setup):
