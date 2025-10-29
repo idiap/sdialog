@@ -8,7 +8,8 @@ This module provides a class for processing audio signals.
 
 import os
 import logging
-from typing import Union, Optional
+import numpy as np
+from typing import Union
 
 import librosa
 import soundfile as sf
@@ -47,15 +48,12 @@ class AudioProcessor:
         This class uses static methods, so you don't need to instantiate it.
     """
 
-    DEFAULT_GAIN_REDUCTION_DB = -10.0
-
     @staticmethod
     def apply_microphone_effect(
         input_audio_path: str,
         output_audio_path: str,
         device: Union[RecordingDevice, str],
         impulse_response_database: ImpulseResponseDatabase,
-        gain_db: Optional[float] = None
     ):
         """
         Applies a microphone effect to an audio signal by convolving it with an
@@ -65,7 +63,8 @@ class AudioProcessor:
         response, and applies it to the audio. The sample rates of the audio
         and impulse response are matched by resampling the impulse response if
         necessary. The resulting audio is then saved to a specified output
-        path. A gain reduction can be applied to prevent clipping.
+        path. The gain of the processed audio is leveled to match the original
+        audio.
 
         :param input_audio_path: Path to the input audio file.
         :type input_audio_path: str
@@ -77,9 +76,6 @@ class AudioProcessor:
         :param impulse_response_database: The database containing impulse
                                           responses.
         :type impulse_response_database: ImpulseResponseDatabase
-        :param gain_db: The gain in decibels to apply to the processed audio.
-                        If None, a default gain reduction is used.
-        :type gain_db: Optional[float]
         """
 
         # Load the input audio of step 3
@@ -116,16 +112,13 @@ class AudioProcessor:
         # Apply convolution to the audio of step 3
         processed_audio = fftconvolve(audio, impulse_response, mode="full")
 
-        # # Normalize the output audio to prevent clipping
-        # max_val = np.max(np.abs(processed_audio))
-        # if max_val > 0:
-        #     processed_audio /= max_val
+        # Level the gain of the processed audio to match the original audio
+        original_rms = np.sqrt(np.mean(audio**2))
+        processed_rms = np.sqrt(np.mean(processed_audio**2))
 
-        # Reduce gain by the user defined or default gain reduction in decibels
-        if gain_db is not None:
-            processed_audio *= (10 ** (gain_db / 20))
-        else:
-            processed_audio *= (10 ** (AudioProcessor.DEFAULT_GAIN_REDUCTION_DB / 20))
+        if processed_rms > 0:
+            gain_factor = original_rms / processed_rms
+            processed_audio *= gain_factor
 
         # Save the processed audio
         sf.write(output_audio_path, processed_audio, sample_rate)
