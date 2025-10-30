@@ -661,12 +661,92 @@ Let's start with the simplest way to generate audio from your dialogues! SDialog
         do_step_2=True, 
         do_step_3=True
     )
+
+
+Advanced Audio Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~
+For more control over the audio generation process, let's use the full AudioPipeline with custom configurations!
+
+**Complete Audio Pipeline with Room Acoustics**:
+
+.. code-block:: python
+
+    from sdialog.audio import AudioDialog, KokoroTTS, HuggingfaceVoiceDatabase
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.room import DirectivityType
+    from sdialog.audio.utils import SourceVolume, SourceType, Role
+    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+    from sdialog.personas import Persona
+    from sdialog.agents import Agent
+
+    # 1. Create a base text dialogue
+    doctor = Persona(name="Dr. Smith", role="doctor", age=40, gender="male", language="english")
+    patient = Persona(name="John", role="patient", age=45, gender="male", language="english")
     
-    # Play the generated audio (in Jupyter notebooks)
-    from IPython.display import Audio, display
+    doctor_agent = Agent(persona=doctor)
+    patient_agent = Agent(persona=patient, first_utterance="Hello doctor, I have chest pain.")
     
-    if audio_dialog.audio_step_1_filepath:
-        display(Audio(audio_dialog.audio_step_1_filepath, autoplay=False))
+    dialog = patient_agent.dialog_with(doctor_agent, max_turns=6)
+    
+    # 2. Convert to audio dialogue
+    audio_dialog = AudioDialog.from_dialog(dialog)
+    
+    # 3. Configure TTS engine and voice database
+    tts_engine = KokoroTTS(lang_code="a")  # American English
+    voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+    
+    # 4. Setup audio pipeline
+    audio_pipeline = AudioPipeline(
+        voice_database=voice_database,
+        tts_pipeline=tts_engine,
+        dir_audio="./audio_outputs"
+    )
+    
+    # 5. Generate a medical examination room
+    room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+    
+    # 6. Position speakers around furniture in the room
+    room.place_speaker_around_furniture(
+        speaker_name=Role.SPEAKER_1, 
+        furniture_name="desk", 
+        max_distance=1.0
+    )
+    room.place_speaker_around_furniture(
+        speaker_name=Role.SPEAKER_2, 
+        furniture_name="desk", 
+        max_distance=1.0
+    )
+    
+    # 7. Set microphone directivity
+    room.set_directivity(direction=DirectivityType.OMNIDIRECTIONAL)
+    
+    # 8. Run the complete audio pipeline
+    audio_dialog = audio_pipeline.inference(
+        audio_dialog,
+        environment={
+            "room": room,
+            "background_effect": "white_noise",
+            "foreground_effect": "ac_noise_minimal",
+            "source_volumes": {
+                SourceType.ROOM: SourceVolume.HIGH,
+                SourceType.BACKGROUND: SourceVolume.VERY_LOW
+            },
+            "kwargs_pyroom": {
+                "ray_tracing": True,
+                "air_absorption": True
+            }
+        },
+        do_step_1=True,  # Combine utterances into a single dialogue audio
+        do_step_2=True,  # Generate dSCAPER timeline
+        do_step_3=True,  # Apply room acoustics simulation
+        dialog_dir_name="medical_consultation",
+        room_name="examination_room"
+    )
+    
+    # 9. Access the generated audio files
+    print(f"Combined utterances: {audio_dialog.audio_step_1_filepath}")
+    print(f"DScaper timeline: {audio_dialog.audio_step_2_filepath}")
+    print(f"Room acoustics simulation: {audio_dialog.audio_step_3_filepaths}")
 
 Room Generation and Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -704,6 +784,52 @@ SDialog provides powerful room generation capabilities for creating realistic ac
     
     print(f"Small room: {small_room.get_square_meters():.1f} m²")
     print(f"Large room: {large_room.get_square_meters():.1f} m²")
+
+**Custom Room Generator** - Create your own specialized room types:
+
+.. code-block:: python
+
+    from sdialog.audio.room import Room
+    from sdialog.audio.utils import Furniture, RGBAColor
+    from sdialog.audio.room_generator import RoomGenerator, Dimensions3D
+    import random
+    import time
+    
+    class WarehouseRoomGenerator(RoomGenerator):
+        def __init__(self):
+            super().__init__()
+            self.ROOM_SIZES = {
+                "big_warehouse": ([1000, 2500], 0.47, "big_warehouse"),
+                "small_warehouse": ([100, 200, 300], 0.75, "small_warehouse"),
+            }
+        
+        def generate(self, args):
+            warehouse_type = args["warehouse_type"]
+            floor_area, reverberation_ratio, name = self.ROOM_SIZES[warehouse_type]
+            
+            # Calculate dimensions
+            dims = Dimensions3D(width=20, length=25, height=10)
+            
+            room = Room(
+                name=f"Warehouse: {name}",
+                dimensions=dims,
+                reverberation_time_ratio=reverberation_ratio,
+                furnitures={
+                    "door": Furniture(
+                        name="door",
+                        x=0.10, y=0.10,
+                        width=0.70, height=2.10, depth=0.5
+                    )
+                }
+            )
+            return room
+    
+    # Use custom generator
+    warehouse_gen = WarehouseRoomGenerator()
+    warehouse = warehouse_gen.generate({"warehouse_type": "big_warehouse"})
+    
+    print(f"Warehouse area: {warehouse.get_square_meters():.1f} m²")
+    print(f"Warehouse volume: {warehouse.get_volume():.1f} m³")
 
 **Room Visualization** - Visualize room layouts and configurations:
 
@@ -759,6 +885,49 @@ SDialog provides powerful room generation capabilities for creating realistic ac
         mic_position=MicrophonePosition.CUSTOM,
         mic_position_3d=Position3D(x=4.0, y=3.0, z=1.5)
     )
+
+**Speaker Placement** - Position speakers around furniture in a room with multiple furniture:
+
+.. code-block:: python
+
+    from sdialog.audio.utils import SpeakerSide, Role
+    from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
+
+    room = Room(
+        name="Demo Room with Speakers and Furniture",
+        dimensions=Dimensions3D(width=10, length=10, height=3),
+        mic_position=MicrophonePosition.CEILING_CENTERED
+    )
+    
+    # Add furniture to room
+    room.add_furnitures({
+        "lamp": Furniture(
+            name="lamp",
+            x=6.5, y=1.5,
+            width=0.72, height=1.3, depth=0.72
+        ),
+        "chair": Furniture(
+            name="chair",
+            x=2.5, y=4.5,
+            width=0.2, height=1.3, depth=0.2
+        )
+    })
+    
+    # Position speakers around furniture
+    room.place_speaker_around_furniture(
+        speaker_name=Role.SPEAKER_1, 
+        furniture_name="lamp"
+    )
+    room.place_speaker_around_furniture(
+        speaker_name=Role.SPEAKER_2, 
+        furniture_name="chair",
+        max_distance=2.0,
+        side=SpeakerSide.BACK
+    )
+    
+    # Calculate distances
+    distances = room.get_speaker_distances_to_microphone(dimensions=2)
+    print(f"Speaker 2D distances to the microphone: {distances}")
 
 Voice Database Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -853,14 +1022,11 @@ SDialog supports multiple voice database types for flexible voice selection. Let
     except ValueError as e:
         print("Expected error:", e)
 
-
-Impulse Response Database and Microphone Effects
+Microphone Effects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SDialog allows you to simulate different microphone effects by convolving audio with impulse responses from an impulse response database.
 
-SDialog allows you to simulate different microphone effects by convolving audio with impulse responses.
-You can use a local database or one from the Hugging Face Hub.
-
-**Using a Local Impulse Response Database**:
+**Apply Microphone Effect from a Local Impulse Response Database** - Apply a microphone effect to an audio file by convolving it with an impulse response from a local database:
 
 .. code-block:: python
 
@@ -901,134 +1067,6 @@ You can use a local database or one from the Hugging Face Hub.
     hf_db = HuggingFaceImpulseResponseDatabase(repo_id="your_username/your_ir_dataset")
     ir_path = hf_db.get_ir("some_ir_identifier")
 
-
-Advanced Audio Pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~
-For more control over the audio generation process, let's use the full AudioPipeline with custom configurations!
-
-**Complete Audio Pipeline with Room Acoustics**:
-
-.. code-block:: python
-
-    from sdialog.audio import AudioDialog, KokoroTTS, HuggingfaceVoiceDatabase
-    from sdialog.audio.pipeline import AudioPipeline
-    from sdialog.audio.room import DirectivityType
-    from sdialog.audio.utils import SourceVolume, SourceType, Role
-    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-    from sdialog.personas import Persona
-    from sdialog.agents import Agent
-
-    # 1. Create a base text dialogue
-    doctor = Persona(name="Dr. Smith", role="doctor", age=40, gender="male", language="english")
-    patient = Persona(name="John", role="patient", age=45, gender="male", language="english")
-    
-    doctor_agent = Agent(persona=doctor)
-    patient_agent = Agent(persona=patient, first_utterance="Hello doctor, I have chest pain.")
-    
-    dialog = patient_agent.dialog_with(doctor_agent, max_turns=6)
-    
-    # 2. Convert to audio dialogue
-    audio_dialog = AudioDialog.from_dialog(dialog)
-    
-    # 3. Configure TTS engine and voice database
-    tts_engine = KokoroTTS(lang_code="a")  # American English
-    voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-    
-    # 4. Setup audio pipeline
-    audio_pipeline = AudioPipeline(
-        voice_database=voice_database,
-        tts_pipeline=tts_engine,
-        dir_audio="./audio_outputs"
-    )
-    
-    # 5. Generate a medical examination room
-    room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
-    
-    # 6. Position speakers around furniture in the room
-    room.place_speaker_around_furniture(
-        speaker_name=Role.SPEAKER_1, 
-        furniture_name="desk", 
-        max_distance=1.0
-    )
-    room.place_speaker_around_furniture(
-        speaker_name=Role.SPEAKER_2, 
-        furniture_name="desk", 
-        max_distance=1.0
-    )
-    
-    # 7. Set microphone directivity
-    room.set_directivity(direction=DirectivityType.OMNIDIRECTIONAL)
-    
-    # 8. Run the complete audio pipeline
-    audio_dialog = audio_pipeline.inference(
-        audio_dialog,
-        environment={
-            "room": room,
-            "background_effect": "white_noise",
-            "foreground_effect": "ac_noise_minimal",
-            "source_volumes": {
-                SourceType.ROOM: SourceVolume.HIGH,
-                SourceType.BACKGROUND: SourceVolume.VERY_LOW
-            },
-            "kwargs_pyroom": {
-                "ray_tracing": True,
-                "air_absorption": True
-            }
-        },
-        do_step_1=True,  # Combine utterances into a single dialogue audio
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics simulation
-        dialog_dir_name="medical_consultation",
-        room_name="examination_room"
-    )
-    
-    # 9. Access the generated audio files
-    print(f"Combined utterances: {audio_dialog.audio_step_1_filepath}")
-    print(f"DScaper timeline: {audio_dialog.audio_step_2_filepath}")
-    print(f"Room acoustics simulation: {audio_dialog.audio_step_3_filepaths}")
-
-**Speaker and Furniture Placement** - Position speakers around furniture:
-
-.. code-block:: python
-
-    from sdialog.audio.utils import SpeakerSide, Role
-    from sdialog.audio.room import Room, Dimensions3D, MicrophonePosition
-
-    room = Room(
-        name="Demo Room with Speakers and Furniture",
-        dimensions=Dimensions3D(width=10, length=10, height=3),
-        mic_position=MicrophonePosition.CEILING_CENTERED
-    )
-    
-    # Add furniture to room
-    room.add_furnitures({
-        "lamp": Furniture(
-            name="lamp",
-            x=6.5, y=1.5,
-            width=0.72, height=1.3, depth=0.72
-        ),
-        "chair": Furniture(
-            name="chair",
-            x=2.5, y=4.5,
-            width=0.2, height=1.3, depth=0.2
-        )
-    })
-    
-    # Position speakers around furniture
-    room.place_speaker_around_furniture(
-        speaker_name=Role.SPEAKER_1, 
-        furniture_name="lamp"
-    )
-    room.place_speaker_around_furniture(
-        speaker_name=Role.SPEAKER_2, 
-        furniture_name="chair",
-        max_distance=2.0,
-        side=SpeakerSide.BACK
-    )
-    
-    # Calculate distances
-    distances = room.get_speaker_distances_to_microphone(dimensions=2)
-    print(f"Speaker 2D distances to the microphone: {distances}")
 
 Multilingual Audio Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1098,51 +1136,3 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
         spanish_dialog,
         voices=spanish_voices
     )
-
-Custom Room Generator
-~~~~~~~~~~~~~~~~~~~~~~
-Ready to create your own specialized room types? Let's build a custom room generator for warehouses!
-
-.. code-block:: python
-
-    from sdialog.audio.room import Room
-    from sdialog.audio.utils import Furniture, RGBAColor
-    from sdialog.audio.room_generator import RoomGenerator, Dimensions3D
-    import random
-    import time
-    
-    class WarehouseRoomGenerator(RoomGenerator):
-        def __init__(self):
-            super().__init__()
-            self.ROOM_SIZES = {
-                "big_warehouse": ([1000, 2500], 0.47, "big_warehouse"),
-                "small_warehouse": ([100, 200, 300], 0.75, "small_warehouse"),
-            }
-        
-        def generate(self, args):
-            warehouse_type = args["warehouse_type"]
-            floor_area, reverberation_ratio, name = self.ROOM_SIZES[warehouse_type]
-            
-            # Calculate dimensions
-            dims = Dimensions3D(width=20, length=25, height=10)
-            
-            room = Room(
-                name=f"Warehouse: {name}",
-                dimensions=dims,
-                reverberation_time_ratio=reverberation_ratio,
-                furnitures={
-                    "door": Furniture(
-                        name="door",
-                        x=0.10, y=0.10,
-                        width=0.70, height=2.10, depth=0.5
-                    )
-                }
-            )
-            return room
-    
-    # Use custom generator
-    warehouse_gen = WarehouseRoomGenerator()
-    warehouse = warehouse_gen.generate({"warehouse_type": "big_warehouse"})
-    
-    print(f"Warehouse area: {warehouse.get_square_meters():.1f} m²")
-    print(f"Warehouse volume: {warehouse.get_volume():.1f} m³")

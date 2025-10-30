@@ -619,44 +619,87 @@ Audio Module Overview
 
 The audio module provides:
 
-- **Audio Generation**: Text-to-speech conversion using various TTS engines (Kokoro, IndexTTS, custom TTS engines)
-- **Voice Management**: Voice databases with speaker characteristics (gender, age, language)
-- **Acoustic Simulation**: Realistic room environments with reverberation effects
+- **Audio Generation**: Text-to-speech conversion using various TTS engines (Kokoro, IndexTTS or any other TTS engines)
+- **Voice Management**: Voice databases with speaker characteristics (gender, age, language, ...)
+- **Acoustic Simulation**: Realistic room environments with reverberation effects and ray tracing
 - **Audio Pipeline**: Complete dialogue processing with turn-based audio generation
-- **Integration**: Compatibility with external audio processing libraries (pyroomacoustics, scaper)
 
 Core Components
 ---------------
 
 **AudioDialog** (:class:`~sdialog.audio.dialog.AudioDialog`)
-    Extended dialogue class that inherits from :class:`~sdialog.Dialog` and adds audio turn support. Each turn can contain generated audio data, voice metadata, and timing information.
+    Extended dialogue class that inherits from :class:`~sdialog.Dialog` and adds audio turn support. It also contains all the information to generate the audio dialogue.
 
 **AudioTurn** (:class:`~sdialog.audio.turn.AudioTurn`)
-    Individual dialogue turns with associated audio data. Stores audio files, durations, temporal positions, and voice information.
+    Individual dialogue turns with associated audio metadata. Stores audio files, durations, temporal positions, and voice information.
 
 **TTS Engines** (:class:`~sdialog.audio.tts_engine.BaseTTS`)
     Abstract interface for text-to-speech engines. Available implementations:
     - :class:`~sdialog.audio.tts_engine.KokoroTTS`: Kokoro engine for speech synthesis
-    - :class:`~sdialog.audio.tts_engine.IndexTTSEngine`: IndexTTS engine
+    - :class:`~sdialog.audio.tts_engine.IndexTTS`: IndexTTS engine
+    - Any other TTS engine that inherits from :class:`~sdialog.audio.tts_engine.BaseTTS`
 
 **Voice Databases** (:class:`~sdialog.audio.voice_database.BaseVoiceDatabase`)
-    Voice management with speaker metadata (gender, age, language). Implementations:
-    - :class:`~sdialog.audio.voice_database.HuggingfaceVoiceDatabase`: Voices from Hugging Face
-    - :class:`~sdialog.audio.voice_database.LocalVoiceDatabase`: Local database
+    Voice management with speaker metadata (gender, age, language, ...). Implementations:
+    - :class:`~sdialog.audio.voice_database.HuggingfaceVoiceDatabase`: Voices gathered from Hugging Face
+    - :class:`~sdialog.audio.voice_database.LocalVoiceDatabase`: Local database of voices
+    - Any other voice database that inherits from :class:`~sdialog.audio.voice_database.BaseVoiceDatabase`
 
 **Acoustic Simulation** (:class:`~sdialog.audio.acoustics_simulator.AcousticsSimulator`)
     Realistic acoustic environment simulation with:
-    - :class:`~sdialog.audio.room.Room`: 3D room specifications
-    - :class:`~sdialog.audio.room_generator.RoomGenerator`: Automatic room generation
-    - Integration with pyroomacoustics for acoustic effects
+    - :class:`~sdialog.audio.room.Room`: 3D room specifications with furniture, speakers, microphones, ...
+    - :class:`~sdialog.audio.room_generator.RoomGenerator`: Automatic room generation with customizable dimensions and aspect ratios. Two implementations are available: :class:`~sdialog.audio.room_generator.BasicRoomGenerator` and :class:`~sdialog.audio.jsalt.MedicalRoomGenerator`.
+    - Integration with dSCAPER for timeline generation and pyroomacoustics for acoustic simulation of the room.
 
 **Impulse Response Databases** (:class:`~sdialog.audio.impulse_response_database.ImpulseResponseDatabase`)
     Impulse response management for microphone effect simulation. Implementations:
-    - :class:`~sdialog.audio.impulse_response_database.HuggingFaceImpulseResponseDatabase`: IRs from Hugging Face
+    - :class:`~sdialog.audio.impulse_response_database.HuggingfaceImpulseResponseDatabase`: IRs gathered from Hugging Face
     - :class:`~sdialog.audio.impulse_response_database.LocalImpulseResponseDatabase`: Local IR database
+    - Any other impulse response database that inherits from :class:`~sdialog.audio.impulse_response_database.ImpulseResponseDatabase`
 
 **Audio Processor** (:class:`~sdialog.audio.processing.AudioProcessor`)
-    Applies audio effects, such as microphone simulation by convolving audio with an impulse response.
+    Applies audio effects, such as microphone simulation by convolving audio with an impulse response from an impulse response database.
+
+Quick Usage
+-----------------------
+
+For simple use cases, SDialog provides convenient one-function audio generation:
+
+**Using the `to_audio` utility function**:
+
+.. code-block:: python
+
+    from sdialog.audio.pipeline import to_audio
+    
+    # Generate complete audio in one call
+    audio_dialog = to_audio(
+        original_dialog,
+        do_step_1=True,  # Combine utterances
+        do_step_2=True,  # Generate dSCAPER timeline
+        do_step_3=True,  # Apply room acoustics
+        audio_file_format="mp3"  # or "wav", "flac"
+    )
+    
+    # Access generated files
+    print(f"Combined audio: {audio_dialog.audio_step_1_filepath}")
+    print(f"Timeline audio: {audio_dialog.audio_step_2_filepath}")
+    print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
+
+**Using Dialog's built-in method**:
+
+.. code-block:: python
+
+    # Convert dialog directly to audio
+    audio_dialog = original_dialog.to_audio(
+        do_step_1=True,
+        do_step_2=True, 
+        do_step_3=True
+    )
+    
+    # Access generated files
+    print(f"Combined audio: {audio_dialog.audio_step_1_filepath}")
+    print(f"Timeline audio: {audio_dialog.audio_step_2_filepath}")
+    print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
 
 Complete Usage Example
 ----------------------
@@ -1010,7 +1053,7 @@ SDialog supports multiple voice database types for flexible voice selection:
     # Unavailable voice for this language (an error will be raised)
     female_voice_spanish = quick_voices.get_voice(gender="female", age=25, lang="spanish")
 
-Microphone Effects Simulation
+Microphone Effects
 -----------------------------
 
 SDialog allows you to simulate various microphone effects by applying impulse responses to your generated audio. This is useful for creating more realistic audio by simulating different recording environments and devices.
@@ -1039,47 +1082,6 @@ SDialog allows you to simulate various microphone effects by applying impulse re
         device=RecordingDevice.SHURE_SM57,  # Or a custom device identifier like "my_ir"
         impulse_response_database=ir_db
     )
-
-Quick Audio Generation
------------------------
-
-For simple use cases, SDialog provides convenient one-function audio generation:
-
-**Using the `to_audio` utility function**:
-
-.. code-block:: python
-
-    from sdialog.audio.pipeline import to_audio
-    
-    # Generate complete audio in one call
-    audio_dialog = to_audio(
-        original_dialog,
-        do_step_1=True,  # Combine utterances
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics
-        audio_file_format="mp3"  # or "wav", "flac"
-    )
-    
-    # Access generated files
-    print(f"Combined audio: {audio_dialog.audio_step_1_filepath}")
-    print(f"Timeline audio: {audio_dialog.audio_step_2_filepath}")
-    print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
-
-**Using Dialog's built-in method**:
-
-.. code-block:: python
-
-    # Convert dialog directly to audio
-    audio_dialog = original_dialog.to_audio(
-        do_step_1=True,
-        do_step_2=True, 
-        do_step_3=True
-    )
-    
-    # Access generated files
-    print(f"Combined audio: {audio_dialog.audio_step_1_filepath}")
-    print(f"Timeline audio: {audio_dialog.audio_step_2_filepath}")
-    print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
 
 Multilingual Audio Generation
 -----------------------------
