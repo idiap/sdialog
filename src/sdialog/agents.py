@@ -424,6 +424,7 @@ class Agent:
                                 timestamp=int(time())))
 
         if hasattr(response, "tool_calls") and response.tool_calls and self._tools:
+            messages.append(response)
             messages_n = len(messages)
             for tool_call in response.tool_calls:
                 events.append(Event(agent=self.get_name(),
