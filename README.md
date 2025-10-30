@@ -32,7 +32,7 @@ pip install sdialog
 
 ## 🏁 Quickstart tour
 
-Here's a short, hands-on example where a support agent helps a customer disputing a double charge—we'll add a tiny rule to steer refund behavior and a simple tool to check order status, generate three dialogs for later evaluation, and then serve the support agent on port 1333 for Open WebUI or any OpenAI‑compatible client.
+Here's a short, hands‑on example: a support agent helps a customer disputing a double charge. We add a small refund rule and two simple tools, generate three dialogs for evaluation, then serve the agent on port 1333 for Open WebUI or any OpenAI‑compatible client.
 
 ```python
 import sdialog
