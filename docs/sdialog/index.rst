@@ -234,6 +234,7 @@ Key Methods:
 - :meth:`~sdialog.agents.Agent.prompt`: get the underlying system prompt used by the agent.
 - :meth:`~sdialog.agents.Agent.json`: export the agent as a JSON object.
 
+
 Orchestration
 -------------
 Orchestrators are lightweight controllers that examine the current dialog state and the last utterance from the other agent, optionally returning an instruction. They can be **ephemeral** (one-time) or **persistent** (lasting across multiple turns). Orchestrators are composed using the pipe operator:
@@ -316,6 +317,51 @@ This simple example shows the minimal pattern: return an instruction once when a
 
     recap_orch = EarlyRecapOrchestrator(question_threshold=3)
     agent = agent | recap_orch
+
+.. _serving_agents:
+
+Serving Agents via REST API
+---------------------------
+
+You can expose any Agent over an OpenAI/Ollama-compatible REST API using the :meth:`~sdialog.agents.Agent.serve` method to talk to it from tools like Open WebUI, Ollama GUI, or simple HTTP clients.
+
+.. code-block:: python
+
+    from sdialog.agents import Agent
+
+    # Let's create an example agent
+    support = Agent(name="Support")
+
+    # And serve it on port 1333 (default host 0.0.0.0)
+    support.serve(1333)
+    # Connect client to base URL localhost:1333
+
+For example, to run Open WebUI in docker locally, just set OLLAMA_BASE_URL to point to port 1333 in the same machine when launching the container:
+
+.. code-block:: bash
+
+    docker run -e OLLAMA_BASE_URL=http://host.docker.internal:1333 \
+               -p 3030:8080 \
+               -v open-webui:/app/backend/data --name open-webui \
+               --restart always ghcr.io/open-webui/open-webui:main -d
+
+Then open http://localhost:3030 in your browser to chat with the agent!
+
+
+For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sdialog.server.Server.serve`, as in the following example:
+
+.. code-block:: python
+
+    from sdialog.agents import Agent
+    from sdialog.server import Server
+
+    # Create multiple agents
+    agent1 = Agent(name="AgentOne")
+    agent2 = Agent(name="AgentTwo")
+
+    # Serve both agents on port 1333 (select them by name from the GUI)
+    Server.serve([agent1, agent2], port=1333)
+
 
 ----
 
