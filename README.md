@@ -46,68 +46,45 @@ sdialog.config.llm("openai:gpt-4.1", temperature=0.7)
 # sdialog.config.llm("ollama:qwen3:14b")  # etc.
 
 # Let's define our personas (use built-ins like in this example, or create your own!)
-support_persona = SupportAgent(
-  name="Ava",
-  role="Customer Support Agent",
-  product_scope="Subscriptions and Billing",
-  communication_style="clear and empathetic",
-  resolution_authority_level="standard",
-  escalation_policy="Escalate to Billing Specialist if refund exceptions are requested",
+support_persona = SupportAgent(name="Ava", politeness="high", communication_style="friendly")
+customer_persona = Customer(name="Riley", issue="double charge", desired_outcome="refund")
+
+# (Optional) Let's define two mock tools (just plain Python function) for our support agent
+def account_verification(user_id): return {"user_id": user_id, "verified": True}
+def refund(amount): return {"status": "refunded", "amount": amount}
+
+# (Optional) Let's also include a small rule-based orchestrator for our support agent
+react_refund = SimpleReflexOrchestrator(
+  condition=lambda utt: "refund" in utt.lower(),
+  instruction="Follow refund policy; verify account, apologize, refund.",
 )
 
-customer_persona = Customer(
-  name="Riley",
-  issue="Charged twice this month",
-  issue_category="billing",
-  issue_description="I see two charges for October on my card",
-  anger_level="medium",
-  times_called=1,
-  desired_outcome="refund the duplicate charge",
+# Now, let's create the agents!
+support_agent = Agent(
+  persona=support_persona,
+  think=True,  # Let's also enable thinking mode
+  tools=[account_verification, refund],
+  name="Support"
 )
-
-# (Optional) Let's add a concrete conversational context
-ctx = Context(
-  location="Online chat",
-  environment="support portal",
-  circumstances="Billing cycle just renewed",
-)
-
-# (Optional) Let's add a simple tool (just a plain Python function) for our support agent
-def check_order_status(order_id: str) -> dict:
-  # In production, connect to your DB or API here
-  return {"order_id": order_id, "status": "paid", "last_charge": "2025-10-01"}
-
-# (Optional) Let's include a small rule-based orchestrator
-react = SimpleReflexOrchestrator(
-  condition=lambda utt: "refund" in utt.lower() or "charged twice" in utt.lower(),
-  instruction=(
-    "Follow the refund policy. Verify account, apologize briefly, "
-    "explain next steps clearly, and offer to create a ticket if needed."
-  ),
-)
-
-# Now we create the agents
-support_agent = Agent(persona=support_persona,
-                      tools=[check_order_status],
-                      name="Support")
 simulated_customer = Agent(
   persona=customer_persona,
-  first_utterance="Hi, I was charged twice this month.",
-  name="Customer",
+  first_utterance="Hi!"
+  name="Customer"
 )
 
-# (Optional) We can attach orchestrators to an agent using pipe-like composition
-support_agent = support_agent | react
+# Since we have one orchestrator, let's attach it to our target agent
+support_agent = support_agent | react_refund
 
-# Let's generate three dialogs between them! (so we can evaluate them later, see evaluation section)
+# Let's generate 3 dialogs between them! (so we can, for instance, evaluate them later)
+# (Optional) Let's define a concrete conversational context for the agents in these dialogs
+web_chat = Context(location="chat", environment="web", circumstances="billing")
 for ix in range(3):
-  dialog = simulated_customer.dialog_with(support_agent, context=ctx)
+  dialog = simulated_customer.dialog_with(support_agent, context=web_chat)
   dialog.to_file(f"dialog_{ix}.json")
   dialog.print(orchestration=True)  # pretty print each dialog
 
 # Finally, let's serve the support agent to interact with real users (OpenAI-compatible API)
 #    Point Open WebUI or any OpenAI-compatible client to: http://localhost:1333
-#    Model name will appear as "Support:latest" (AGENT_NAME:latest).
 support_agent.serve(1333)
 ```
 > [!NOTE]
