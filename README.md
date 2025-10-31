@@ -50,8 +50,12 @@ support_persona = SupportAgent(name="Ava", politeness="high", communication_styl
 customer_persona = Customer(name="Riley", issue="double charge", desired_outcome="refund")
 
 # (Optional) Let's define two mock tools (just plain Python function) for our support agent
-def account_verification(user_id): return {"user_id": user_id, "verified": True}
-def refund(amount): return {"status": "refunded", "amount": amount}
+def account_verification(user_id):
+    """Verify user account by user id."""
+    return {"user_id": user_id, "verified": True}
+def refund(amount):
+    """Process a refund for the given amount."""
+    return {"status": "refunded", "amount": amount}
 
 # (Optional) Let's also include a small rule-based orchestrator for our support agent
 react_refund = SimpleReflexOrchestrator(
@@ -68,7 +72,7 @@ support_agent = Agent(
 )
 simulated_customer = Agent(
   persona=customer_persona,
-  first_utterance="Hi!"
+  first_utterance="Hi!",
   name="Customer"
 )
 
@@ -81,11 +85,11 @@ web_chat = Context(location="chat", environment="web", circumstances="billing")
 for ix in range(3):
   dialog = simulated_customer.dialog_with(support_agent, context=web_chat)  # Generate the dialog
   dialog.to_file(f"dialog_{ix}.json")  # Save it
-  dialog.print(orchestration=True)  # And pretty print it
+  dialog.print()  # And pretty print it
 
 # Finally, let's serve our support agent to interact with real users (OpenAI-compatible API)
 #    Point Open WebUI or any OpenAI-compatible client to: http://localhost:1333
-support_agent.serve(1333)
+support_agent.serve(port=1333)
 ```
 > [!TIP]
 > - Choose your [LLMs and backend freely](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer).

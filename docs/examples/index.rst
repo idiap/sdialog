@@ -88,7 +88,7 @@ Let's start with something fun and straightforward—creating a simple dialogue 
     dialog = alice.dialog_with(mentor, max_turns=6)
     dialog.print()
 
-Individual agents can be served and exposed as a OpenAI compatible API endpoint with the :meth:`~sdialog.agents.Agent.serve` method (e.g. ``mentor.serve(1333)``), see :ref:`here <serving_agents>` for more details.
+Individual agents can be served and exposed as a OpenAI compatible API endpoint with the :meth:`~sdialog.agents.Agent.serve` method (e.g. ``mentor.serve(port=1333)``), see :ref:`here <serving_agents>` for more details.
 
 Few-Shot Learning with Example Dialogs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -333,17 +333,17 @@ You can expose any Agent over an OpenAI/Ollama-compatible REST API using the :me
     support = Agent(name="Support")
 
     # And serve it on port 1333 (default host 0.0.0.0)
-    support.serve(1333)
+    support.serve(port=1333)
     # Connect client to base URL localhost:1333
 
 For example, to run Open WebUI in docker locally, just set OLLAMA_BASE_URL to point to port 1333 in the same machine when launching the container:
 
 .. code-block:: bash
 
-    docker run -e OLLAMA_BASE_URL=http://host.docker.internal:1333 \
-               -p 3030:8080 \
-               -v open-webui:/app/backend/data --name open-webui \
-               --restart always ghcr.io/open-webui/open-webui:main -d
+    docker run -d -e OLLAMA_BASE_URL=http://host.docker.internal:1333 \
+                  -p 3030:8080 \
+                  -v open-webui:/app/backend/data --name open-webui \
+                  --restart always ghcr.io/open-webui/open-webui:main
 
 Then open http://localhost:3030 in your browser to chat with the agent!
 
