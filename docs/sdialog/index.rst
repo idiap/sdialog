@@ -704,6 +704,27 @@ Let's configure SDialog to work with your preferred LLM backend. Here are some c
     # Enable caching in specific path
     config.set_cache("/path/to/cache", enable=True)
 
+
+**Component-Level Overrides:**
+
+Any component that uses LLMs (Agents, Generators, Judges, Orchestrators) accepts ``model`` followed by its parameters to override global config on a per-instance basis.
+
+.. code-block:: python
+
+    from sdialog.agents import Agent
+
+    # Create an agent with custom model and parameters
+    custom_agent = Agent(
+        name="CustomAgent",
+        model="ollama:llama3",
+        temperature=0.7,
+        base_url="http://localhost:11434"
+    )
+
+
+For instance, you can set a default model globally that fits your GPU via ``sdialog.config.llm()``, and then override specific components, like an LLM-as-a-Judge to use a powerful API-based model as a judge (e.g. OpenAI models). 
+
+
 Tools & Function Calling
 ------------------------
 Provide a list of Python callables to an Agent via ``tools=[fn_a, fn_b]``. For backends that expose tool/function-calling semantics, outputs may be (a) executed and inserted into memory, (b) used to refine final completions depending on backend support. Ensure return values are JSON-serializable.
