@@ -259,6 +259,9 @@ def to_audio(
         # Place the speakers around the furnitures in the room
         for _role, _kwargs in speaker_positions.items():
 
+            if _role in room.speakers_positions:
+                continue
+
             room.place_speaker_around_furniture(
                 speaker_name=_role,
                 furniture_name=_kwargs["furniture_name"],

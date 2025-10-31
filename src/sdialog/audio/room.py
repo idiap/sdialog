@@ -1449,6 +1449,11 @@ class Room(BaseModel):
         Post init function to set the microphone position 3D.
         """
 
+        if len(self.speakers_positions) > 0:
+            for _role, _position in self.speakers_positions.items():
+                if _role not in [Role.SPEAKER_1, Role.SPEAKER_2]:
+                    raise ValueError(f"Speaker name '{_role}' is not valid, the speaker wasn't placed")
+
         # if the user override the center of the room, add it to the furnitures
         if "center" not in self.furnitures:
             self.furnitures["center"] = Furniture(
