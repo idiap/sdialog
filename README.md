@@ -93,7 +93,7 @@ support_agent.serve(1333)
 
 > [!NOTE]
 > - See [agents with tools and thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb) tutorial for a more complete example.
-> - **Serving agents:** more details on the OpenAI/Ollama-compatible API in the docs: [Serving Agents](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents).
+> - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for more details on server options.
 
 ### 🧪 Testing remote systems with simulated users
 
