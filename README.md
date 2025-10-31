@@ -20,15 +20,27 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
 - Native mechanistic interpretability (inspect and steer activations)
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
-- Interoperability across OpenAI, HuggingFace, Ollama, AWS, and more
+- Interoperability across OpenAI, Hugging Face, Ollama, AWS, and more
 
 If you are building controlled multi‑agent conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
+
 
 ## ⚡ Installation
 
 ```bash
 pip install sdialog
 ```
+
+Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies is available on Hugging Face and can be downloaded [here](https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif).
+
+```bash
+apptainer exec --nv sdialog.sif python3 -c "import sdialog; print(sdialog.__version__)"
+```
+
+> [!NOTE]
+> - If you don't have access to a GPU, remove the `--nv` flag.
+> - This Apptainer image also has the Ollama server preinstalled.
+
 
 ## 🏁 Quickstart tour
 
@@ -42,7 +54,7 @@ from sdialog.personas import SupportAgent, Customer
 from sdialog.orchestrators import SimpleReflexOrchestrator
 
 # First, let's set our preferred default backend:model and parameters
-sdialog.config.llm("openai:gpt-4.1", temperature=0.7)
+sdialog.config.llm("openai:gpt-4.1", temperature=1, api_key="YOUR_KEY")  # or export OPENAI_API_KEY=YOUR_KEY
 # sdialog.config.llm("ollama:qwen3:14b")  # etc.
 
 # Let's define our personas (use built-ins like in this example, or create your own!)
@@ -85,7 +97,7 @@ web_chat = Context(location="chat", environment="web", circumstances="billing")
 for ix in range(3):
   dialog = simulated_customer.dialog_with(support_agent, context=web_chat)  # Generate the dialog
   dialog.to_file(f"dialog_{ix}.json")  # Save it
-  dialog.print()  # And pretty print it
+  dialog.print(all=True)  # And pretty print it with all its events (thoughts, orchestration, etc.)
 
 # Finally, let's serve our support agent to interact with real users (OpenAI-compatible API)
 #    Point Open WebUI or any OpenAI-compatible client to: http://localhost:1333
