@@ -6,7 +6,7 @@
 [![PyPI version](https://badge.fury.io/py/sdialog.svg)](https://badge.fury.io/py/sdialog)
 [![Downloads](https://static.pepy.tech/badge/sdialog)](https://pepy.tech/project/sdialog)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/idiap/sdialog/)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/)
 
 ---
 SDialog is a modular Python toolkit for synthetic dialog generation, evaluation, and analysis. It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability—so you can generate reliable, controllable dialog systems or data at scale.
@@ -14,7 +14,7 @@ SDialog is a modular Python toolkit for synthetic dialog generation, evaluation,
 Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## ✨ Key features
-- Standard dialog schema with JSON import/export _(aiming to standardize dialog datasets format [with your help 🙏](#-project-vision--community-call))_
+- Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#project-vision--community-call))_
 - Persona‑driven multi‑agent simulation with contexts, tools, and thoughts
 - Composable orchestration for precise control over behavior and flow
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
@@ -38,8 +38,7 @@ apptainer exec --nv sdialog.sif python3 -c "import sdialog; print(sdialog.__vers
 ```
 
 > [!NOTE]
-> - If you don't have access to a GPU, remove the `--nv` flag.
-> - This Apptainer image also has the Ollama server preinstalled.
+> This Apptainer image also has the Ollama server preinstalled.
 
 
 ## 🏁 Quickstart tour
@@ -61,7 +60,7 @@ sdialog.config.llm("openai:gpt-4.1", temperature=1, api_key="YOUR_KEY")  # or ex
 support_persona = SupportAgent(name="Ava", politeness="high", communication_style="friendly")
 customer_persona = Customer(name="Riley", issue="double charge", desired_outcome="refund")
 
-# (Optional) Let's define two mock tools (just plain Python function) for our support agent
+# (Optional) Let's define two mock tools (just plain Python functions) for our support agent
 def account_verification(user_id):
     """Verify user account by user id."""
     return {"user_id": user_id, "verified": True}
@@ -104,16 +103,16 @@ for ix in range(3):
 support_agent.serve(port=1333)
 ```
 > [!TIP]
-> - Choose your [LLMs and backend freely](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer).
-> - Personas and contexts can be [automatically generated](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) (e.g. generate different customer profiles!).
+> - Choose your [LLMs and backends freely](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer).
+> - Personas and context can be [automatically generated](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) (e.g. generate different customer profiles!).
 
 > [!NOTE]
-> - See [agents with tools and thoughts](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb) tutorial for a more complete example.
+> - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb) for a more complete example.
 > - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for more details on server options.
 
 ### 🧪 Testing remote systems with simulated users
 
-You can also use SDialog as a controllable test harness for any OpenAI‑compatible system such as **vLLM**-based ones by role‑play realistic or adversarial users against your deployed system:
+You can also use SDialog as a controllable test harness for any OpenAI‑compatible system such as **vLLM**-based ones by role‑playing realistic or adversarial users against your deployed system:
 
 * Black‑box functional checks (Does the system follow instructions? Handle edge cases?)
 * Persona / use‑case coverage (Different goals, emotions, domains)
@@ -161,7 +160,7 @@ Alice: That's wonderful to hear!
 # Or, equivalently if the content is in a txt file
 dialog_from_txt = Dialog.from_file("conversation.txt")
 
-# Load from CSV files with custom templates
+# Load from CSV files with custom column names
 dialog_from_csv = Dialog.from_file("conversation.csv",
                                    csv_speaker_col="speaker",
                                    csv_text_col="value",)
@@ -228,6 +227,7 @@ act = inspector[-1][0].act # [response index][token index]
 
 Steering intervention (subtracting a direction):
 ```python
+import torch
 anger_direction = torch.load("anger_direction.pt")  # A direction vector (e.g., PCA / difference-in-mean vector)
 agent_steered = agent | inspector - anger_direction  # Ablate the anger direction from the target activations
 
@@ -243,7 +243,7 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
 - [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
 - [Documentation](https://sdialog.readthedocs.io)
-- Documentation for **AI coding assistants** like Copilot is also available at `https://sdialog.readthedocs.io/en/latest/llm.txt` following the [llm.txt specification](https://llmstxt.org/). In your Copilot chat just simply use:
+- Documentation for **AI coding assistants** like Copilot is also available at `https://sdialog.readthedocs.io/en/latest/llm.txt` following the [llm.txt specification](https://llmstxt.org/). In your Copilot chat, simply use:
   ```
   #fetch https://sdialog.readthedocs.io/en/latest/llm.txt
 
@@ -254,13 +254,11 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 
 ## 🌍 Project Vision & Community Call
 
-To accelerate open, rigorous, and reproducible conversational AI research, SDialog invites the community to collaborate and help shape the future of open dialogue generation.
+To accelerate open, rigorous, and reproducible conversational AI research, SDialog invites the community to collaborate and help shape the future of open dialog generation.
 
 ### 🤝 How You Can Help
 
-Contributions of any size are welcome and help shape the future of open dialogue generation:
-
-- **🗂️ Dataset Standardization**: Help convert existing dialogue datasets to SDialog format. Currently, each dataset stores dialogues in different formats, making cross-dataset analysis and model evaluation challenging. **Converted datasets are made available as Hugging Face datasets** in the [SDialog organization](https://huggingface.co/datasets/sdialog/) for easy access and integration.
+- **🗂️ Dataset Standardization**: Help convert existing dialog datasets to SDialog format. Currently, each dataset stores dialogs in different formats, making cross-dataset analysis and model evaluation challenging. **Converted datasets are made available as Hugging Face datasets** in the [SDialog organization](https://huggingface.co/datasets/sdialog/) for easy access and integration.
 - **🔧 Component Development**: Create new personas, orchestrators, evaluators, generators, or backend integrations
 - **📊 Evaluation & Benchmarks**: Design new metrics, evaluation frameworks, or comparative studies
 - **🧠 Interpretability Research**: Develop new analysis tools, steering methods, or mechanistic insights
@@ -270,9 +268,10 @@ Contributions of any size are welcome and help shape the future of open dialogue
 > [!NOTE]
 > **Example**: Check out [Primock-57](https://huggingface.co/datasets/sdialog/Primock-57), a sample dataset already available in SDialog format on Hugging Face.
 > 
-> If you have a dialogue dataset you'd like to convert to SDialog format, need help with the conversion process, or want to contribute in any other way, please [open an issue](https://github.com/idiap/sdialog/issues) or reach out to us. We're happy to help and collaborate!
+> If you have a dialog dataset you'd like to convert to SDialog format, need help with the conversion process, or want to contribute in any other way, please [open an issue](https://github.com/idiap/sdialog/issues) or reach out to us. We're happy to help and collaborate!
 
-### 💪 Contributing
+
+## 💪 Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). We welcome issues, feature requests, and pull requests. If you want to **contribute to the project**, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍
 
