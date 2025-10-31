@@ -22,7 +22,7 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
 - Interoperability across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more.
 
-If you are building controlled conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
+If you are building conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
 
 
 ## ⚡ Installation
