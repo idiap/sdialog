@@ -29,6 +29,7 @@ from transformers import AutoTokenizer, AutoModel
 from torch.utils.data import DataLoader, TensorDataset
 from sentence_transformers.util import get_device_name, batch_to_device
 
+from langchain.chat_models import init_chat_model
 from langchain_ollama.chat_models import ChatOllama
 from langchain_core.runnables.base import RunnableBinding
 from langchain_core.language_models.base import BaseLanguageModel
@@ -252,6 +253,8 @@ def is_ollama_model_name(model_name: str) -> bool:
         and not is_openai_model_name(model_name)
         and not is_google_genai_model_name(model_name)
         and not is_amazon_model_name(model_name)
+        and not is_anthropic_model_name(model_name)
+        and not is_azure_openai_model_name(model_name)
     )
 
 
@@ -291,7 +294,33 @@ def is_google_genai_model_name(model_name: str) -> bool:
     :return: True if Google GenAI.
     :rtype: bool
     """
-    return re.match(r"^google(-genai)?:", model_name, re.IGNORECASE)
+    return re.match(r"^google([-_]genai)?:", model_name, re.IGNORECASE)
+
+
+@check_valid_model_name
+def is_anthropic_model_name(model_name: str) -> bool:
+    """
+    Check whether the model name targets an Anthropic model (prefix 'anthropic:').
+
+    :param model_name: Model name string.
+    :type model_name: str
+    :return: True if Anthropic.
+    :rtype: bool
+    """
+    return model_name.startswith("anthropic:")
+
+
+@check_valid_model_name
+def is_azure_openai_model_name(model_name: str) -> bool:
+    """
+    Check whether the model name targets an Azure OpenAI model (prefix 'azure_openai:').
+
+    :param model_name: Model name string.
+    :type model_name: str
+    :return: True if Azure OpenAI.
+    :rtype: bool
+    """
+    return re.match(r"^azure([-_]openai)?:", model_name, re.IGNORECASE)
 
 
 @check_valid_model_name
@@ -346,14 +375,12 @@ def get_llm_model(model_name: str,
             raise ValueError("model_name must be a string or a valid Langchain model instance.")
     elif is_openai_model_name(model_name):
         # If the model name is a string, assume it's an OpenAI model
-        from langchain_openai import ChatOpenAI
         if ":" in model_name:
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading OpenAI model: {model_name}")
 
-        llm = ChatOpenAI(model=model_name, **llm_kwargs)
+        llm = init_chat_model(f"openai:{model_name}", **llm_kwargs)
     elif is_amazon_model_name(model_name):
-        from langchain_aws import ChatBedrockConverse
         if ":" in model_name:
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading AWS model: {model_name}")
@@ -362,14 +389,27 @@ def get_llm_model(model_name: str,
             logger.warning("Ignoring 'seed' parameter for AWS Bedrock models, as it is not supported.")
             llm_kwargs.pop("seed")
 
-        llm = ChatBedrockConverse(model=model_name, **llm_kwargs)
+        llm = init_chat_model(model_name,
+                              model_provider="bedrock_converse",
+                              **llm_kwargs)
     elif is_google_genai_model_name(model_name):
-        from langchain_google_genai import ChatGoogleGenerativeAI
         if ":" in model_name:
             model_name = model_name.split(":", 1)[-1]
         logger.info(f"Loading Google GenAI model: {model_name}")
 
-        llm = ChatGoogleGenerativeAI(model=model_name, **llm_kwargs)
+        llm = init_chat_model(f"google_genai:{model_name}", **llm_kwargs)
+    elif is_anthropic_model_name(model_name):
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading Anthropic model: {model_name}")
+
+        llm = init_chat_model(f"anthropic:{model_name}", **llm_kwargs)
+    elif is_azure_openai_model_name(model_name):
+        if ":" in model_name:
+            model_name = model_name.split(":", 1)[-1]
+        logger.info(f"Loading Azure OpenAI model: {model_name}")
+
+        llm = init_chat_model(f"azure_openai:{model_name}", **llm_kwargs)
     elif is_ollama_model_name(model_name):
         if model_name.startswith("ollama:"):
             model_name = model_name.split(":", 1)[-1]

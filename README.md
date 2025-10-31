@@ -20,7 +20,7 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
 - Native mechanistic interpretability (inspect and steer activations)
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
-- Interoperability across OpenAI, Hugging Face, Ollama, AWS, and more
+- Interoperability across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more.
 
 If you are building controlled multi‑agent conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
 
