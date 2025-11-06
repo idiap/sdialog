@@ -184,7 +184,7 @@ class ResponseHook(BaseHook):
         :param memory: Snapshot of agent memory at response start.
         :type memory: list
         """
-        self.responses.append({'mem': memory, 'output': []})
+        self.responses.append({'mem': memory, 'output': [], 'input': []})
         self.current_response_ids = None
 
     def response_end(self):
@@ -193,17 +193,45 @@ class ResponseHook(BaseHook):
         """
         token_list = self.current_response_ids.squeeze()
         token_list = token_list.tolist()
-        text = self.agent.tokenizer.decode(token_list, skip_special_tokens=False)
-        tokens = self.agent.tokenizer.convert_ids_to_tokens(token_list)
 
-        # No longer create an InspectionToken here; just store the tokens list
-        response_dict = {
-            'input_ids': self.current_response_ids,
-            'text': text,
-            'tokens': tokens,
+        system_prompt_text = self.agent.tokenizer.decode(
+            token_list[:self.length_system_prompt],
+            skip_special_tokens=False,
+        )
+
+        system_prompt_tokens = self.agent.tokenizer.convert_ids_to_tokens(
+            token_list[:self.length_system_prompt]
+        )
+
+        response_text = self.agent.tokenizer.decode(
+            token_list[self.length_system_prompt:],
+            skip_special_tokens=False,
+        )
+
+        response_tokens = self.agent.tokenizer.convert_ids_to_tokens(
+            token_list[self.length_system_prompt:]
+        )
+
+        # Store the system prompt dictionary (knowing its actual length)
+        system_prompt_dict = {
+            'input_ids': self.current_response_ids[:self.length_system_prompt],
+            'text': system_prompt_text,
+            'tokens': system_prompt_tokens,
             'response_index': len(self.responses) - 1
         }
+
         # Append an InspectionResponse instance instead of a dict
+        system_prompt_inspector = InspectionResponse(system_prompt_dict, agent=self.agent)
+        self.responses[-1]['input'].append(system_prompt_inspector)
+
+        # Store the generated response dictionary
+        response_dict = {
+            'input_ids': self.current_response_ids[self.length_system_prompt:],
+            'text': response_text,
+            'tokens': response_tokens,
+            'response_index': len(self.responses) - 1
+        }
+
         current_response_inspector = InspectionResponse(response_dict, agent=self.agent)
         self.responses[-1]['output'].append(current_response_inspector)
 
@@ -216,7 +244,8 @@ class ResponseHook(BaseHook):
         """
         # Accumulate token IDs as a tensor (generated tokens only)
         if self.current_response_ids is None:
-            self.current_response_ids = input_ids[..., -1]
+            self.current_response_ids = input_ids[0]
+            self.length_system_prompt = len(input_ids[0])
         else:
             self.current_response_ids = torch.cat([self.current_response_ids, input_ids[..., -1]], dim=-1)
 
