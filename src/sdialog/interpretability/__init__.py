@@ -780,8 +780,6 @@ class InspectionToken:
         if not hasattr(self.agent, '_hook_response_act'):
             raise KeyError("Agent has no _hook_response_act.")
         rep_cache = self.agent._hook_response_act
-
-
         # Directly use response_index (assume always populated)
         rep_tensor = rep_cache[self.response_index][key]
 
