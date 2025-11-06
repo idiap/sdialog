@@ -245,7 +245,7 @@ class ResponseHook(BaseHook):
         # Accumulate token IDs as a tensor (generated tokens only)
         if self.current_response_ids is None:
             self.current_response_ids = input_ids[0]
-            self.length_system_prompt = len(input_ids[0])
+            self.length_system_prompt = len(input_ids[0]) - 1  # Exclude last token with minus 1 (newly generated)
         else:
             self.current_response_ids = torch.cat([self.current_response_ids, input_ids[..., -1]], dim=-1)
 
@@ -435,6 +435,14 @@ class Inspector:
             self.agent._add_activation_hooks(self.target, steering_function=self.steering_function,
                                              steering_interval=self.steering_interval)
 
+    @property
+    def input(self):
+        class input_wrapper:
+            def __getitem__(_, index):
+                return self.agent._hooked_responses[index]['input'][0]
+
+        return input_wrapper()
+
     def __len__(self):
         """Return number of completed responses captured so far."""
         return len(self.agent._hooked_responses)
@@ -608,7 +616,7 @@ class Inspector:
 
         for match in instruction_recap:
             logger.info(f"\nInstruction found at response index {match['index']}:\n{match['content']}\n")
-
+    
     def find_instructs(self, verbose=False):
         """
         Return list with 'index' and 'content' for each SystemMessage (excluding first memory)
