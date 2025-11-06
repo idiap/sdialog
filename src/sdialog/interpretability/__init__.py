@@ -785,12 +785,25 @@ class InspectionToken:
 
         # Crucial: need to know if token is system prompt or generated to properly index activation tensor
         if self.is_system_prompt:
-            # No need for the offset since we only need the system prompt tokens
-            activation_index = self.token_index
+            # For system prompt tokens, handle negative indices properly
+            # Negative index means "from the end of system prompt tokens" for proper recursion
+            if self.token_index < 0:
+                # Convert negative index to positive: -1 -> last system prompt token
+                activation_index = self.response.length_system_prompt + self.token_index
+            else:
+                activation_index = self.token_index
         else:
-            # Add the offset indexes for the system prompt
+            # For generated tokens, handle negative indices properly
+            # Negative index means "from the end of generated tokens", not from the end of all tokens
             input_response = self.agent._hooked_responses[self.response_index]['input'][0]
-            activation_index = self.token_index + input_response.length_system_prompt
+            if self.token_index < 0:
+                # Convert negative index to positive relative to generated tokens
+                # Then add the system prompt offset
+                num_generated_tokens = len(self.response.tokens)
+                positive_index = num_generated_tokens + self.token_index
+                activation_index = positive_index + input_response.length_system_prompt
+            else:
+                activation_index = self.token_index + input_response.length_system_prompt
 
         if hasattr(rep_tensor, '__getitem__'):
             return rep_tensor[activation_index]
