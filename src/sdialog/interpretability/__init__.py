@@ -217,11 +217,12 @@ class ResponseHook(BaseHook):
             'input_ids': self.current_response_ids[:self.length_system_prompt],
             'text': system_prompt_text,
             'tokens': system_prompt_tokens,
-            'response_index': len(self.responses) - 1
+            'response_index': len(self.responses) - 1,
+            'length_system_prompt': self.length_system_prompt  # Needed to pass the offset for the proper indexing
         }
 
-        # Append an InspectionResponse instance instead of a dict
-        system_prompt_inspector = InspectionResponse(system_prompt_dict, agent=self.agent)
+        # Append an InspectionResponse instance instead of a dict. We need to flag if it a system prompt or not.
+        system_prompt_inspector = InspectionResponse(system_prompt_dict, agent=self.agent, is_system_prompt=True)
         self.responses[-1]['input'].append(system_prompt_inspector)
 
         # Store the generated response dictionary
@@ -339,27 +340,36 @@ class ActivationHook(BaseHook):
         # Store representation only if the second dimension is 1
         if output_tensor.ndim >= 2:
             if output_tensor.shape[1] > 1:
+                # Will store the system prompt
+                # "Unbind" on dim 1 splits the tensor into tuple of tensors, "extend" adds them to _hook_response_act
+                self.agent._hook_response_act[response_index][self.cache_key].extend(
+                    output_tensor.detach().cpu().unbind(dim=1)
+                )
                 self._token_counter_steering = 0  # Reset counter if more than one token
-            min_token, max_token = self.steering_interval
-            steer_this_token = (
-                self._token_counter_steering >= min_token
-                and (max_token == -1 or self._token_counter_steering < max_token)
-            )
+            else:
+                # Single-token forward pass (subsequent generated tokens)
+                # TODO : Add steering for the system prompt around here
+                min_token, max_token = self.steering_interval
+                steer_this_token = (
+                    self._token_counter_steering >= min_token
+                    and (max_token == -1 or self._token_counter_steering < max_token)
+                )
 
-            self.agent._hook_response_act[response_index][self.cache_key].append(
-                output_tensor[:, -1, :].detach().cpu()
-            )
+                # Append the last token (the newly generated token)
+                self.agent._hook_response_act[response_index][self.cache_key].append(
+                    output_tensor[:, -1, :].detach().cpu()
+                )
 
-            if steer_this_token:
-                # Now apply the steering function, if it exists
-                if self.steering_function is not None:
-                    if type(self.steering_function) is list:
-                        for func in self.steering_function:
-                            output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
-                    elif callable(self.steering_function):
-                        output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
+                if steer_this_token:
+                    # Now apply the steering function, if it exists
+                    if self.steering_function is not None:
+                        if type(self.steering_function) is list:
+                            for func in self.steering_function:
+                                output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
+                        elif callable(self.steering_function):
+                            output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
 
-            self._token_counter_steering += 1
+                self._token_counter_steering += 1
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
@@ -616,7 +626,7 @@ class Inspector:
 
         for match in instruction_recap:
             logger.info(f"\nInstruction found at response index {match['index']}:\n{match['content']}\n")
-    
+
     def find_instructs(self, verbose=False):
         """
         Return list with 'index' and 'content' for each SystemMessage (excluding first memory)
@@ -658,18 +668,24 @@ class InspectionResponse:
     :type agent: Agent
     :meta private:
     """
-    def __init__(self, response, agent):
+    def __init__(self, response, agent, is_system_prompt=False):
         self.response = response
         self.tokens = response['tokens']
         self.text = response['text']
         self.agent = agent
-        # Store response_index if present
         self.response_index = response.get('response_index', 0)
+        # Flag to distinguish input (system prompt) from output (generated) tokens
+        self.is_system_prompt = is_system_prompt
+        # Store length_system_prompt for calculating activation indices (only for system prompt responses)
+        self.length_system_prompt = response.get('length_system_prompt', 0)
 
     def __iter__(self):
         """Yield InspectionToken objects for each token."""
         for idx, token in enumerate(self.tokens):
-            yield InspectionToken(token, self.agent, self, idx, response_index=self.response_index)
+            yield InspectionToken(
+                token, self.agent, self, idx,
+                response_index=self.response_index, is_system_prompt=self.is_system_prompt
+            )
 
     def __str__(self):
         """Return decoded response text."""
@@ -688,11 +704,15 @@ class InspectionResponse:
         """
         if isinstance(index, slice):
             return [
-                InspectionToken(token, self.agent, self, i, response_index=self.response_index)
+                InspectionToken(
+                    token, self.agent, self, i,
+                    response_index=self.response_index, is_system_prompt=self.is_system_prompt
+                )
                 for i, token in enumerate(self.tokens[index])
             ]
         return InspectionToken(
-            self.tokens[index], self.agent, self, index, response_index=self.response_index
+            self.tokens[index], self.agent, self, index,
+            response_index=self.response_index, is_system_prompt=self.is_system_prompt
         )
 
 
@@ -713,12 +733,14 @@ class InspectionToken:
     :type response_index: int
     :meta private:
     """
-    def __init__(self, token, agent, response, token_index, response_index):
+    def __init__(self, token, agent, response, token_index, response_index, is_system_prompt=False):
         self.token = token
         self.token_index = token_index
         self.response = response  # Reference to parent response
         self.agent = agent
         self.response_index = response_index
+        # Flag to distinguish input (system prompt) from output (generated) tokens
+        self.is_system_prompt = is_system_prompt
 
     @property
     def act(self):
@@ -758,8 +780,20 @@ class InspectionToken:
         if not hasattr(self.agent, '_hook_response_act'):
             raise KeyError("Agent has no _hook_response_act.")
         rep_cache = self.agent._hook_response_act
+
+
         # Directly use response_index (assume always populated)
         rep_tensor = rep_cache[self.response_index][key]
+
+        # Crucial: need to know if token is system prompt or generated to properly index activation tensor
+        if self.is_system_prompt:
+            # No need for the offset since we only need the system prompt tokens
+            activation_index = self.token_index
+        else:
+            # Add the offset indexes for the system prompt
+            input_response = self.agent._hooked_responses[self.response_index]['input'][0]
+            activation_index = self.token_index + input_response.length_system_prompt
+
         if hasattr(rep_tensor, '__getitem__'):
-            return rep_tensor[self.token_index]
+            return rep_tensor[activation_index]
         return rep_tensor
