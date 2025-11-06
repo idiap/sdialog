@@ -1139,3 +1139,29 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
         spanish_dialog,
         voices=spanish_voices
     )
+
+--------------------------
+Task-specific Annotation
+--------------------------
+
+Dialogue Annotation
+~~~~~~~~~~~~~~~~~~~
+You can annotate dialogues with task-specific information using `Annotator` classes. This is useful for preparing data for downstream models. Here's how to use the built-in `QuestionAnsweringAnnotator`.
+
+.. code-block:: python
+
+    from sdialog import Dialog
+    from sdialog.annotators import apply_annotators, QuestionAnsweringAnnotator
+
+    dialog = Dialog.from_str("""User: What is the weather like in London?
+    Agent: It is currently rainy and 12 degrees Celsius.""")
+
+    # Create an annotator instance
+    qa_annotator = QuestionAnsweringAnnotator()
+
+    # Apply the annotator to the dialog
+    annotated_dialog = apply_annotators(dialog, [qa_annotator])
+
+    # Access the annotations
+    annotations = annotated_dialog.get_annotations('question_answering')
+    print(annotations)

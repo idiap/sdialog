@@ -112,7 +112,6 @@ sdialog.evaluation.base
    :members:
    :show-inheritance:
 
-
 ----
 
 sdialog.datasets
@@ -267,6 +266,24 @@ sdialog.audio.processing
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: sdialog.audio.processing
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+----
+
+sdialog.annotators
+------------------
+
+.. automodule:: sdialog.annotators
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.annotators.annotator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.annotators.annotator
    :member-order: bysource
    :members:
    :show-inheritance:

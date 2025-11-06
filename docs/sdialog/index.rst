@@ -1199,6 +1199,85 @@ SDialog supports multilingual audio generation with custom TTS engines:
         voices=spanish_voices
     )
 
+
+----
+
+Task-specific Annotation
+========================
+
+The annotation module in SDialog provides a structured way to add task-specific metadata to dialogues. This is useful for preparing datasets for various downstream tasks like question answering, summarization, or spoken dialogue systems.
+
+Core Components
+---------------
+
+**Annotator** (:class:`~sdialog.annotators.annotator.Annotator`)
+    Abstract base class for creating annotators. An annotator adds a specific annotation to a dialogue. Each annotator defines its task name, modality, and any prerequisite annotators.
+
+**TaskModality** (:class:`~sdialog.annotators.annotator.TaskModality`)
+    An enum representing the input/output modalities of a task (e.g., TEXT_TO_TEXT, AUDIO_TO_TEXT).
+
+**apply_annotators** (:func:`~sdialog.annotators.apply_annotators`)
+    A function to apply a list of annotators to a dialogue in a sequential manner.
+
+Creating a Custom Annotator
+---------------------------
+
+You can create your own annotator by inheriting from :class:`~sdialog.annotators.annotator.Annotator` and implementing the required methods. Here is an example of a simple summarization annotator:
+
+.. code-block:: python
+
+    import sdialog
+    from sdialog.annotators.annotator import Annotator, TaskModality
+
+    class SummarizationAnnotator(Annotator):
+        def get_modality(self) -> list[TaskModality]:
+            return [TaskModality.TEXT_TO_TEXT]
+
+        def get_task_name(self) -> str:
+            return "summarization"
+
+        def get_requirements(self) -> list[Annotator]:
+            return []  # No requirements for this simple annotator
+
+        def annotate(self, dialog: sdialog.Dialog) -> sdialog.Dialog:
+            self.check_requirements(dialog)
+            
+            # In a real scenario, you would use a model to generate the summary.
+            summary = "This is a summary of the dialogue."
+
+            annotations = {
+                "data": {"summary": summary},
+                "modality": self.get_modality()
+            }
+            dialog.add_annotations(self.get_task_name(), annotations)
+            return dialog
+
+Applying Annotators
+--------------------
+
+Once you have your annotators, you can apply them to a dialogue using the :func:`~sdialog.annotators.apply_annotators` function. SDialog also comes with built-in annotators like :class:`~sdialog.annotators.QuestionAnsweringAnnotator`.
+
+.. code-block:: python
+
+    from sdialog import Dialog
+    from sdialog.annotators import apply_annotators, QuestionAnsweringAnnotator
+
+    dialog = Dialog.from_str("""
+    Alice: What is the capital of France?
+    Bob: I think it's Paris.
+    """)
+
+    # Instantiate the annotators
+    qa_annotator = QuestionAnsweringAnnotator()
+    # custom_summarizer = SummarizationAnnotator()
+
+    # Apply the annotators to the dialogue
+    annotated_dialog = apply_annotators(dialog, [qa_annotator])
+
+    # Retrieve the annotations
+    qa_annotations = annotated_dialog.get_annotations("question_answering")
+    print(qa_annotations)
+
 ----
 
 Configuration & Control

@@ -159,6 +159,31 @@ class Dialog(BaseModel):
     events: Optional[List[Event]] = None
     notes: Optional[str] = None
     _path: Optional[str] = None
+    _annotations: Optional[dict[str, Any]] = {}
+
+    def get_annotations(self, task_name: str = None) -> dict[str, Any]:
+        """
+        Get the annotations for a specific task or all tasks.
+        :param task_name: The name of the task to get the annotations for.
+        :type task_name: Optional[str]
+        :return: The annotations for the task or all tasks.
+        :rtype: dict[str, Any]
+        """
+        if task_name is None:
+            return self._annotations
+        return self._annotations[task_name]
+
+    def add_annotations(self, task_name: str, annotations: dict[str, Any]) -> None:
+        """
+        Add annotations for a specific task.
+        :param task_name: The name of the task to add the annotations for.
+        :type task_name: str
+        :param annotations: The annotations to add.
+        :type annotations: dict[str, Any]
+        :return: None
+        :rtype: None
+        """
+        self._annotations[task_name] = annotations
 
     def to_audio(
         self,
