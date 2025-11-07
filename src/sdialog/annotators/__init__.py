@@ -8,8 +8,11 @@ This module contains the classes for the task-specific annotators.
 
 import logging
 from sdialog import Dialog
-from pydantic import BaseModel
+from sdialog.config import config
+from pydantic import BaseModel, Field
+from sdialog.util import get_llm_model
 from typing import List, Optional, Any, Tuple, Type
+from langchain_core.messages import HumanMessage, SystemMessage
 from sdialog.annotators.annotator import Annotator, TaskModality
 
 
@@ -50,10 +53,16 @@ class QuestionAnsweringAnnotator(Annotator):
         :return: The structured model for the task.
         :rtype: BaseModel
         """
-        class TaskModel(BaseModel):
+        class QAPair(BaseModel):
+            """Represents a single question and its corresponding answer derived from the dialogue."""
             question: str
             answer: str
-        return TaskModel
+
+        class QuestionAnswerList(BaseModel):
+            """A list of question and answer pairs extracted from a dialogue."""
+            questions_answers: List[QAPair] = Field(default_factory=list)
+
+        return QuestionAnswerList
 
     def get_modality(self) -> list[TaskModality]:
         """
@@ -98,6 +107,10 @@ class QuestionAnsweringAnnotator(Annotator):
             logging.warning("[QuestionAnsweringAnnotator] No 'save_path' provided, skipping saving")
             return
 
+        if not data:
+            logging.info("[QuestionAnsweringAnnotator] No annotations to save, skipping file creation.")
+            return
+
         df = pd.DataFrame(data)
         df["identifier"] = df.index
         df = df[["identifier", "question", "answer"]]
@@ -125,21 +138,56 @@ class QuestionAnsweringAnnotator(Annotator):
 
         dialog = self.check_requirements(dialog)
 
-        # TODO: Use the structured model saved in self._structured_model to generate questions and answers.
+        llm_params = config["llm"].copy()
+        if "model" in llm_params:
+            del llm_params["model"]
 
-        # For now, we use a dummy list of questions and answers.
-        # TODO: Use a real model to generate questions and answers.
+        llm = get_llm_model(
+            model_name=config["llm"]["model"],
+            output_format=self._structured_model,
+            **llm_params,
+        )
+
+        system_prompt = "You are an expert at creating question-answer pairs from a dialogue. " \
+                        "Your response must be a JSON object, and it must contain at least one question-answer pair."
+
+        dialog_text = "\n".join([f"{turn.speaker}: {turn.text}" for turn in dialog.turns])
+
+        human_prompt = (
+            f"Here is a dialogue:\n---\n{dialog_text}\n---\n\n"
+            "Based on the dialogue, generate a list of question and answer pairs. "
+            "It is mandatory to generate at least one question-answer pair. "
+            "If the dialogue contains little information, create a general question about the conversation theme. "
+            'The output should be a JSON object with a key "questions_answers". '
+            "This key should contain a list of objects, where each object has "
+            'two keys: "question" and "answer".\n\n'
+            "Example format:\n"
+            "{\n"
+            '  "questions_answers": [\n'
+            "    {\n"
+            '      "question": "What is the main topic of the conversation?",\n'
+            '      "answer": "The main topic is a general discussion about a recent event."\n'
+            "    }\n"
+            "  ]\n"
+            "}\n\n"
+            "Now, generate the question and answer pairs for the provided dialogue."
+        )
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            raw_response = llm.invoke(messages)
+            logging.info(f"[QuestionAnsweringAnnotator] Raw LLM response: {raw_response}")
+            structured_response = self._structured_model.model_validate(raw_response)
+            data = [pair.model_dump() for pair in structured_response.questions_answers]
+        except Exception as e:
+            logging.error(f"[QuestionAnsweringAnnotator] Failed to generate annotations: {e}")
+            data = []
+
         _annotations = {
-            "data": [
-                {
-                    "question": "What is the capital of France?",
-                    "answer": "Paris"
-                },
-                {
-                    "question": "What is the capital of Germany?",
-                    "answer": "Berlin"
-                }
-            ],
+            "data": data,
             "modality": self._modality
         }
 
