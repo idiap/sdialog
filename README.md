@@ -211,9 +211,9 @@ results = comparator({"reference": reference, "candidate": candidate})
 # Plot results for each evaluator
 comparator.plot()
 ```
+</details>
 > [!TIP]
 > See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/5.evaluation.ipynb).
-</details>
 
 ## 🧠 Mechanistic interpretability
 
@@ -248,9 +248,9 @@ agent_steered = agent | inspector - anger_direction  # Ablate the anger directio
 
 agent_steered("You are an extremely upset assistant")  # Agent "can't get angry anymore" :)
 ```
+</details>
 > [!TIP]
 > See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
-</details>
 
 
 ## 📖 Documentation and tutorials
