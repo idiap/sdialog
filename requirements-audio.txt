@@ -1,0 +1,10 @@
+# === Audio processing ===
+soundfile
+librosa
+sox
+jams
+pyloudnorm
+pyroomacoustics
+datasets<=3.6.0
+huggingface_hub[cli]
+scaper @ git+https://github.com/cyrta/dscaper.git

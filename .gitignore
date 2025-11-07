@@ -33,4 +33,9 @@ tutorials/audio_outputs_impulse_response
 tutorials/my_custom_voices
 tutorials/my_custom_ir
 tutorials/room.png
+tutorials/outputs_annotations/*
+tutorials/outputs_annotations_asr/*
+tutorials/outputs_to_audio/*
+tutorials/9.generating_data.ipynb
 *audio_dialog.json
+./src/sdialog/sdialog
