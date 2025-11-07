@@ -10,7 +10,6 @@ for room acoustics simulation and audio processing workflows.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import numpy as np
-from typing import List
 from sdialog import Turn
 
 
@@ -28,7 +27,7 @@ class AudioTurn(Turn):
       - Audio data storage with lazy loading capabilities
       - Timing information for audio synchronization
       - Voice and speaker position metadata
-      - Audio quality metrics (SNR, alignment)
+      - Audio quality metrics (SNR)
       - Integration with room acoustics simulation
       - Support for external audio processing tools (dscaper)
 
@@ -44,8 +43,6 @@ class AudioTurn(Turn):
       - position: Spatial position of the speaker
       - microphone_position: Microphone position for recording
       - snr: Signal-to-noise ratio of the audio
-      - alignment: Text-to-audio alignment information
-      - transcript: Transcribed text (if different from original)
       - is_stored_in_dscaper: Flag for external tool integration
 
     :ivar _audio: Raw audio data as numpy array (lazy-loaded).
@@ -60,10 +57,6 @@ class AudioTurn(Turn):
     :vartype audio_start_time: float
     :ivar snr: Signal-to-noise ratio of the audio.
     :vartype snr: float
-    :ivar alignment: Text-to-audio alignment information.
-    :vartype alignment: List[dict]
-    :ivar transcript: Transcribed text (may differ from original text).
-    :vartype transcript: str
     :ivar voice: Voice identifier used for TTS generation.
     :vartype voice: str
     :ivar position: Spatial position of the speaker in the room.
@@ -80,8 +73,6 @@ class AudioTurn(Turn):
     audio_duration: float = -1.0
     audio_start_time: float = -1.0
     snr: float = -1.0
-    alignment: List[dict] = []
-    transcript: str = ""
     voice: str = ""
     position: str = ""
     microphone_position: str = ""
@@ -125,8 +116,6 @@ class AudioTurn(Turn):
             audio_duration: float = -1.0,
             audio_start_time: float = -1.0,
             snr: float = -1.0,
-            alignment: List[dict] = [],
-            transcript: str = "",
             voice: str = "",
             position: str = "",
             microphone_position: str = "",
@@ -156,10 +145,6 @@ class AudioTurn(Turn):
         :type audio_start_time: float
         :param snr: Signal-to-noise ratio of the audio (default: -1.0).
         :type snr: float
-        :param alignment: Text-to-audio alignment information (default: empty list).
-        :type alignment: List[dict]
-        :param transcript: Transcribed text, may differ from original (default: empty string).
-        :type transcript: str
         :param voice: Voice identifier used for TTS generation (default: empty string).
         :type voice: str
         :param position: Spatial position of the speaker in the room (default: empty string).
@@ -181,8 +166,6 @@ class AudioTurn(Turn):
         audio_turn.audio_duration = audio_duration
         audio_turn.audio_start_time = audio_start_time
         audio_turn.snr = snr
-        audio_turn.alignment = alignment
-        audio_turn.transcript = transcript
         audio_turn.voice = voice
         audio_turn.position = position
         audio_turn.microphone_position = microphone_position

@@ -170,6 +170,12 @@ class Dialog(BaseModel):
         All keyword arguments are passed to it.
         :param dir_audio: Directory path for storing audio outputs.
         :type dir_audio: str
+        :param dialog_dir_name: Custom name for the dialogue directory.
+        :type dialog_dir_name: str
+        :param dscaper_data_path: Path to dSCAPER data directory.
+        :type dscaper_data_path: Optional[str]
+        :param room_name: Custom name for the room configuration.
+        :type room_name: Optional[str]
         :param do_step_1: Enable text-to-speech conversion and voice assignment.
         :type do_step_1: bool
         :param do_step_2: Enable audio combination and dSCAPER timeline generation.
@@ -177,21 +183,44 @@ class Dialog(BaseModel):
         :param do_step_3: Enable room acoustics simulation.
         :type do_step_3: bool
         :param tts_engine: Text-to-speech engine for audio generation.
-        :type tts_engine: sdialog.audio.tts_engine.BaseTTS
+        :type tts_engine: BaseTTS
         :param voice_database: Voice database for speaker selection.
-        :type voice_database: sdialog.audio.voice_database.BaseVoiceDatabase
+        :type voice_database: BaseVoiceDatabase
+        :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
+        :type dscaper_datasets: List[str]
         :param room: Room configuration for acoustics simulation.
-        :type room: sdialog.audio.room.Room
+        :type room: Room
+        :param speaker_positions: Speaker positioning configuration.
+        :type speaker_positions: dict[Role, dict]
+        :param background_effect: Background audio effect type.
+        :type background_effect: str
+        :param foreground_effect: Foreground audio effect type.
+        :type foreground_effect: str
+        :param foreground_effect_position: Position for foreground effects.
+        :type foreground_effect_position: RoomPosition
+        :param kwargs_pyroom: PyRoomAcoustics configuration parameters.
+        :type kwargs_pyroom: dict
+        :param source_volumes: Volume levels for different audio sources.
+        :type source_volumes: dict[SourceType, SourceVolume]
+        :param audio_file_format: Audio file format (wav, mp3, flac).
+        :type audio_file_format: str
+        :param seed: Seed for random number generator.
+        :type seed: int
+        :param re_sampling_rate: Re-sampling rate for the output audio.
+        :type re_sampling_rate: Optional[int]
         :param recording_devices: The identifiers of the recording devices to simulate.
-        :type recording_devices: Optional[List[Union[str, "sdialog.audio.impulse_response_database.RecordingDevice"]]]
+        :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :param impulse_response_database: The database for impulse responses.
-        :type impulse_response_database: Optional["sdialog.audio.impulse_response_database.ImpulseResponseDatabase"]
-        :param kwargs: Additional keyword arguments to pass to the to_audio function.
-        :type kwargs: dict
-        :return: An AudioDialog object.
+        :type impulse_response_database: Optional[ImpulseResponseDatabase]
+        :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
+        :raises Exception: If the audio module is not installed.
         """
-        from sdialog.audio.pipeline import to_audio
+
+        try:
+            from sdialog.audio.pipeline import to_audio
+        except Exception:
+            raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
 
         return to_audio(
             self,

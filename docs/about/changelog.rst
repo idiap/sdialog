@@ -6,7 +6,44 @@ All notable changes to SDialog will be documented here.
 
 ----
 
-[0.3.0] 2025-09-03 🚀
+[0.3.3] 2025-10-30 🚀
+---------------------
+
+Added
+^^^^^
+
+
+* **sdialog.server**\ :
+
+  * New module to serve agents via an Ollama/OpenAI-compatible REST API (works with UIs like Open WebUI) (#92)
+
+* **sdialog**\ :
+
+  * ``Dialog.from_huggingface()`` to load/download dialogues directly from Hugging Face datasets (#59)
+
+Changed
+^^^^^^^
+
+
+* **sdialog.evaluation**\ :
+
+  * LLM judge methods now accept additional user-defined template arguments (e.g., like ``document`` in `this example <https://sdialog.readthedocs.io/en/latest/examples/index.html#example-1-yes-no-relevance-judgment-with-reasoning>`_\ ) (#86)
+
+* **sdialog.agents**\ :
+
+  * Improved ``Agent`` initialization so agents can act as a proxy for external conversational systems (#90, fa1d8f3)
+
+Fixed
+^^^^^
+
+
+* **sdialog.evaluation**\ :
+
+  * Corrected Flesch Reading Ease and Gunning Fog score calculations (d1d4260)
+
+----
+
+[0.3.0] 2025-10-03 ✨
 ---------------------
 
 Added
