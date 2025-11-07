@@ -8,6 +8,8 @@ This module contains the classes for the task-specific annotators.
 import logging
 from enum import Enum
 from sdialog import Dialog
+from pydantic import BaseModel
+from typing import Optional, Any
 from abc import abstractmethod, ABC
 
 
@@ -45,6 +47,17 @@ class Annotator(ABC):
         self._requirements = self.get_requirements()
         self._task_name = self.get_task_name()
         self._modality = self.get_modality()
+        self._structured_model = self.get_structured_model()
+
+    def list_requirements(self) -> list["Annotator"]:
+        """
+        List the requirements for the task.
+        :return: The list of requirements for the task.
+        :rtype: list[Annotator]
+        """
+        return [
+            requirement.get_task_name() for requirement in self._requirements
+        ]
 
     @abstractmethod
     def get_modality(self) -> list[TaskModality]:
@@ -75,11 +88,13 @@ class Annotator(ABC):
         raise NotImplementedError("Annotator subclass must implement this method get_task_name")
 
     @abstractmethod
-    def annotate(self, dialog: Dialog) -> Dialog:
+    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
         Annotate a dialog for a specific task.
         :param dialog: The dialog to annotate.
         :type dialog: Dialog
+        :param args: Additional arguments to pass to the annotate method.
+        :type args: dict[str, Any]
         :return: The annotated dialog.
         :rtype: Dialog
         """
@@ -108,3 +123,28 @@ class Annotator(ABC):
                 dialog = requirement.annotate(dialog)
 
         return dialog
+
+    def get_structured_model(self) -> Optional[BaseModel]:
+        """
+        Get the structured model for the parsing of the data for the task during LLM inference.
+        The structured model is a pydantic model that defines the structure of the data for the task,
+        so that the LLM can parse the data correctly.
+        If the task doesn't have a structured model, return None.
+        :return: The structured model for the task.
+        :rtype: BaseModel
+        """
+        return None
+
+    @abstractmethod
+    def save(self, data: Any, args: dict[str, Any] = {}) -> None:
+        """
+        Save the data to a file.
+        :param data: The data to save.
+        :type data: Any
+        :param args: Additional arguments to pass to the saving method.
+        It includes the 'save_path' where to save the data.
+        :type args: dict[str, Any]
+        :return: None
+        :rtype: None
+        """
+        raise NotImplementedError("Annotator subclass must implement this method save")

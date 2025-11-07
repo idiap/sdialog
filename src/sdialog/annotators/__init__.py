@@ -7,12 +7,13 @@ This module contains the classes for the task-specific annotators.
 # SPDX-License-Identifier: MIT
 
 import logging
-from typing import List
 from sdialog import Dialog
+from pydantic import BaseModel
+from typing import List, Optional, Any, Tuple, Type
 from sdialog.annotators.annotator import Annotator, TaskModality
 
 
-def apply_annotators(dialog: Dialog, annotators: List[Annotator]) -> Dialog:
+def apply_annotators(dialog: Dialog, annotators: List[Tuple[Annotator, dict[str, Any]]]) -> Dialog:
     """
     Apply a list of annotators to a dialog.
     Each annotator is applied in the order of the list.
@@ -22,13 +23,13 @@ def apply_annotators(dialog: Dialog, annotators: List[Annotator]) -> Dialog:
     :param dialog: The dialog to annotate.
     :type dialog: Dialog
     :param annotators: The list of annotators to apply.
-    :type annotators: List[Annotator]
+    :type annotators: List[Tuple[Annotator, dict[str, Any]]]
     :return: The annotated dialog.
     :rtype: Dialog
     """
 
-    for annotator in annotators:
-        dialog = annotator.annotate(dialog)
+    for annotator, args in annotators:
+        dialog = annotator.annotate(dialog, args=args)
 
     return dialog
 
@@ -40,6 +41,19 @@ class QuestionAnsweringAnnotator(Annotator):
     This annotator has no requirements.
     The modality of the task is text-to-text.
     """
+
+    def get_structured_model(self) -> Optional[Type[BaseModel]]:
+        """
+        Get the structured model for the parsing of the data for the task during LLM inference.
+        The structured model is a pydantic model that defines the structure of the data for the task,
+        so that the LLM can parse the data correctly.
+        :return: The structured model for the task.
+        :rtype: BaseModel
+        """
+        class TaskModel(BaseModel):
+            question: str
+            answer: str
+        return TaskModel
 
     def get_modality(self) -> list[TaskModality]:
         """
@@ -67,18 +81,51 @@ class QuestionAnsweringAnnotator(Annotator):
         """
         return []
 
-    def annotate(self, dialog: Dialog) -> Dialog:
+    def save(self, data: Any, args: dict[str, Any] = {}) -> None:
+        """
+        Save the data to a file. An 'identifier' column will be added with incremental values.
+        :param data: The data to save.
+        :type data: Any
+        :param args: Additional arguments to pass to the saving method.
+        It includes the 'save_path' where to save the data.
+        :type args: dict[str, Any]
+        :return: None
+        :rtype: None
+        """
+        import pandas as pd
+
+        if args is None or "save_path" not in args or args["save_path"] is None:
+            logging.warning("[QuestionAnsweringAnnotator] No 'save_path' provided, skipping saving")
+            return
+
+        df = pd.DataFrame(data)
+        df["identifier"] = df.index
+        df = df[["identifier", "question", "answer"]]
+        df.to_csv(args["save_path"], index=False)
+
+        logging.info(
+            "[QuestionAnsweringAnnotator] "
+            f"Data saved to {args['save_path']}"
+        )
+
+    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
         Annotate a dialog for question answering tasks.
         The annotation is a list of questions and answers.
         :param dialog: The dialog to annotate.
         :type dialog: Dialog
+        :param args: Additional arguments to pass to the annotate method.
+        This includes the 'save_path' where to save the data and can contain 'save_args'
+        additional arguments to pass to the save method.
+        :type args: dict[str, Any]
         :return: The annotated dialog.
         :rtype: Dialog
         """
         logging.info("[QuestionAnsweringAnnotator] Annotating dialog for question answering tasks")
 
         dialog = self.check_requirements(dialog)
+
+        # TODO: Use the structured model saved in self._structured_model to generate questions and answers.
 
         # For now, we use a dummy list of questions and answers.
         # TODO: Use a real model to generate questions and answers.
@@ -102,6 +149,8 @@ class QuestionAnsweringAnnotator(Annotator):
             "[QuestionAnsweringAnnotator] "
             f"Annotation done for {len(_annotations['data'])} questions"
         )
+
+        self.save(data=_annotations["data"], args=args)
 
         return dialog
 
@@ -142,12 +191,43 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
             QuestionAnsweringAnnotator()
         ]
 
-    def annotate(self, dialog: Dialog) -> Dialog:
+    def save(self, data: Any, args: dict[str, Any] = {}) -> None:
+        """
+        Save the data to a file.
+        :param data: The data to save.
+        :type data: Any
+        :param args: Additional arguments to pass to the saving method.
+        It includes the 'save_path' where to save the data.
+        :type args: dict[str, Any]
+        :return: None
+        :rtype: None
+        """
+        import pandas as pd
+
+        if args is None or "save_path" not in args or args["save_path"] is None:
+            logging.warning("[SpokenQuestionAnsweringAnnotator] No 'save_path' provided, skipping saving")
+            return
+
+        df = pd.DataFrame(data)
+        df["identifier"] = df.index
+        df = df[["identifier", "question", "answer", "audio_path", "voice"]]
+        df.to_csv(args["save_path"], index=False)
+
+        logging.info(
+            "[SpokenQuestionAnsweringAnnotator] "
+            f"Data saved to {args['save_path']}"
+        )
+
+    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
         Annotate a dialog for question answering tasks.
         The annotation is a list of questions and answers, with the audio path and the voice used.
         :param dialog: The dialog to annotate.
         :type dialog: Dialog
+        :param args: Additional arguments to pass to the annotate method.
+        This includes the 'save_path' where to save the data and can contain 'save_args'
+        additional arguments to pass to the save method.
+        :type args: dict[str, Any]
         :return: The annotated dialog.
         :rtype: Dialog
         """
@@ -177,7 +257,7 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
             _annotations["data"].append({
                 "question": ann["question"],
                 "answer": ann["answer"],
-                "audio": audio_path,
+                "audio_path": audio_path,
                 "voice": audio_voice
             })
 
@@ -187,5 +267,7 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
             "[SpokenQuestionAnsweringAnnotator] "
             f"Annotation done for {len(_annotations['data'])} questions"
         )
+
+        self.save(data=_annotations["data"], args=args)
 
         return dialog
