@@ -1227,7 +1227,7 @@ You can create your own annotator by inheriting from :class:`~sdialog.annotators
 .. code-block:: python
 
     import sdialog
-    from sdialog.annotators.annotator import Annotator, TaskModality
+    from sdialog.annotators import Annotator, TaskModality
 
     class SummarizationAnnotator(Annotator):
         def get_modality(self) -> list[TaskModality]:
@@ -1255,12 +1255,13 @@ You can create your own annotator by inheriting from :class:`~sdialog.annotators
 Applying Annotators
 --------------------
 
-Once you have your annotators, you can apply them to a dialogue using the :func:`~sdialog.annotators.apply_annotators` function. SDialog also comes with built-in annotators like :class:`~sdialog.annotators.QuestionAnsweringAnnotator`.
+Once you have your annotators, you can apply them to a dialogue using the :func:`~sdialog.annotators.apply_annotators` function. SDialog also comes with built-in annotators like :class:`~sdialog.annotators.nlp.QuestionAnsweringAnnotator`.
 
 .. code-block:: python
 
     from sdialog import Dialog
-    from sdialog.annotators import apply_annotators, QuestionAnsweringAnnotator
+    from sdialog.annotators import apply_annotators
+    from sdialog.annotators.nlp import QuestionAnsweringAnnotator
 
     dialog = Dialog.from_str("""
     Alice: What is the capital of France?

@@ -1151,7 +1151,8 @@ You can annotate dialogues with task-specific information using `Annotator` clas
 .. code-block:: python
 
     from sdialog import Dialog
-    from sdialog.annotators import apply_annotators, QuestionAnsweringAnnotator
+    from sdialog.annotators import apply_annotators
+    from sdialog.annotators.nlp import QuestionAnsweringAnnotator
 
     dialog = Dialog.from_str("""User: What is the weather like in London?
     Agent: It is currently rainy and 12 degrees Celsius.""")
