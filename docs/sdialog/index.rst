@@ -1219,8 +1219,10 @@ Centralized configuration lives in ``sdialog.config``:
 - ``openai:MODEL`` - OpenAI models (GPT-3.5, GPT-4, etc.)
 - ``huggingface:MODEL`` - HuggingFace transformers models
 - ``ollama:MODEL`` - Local/remote Ollama models
-- ``amazon:MODEL`` - AWS Bedrock models (Anthropic Claude, etc.)
-- ``google:MODEL`` - Google Gen AI models (Gemini, etc.)
+- ``amazon:MODEL`` or ``aws:MODEL`` - AWS Bedrock models (Anthropic Claude, etc.)
+- ``google:MODEL`` or ``google-genai:MODEL`` - Google Gen AI models (Gemini, etc.)
+- ``anthropic:MODEL`` - Anthropic API models (Claude, etc.)
+- ``azure:MODEL`` or ``azure-openai:MODEL`` - Azure OpenAI models
 - Local model instances passed directly
 
 **Configuration Examples:**
