@@ -1110,7 +1110,10 @@ SDialog supports multilingual audio generation. You can use a compatible model f
 
     import torch
     import numpy as np
+    from sdialog.audio.dialog import AudioDialog
     from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.voice_database import LocalVoiceDatabase
     
     class XTTSEngine(BaseTTS):
         def __init__(self, lang_code: str = "en", model="xtts_v2"):
@@ -1118,10 +1121,10 @@ SDialog supports multilingual audio generation. You can use a compatible model f
             self.lang_code = lang_code
             self.pipeline = TTS(model).to("cuda" if torch.cuda.is_available() else "cpu")
         
-        def generate(self, text: str, voice: str) -> tuple[np.ndarray, int]:
+        def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
             wav_data = self.pipeline.tts(
                 text=text,
-                speaker_wav=voice,
+                speaker_wav=speaker_voice,
                 language=self.lang_code
             )
             return (wav_data, 24000)
