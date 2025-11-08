@@ -190,6 +190,7 @@ class Agent:
         # Initialize memory based on whether we have a custom system_prompt or persona
         if system_prompt:
             self._memory = [SystemMessage(system_prompt)]
+            self._system_prompt = self._memory[0].content
         elif persona and self._system_prompt_template:
             self._memory = [SystemMessage(self._system_prompt_template.render(
                 persona=self.persona.prompt(),
@@ -200,8 +201,10 @@ class Agent:
                 can_finish=self._can_finish,
                 stop_word=self._STOP_WORD
             ))]
+            self._system_prompt = self._memory[0].content
         else:
             self._memory = []
+            self._system_prompt = None
         self._stateless_memory = None
 
         if system_prompt:
@@ -710,8 +713,13 @@ class Agent:
         :param context: Optional context override.
         :param example_dialogs: Optional replacement example dialogs for prompt regeneration.
         """
+
         # Remove history
-        self.memory[:] = self.memory[:1]
+        if self._system_prompt is None:
+            self.memory.clear()
+        else:
+            self.memory[:] = self.memory[:1]
+
         # Update system prompt if needed
         if self.persona and self.memory and (context or example_dialogs):
             system_prompt = self._system_prompt_template.render(

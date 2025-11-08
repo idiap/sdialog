@@ -9,9 +9,11 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/)
 
 ---
-SDialog is a modular Python toolkit for synthetic dialog generation, evaluation, and analysis. It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability—so you can generate reliable, controllable dialog systems or data at scale.
+SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aim to bridge agent construction → dialog generation → evaluation → (optionally) interpretability in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
 
-Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
+It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
+
+Quick links: [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## ✨ Key features
 - Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#project-vision--community-call))_
@@ -20,9 +22,9 @@ Quick links: [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.re
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
 - Native mechanistic interpretability (inspect and steer activations)
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
-- Interoperability across OpenAI, Hugging Face, Ollama, AWS, and more
+- Interoperability across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more.
 
-If you are building controlled multi‑agent conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
+If you are building conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
 
 
 ## ⚡ Installation
@@ -112,6 +114,9 @@ support_agent.serve(port=1333)
 
 ### 🧪 Testing remote systems with simulated users
 
+<details>
+<summary>Probe OpenAI‑compatible deployed systems with controllable simulated users and capture dialogs for evaluation.</summary>
+
 You can also use SDialog as a controllable test harness for any OpenAI‑compatible system such as **vLLM**-based ones by role‑playing realistic or adversarial users against your deployed system:
 
 * Black‑box functional checks (Does the system follow instructions? Handle edge cases?)
@@ -137,8 +142,12 @@ system = Agent(
 dialog = simulated_customer.dialog_with(system)
 dialog.to_file("dialog_0.json")
 ```
+</details>
 
 ### 💾 Loading and saving dialogs
+
+<details>
+<summary>Import, export, and transform dialogs from JSON, text, CSV, or Hugging Face datasets.</summary>
 
 Dialogs are rich objects with helper methods (filter, slice, transform, etc.) that can be easily exported and loaded using different methods:
 
@@ -171,9 +180,12 @@ avg_words_turn = sum(len(turn) for turn in dialog) / len(dialog)
 ```
 
 See [Dialog section](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#dialog) in the documentation for more information.
-
+</details>
 
 ## 📊 Evaluate and compare
+
+<details>
+<summary>Score dialogs with built‑in metrics and LLM judges, and compare datasets with aggregators and plots.</summary>
 
 Dialogs can be evaluated using the different components available inside the `sdialog.evaluation` module.
 Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation) (readability, flow, linguistic features, LLM judges) or easily create new ones, then aggregate and compare datasets (sets of dialogs) via `DatasetComparator`.
@@ -199,11 +211,15 @@ results = comparator({"reference": reference, "candidate": candidate})
 # Plot results for each evaluator
 comparator.plot()
 ```
+</details>
+
 > [!TIP]
 > See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/5.evaluation.ipynb).
 
-
 ## 🧠 Mechanistic interpretability
+
+<details>
+<summary>Capture per‑token activations and steer models via Inspectors for analysis and interventions.</summary>
 
 Attach Inspectors to capture per‑token activations and optionally steer (add/ablate directions) to analyze or intervene in model behavior.
 
@@ -233,6 +249,8 @@ agent_steered = agent | inspector - anger_direction  # Ablate the anger directio
 
 agent_steered("You are an extremely upset assistant")  # Agent "can't get angry anymore" :)
 ```
+</details>
+
 > [!TIP]
 > See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
 
@@ -273,31 +291,33 @@ To accelerate open, rigorous, and reproducible conversational AI research, SDial
 
 ## 💪 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). We welcome issues, feature requests, and pull requests. If you want to **contribute to the project**, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍
+See [CONTRIBUTING.md](CONTRIBUTING.md). We welcome issues, feature requests, and pull requests. If you want to **contribute to the project**, please open an [issue](https://github.com/idiap/sdialog/issues) or submit a PR, and help us make SDialog better 👍.
+If you find SDialog useful, please consider starring ⭐ the GitHub repository to support the project and increase its visibility 😄.
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. All-contributors list:
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
-<table>
+<div style="display:block; width:100%; overflow-x:auto;">
+<table style="table-layout:fixed; width:100%; border-collapse:collapse;">
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://sergioburdisso.github.io/" target="_blank"><img src="https://avatars.githubusercontent.com/u/12646542?v=4?s=100" width="100px;" alt="Sergio Burdisso"/><br /><sub><b>Sergio Burdisso</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Code" target="_blank">💻</a> <a href="#ideas-sergioburdisso" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Documentation" target="_blank">📖</a> <a href="#tutorial-sergioburdisso" title="Tutorials" target="_blank">✅</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://linkedin.com/in/yanis-labrak-8a7412145/" target="_blank"><img src="https://avatars.githubusercontent.com/u/19389475?v=4?s=100" width="100px;" alt="Labrak Yanis"/><br /><sub><b>Labrak Yanis</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=qanastek" title="Code" target="_blank">💻</a> <a href="#ideas-qanastek" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SevKod" target="_blank"><img src="https://avatars.githubusercontent.com/u/123748182?v=4?s=100" width="100px;" alt="Séverin"/><br /><sub><b>Séverin</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=SevKod" title="Code" target="_blank">💻</a> <a href="#ideas-SevKod" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="#tutorial-SevKod" title="Tutorials" target="_blank">✅</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.ricardmarxer.com" target="_blank"><img src="https://avatars.githubusercontent.com/u/15324?v=4?s=100" width="100px;" alt="Ricard Marxer"/><br /><sub><b>Ricard Marxer</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=rikrd" title="Code" target="_blank">💻</a> <a href="#ideas-rikrd" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/thschaaf" target="_blank"><img src="https://avatars.githubusercontent.com/u/42753790?v=4?s=100" width="100px;" alt="Thomas Schaaf"/><br /><sub><b>Thomas Schaaf</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=thschaaf" title="Code" target="_blank">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/enderzhangpro" target="_blank"><img src="https://avatars.githubusercontent.com/u/41446535?v=4?s=100" width="100px;" alt="David Liu"/><br /><sub><b>David Liu</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=enderzhangpro" title="Code" target="_blank">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ahassoo1" target="_blank"><img src="https://avatars.githubusercontent.com/u/46629954?v=4?s=100" width="100px;" alt="ahassoo1"/><br /><sub><b>ahassoo1</b></sub></a><br /><a href="#ideas-ahassoo1" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=ahassoo1" title="Code" target="_blank">💻</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="https://sergioburdisso.github.io/" target="_blank"><img src="https://avatars.githubusercontent.com/u/12646542?v=4?s=100" width="100px;" alt="Sergio Burdisso"/><br /><sub><b>Sergio Burdisso</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Code" target="_blank">💻</a> <a href="#ideas-sergioburdisso" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=sergioburdisso" title="Documentation" target="_blank">📖</a> <a href="#tutorial-sergioburdisso" title="Tutorials" target="_blank">✅</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="http://linkedin.com/in/yanis-labrak-8a7412145/" target="_blank"><img src="https://avatars.githubusercontent.com/u/19389475?v=4?s=100" width="100px;" alt="Labrak Yanis"/><br /><sub><b>Labrak Yanis</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=qanastek" title="Code" target="_blank">💻</a> <a href="#ideas-qanastek" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="https://github.com/SevKod" target="_blank"><img src="https://avatars.githubusercontent.com/u/123748182?v=4?s=100" width="100px;" alt="Séverin"/><br /><sub><b>Séverin</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=SevKod" title="Code" target="_blank">💻</a> <a href="#ideas-SevKod" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="#tutorial-SevKod" title="Tutorials" target="_blank">✅</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="http://www.ricardmarxer.com" target="_blank"><img src="https://avatars.githubusercontent.com/u/15324?v=4?s=100" width="100px;" alt="Ricard Marxer"/><br /><sub><b>Ricard Marxer</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=rikrd" title="Code" target="_blank">💻</a> <a href="#ideas-rikrd" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="https://github.com/thschaaf" target="_blank"><img src="https://avatars.githubusercontent.com/u/42753790?v=4?s=100" width="100px;" alt="Thomas Schaaf"/><br /><sub><b>Thomas Schaaf</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=thschaaf" title="Code" target="_blank">💻</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="https://github.com/enderzhangpro" target="_blank"><img src="https://avatars.githubusercontent.com/u/41446535?v=4?s=100" width="100px;" alt="David Liu"/><br /><sub><b>David Liu</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=enderzhangpro" title="Code" target="_blank">💻</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="https://github.com/ahassoo1" target="_blank"><img src="https://avatars.githubusercontent.com/u/46629954?v=4?s=100" width="100px;" alt="ahassoo1"/><br /><sub><b>ahassoo1</b></sub></a><br /><a href="#ideas-ahassoo1" title="Ideas, Planning, & Feedback" target="_blank">🤔</a> <a href="https://github.com/idiap/sdialog/commits?author=ahassoo1" title="Code" target="_blank">💻</a></td>
     </tr>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.cyrta.com" target="_blank"><img src="https://avatars.githubusercontent.com/u/83173?v=4?s=100" width="100px;" alt="Pawel Cyrta"/><br /><sub><b>Pawel Cyrta</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=cyrta" title="Code" target="_blank">💻</a> <a href="#ideas-cyrta" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Amyyyyeah" target="_blank"><img src="https://avatars.githubusercontent.com/u/122391422?v=4?s=100" width="100px;" alt="ABCDEFGHIJKL"/><br /><sub><b>ABCDEFGHIJKL</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=Amyyyyeah" title="Code" target="_blank">💻</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="http://www.cyrta.com" target="_blank"><img src="https://avatars.githubusercontent.com/u/83173?v=4?s=100" width="100px;" alt="Pawel Cyrta"/><br /><sub><b>Pawel Cyrta</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=cyrta" title="Code" target="_blank">💻</a> <a href="#ideas-cyrta" title="Ideas, Planning, & Feedback" target="_blank">🤔</a></td>
+      <td style="text-align:center; vertical-align:top; width:14.28%; word-break:break-word; overflow-wrap:anywhere;"><a href="https://github.com/Amyyyyeah" target="_blank"><img src="https://avatars.githubusercontent.com/u/122391422?v=4?s=100" width="100px;" alt="ABCDEFGHIJKL"/><br /><sub><b>ABCDEFGHIJKL</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=Amyyyyeah" title="Code" target="_blank">💻</a></td>
     </tr>
   </tbody>
 </table>
-
+</div>
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
 
@@ -318,9 +338,7 @@ If you use SDialog in academic work, please cite:
 
 ## 🙏 Acknowledgments
 
-This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) (grant number 101070558).
-
-The initial development of this project began in preparation for the 2025 Jelinek Memorial Summer Workshop on Speech and Language Technologies ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
+This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) and originated during the **Johns Hopkins University** ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) workshop, specifically within the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
 
 
 ## 📝 License
