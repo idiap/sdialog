@@ -10,6 +10,7 @@ Key Components:
   - BaseTTS: Abstract base class defining the TTS interface
   - KokoroTTS: Implementation using the Kokoro TTS pipeline
   - IndexTTS: Implementation using the IndexTTS model
+  - HuggingFaceTTS: Generic implementation for models from the Hugging Face Hub
 
 Supported TTS Engines:
 
@@ -31,6 +32,10 @@ Example:
         # Initialize IndexTTS for bilingual support
         tts = IndexTTS(model_dir="model", cfg_path="model/config.yaml")
         audio, sample_rate = tts.generate("你好世界", voice="chinese_voice")
+
+        # Initialize HuggingFaceTTS for facebook/mms-tts-eng model
+        tts = HuggingFaceTTS(model_id="facebook/mms-tts-eng")
+        audio, sample_rate = tts.generate("[clears throat] This is a test ...")
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -75,7 +80,7 @@ class BaseTTS(ABC):
         self.pipeline = None
 
     @abstractmethod
-    def generate(self, text: str, voice: str) -> tuple[np.ndarray, int]:
+    def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
         Generates audio from text using the specified voice.
 
@@ -85,8 +90,10 @@ class BaseTTS(ABC):
 
         :param text: The text to be converted to speech.
         :type text: str
-        :param voice: The voice identifier to use for speech generation.
-        :type voice: str
+        :param speaker_voice: The voice identifier to use for speech generation.
+        :type speaker_voice: str
+        :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
+        :type tts_pipeline_kwargs: dict
         :return: A tuple containing the audio data as a numpy array and the sampling rate.
         :rtype: tuple[np.ndarray, int]
         :raises NotImplementedError: If not implemented by subclass.
@@ -132,7 +139,8 @@ class KokoroTTS(BaseTTS):
 
     def __init__(
             self,
-            lang_code: str = "a"):
+            lang_code: str = "a",
+            speed: float = 1.0):
         """
         Initializes the Kokoro TTS engine with the specified language.
 
@@ -142,10 +150,19 @@ class KokoroTTS(BaseTTS):
 
         :param lang_code: Language code for TTS generation (default: "a" for American English).
         :type lang_code: str
+        :param speed: Speech speed multiplier (default: 1.0 for normal speed).
+        :type speed: float
         :raises ValueError: If the provided language code is not supported.
         :raises ImportError: If the kokoro package is not installed.
         """
-        from kokoro import KPipeline
+
+        try:
+            from kokoro import KPipeline
+        except ImportError:
+            raise ImportError(
+                "The 'kokoro' library is required to use KokoroTTS. "
+                "Please install following the instructions here: https://github.com/hexgrad/kokoro"
+            )
 
         self.available_languages = ["a", "b", "e", "f", "h", "i", "j", "p", "z"]
 
@@ -156,11 +173,12 @@ class KokoroTTS(BaseTTS):
             )
 
         self.lang_code = lang_code
+        self.speed = speed
 
         # Initialize the Kokoro pipeline
         self.pipeline = KPipeline(lang_code=self.lang_code)
 
-    def generate(self, text: str, voice: str, speed: float = 1.0) -> tuple[np.ndarray, int]:
+    def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
         Generates audio from text using the Kokoro TTS engine.
 
@@ -170,11 +188,13 @@ class KokoroTTS(BaseTTS):
 
         :param text: The text to be converted to speech.
         :type text: str
-        :param voice: The voice identifier to use for speech generation.
+        :param speaker_voice: The voice identifier to use for speech generation.
                      Must be compatible with the selected language.
-        :type voice: str
+        :type speaker_voice: str
         :param speed: Speech speed multiplier (default: 1.0 for normal speed).
         :type speed: float
+        :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
+        :type tts_pipeline_kwargs: dict
         :return: A tuple containing the audio data as a numpy array and the sampling rate (24000 Hz).
         :rtype: tuple[np.ndarray, int]
         :raises ValueError: If the voice is not compatible with the selected language.
@@ -182,7 +202,7 @@ class KokoroTTS(BaseTTS):
         """
 
         # Generate audio using the Kokoro pipeline
-        generator = self.pipeline(text, voice=voice, speed=speed)
+        generator = self.pipeline(text, voice=speaker_voice, speed=self.speed)
 
         # Extract audio data from the generator
         gs, ps, audio = next(iter(generator))
@@ -236,14 +256,21 @@ class IndexTTS(BaseTTS):
         :raises ImportError: If the indextts package is not installed.
         :raises FileNotFoundError: If the model directory or config file is not found.
         :raises RuntimeError: If model initialization fails.
+        :raises ImportError: If the indextts package is not installed.
         """
 
-        from indextts.infer import IndexTTS  # noqa: F401
+        try:
+            from indextts.infer import IndexTTS
+        except ImportError:
+            raise ImportError(
+                "The 'indextts' library is required to use IndexTTS. "
+                "Please install following the instructions here: https://github.com/index-tts/index-tts"
+            )
 
         # Initialize the IndexTTS model
         self.pipeline = IndexTTS(model_dir=model_dir, cfg_path=cfg_path, device=device)
 
-    def generate(self, text: str, voice: str) -> tuple[np.ndarray, int]:
+    def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
         Generates audio from text using the IndexTTS engine.
 
@@ -253,8 +280,10 @@ class IndexTTS(BaseTTS):
 
         :param text: The text to be converted to speech (Chinese or English).
         :type text: str
-        :param voice: The voice identifier to use for speech generation.
-        :type voice: str
+        :param speaker_voice: The voice identifier to use for speech generation.
+        :type speaker_voice: str
+        :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
+        :type tts_pipeline_kwargs: dict
         :return: A tuple containing the audio data as a numpy array and the sampling rate.
         :rtype: tuple[np.ndarray, int]
         :raises ValueError: If the voice is not compatible with the detected language.
@@ -262,6 +291,72 @@ class IndexTTS(BaseTTS):
         """
 
         # Generate audio using the IndexTTS model
-        sampling_rate, wav_data = self.pipeline.infer(voice, text, output_path=None)
+        sampling_rate, wav_data = self.pipeline.infer(speaker_voice, text, output_path=None)
 
         return (wav_data, sampling_rate)
+
+
+class HuggingFaceTTS(BaseTTS):
+    """
+    Hugging Face TTS engine implementation using the transformers pipeline.
+
+    This class provides a generic interface for various text-to-speech models
+    available on the Hugging Face Hub that are supported by the `text-to-speech`
+    pipeline.
+
+    Key Features:
+        - Support for any `text-to-speech` compatible model from Hugging Face.
+        - GPU acceleration support.
+        - Flexible voice/speaker selection through a keyword argument.
+
+    :ivar pipeline: The Hugging Face pipeline instance.
+    :vartype pipeline: transformers.Pipeline
+    """
+
+    def __init__(
+            self,
+            model_id: str = "facebook/mms-tts-eng",
+            device: str = None,
+            **kwargs):
+        """
+        Initializes the Hugging Face TTS engine.
+
+        :param model_id: The model identifier from the Hugging Face Hub.
+        :type model_id: str
+        :param device: Device for model inference ("cuda" or "cpu"). If None,
+                       it will auto-detect CUDA availability.
+        :type device: str
+        :raises ImportError: If the `transformers` package is not installed.
+        """
+        try:
+            from transformers import pipeline
+        except ImportError:
+            raise ImportError(
+                "The 'transformers' library is required to use HuggingFaceTTS. "
+                "Please install it with 'pip install transformers'."
+            )
+
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.pipeline = pipeline("text-to-speech", model=model_id, device=device, **kwargs)
+
+    def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
+        """
+        Generates audio from text using the Hugging Face TTS pipeline.
+
+        This method passes any additional keyword arguments directly to the
+        pipeline, allowing for model-specific parameters like speaker embeddings.
+
+        :param text: The text to be converted to speech.
+        :type text: str
+        :param speaker_voice: The voice identifier to use for speech generation.
+        :type speaker_voice: str
+        :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
+        :type tts_pipeline_kwargs: dict
+        :return: A tuple containing the audio data as a numpy array and the sampling rate.
+        :rtype: tuple[np.ndarray, int]
+        """
+        output = self.pipeline(text, **tts_pipeline_kwargs)
+
+        return (output["audio"][0], output["sampling_rate"])

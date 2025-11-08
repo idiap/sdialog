@@ -683,6 +683,7 @@ Core Components
     Abstract interface for text-to-speech engines. Available implementations:
     - :class:`~sdialog.audio.tts_engine.KokoroTTS`: Kokoro engine for speech synthesis
     - :class:`~sdialog.audio.tts_engine.IndexTTS`: IndexTTS engine
+    - :class:`~sdialog.audio.tts_engine.HuggingFaceTTS`: Generic implementation for models from the Hugging Face Hub
     - Any other TTS engine that inherits from :class:`~sdialog.audio.tts_engine.BaseTTS`
 
 **Voice Databases** (:class:`~sdialog.audio.voice_database.BaseVoiceDatabase`)

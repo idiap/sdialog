@@ -1073,9 +1073,38 @@ SDialog allows you to simulate different microphone effects by convolving audio 
 
 Multilingual Audio Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SDialog supports multilingual audio generation with custom TTS engines. Let's create a custom TTS engine for Spanish!
+SDialog supports multilingual audio generation. You can use a compatible model from the Hugging Face Hub via ``HuggingFaceTTS`` or create your own custom TTS engine for more advanced use cases.
 
-**Custom TTS Engine** - Create your own TTS implementation:
+**Using ``HuggingFaceTTS``** - Use any compatible model from the Hugging Face Hub:
+
+.. code-block:: python
+
+    from sdialog.audio.tts_engine import HuggingFaceTTS
+    from sdialog.audio.pipeline import AudioPipeline
+    
+    # Use HuggingFaceTTS for any compatible model from the Hub
+    # For example, with facebook/mms-tts-fra
+    hf_tts = HuggingFaceTTS(model_id="facebook/mms-tts-fra")
+    
+    # Create an audio pipeline with the HuggingFaceTTS engine
+    # A voice_database is not specified, so a default one will be used.
+    # Note that the default voice database might not contain voices
+    # compatible with the selected HuggingFaceTTS model.
+    audio_pipeline = AudioPipeline(
+        tts_pipeline=hf_tts,
+        dir_audio="./hf_audio_outputs"
+    )
+    
+    # Generate audio for the dialogue (assuming 'dialog' is an existing Dialog object)
+    # For multilingual models, you might need to pass language information.
+    # This can be done via tts_pipeline_kwargs. For example:
+    # tts_pipeline_kwargs={"speaker_embeddings": speaker_embedding, "language": "es"}
+    audio_dialog = audio_pipeline.inference(
+        dialog,
+        do_step_1=True,
+    )
+
+**Custom TTS Engine** - Create your own TTS implementation for more advanced use cases (e.g. for Spanish):
 
 .. code-block:: python
 

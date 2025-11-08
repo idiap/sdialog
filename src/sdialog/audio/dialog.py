@@ -353,6 +353,10 @@ class AudioDialog(Dialog):
         audio as a separate WAV file. It also calculates timing information for each
         utterance and updates the AudioTurn objects with file paths and timing data.
 
+        If the sampling rate of the audio obtained from the TTS engine is not the same
+        as the sampling rate of the project, we will resample the audio to the sampling
+        rate of the project.
+
         Directory structure created:
         - {project_path}/utterances/ - Individual utterance audio files
         - {project_path}/exported_audios/ - Combined audio files
@@ -374,12 +378,19 @@ class AudioDialog(Dialog):
         current_time = 0.0
 
         for idx, turn in enumerate(self.turns):
+
+            audio_data = turn.get_audio()
+
+            # Build the path to the audio file
             turn.audio_path = f"{project_path}/utterances/{idx}_{turn.speaker}.wav"
-            turn.audio_duration = turn.get_audio().shape[0] / sampling_rate
+
+            # Calculate the duration of the audio
+            turn.audio_duration = audio_data.shape[0] / sampling_rate
             turn.audio_start_time = current_time
             current_time += turn.audio_duration
 
-            sf.write(turn.audio_path, turn.get_audio(), sampling_rate)
+            # Save the audio file
+            sf.write(turn.audio_path, audio_data, sampling_rate)
 
     def persona_to_voice(
         self,

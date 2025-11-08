@@ -486,7 +486,8 @@ class AudioPipeline:
         audio_file_format: str = "wav",
         seed: int = None,
         re_sampling_rate: Optional[int] = None,
-        recording_devices: Optional[List[Union[RecordingDevice, str]]] = None
+        recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
+        tts_pipeline_kwargs: Optional[dict] = {}
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -522,6 +523,8 @@ class AudioPipeline:
         :type re_sampling_rate: Optional[int]
         :param recording_devices: The identifiers of the recording devices to simulate.
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
+        :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
+        :type tts_pipeline_kwargs: Optional[dict]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -606,7 +609,9 @@ class AudioPipeline:
                 tts_pipeline=self.tts_pipeline,
                 voices=voices,
                 keep_duplicate=keep_duplicate,
-                seed=seed
+                seed=seed,
+                sampling_rate=self.sampling_rate,
+                tts_pipeline_kwargs=tts_pipeline_kwargs
             )
 
             # Save the utterances audios to the project path

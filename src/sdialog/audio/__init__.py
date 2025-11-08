@@ -54,6 +54,7 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import torch
+import librosa
 import logging
 import numpy as np
 from tqdm import tqdm
@@ -75,7 +76,9 @@ def generate_utterances_audios(
     tts_pipeline: BaseTTS,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
     keep_duplicate: bool = True,
-    seed: int = None
+    seed: int = None,
+    sampling_rate: int = 24_000,
+    tts_pipeline_kwargs: dict = {}
 ) -> AudioDialog:
     """
     Generates audio for each utterance in an AudioDialog object using the specified TTS engine.
@@ -104,6 +107,8 @@ def generate_utterances_audios(
     :type keep_duplicate: bool
     :param seed: Seed for random number generator.
     :type seed: int
+    :param sampling_rate: Sampling rate for the audio generation.
+    :type sampling_rate: int
     :return: The AudioDialog object with generated audio for each turn.
     :rtype: AudioDialog
     """
@@ -122,11 +127,26 @@ def generate_utterances_audios(
         turn.voice = dialog.personas[turn.speaker]["voice"].voice
 
         # Generate the utterance audio
-        utterance_audio, sampling_rate = generate_utterance(
+        utterance_audio, utterance_sampling_rate = generate_utterance(
             text=AudioUtils.remove_audio_tags(turn.text),
             voice=turn.voice,
-            tts_pipeline=tts_pipeline
+            tts_pipeline=tts_pipeline,
+            tts_pipeline_kwargs=tts_pipeline_kwargs
         )
+
+        # If the sampling rate of the audio is not the same as the sampling rate of the project, resample the audio
+        if utterance_sampling_rate != sampling_rate:
+
+            logging.warning(
+                f"[Step 1] Resampling the audio ({utterance_sampling_rate} Hz) to the sampling "
+                f"rate of the project ({sampling_rate} Hz)..."
+            )
+
+            utterance_audio = librosa.resample(
+                y=utterance_audio.astype(np.float32),
+                orig_sr=utterance_sampling_rate,
+                target_sr=sampling_rate,
+            )
 
         # Set the utterance audio to the turn
         turn.set_audio(utterance_audio, sampling_rate)
@@ -137,7 +157,8 @@ def generate_utterances_audios(
 def generate_utterance(
         text: str,
         voice: str,
-        tts_pipeline: BaseTTS) -> tuple[np.ndarray, int]:
+        tts_pipeline: BaseTTS,
+        tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
     """
     Generates an audio recording of a text utterance using the specified TTS engine.
 
@@ -154,10 +175,12 @@ def generate_utterance(
     :type voice: str
     :param tts_pipeline: The TTS engine to use for audio generation.
     :type tts_pipeline: BaseTTS
+    :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
+    :type tts_pipeline_kwargs: dict
     :return: A tuple containing the audio data as a numpy array and the sampling rate.
     :rtype: tuple[np.ndarray, int]
     """
-    return tts_pipeline.generate(text, voice=voice)
+    return tts_pipeline.generate(text, speaker_voice=voice, tts_pipeline_kwargs=tts_pipeline_kwargs)
 
 
 def generate_audio_room_accoustic(
