@@ -247,7 +247,6 @@ class ResponseHook(BaseHook):
         if self.current_response_ids is None:
             self.current_response_ids = input_ids[0]
             self.length_system_prompt = len(input_ids[0])
-            #self.length_system_prompt = len(input_ids[0]) - 1  # Exclude last token with minus 1 (newly generated)
         else:
             self.current_response_ids = torch.cat([self.current_response_ids, input_ids[..., -1]], dim=-1)
 
