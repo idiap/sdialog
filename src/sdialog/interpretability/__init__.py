@@ -246,7 +246,8 @@ class ResponseHook(BaseHook):
         # Accumulate token IDs as a tensor (generated tokens only)
         if self.current_response_ids is None:
             self.current_response_ids = input_ids[0]
-            self.length_system_prompt = len(input_ids[0]) - 1  # Exclude last token with minus 1 (newly generated)
+            self.length_system_prompt = len(input_ids[0])
+            #self.length_system_prompt = len(input_ids[0]) - 1  # Exclude last token with minus 1 (newly generated)
         else:
             self.current_response_ids = torch.cat([self.current_response_ids, input_ids[..., -1]], dim=-1)
 
@@ -339,19 +340,45 @@ class ActivationHook(BaseHook):
 
         # Store representation only if the second dimension is 1
         if output_tensor.ndim >= 2:
+            min_token, max_token = self.steering_interval
             if output_tensor.shape[1] > 1:
                 # Will store the system prompt
                 # "Unbind" on dim 1 splits the tensor into tuple of tensors, "extend" adds them to _hook_response_act
+                # Handle steering for system prompt tokens if min_token is negative
+                if min_token < 0:  # Check if we already steered the min_tokens
+                    length_system_prompt = self.response_hook.length_system_prompt
+                    # Steer the last abs(min_token) system prompt tokens
+                    # e.g., min_token=-3 means steer tokens at indices:
+                    # length_system_prompt-3, length_system_prompt-2, length_system_prompt-1
+                    start_system_steer = length_system_prompt + min_token  # e.g., length-3
+                    end_system_steer = length_system_prompt  # exclusive end
+
+                    # Assert that we're not trying to steer beyond system prompt boundaries
+                    assert start_system_steer >= 0, (
+                        f"Steering interval {self.steering_interval} tries to steer beyond system prompt "
+                        f"boundary. System prompt has {length_system_prompt} tokens, but min_token={min_token} "
+                        f"would start at index {start_system_steer}."
+                    )
+
+                    if self.steering_function is not None:
+                        for i in range(start_system_steer, end_system_steer):
+                            if type(self.steering_function) is list:
+                                for func in self.steering_function:
+                                    output_tensor[:, i, :] = func(output_tensor[:, i, :])
+                            elif callable(self.steering_function):
+                                output_tensor[:, i, :] = self.steering_function(output_tensor[:, i, :])
+
+                # Store all activations
                 self.agent._hook_response_act[response_index][self.cache_key].extend(
                     output_tensor.detach().cpu().unbind(dim=1)
                 )
+
                 self._token_counter_steering = 0  # Reset counter if more than one token
+
             else:
                 # Single-token forward pass (subsequent generated tokens)
-                # TODO : Add steering for the system prompt around here
-                min_token, max_token = self.steering_interval
                 steer_this_token = (
-                    self._token_counter_steering >= min_token
+                    self._token_counter_steering >= 0
                     and (max_token == -1 or self._token_counter_steering < max_token)
                 )
 
