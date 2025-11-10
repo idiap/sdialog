@@ -340,12 +340,29 @@ class ActivationHook(BaseHook):
         # Store representation only if the second dimension is 1
         if output_tensor.ndim >= 2:
             min_token, max_token = self.steering_interval
+
+            # Check if min_token should steer all system prompt tokens (non-integer or string "-1")
+            steer_all_system_prompt = not isinstance(min_token, (int, np.integer))
+
+            # Check if max_token should steer all generated tokens (string "-1" or non-integer)
+            steer_all_generated = (
+                max_token == "-1" or
+                max_token == -1 or
+                not isinstance(max_token, (int, np.integer))
+            )
+
             if output_tensor.shape[1] > 1:
                 # Will store the system prompt
                 # "Unbind" on dim 1 splits the tensor into tuple of tensors, "extend" adds them to _hook_response_act
-                # Handle steering for system prompt tokens if min_token is negative
-                if min_token < 0:  # Check if we already steered the min_tokens
-                    length_system_prompt = self.response_hook.length_system_prompt
+                # Handle steering for system prompt tokens
+                length_system_prompt = self.response_hook.length_system_prompt
+
+                # Determine steering range for system prompt tokens
+                if steer_all_system_prompt:
+                    # Steer all system prompt tokens (min_token is non-integer)
+                    start_system_steer = 0
+                    end_system_steer = length_system_prompt  # exclusive end
+                elif min_token < 0:
                     # Steer the last abs(min_token) system prompt tokens
                     # e.g., min_token=-3 means steer tokens at indices:
                     # length_system_prompt-3, length_system_prompt-2, length_system_prompt-1
@@ -358,14 +375,18 @@ class ActivationHook(BaseHook):
                         f"boundary. System prompt has {length_system_prompt} tokens, but min_token={min_token} "
                         f"would start at index {start_system_steer}."
                     )
+                else:
+                    # No system prompt steering
+                    start_system_steer = end_system_steer = 0
 
-                    if self.steering_function is not None:
-                        for i in range(start_system_steer, end_system_steer):
-                            if type(self.steering_function) is list:
-                                for func in self.steering_function:
-                                    output_tensor[:, i, :] = func(output_tensor[:, i, :])
-                            elif callable(self.steering_function):
-                                output_tensor[:, i, :] = self.steering_function(output_tensor[:, i, :])
+                # Apply steering function if specified and range is valid
+                if self.steering_function is not None and start_system_steer < end_system_steer:
+                    for i in range(start_system_steer, end_system_steer):
+                        if type(self.steering_function) is list:
+                            for func in self.steering_function:
+                                output_tensor[:, i, :] = func(output_tensor[:, i, :])
+                        elif callable(self.steering_function):
+                            output_tensor[:, i, :] = self.steering_function(output_tensor[:, i, :])
 
                 # Store all activations
                 self.agent._hook_response_act[response_index][self.cache_key].extend(
@@ -376,9 +397,10 @@ class ActivationHook(BaseHook):
 
             else:
                 # Single-token forward pass (subsequent generated tokens)
+                # Steer if: counter >= 0 AND (steer all generated OR counter < max_token)
                 steer_this_token = (
                     self._token_counter_steering >= 0
-                    and (max_token == -1 or self._token_counter_steering < max_token)
+                    and (steer_all_generated or self._token_counter_steering < max_token)
                 )
 
                 # Append the last token (the newly generated token)
