@@ -5,6 +5,12 @@ docs_html
 .*
 __*__
 
+# docs
+docs/_build
+docs/about/changelog.rst
+docs/about/contributing.rst
+
+#audio
 dscaper_data/
 *.wav
 *.mp3
