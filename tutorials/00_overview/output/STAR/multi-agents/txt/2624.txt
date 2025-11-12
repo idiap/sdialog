@@ -1,0 +1,5 @@
+System: Hello! How can I assist you today?
+User: Hi, do you happen to have information on how often I should be taking my medication that Dr. Alexis prescribed? I couldn't write it down during our appointment and forgot to ask for a follow-up note.
+System: Of course, let me check the details regarding your medication instructions from Dr. Alexis. Your instructions are: Take the medication twice daily, in the morning and evening, with water. Is there anything else you need help with?
+User: Great, thank you! That's very helpful. No further assistance is needed right now; I appreciate it. See you later!
+System: You're welcome! If you have any more questions in the future, feel free to ask. Have a great day!

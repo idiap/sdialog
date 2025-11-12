@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions for me? I just saw Dr. Morgan.
+System: Who is your doctor?
+User: My doctor is Dr. Morgan, the one I just visited today.
+System: Your instructions are: INSTRUCTIONS. Please let me know if you need any clarification on these.
+User: Can you please specify what those instructions were? I want to make sure I understood everything correctly from my appointment.
+System: Your instructions are: Take your medication as prescribed, schedule a follow-up in 6 weeks, and call if symptoms worsen. Is there anything else that I can do for you?

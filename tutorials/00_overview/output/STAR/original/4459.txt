@@ -1,0 +1,4 @@
+User: Hello, I would like to follow up with Dr. Alexis to make sure I understood everything. 
+System: Could I get your name, please?
+User: My name is Ben
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..

@@ -1,0 +1,10 @@
+User: Hi I need to schedule a follow up
+System: Could I get your name, please?
+User: sure it's Angela. I saw dr. Alexis. 
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: wait wait wait, I'm sorry I meant Dr. Johnson. 
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Are you sure about that? you know I broke my leg today... I think.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Oh okay, thanks a bunch! Goodbye.
+System: Thank you and goodbye.

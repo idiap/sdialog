@@ -1,0 +1,14 @@
+User: I'm having some issues.
+System: Could I get your name, please?
+User: Alexis
+System: Who is your doctor?
+User: Dr. Morgan. I forgot to write down the instructions.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Wait sorry. I see Dr. Morgan now. I get confused sometimes, but Dr. Morgan is a good friend of my son's.
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: No wait. I mean Dr. Alexis! I am the worst. Dr. Morgan is my old doctor. Dr. Alexis is who I see.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Thank you. I wrote that down.
+System: Is there anything else that I can do for you?
+User: No thank you.
+System: Thank you and goodbye.

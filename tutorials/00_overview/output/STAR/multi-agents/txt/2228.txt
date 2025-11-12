@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Johnson earlier today. Could we go over a few points again please?
+System: Of course, let's get started. Who is your doctor?
+User: My doctor is Dr. Johnson. We discussed some treatment options and medication adjustments for my condition. I want to make sure I have the details right regarding when to take the new medications and any side effects I should watch out for.
+System: Your instructions are: Take the new medication as prescribed, twice daily with meals. Watch for signs of dizziness or nausea, which are common but should subside. Let Dr. Johnson know if they persist or worsen.  Is there anything else that I can do for you?
+User: That's very helpful, thank you. Could we also review the follow-up appointment date and any tests that need to be scheduled before then?
+System: Your next follow-up with Dr. Johnson is set for two weeks from today. You should schedule blood work and an EKG ahead of this visit.  Is there anything else you'd like to discuss or clarify?
+User: Thanks, I appreciate it. No other questions at the moment, but having this confirmation really helps me feel prepared. Thank you! See you in two weeks.
+System: You're welcome! If any issues arise before your next visit, don't hesitate to reach out. Have a great day and see you soon!

@@ -1,0 +1,9 @@
+System: Hello! How can I assist you today?
+User: Hi! Do you have a moment to help me with something related to my recent doctor's visit? I need to clarify how often I should be taking my medication, but I forgot to write down the instructions. Could you check that for me, please?
+System: Of course, I can assist with that. Could I get your name, please?
+User: My name is Alexis. Can you help look up when Dr. Morgan prescribed the medicine and how often I should be taking it?
+System: Thanks, Alexis. Who is your doctor? I see Dr. Morgan listed as your physician. Is that correct?
+User: Yes, that's right! It was at my appointment with Dr. Morgan. Could you find out what the medication instructions were?
+System: Sure thing, Alexis. Your instructions are: Take the prescribed medication twice a day, in the morning and evening, with water. Is there anything else that I can do for you?
+User: Thank you so much! That’s exactly what I needed to know. No other assistance is required at this time. Say goodbye and . Goodbye!
+System: You're welcome, Alexis. Thank you and goodbye! Bye bye!

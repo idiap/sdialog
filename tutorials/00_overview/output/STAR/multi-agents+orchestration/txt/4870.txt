@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I'm calling to follow up on my appointment with Dr. Morgan last week. I want to make sure I understood everything correctly about my medication and the next steps. Could we go over it again please?
+System: Could I get your name, please? This will help me look up your information more easily.
+User: Of course, my name is Mark. And actually, Dr. Morgan was my previous doctor. My appointment last week was with Dr. Johnson. Could we review what was discussed regarding the medicine and any new instructions he gave? I want to make sure I'm taking everything as directed.
+System: Who is your doctor now then? To clarify, are you asking about the instructions from Dr. Johnson or Dr. Morgan? (Note: For simplicity in following action charts, treating "Dr. Johnson" as current "doctor".)
+User: Oh right, my current doctor is Dr. Johnson. I just wanted to double-check some things he mentioned during our appointment last week. Do you think we could go over the medicine and make sure I’m on track with everything? Today was quite busy, so I might have missed a few details.  Thanks for your help, and let me know if there’s anything else you need from me. Can’t wait to hear back! Bye for now!
+System: Your instructions are: Take your medication as prescribed, attend the follow-up appointment in two weeks, and contact the office if any symptoms persist or worsen. Is there anything else that I can do for you?

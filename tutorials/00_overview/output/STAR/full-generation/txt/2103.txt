@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please remind me of Dr. Alexis's instructions about my medicine dosage?
+System: Of course, could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: Dr. Alexis.
+System: Your instructions are: Take 1 tablet of the prescribed medicine twice a day, in the morning and evening, with water.
+User: Thank you, that's what I needed to know.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thank you.
+System: Thank you and goodbye.

@@ -1,0 +1,10 @@
+User: Hello!
+System: Hello, how can I help?
+User: I just finished my appointment with Dr. Morgan and I'm feeling lightheaded and I forgot to write down the instructions he gave me.  Can you help me?
+System: Could I get your name, please?
+User: I am Angela.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Ok thank you so much!  I will do that.
+System: Is there anything else that I can do for you?
+User: Nope that is all!  Thank you for the help!
+System: Thank you and goodbye.

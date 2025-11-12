@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Johnson and wanted to make sure I understood everything correctly about my medication schedule and follow-up visits. Could you please review that information with me?
+System: Could I get your name, please?
+User: Of course, my name is Alexis. How can you assist me regarding the details from my appointment with Dr. Johnson?
+System: Who is your doctor? Just to confirm, it's Dr. Johnson, right?
+User: Yes, that's correct. It's Dr. Johnson. Could we go over the medication schedule and when I need to come back for follow-up visits?
+System: Your instructions are: Take your medication as prescribed by Dr. Johnson, which is twice daily with meals. Your next follow-up visit should be in 6 weeks from today. Is there anything else that I can do for you?
+User: Thank you for the information. To clarify, I need to take my medication twice a day, both times with meals, and my next appointment is in 6 weeks. Does that sound right? Is there anything else Dr. Johnson recommended or that I should be aware of?
+System: That's correct, Alexis. Take your medication as directed and make sure to attend your follow-up visit in 6 weeks. No other specific instructions from Dr. Johnson were mentioned. Is there anything else that I can do for you?
+User: Perfect, thank you for confirming. There’s nothing else; just wanted to make doubly sure about the medication and my next appointment date. Thank you! It was great talking with you. Bye!
+System: You're welcome, Alexis. If you have any more questions in the future, feel free to ask. Have a great day!

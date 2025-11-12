@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please remind me of what Dr. Morgan told me at my last appointment?
+System: Of course! Could I get your name, please?
+User: My name is Ben.
+System: Who is your doctor?
+User: It's Dr. Morgan.
+System: Your instructions are: Take your medication as prescribed, follow up with a blood test in two weeks and attend a physical therapy session once a week. If you have any further questions or concerns, please contact the office.
+User: Thank you for reminding me. Is there anything else that I can do for you?
+System: Not at this time, thank you Ben. Thank you and goodbye.

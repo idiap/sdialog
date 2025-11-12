@@ -1,0 +1,10 @@
+User: Hello!
+System: Hello, how can I help?
+User: I just finished up an appointment with Dr. Alexis and I need to check in because I don't think I totally understand everyting.
+System: Could I get your name, please?
+User: Yes my name is Angela.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Ok thank you for the information.  I guess I should pay better attention when the doctor tells me something.
+System: Is there anything else that I can do for you?
+User: No that is it!  Thank you!
+System: Thank you and goodbye.

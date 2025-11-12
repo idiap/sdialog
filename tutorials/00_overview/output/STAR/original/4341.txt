@@ -1,0 +1,12 @@
+User: So I started a new medicine I feel a little funny.
+System: Could I get your name, please?
+User: Yeah, I'm Ben. Are you my granddaughter?
+System: No Sir, who is your doctor?
+User: Dr. Alexis! She's really nice.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Wait a second, I actually saw Dr. Johnson. I forgot.
+System: Same thing, take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately.
+User: Ok then. Did you know I had peanut butter today? I felt like a kid again!
+System: That's great, anything else I can help you with?
+User: I don't think so. Thanks for your help!
+System: Thank you and goodbye.

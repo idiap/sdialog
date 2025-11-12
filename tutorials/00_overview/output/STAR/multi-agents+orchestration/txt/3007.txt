@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I had an appointment with Dr. Morgan recently and I wanted to make sure I understood everything correctly regarding my medication. Could you clarify a few things for me please?
+System: Could I get your name, please? Once I have that, I can help clarify any questions you have about your medication from Dr. Morgan's visit.
+User: Of course, my name is John. And actually, it seems there might be some confusion because the appointment I had recently was with Dr. Johnson, not Dr. Morgan. But I'm still a bit uncertain about the medicine regimen Dr. Johnson prescribed and would appreciate if you could help clarify that for me.
+System: Who is your doctor? I want to make sure we are discussing the correct information regarding Dr. Johnson's instructions for you.
+User: Yes, my current doctor is Dr. Johnson. He's the one who recently adjusted my medication. Also, just today while at the pharmacy picking up my new prescription, I couldn't help but notice that there was a long line! It made me wonder if this will happen every time I need to refill my meds.  Anyway, thank you for your help so far. I feel much better now about understanding everything clearly. Thanks again and have a great day! Bye!
+System: Thank you and goodbye, John. If you ever have any more questions or concerns in the future, don't hesitate to reach out. Take care!

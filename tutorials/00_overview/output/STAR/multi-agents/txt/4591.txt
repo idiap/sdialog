@@ -1,0 +1,9 @@
+System: Hello! How can I help?
+User: Hi, I was wondering if you could assist me with a follow-up regarding my recent appointment with Dr. Johnson. I seem to have forgotten the instructions for my medication. Could you find out how often I should be taking it?
+System: Could I get your name, please? Once I have that, I'll be able to retrieve your specific instructions from Dr. Johnson's notes.
+User: Of course, my name is John. Could you please check the details for my medication schedule?
+System: Who is your doctor, John? To ensure I pull up the correct records, could you confirm if it’s Dr. Johnson or another physician?
+User: It's Dr. Johnson, thank you. Could you look into what he prescribed and how often I should take my medication?
+System: Your instructions are: Take your medication twice daily, in the morning and before bedtime. If there are any other specifics from Dr. Johnson regarding dosage or timing, let me know if you need further details.  Is there anything else that I can do for you?
+User: Thank you very much! That's exactly what I needed to know. No more help is required at this time; you've been a great assistance.
+System: You're welcome, John! If you have any other questions in the future, don't hesitate to ask. Thank you and goodbye.

@@ -1,0 +1,5 @@
+System: Hello, how can I help?
+User: Hi! I'm Alexis. I need to follow up about my medication from my appointment with Dr. Johnson last week. Could you please remind me how often I should be taking it?
+System: Could I get your name, please? Oh, hi Alexis! Who is your doctor? It seems like you've mentioned Dr. Johnson already. Your instructions are: Take the prescribed medication twice daily, in the morning and at night before bed. Is there anything else that I can do for you?
+User: That's perfect, thank you! So, I should be taking my medication twice a day, once in the morning and again at night before bed. No additional instructions needed; that helps a lot! Thanks so much.
+System: You're welcome, Alexis! If you have any more questions or need further assistance, feel free to ask. Thank you and goodbye.

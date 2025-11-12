@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Morgan a few days ago and wanted to make sure I understood everything that was discussed. Could we go over my medication schedule again?
+System: Could I get your name, please? Once I have it, I'll be able to pull up your records and review the instructions from Dr. Morgan regarding your medications.
+User: Sure, my name is Ben. And thank you for helping me with this.
+System: Who is your doctor? Since you mentioned Dr. Morgan earlier, let's proceed with that information. Your instructions are: Continue taking your medication as prescribed. You should take 1 tablet of Amoxicillin every 8 hours after meals and report any side effects to the clinic immediately.  Is there anything else that I can do for you?
+User: Thanks for confirming, but just to be sure, Dr. Morgan didn't mention any other important points or lifestyle changes I should consider along with the medication? Just want to make sure I'm doing everything right.
+System: Your instructions also include maintaining a healthy diet and staying hydrated. Additionally, avoid strenuous activities until you feel fully recovered.  Is there anything else that I can do for you? If not, I'll conclude our conversation here. Thank you, Ben!
+User: That's great, thanks for the reminder about diet and hydration. No other questions for now, but your help is really appreciated!  Goodbye.
+System: You're welcome, Ben! Take care and feel better soon.  Thank you and goodbye.

@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I hope you're doing well. I had an appointment with Dr. Morgan recently and wanted to make sure I understood everything that was discussed regarding my health plan. Could we go over it again please?
+System: Of course, let's ensure you understand your doctor’s instructions. Your instructions are: Take your medication as prescribed, attend the follow-up appointment on June 15th, and monitor any changes in your condition. Is there anything else that I can do for you?
+User: That's very helpful. Could we also review the specific symptoms I should be watching out for between now and my next appointment? And just to confirm, are there any activities or dietary restrictions I need to adhere to? Thanks!
+System: Certainly! You should watch out for increased fatigue, changes in appetite, and any unusual pain or discomfort. As for your lifestyle, try to avoid strenuous physical activity until further notice and limit your intake of processed foods and sugars. Anything else you'd like to clarify before we wrap up?
+User: Thanks for the details. No more questions at the moment, but I'll reach out if anything comes up or if I have further concerns. See you soon!
+System: You're welcome! Don't hesitate to contact me if any issues arise or if you have additional questions. Thank you and goodbye.

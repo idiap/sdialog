@@ -1,0 +1,14 @@
+User: Well hello there.... is this Jimmy Johns?
+System: Hello, how can I help?
+User: I could really go for a sandwich.... this medicine makes me feel like of funny
+System: Could I get your name, please?
+User: Sure! I'm Mark
+System: Who is your doctor?
+User: Dr. Alexis!
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Wait I think I made a boo boo. I saw Dr. Morgan last time, not Dr. Alexis.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ok they're still the same then? That's cool! Almost as cool as the tesla I got to ride in today
+System: Is there anything else that I can do for you?
+User: Unless you can get me some Jimmy John's I guess not
+System: Thank you and goodbye.

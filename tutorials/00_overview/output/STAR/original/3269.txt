@@ -1,0 +1,14 @@
+User: Hi I don't know what's going on.  I went to the doctor and now I can't feel my hands.
+System: Could I get your name, please?
+User: Angela 
+System: Who is your doctor?
+User: Dr. Alexis.  My feet are going numb now too.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Oh wait I'm sorry I forgot I see Dr. Morgan now.  Dr. Alexis moved away I think.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ok cool nothing has changed.  I was taking it 5 times a day after meals.  No wonder I can't feel my hands and feet.  And why I keep gaining weight since I eat 5 meals a day.
+System: Is there anything else that I can do for you?
+User: No thank you!  Unless you can be my personal trainer and help me lose weight.
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: Ok thank you then!
+System: Thank you and goodbye.

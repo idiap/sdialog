@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I'm calling to follow up on my appointment with Dr. Johnson last week. I wanted to make sure I understood everything correctly regarding my medication and any potential side effects. Could we go over that again please?
+System: Could I get your name, please? This will help me look up your records more easily.
+User: Of course, it's Angela. And actually, Dr. Johnson was my previous doctor. My appointment this time was with Dr. Alexis. Could we review what we discussed about the medication and any side effects I should be aware of? I want to make sure I didn't miss anything important during our meeting.
+System: Your instructions are: Review Angela's recent appointment notes with Dr. Alexis regarding her medication and potential side effects, ensuring she understands all aspects thoroughly.  Is there anything else that I can do for you, Angela?
+User: No, that covers everything for now. Thank you so much for your help! If any issues arise or if I have more questions in the future, should I call back?  Let's keep it at that then. Thanks again and take care! Bye!
+System: Thank you and goodbye, Angela. Don't hesitate to reach out if you need further assistance. Take care!

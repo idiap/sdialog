@@ -1,0 +1,8 @@
+User: Hi there, I'm Mark
+System: Hello, how can I help?
+User: I keep forgetting what the instructions are for my medication can you tell me what it is?
+System: Who is your doctor?
+User: Dr. Morgan, I think...
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Nice. I totally saw this monkey throw an apple at a car today.
+System: Is there anything else that I can do for you?

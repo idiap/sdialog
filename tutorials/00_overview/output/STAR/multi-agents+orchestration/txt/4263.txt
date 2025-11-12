@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I had an appointment with Dr. Morgan recently and I want to make sure I understood everything correctly regarding my medication. Could we go over it again please?
+System: Could I get your name, please? Once I have that, I can help you review the instructions from Dr. Morgan.
+User: Of course, my name is Mark. And actually, to clarify, I had an appointment with Dr. Johnson, not Dr. Morgan. But I believe Dr. Morgan was my previous doctor. Can we go over what Dr. Johnson told me about my medication? I want to make sure I'm taking it correctly and understand the potential side effects.
+System: Who is your doctor, Dr. Johnson or Dr. Morgan? Let's clarify that first so I can provide you with accurate information.
+User: Oh yes, definitely Dr. Johnson. My apologies for the confusion. How was your day today? Anything interesting happen to you?  Now that we've got that straight, could you help me review what Dr. Johnson said about my medication and its effects? I want to ensure I'm doing everything right.  Thank you so much! Have a great day!
+System: Your instructions are: Take your medication as prescribed by Dr. Johnson. It's important to follow the dosage and timing exactly as directed to manage any potential side effects effectively. Is there anything else that I can do for you?

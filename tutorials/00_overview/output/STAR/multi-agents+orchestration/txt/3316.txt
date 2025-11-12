@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I just finished my appointment with Dr. Morgan and wanted to make sure I understood everything that was discussed. Could we go over some points again?
+System: Could I get your name, please? Once I have it, I'll be able to look up your information and review the instructions from Dr. Morgan's visit.
+User: Of course, my name is Angela. Thanks for helping me with this.
+System: Who is your doctor? Is it Dr. Morgan that you just saw?
+User: Yes, it’s Dr. Morgan I just saw today. Could we please review the instructions and any medication changes he mentioned?
+System: Your instructions are: INSTRUCTIONS provided by Dr. Morgan during your appointment. Please let me know if there's anything specific you need help with or if you have any questions regarding these instructions.
+User: Great, thanks for that. Could we go over the medication changes specifically? I want to make sure I’m clear on when and how to take them.
+System: Sure thing, Angela. According to Dr. Morgan's instructions: SPECIFIC MEDICATION INSTRUCTIONS. Is there anything else you'd like to clarify or is this sufficient for now?
+User: This is very helpful, thank you. No further questions from me at the moment; I feel much more confident now about what’s next. Thank you so much! Goodbye.
+System: Thank you and goodbye, Angela. If you have any more questions in the future, don't hesitate to reach out. Take care!

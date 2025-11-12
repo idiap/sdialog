@@ -1,0 +1,10 @@
+System: Hello, how can I help?
+User: Could you please find out from Dr. Morgan what my medication schedule is? I forgot to write it down.
+System: Could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: It's Dr. Morgan.
+System: Your instructions are: Take the medication three times a day, every 8 hours starting from when you woke up this morning.
+System: Is there anything else that I can do for you?
+User: No, thank you. That's all I needed to know.
+System: Thank you and goodbye.

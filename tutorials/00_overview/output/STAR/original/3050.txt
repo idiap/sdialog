@@ -1,0 +1,12 @@
+User: Hi.  I took my medicine and I feel funny and really confused.  I am not sure if I took the medicine like I was supposed to.
+System: Could I get your name, please?
+User: It is Mark.  I think.  I'm pretty messed up at the moment.
+System: Who is your doctor?
+User: Dr. Morgan I think.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh shoot Dr. Morgan is my old doctor.  I saw Dr. Johnson.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ok I was doing it wrong.  No wonder I keep seeing zombies everywhere.
+System: Is there anything else that I can do for you?
+User: Nope that's it thank you!
+System: Thank you and goodbye.

@@ -1,0 +1,4 @@
+User: I'm mark finished an appointment with Dr Johnson I would like a follow up to ensure I got everything 
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Thanks goodbye
+System: Thank you and goodbye.

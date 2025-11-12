@@ -1,0 +1,9 @@
+User: I need follow up instructions
+System: I need your name and your doctor, please
+User: Dr. Alexis. My name is Alexis. 
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: wait? what do you mean? that is not right.  Hold on, my doctor is Dr. Morgan. My name is Alexis. But I am not a doctor. I used to see Dr. Alexis, but now I see Dr. Morgan. For this condition. 
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: that's completly different from what you said a minute ago. I am confused. And kind of scared now. 
+System: Yes, you gave me wrong information before. This is the correct information.
+User: No I did not. My name is Alexis. 

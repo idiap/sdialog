@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please remind me of Dr. Alexis's instructions from my last appointment?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: I saw Dr. Alexis during my last appointment.
+System: Your instructions are: Take the prescribed medication twice daily for one week, attend a follow-up appointment in two weeks, and monitor any changes or side effects from the medication.
+User: Thank you, that's very clear now. Is there anything else I need to do before my next visit?
+System: Is there anything else that I can do for you?

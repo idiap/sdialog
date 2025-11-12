@@ -1,0 +1,8 @@
+User: I need to see how often Dr. Morgan said to take my medicine.
+System: Could I get your name, please?
+User: Angela, sorry I meant Dr Alexis.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Alright thanks, I am glad Dr Alexis is so friendlyt
+System: Is there anything else that I can do for you?
+User: No thanks, bye.
+System: Thank you and goodbye.

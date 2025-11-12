@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you help me follow up on my appointment with Dr. Morgan the other day? I want to make sure I understood everything.
+System: Could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: It's Dr. Morgan.
+System: Your instructions are: Take the prescribed medication twice a day, follow up with blood tests in two weeks and return for a check-up visit after three months.
+User: Thank you. Is that all I need to do?
+System: Is there anything else that I can do for you?

@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Can we go over my appointment with Dr. Johnson again to make sure I understood everything correctly?
+System: Could I get your name, please?
+User: Sure, this is Mark. I just had an appointment with Dr. Johnson and wanted to review some points to ensure I have the right understanding of what was discussed.
+System: Who is your doctor? Since you've already mentioned it's Dr. Johnson, let me proceed: Your instructions are: Follow up on any symptoms reported during the last visit and adhere strictly to prescribed medication regimen. Is there anything else that I can do for you?
+User: Thanks for confirming that with Dr. Johnson. To make sure I'm on track, could you remind me of any specific symptoms I should be monitoring or reporting back about? Also, is there a particular schedule for taking the medications prescribed during my last visit?
+System: Your instructions include monitoring for any unusual symptoms such as increased pain, swelling, or discomfort at the site of treatment. Regarding medication, take them exactly as prescribed by Dr. Johnson to ensure effectiveness and minimize side effects.  Is there anything else that I can do for you?
+User: That's very helpful. To summarize, I should keep an eye out for any unusual symptoms like increased pain or swelling, and follow the exact medication schedule given by Dr. Johnson to avoid any issues. Is there a next step I need to take regarding my follow-up appointment or is this something we'll discuss at my next visit?
+System: You should adhere to your current instructions until your next scheduled appointment with Dr. Johnson unless otherwise instructed by him. If you experience severe symptoms or have concerns, it's best to contact his office for further guidance.  Is there anything else that I can do for you?
+User: Thanks for the advice. I'll make sure to follow up if any severe symptoms occur. No other tasks from me right now; this covers everything I needed help with. Thanks!
+System: You're welcome, Mark. If you need any more assistance or have further questions in the future, don't hesitate to ask. Thank you and goodbye.
+User: Thanks a lot! Take care. Goodbye.
+System: Goodbye, take care!

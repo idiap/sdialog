@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Could you please remind me how often I should take my medication according to Dr. Morgan's instructions? I couldn't write them down during our appointment and now I'm not sure about the dosage schedule.
+System: Could I get your name, please? That way I can ensure I have the correct information for you regarding Dr. Morgan’s instructions.
+User: Of course, my name is Alexis. Could you please check Dr. Morgan's notes and confirm how often I should be taking my medication? Thank you!
+System: Who is your doctor? Just to make sure I'm looking at the right records for you. Dr. Morgan mentioned in your query but let me double-check with your name, Alexis.
+User: Yes, it's Dr. Morgan. Could you please check the instructions for my medication dosage and frequency? Thanks!
+System: Your instructions are: Take your medication twice a day, every 12 hours, starting at 8 AM and then again at 8 PM. Please follow this schedule strictly unless advised otherwise by Dr. Morgan or another healthcare provider. Is there anything else that I can do for you?
+User: Thank you so much! That's exactly what I needed to know. No, that covers everything for now. Thanks a lot!
+System: You're welcome, Alexis. If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.

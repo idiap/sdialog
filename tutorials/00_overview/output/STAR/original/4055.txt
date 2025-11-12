@@ -1,0 +1,8 @@
+User: Hi. My name is John and I had an appointment with Dr Morgan and wanted to make sure I understood everything.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: OK, Im sorry, the appointment was with Dr Johnson, he is my new Dr. I used to see Dr Morgan.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: OK, I am sleeping all the time since I have been sick so it will be easy to take my medicine before I sleep. Thanks for the help.
+System: Is there anything else that I can do for you?
+User: Nothing else, have a nice day. Thank you.
+System: Thank you and goodbye.

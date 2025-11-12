@@ -1,0 +1,10 @@
+User: Hello
+System: Hello, how can I help?
+User: I need some help with the medication that I think it was Dr. Alexis gave to me the other day.
+System: Could I get your name, please?
+User: It's John, I actually got the chance to mow the lawn today.
+System: Um. Okay
+User: Sorry I was just thinking about how nice the weather was today.  But my name is John.
+System: You must take your medicine 2 times a day before meals.
+User: Ok thank you.
+System: Thank you and goodbye.

@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Could you confirm my doctor's instructions for me? My name is Ben.
+System: Who is your doctor?
+User: My doctor is Dr. Alexis.
+System: Your instructions are: INSTRUCTIONS. Please review them carefully and let me know if you need any clarification.
+User: Thank you, that confirms what I understood from the appointment. Is there anything else I should be aware of?
+System: Is there anything else that I can do for you?

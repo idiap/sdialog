@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Morgan recently and I wanted to make sure I understood everything that was discussed. Could we go over my notes from that visit?
+System: Could I get your name, please? Once I have it, I'll be able to pull up your records more effectively.
+User: Of course, my name is Mark. And yes, let's review what Dr. Morgan told me during the appointment. I want to make sure I didn't miss anything important.
+System: Who is your doctor? If it's indeed Dr. Morgan that you mentioned, we'll proceed with reviewing your instructions from that visit.
+User: Yes, it was Dr. Morgan. Can we review the follow-up actions and any medication adjustments she recommended?
+System: Your instructions are: Follow up on your current medication regimen as discussed, take your prescribed medications as directed, and schedule a follow-up appointment in 6 weeks for further evaluation. Is there anything else that I can do for you?
+User: Thanks for summarizing that. To confirm, Dr. Morgan wants me to continue my current medication and see her again in six weeks, right? No other tests or changes until then?
+System: That's correct, Mark. Continue with your current medication as prescribed by Dr. Morgan and plan to schedule a follow-up visit in 6 weeks for further evaluation. Is there anything else you'd like to discuss regarding your appointment or any other concerns?
+User: Perfect, that’s exactly what I understood. Thank you! And no, nothing else at the moment. Thanks for your help. Bye!
+System: Thank you and goodbye, Mark. Take care until your next visit.

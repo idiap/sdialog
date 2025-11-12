@@ -31,6 +31,9 @@ license = "MIT"
 license-files = ["LICEN[CS]E*"]
 dynamic = ["version", "dependencies"]
 
+[project.optional-dependencies]
+audio = {file = "requirements-audio.txt"}
+
 [project.urls]
 Homepage = "https://sdialog.readthedocs.io"
 Issues = "https://github.com/idiap/sdialog/issues"

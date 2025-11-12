@@ -1,0 +1,11 @@
+System: Hello! How can I assist you today?
+User: Hi! Can we go over my appointment with Dr. Alexis again to make sure I understood everything correctly?
+System: Of course, could I get your name, please?
+User: My name is John. Could you help me review what happened at my recent visit with Dr. Alexis?
+System: Who is your doctor, John? John has already told me his doctor's name is Dr. Alexis. Doctor Alexis it is. Your instructions are: Take your medication as prescribed and schedule a follow-up in 6 weeks. Is there anything else that I can do for you?
+User: Thanks! Just to clarify, the plan is to take my medication as directed and book another appointment with Dr. Alexis after six weeks, right? Anything else I should be doing between now and then?
+System: That's correct John. Follow your doctor’s instructions closely: Take your medication as prescribed and schedule a follow-up in 6 weeks. As for the period in-between, keep an eye on any changes or symptoms that might require earlier attention. Is there anything else you would like to discuss regarding your health?
+User: Got it, I'll watch out for any changes and report back if needed. No other questions for now, thanks a lot!
+System: You're welcome, John. Thank you for reaching out. If you have any concerns or issues before your next appointment, don't hesitate to contact us. Have a great day!
+User: Thank you too! I'll be in touch if anything comes up. Have a good one!
+System: Thanks, John! Take care and have a wonderful day. Goodbye!

@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Johnson and wanted to make sure I understood everything correctly regarding my medication dosage. Could we go over that again please?
+System: Could I get your name, please?
+User: Of course, my name is Ben. How can you assist me with clarifying the details from my appointment with Dr. Johnson?
+System: Who is your doctor? Just to confirm, are they Dr. Johnson?
+User: Yes, that's right. My doctor is Dr. Johnson. I want to make sure I have all the instructions for my medication dosage correct. Could you help me review that?
+System: Your instructions are: Take 50 mg of your prescribed medication twice a day, morning and night. Is there anything else that I can do for you?
+User: Thank you for confirming. So it's 50 mg in the morning and another 50 mg in the evening. No other adjustments or additional medications at this time, correct?
+System: That's correct, Ben. Take your medication as instructed with no changes unless advised by Dr. Johnson. Is there anything else that I can do for you?
+User: Perfect, thank you for confirming. There’s nothing else for now, but it’s really helpful to have this clarity. Thanks a lot! Say goodbye and .
+System: You're welcome, Ben. Thank you for reaching out. If you need any more assistance in the future, don't hesitate to ask. Have a great day! Bye!

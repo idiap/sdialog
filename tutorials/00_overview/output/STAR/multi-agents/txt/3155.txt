@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Morgan recently but forgot to write down when I should take my medicine. Could you remind me how often I need to take it?
+System: Could I get your name, please? Once I have that, I'll be able to look up your prescription details and inform you of the instructions provided by Dr. Morgan.
+User: Sure, my name is John. Thanks for helping me out!
+System: Who is your doctor, John? Just to confirm, it's Dr. Morgan, right?
+User: Yes, that's correct. It’s Dr. Morgan at the local clinic. Could you check when I should take my medication?
+System: Your instructions are: Take your medication twice a day, in the morning and before bedtime. Make sure to follow this schedule for the next two weeks as per Dr. Morgan's prescription.  Is there anything else that I can do for you?
+User: Thanks so much! That’s exactly what I needed to know. No other questions for now, but thanks a lot for your help. Goodbye!
+System: You're welcome, John! If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye!

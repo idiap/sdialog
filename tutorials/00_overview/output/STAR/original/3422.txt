@@ -1,0 +1,10 @@
+User: I am having major hot flashes on these new meds.
+System: Would you like to schedule a follow up with your doctor?
+User: Omg yes, please hurry I think it's moving to my heart and painful. Dr. Johnson will know what to do not that old Morgan again.
+System: Could I get your name, please?
+User: John
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ok great, I guess I need to eat right after, maybe some bananas will do for now. Thanks
+System: Is there anything else that I can do for you?
+User: Not now as long as this works, thanks again.
+System: Thank you and goodbye.

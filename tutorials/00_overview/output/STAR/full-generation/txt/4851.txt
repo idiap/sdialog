@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions from today’s appointment?
+System: Of course, could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: I saw Dr. Johnson today.
+System: Your instructions are: Take the prescribed medication twice daily and follow up in two weeks for a check-up.
+User: Thank you, that's what I understood. Is there anything else you can help me with regarding my appointment?
+System: Is there anything else that I can do for you?

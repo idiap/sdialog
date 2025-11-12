@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Morgan recently and wanted to make sure I understood everything that was discussed. Could we go over my treatment plan again?
+System: Could I get your name, please? Once I have it, I'll be able to review the details of your appointment with Dr. Morgan.
+User: Of course, my name is Mark. I'd appreciate it if you could help me understand my treatment plan better.
+System: Who is your doctor, Mark? To ensure I'm referring to the correct records, please confirm that it's Dr. Morgan we're discussing. doctor_inform_doctors_instructions: Your instructions are as follows: TAKE MEDICATION A and B twice daily, attend a follow-up appointment in two weeks, and monitor symptoms closely for any changes.
+User: Yes, it’s Dr. Morgan. Could you please review my treatment plan with me? I want to make sure I’m taking the right medications and know what to expect next.
+System: Your instructions are: TAKE MEDICATION A and B twice daily, attend a follow-up appointment in two weeks, and monitor symptoms closely for any changes.  Is there anything else that I can do for you?
+User: That’s very helpful. So, I should take Medication A and B twice a day, have my next checkup in two weeks, and keep an eye on how I’m feeling. Thanks!  Do you think it would be good to note down any specific symptoms I should watch out for while monitoring?
+System: It's a great idea to note down any specific symptoms such as increased fatigue, changes in appetite, or any new discomforts. This will help during your follow-up appointment with Dr. Morgan.  Is there anything else that I can do for you?
+User: Thanks for the advice. Noting down those symptoms should give Dr. Morgan a clearer picture of my condition at the next visit.  That covers everything for now, thanks so much! See you in two weeks.
+System: You're welcome, Mark. Feel free to reach out if anything changes or if you have further questions. Thank you and goodbye.

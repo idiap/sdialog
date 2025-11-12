@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! Can you tell me again how often I should be taking my medication that Dr. Morgan prescribed? I seem to have forgotten and I want to make sure I’m doing it correctly.
+System: Could I get your name, please? And don't worry, I can help clarify the instructions for your medication.
+User: Of course, my name is Alexis. Thanks a lot for your help! Dr. Johnson was the one who gave me this prescription during my last visit, but I’m having trouble remembering the dosage details. Could you assist with that?
+System: Thank you for letting me know, Alexis. Who is your doctor? I see here it's Dr. Johnson providing your care. Let me confirm the instructions with him.
+User: Yes, my apologies! It was Dr. Johnson who prescribed the medication during my recent visit. While we're on the topic, do you happen to have any updates about my condition since then? I've been feeling a bit off lately and wasn't sure if it's related or not.   Thanks so much for your help today! Have a great day!
+System: Your instructions are: Take the medication as prescribed by Dr. Johnson, which is once daily with food. If you have any new symptoms or concerns, it’s important to reach out to him directly for further guidance. Is there anything else that I can do for you? Thank you for reaching out, Alexis! Have a great day!

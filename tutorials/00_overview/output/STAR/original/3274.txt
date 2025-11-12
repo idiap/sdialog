@@ -1,0 +1,8 @@
+User: Can you help me with my meds.
+System: Could I get your name, please?
+User: I think my name is John and Dr. Johnson gave me some wrong meds or something I think.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh wow, that explains the memory loss and seeing ghost all night. Well I sleep during the day so this will help.
+System: Is there anything else that I can do for you?
+User: That is all, thanks.
+System: Thank you and goodbye.

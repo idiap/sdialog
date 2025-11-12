@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please confirm Dr. Morgan's instructions for me?
+System: Of course, could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Morgan, the one I just visited.
+System: Your instructions are: Take two tablets of medication every eight hours and follow up with a blood test after seven days.
+User: Thank you, that's exactly what I needed to confirm.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thank you very much!
+System: Thank you and goodbye.

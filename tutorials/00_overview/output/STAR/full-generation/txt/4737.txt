@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi, could you please find out from Dr. Johnson's office about my medication instructions? I forgot to write them down.
+System: Could I get your name, please?
+User: My name is Ben.
+System: Who is your doctor?
+User: It's Dr. Johnson.
+System: Your instructions are: Take the medication twice a day, in the morning and evening with food.
+User: Thank you! Is there anything else I need to know?
+System: Is there anything else that I can do for you?

@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi, could you please confirm what Dr. Morgan told me during my appointment last week? I want to make sure I have understood everything correctly.
+System: Could I get your name, please?
+User: Sure, my name is Ben. And you can call me Mr. Smith if that's easier for the records.
+System: Who is your doctor?
+User: My doctor is Dr. Morgan from St. Claire's Hospital.
+System: Your instructions are: Take your medication twice a day, monitor your blood pressure daily and report any unusual symptoms to me immediately. Additionally, schedule another appointment in six months for further evaluation.
+User: Thank you very much! That clears things up nicely.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thanks a lot for your help!
+System: You're welcome, Ben. Take care and have a great day.

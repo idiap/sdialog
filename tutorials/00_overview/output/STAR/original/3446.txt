@@ -1,0 +1,10 @@
+User: hi
+System: Hello, how can I help?
+User: My name is Angela. I saw Dr. Johnson the other day, and need to schedule a follow up appointment.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Wait, I forgot, my new doctor is Dr. Morgan.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: I hope this new medication helps.
+System: Is there anything else that I can do for you?
+User: No. Thanks. Have a good day.
+System: Thank you and goodbye.

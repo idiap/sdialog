@@ -1,0 +1,6 @@
+User: My name is John and I had an appointment with Dr Johnson. I wanted to double check to make sure I understood his instructions.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Thank you, I was not sure about the directions.
+System: Thank you and goodbye.
+User: Thank you, have a great day.
+System: Thank you and goodbye.

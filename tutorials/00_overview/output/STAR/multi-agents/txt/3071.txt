@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Morgan today. Could we go over some points again?
+System: Of course, could I get your name, please? That will help me find the correct information for you.
+User: Sure thing, it's Mark. Thanks for helping me out!
+System: Who is your doctor, Mark? Just to confirm, is it Dr. Morgan?
+User: Yes, it’s Dr. Morgan. I wanted to double-check a few things we discussed today regarding my medication and symptoms.
+System: Your instructions are: Take the prescribed medication as directed twice daily and report any worsening of symptoms or new side effects immediately. Is there anything else that I can do for you?
+User: That’s exactly what Dr. Morgan said, thanks for confirming. Could you also remind me about the follow-up appointment date please?
+System: Your next follow-up with Dr. Morgan is scheduled for two weeks from today. Is there anything else that I can assist you with regarding your appointment or any other concerns?
+User: Perfect, thank you for that reminder. No other issues at the moment, but knowing my follow-up date is very helpful. Thanks a lot!
+System: You're welcome, Mark. If you have any questions in the meantime, don't hesitate to reach out. Thank you and goodbye.
+User: Thanks so much for your help! Take care and bye!
+System: Take care, Mark! Have a great day.

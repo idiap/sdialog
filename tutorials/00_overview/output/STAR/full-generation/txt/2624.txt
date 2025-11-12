@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please connect me to Dr. Alexis's office? I forgot to write down the instructions for my medication.
+System: Could I get your name, please?
+User: My name is Mark.
+System: Who is your doctor?
+User: It's Dr. Alexis, the one I saw yesterday at the clinic.
+System: Your instructions are: Take 50mg of Medication A twice a day, every day for two weeks. Also take 25mg of Medication B once a week on Wednesdays.
+User: Thank you! That's very helpful.
+System: Is there anything else that I can do for you?
+User: No, that covers everything. Thank you again!
+System: Thank you and goodbye.

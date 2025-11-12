@@ -1,1 +1,0 @@
-git clone git@github.com:RasaHQ/STAR.git

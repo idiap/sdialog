@@ -1,0 +1,8 @@
+User: I forgot to write down the instructions Dr. Morgan gave me. Could you help me out?
+System: Could I get your name, please?
+User: Ben
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Perfect, thanks so much.
+System: Is there anything else that I can do for you?
+User: Nope, that's everything.
+System: Thank you and goodbye.

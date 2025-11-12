@@ -1,0 +1,8 @@
+User: Hello. I had an appointment with Dr.Morgan the other day, I want to make sure I understood everything right. I sure cant remember anything about the appointment but know I had it.
+System: Could I get your name, please?
+User: I think my name is Mark. I am not really sure, but I am looking at a paper that says Mark guessing its my mail.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: My doctors say it is normal that I am forgetting things, but I dont know how normal this is. Its driving me insane.
+System: Is there anything else that I can do for you?
+User: Not sure. But I guess I will come back when I think its time to take my meds again if I remember.
+System: Thank you and goodbye.

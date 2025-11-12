@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Johnson recently and want to make sure I understood everything correctly regarding my treatment plan. Could we go over that again please?
+System: Of course, could I get your name, please?
+User: Sure, my name is John. How can I review the details of my recent appointment with Dr. Johnson?
+System: Who is your doctor, John? If it's Dr. Johnson we can proceed. (I already know that his doctor is Dr. Johnson, but I will follow the flowchart strictly) So, who is your doctor, John?
+User: My doctor is Dr. Johnson. Can we review what was discussed during my last appointment with him?
+System: Your instructions are: Follow up on the treatment plan discussed by Dr. Johnson which includes taking medication as prescribed and scheduling a follow-up appointment in two weeks.  Is there anything else that I can do for you, John?
+User: Thank you! That confirms what I understood. No more is needed; I appreciate your help. See you later!
+System: You're welcome, John. Thank you and goodbye.

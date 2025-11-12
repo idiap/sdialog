@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please tell me what Dr. Morgan told me to do after my appointment? I forgot the instructions.
+System: Could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: It's Dr. Morgan, the one I just had an appointment with.
+System: Your instructions are: Take 1 tablet of medication A twice a day (morning and evening), and continue to monitor your blood pressure as per previous appointments.
+User: Thank you, that's exactly what I needed to know.
+System: Is there anything else that I can do for you?
+User: No, that covers everything. Thank you again!
+System: Thank you and goodbye.

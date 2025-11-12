@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! Could you please remind me how often I should take my medicine according to Dr. Alexis's instructions? I couldn't write them down during our appointment.
+System: Could I get your name, please?
+User: Of course, it's Alexis. Can you help me with the medication schedule from my recent visit with Dr. Alexis?
+System: Who is your doctor? I see there might be some confusion since your name and your doctor's name are the same. Could you clarify who your doctor is for this query?
+User: My apologies for the confusion. My doctor is Dr. Alexis, but we share the same last name. Could you please help me with my medication schedule from our appointment?
+System: Your instructions are: Take your medication twice daily, in the morning and evening, with water. Make sure to follow up after two weeks. Is there anything else that I can do for you?
+User: Thank you so much! That's exactly what I needed to know. No further assistance is required from me at this time. Thanks again!
+System: You're welcome, Alexis. If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.
+User: Thanks a lot! Have a great day. Goodbye.
+System: Thank you, and have a great day too! Goodbye.

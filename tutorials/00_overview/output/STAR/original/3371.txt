@@ -1,0 +1,8 @@
+User: Hello? Hello? Hi! I am Alexis
+System: Hello, how can I help?
+User: I need my meds and I need them now!!!
+System: Who is your doctor?
+User: Dr. Johnson, It used to be Dr. Morgan, but I believe he turned into a bird and flew away.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh great, I feel much better now that I have my medicine. Now I need some legal marijuana.
+System: Is there anything else that I can do for you?

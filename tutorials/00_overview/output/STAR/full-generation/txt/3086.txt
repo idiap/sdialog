@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please remind me of my doctor's instructions from my last visit with Dr. Johnson?
+System: Of course! Could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: It's Dr. Johnson.
+System: Your instructions are: Take the prescribed medication twice daily and follow up with a blood test in two weeks. Also, please schedule another appointment with Dr. Johnson after that for a check-up.
+User: Thank you, that's what I thought but wanted to make sure. Is there anything else that I can do for you?
+System: Not at this time, thank you Alexis!

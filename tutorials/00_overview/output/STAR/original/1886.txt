@@ -1,0 +1,4 @@
+User: Hi, I need follow up instructions from my appointment. 
+System: Could I get your name, please?
+User: My name is Alexis. My doctor is Dr. Morgan. 
+System: Your instructions are: You must take your medicine 2 times a day before meals..

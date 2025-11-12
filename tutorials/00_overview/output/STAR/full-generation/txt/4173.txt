@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi, could you please tell me the instructions Dr. Morgan gave me for my medicine?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Morgan, the one I saw last week.
+System: Your instructions are: Take two tablets twice daily for the next 7 days. Do not take more than prescribed and contact your doctor if you experience any side effects.
+User: Thank you, that's very helpful!
+System: Is there anything else that I can do for you?

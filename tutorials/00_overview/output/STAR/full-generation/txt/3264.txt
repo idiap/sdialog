@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please remind me of Dr. Alexis's instructions from my appointment today?
+System: Of course, could I get your name, please?
+User: My name is Ben.
+System: Who is your doctor?
+User: It's Dr. Alexis, the one I just saw today.
+System: Your instructions are: Take 50 mg of medication twice daily for two weeks, and follow up with a blood test after that period. Call our office to schedule your next appointment if you have any side effects or concerns.
+User: That's exactly what I remember. Thank you!
+System: Is there anything else that I can do for you?
+User: No, thank you very much. Have a great day.
+System: Thank you and goodbye.

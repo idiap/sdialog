@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions for me? My name is John.
+System: Who is your doctor?
+User: My doctor is Dr. Alexis.
+System: Your instructions are: Take the prescribed medication twice a day, maintain a healthy diet and regular exercise routine, and schedule a follow-up appointment in six weeks.
+User: Thank you for confirming. Do I need to do anything else?
+System: Is there anything else that I can do for you?

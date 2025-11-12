@@ -1,0 +1,10 @@
+User: I need some help remembering my doctors instruction for my medicine!
+System: Could I get your name, please?
+User: John.
+System: And your doctor's name?
+User: Dr. Morgan.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: That looks correct, thanks!
+System: Is there anything else that I can do for you?
+User: That should be all.
+System: Thank you and goodbye.

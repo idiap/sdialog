@@ -1,0 +1,12 @@
+User: Hi, my medicine is on the counter.
+System: Could I get your name, please?
+User: Ben
+System: Who is your doctor?
+User: My new one or my old one?
+System: lets start with the old one
+User: He's a quack that's why I got rid of him. Dr. Alexis is my new doctor.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Got it. Time for pudding.
+System: Is there anything else that I can do for you?
+User: That's all for today.
+System: Thank you and goodbye.

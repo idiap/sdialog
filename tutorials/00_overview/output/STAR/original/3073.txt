@@ -1,0 +1,8 @@
+User: I can't remember what I was doing. Is there a doctor?
+System: Could I get your name, please?
+User: Dr. Alexis saw me the other day. I am John.
+System: What information are you looking for?
+User: I think the medicine is making my head fuzzy. My old doctor was Alexis. My doctor now is Dr. Johnson. I want to follow up.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Thank you so much, you precious person. I will do that. Have a nice day.
+System: Thank you and goodbye.

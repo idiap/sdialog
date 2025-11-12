@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I had that appointment with Dr. Morgan recently and I want to make sure I understood everything correctly regarding my medication. Could we go over it again please?
+System: Could I get your name, please? Once I have your name, I'll be able to confirm the details of your medication with you.
+User: Of course, my name is Mark. And actually, Dr. Morgan wasn't my previous doctor, Dr. Johnson was the one who saw me recently for the first time. Could we review what he told me about my medicine? I just want to make sure I didn’t miss anything important.
+System: Sure, Mark. Your instructions are: Take your new medication as prescribed by Dr. Johnson. You should take one tablet of Xanaflex 20mg every morning with a full glass of water and follow up in two weeks for a review. Is there anything else that I can do for you?
+User: Thank you, that’s helpful. It seems like everything is clear now. Oh, by the way, today while taking my usual walk, I noticed some changes in how I feel after starting this new medicine, but nothing too alarming. Just wanted to mention it.  Well, thank you for your help! Have a great day!
+System: It's good that you're keeping track of how the medication affects you, Mark. If you experience any concerning side effects or changes in how you feel, please contact Dr. Johnson’s office right away. Thank you and goodbye.

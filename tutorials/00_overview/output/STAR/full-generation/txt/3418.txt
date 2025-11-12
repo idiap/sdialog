@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please remind me of my doctor's instructions from today's appointment?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: My doctor is Dr. Alexis.
+System: Your instructions are: Follow the prescribed treatment plan, take your medication as directed, and schedule a follow-up appointment in one month.
+User: Thank you! Is there anything else I should know?
+System: Is there anything else that I can do for you?

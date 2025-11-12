@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please help me confirm what Dr. Johnson said at my appointment today?
+System: Of course! Could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: It's Dr. Johnson.
+System: Your instructions are: Take the prescribed medication twice a day, monitor your blood pressure daily and schedule another appointment in two weeks for a follow-up.
+User: Thank you, that's exactly what Dr. Johnson said.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thanks a lot!
+System: You're welcome, John. Thank you and goodbye.

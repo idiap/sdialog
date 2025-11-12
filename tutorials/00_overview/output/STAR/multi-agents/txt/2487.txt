@@ -1,0 +1,7 @@
+System: Hello! How can I help?
+User: Hi, this is Alexis. I just had my appointment with Dr. Morgan and wanted to make sure I understood everything correctly regarding my treatment plan. Could we go over a few points?
+System: Could I get your name, please? Oh, hello Alexis! Who is your doctor? It sounds like you've seen Dr. Morgan recently. Your instructions are: follow the medication regimen provided and schedule a follow-up appointment in three months. Is there anything else that I can do for you?
+User: That's right, thank you for confirming. Could you remind me of any specific side effects I should watch out for with this new medication? Also, did Dr. Morgan mention if it would be okay to continue my current exercise routine?
+System: According to your doctor’s instructions, monitor for potential side effects such as dizziness or nausea. As for your exercise routine, you can continue but avoid high-impact activities until your next appointment. Is there anything else you need help with?
+User: Thank you, that's very helpful. No other questions at the moment, just wanted to make sure I had everything right. Thanks! See you in three months for the follow-up.
+System: You're welcome, Alexis! Thank you and goodbye. See you in three months for your follow-up appointment.

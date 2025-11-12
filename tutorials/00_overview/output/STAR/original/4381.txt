@@ -1,0 +1,8 @@
+User: This is Mark. I forgot to write down my instructions from my appointment
+System: Who is your doctor?
+User: Dr. Alexis. 
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Wait. That does not make sense. I am really confused. If I take it before bed, how am I going to know if I am nauseous if I am asleep? 
+System: If you wake up that way or throughout the night. Is there anything else?
+User: Well it was a nice day in the park. Thanks. 
+System: Thank you and goodbye.

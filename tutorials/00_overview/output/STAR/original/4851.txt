@@ -1,0 +1,8 @@
+User: hello!
+System: Hello, how can I help?
+User: i need help scheduling a follow up with dr. johnson
+System: Could I get your name, please?
+User: Angela
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: I need to schedule a folow up
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.

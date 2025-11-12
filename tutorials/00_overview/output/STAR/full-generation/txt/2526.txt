@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please find out how often I should take my medicine from Dr. Alexis's office?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Alexis.
+System: Your instructions are: Take the medication twice a day, every 12 hours with food and water. If you miss a dose, take it as soon as possible but skip the missed dose if it is almost time for your next scheduled dose.
+User: Thank you so much!
+System: Is there anything else that I can do for you?

@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Can we go over my appointment with Dr. Johnson again to make sure I understood everything correctly?
+System: Could I get your name, please?
+User: Sure, this is Mark. I just had an appointment and want to clarify a few things with Dr. Johnson's notes.
+System: Who is your doctor? Just to confirm, are you seeing Dr. Johnson today?
+User: Yes, I saw Dr. Johnson today for my regular check-up.
+System: Your instructions are: Follow up on any symptoms and schedule a follow-up appointment in 6 months. Is there anything else that I can do for you?
+User: Thanks for the summary. Could you remind me of the key points about the symptoms we discussed and confirm when my next appointment should be scheduled?
+System: Your instructions are: Pay attention to any changes in your health, especially concerning new or worsening symptoms. Your follow-up appointment is scheduled 6 months from today. Is there anything else that I can do for you?
+User: Great, thanks for the reminder. So, I need to keep an eye on my health and report any changes, particularly if symptoms worsen. And my next check-up will be in six months, right? Anything else I should know or prepare for before then?
+System: That's correct, Mark. Keep monitoring your health and let your doctor know of any significant changes. There’s no specific preparation needed for the follow-up appointment, but it's a good idea to have any questions you might have ready. Is there anything else that I can do for you?
+User: Perfect, thanks for the advice. I'll make sure to jot down any questions I think of before my next visit. No other assistance is needed right now; see you in six months!
+System: Thank you and goodbye, Mark. Have a great day!

@@ -1,0 +1,8 @@
+User: I wanted to follow up about my appointment the other day with Dr. Morgan.
+System: Could I get your name, please?
+User: Angela and sorry I meant Dr. Johnson, Morgan was my old doctor.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Great, I really hope that helps with the flare ups!
+System: Is there anything else that I can do for you?
+User: No that was all, bye.
+System: Thank you and goodbye.

@@ -1,0 +1,10 @@
+User: Hello?
+System: Could I get your name, please?
+User: My name is Angela. Have you seen my dog?
+System: I am sorry I have not.  Who is your doctor?
+User: My doctor is Dr. Johnson, I mean Dr. Morgan. It used to be Dr. Johnson. I need a followup to ensure I understand everything.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: I played in the rain puddles today.
+System: Is there anything else that I can do for you?
+User: No, thank you. Goodbye.
+System: Thank you and goodbye.

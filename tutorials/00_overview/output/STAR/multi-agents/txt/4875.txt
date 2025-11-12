@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Alexis today. Could we go over a few points again?
+System: Of course, could I get your name, please?
+User: Sure, it's Ben. Thanks for helping me out!
+System: Who is your doctor? Just to confirm, it’s Dr. Alexis, correct?
+User: Yes, that's right. It's Dr. Alexis. Could you help me recall the key points about my treatment plan and next steps?
+System: Your instructions are: Follow up with medication as prescribed, attend your next appointment in two weeks, and contact us immediately if symptoms worsen or new ones appear. Is there anything else that I can do for you?
+User: That's very helpful. Could you also remind me of any lifestyle changes Dr. Alexis suggested along with the treatment plan?
+System: Dr. Alexis recommended incorporating more fruits and vegetables into your diet, staying active through regular exercise, and managing stress levels. Is there anything else you would like to discuss or clarify regarding your appointment?
+User: Thanks for that summary. No, I think we covered everything I needed to know. This is really helpful! Thanks a lot.
+System: You're welcome, Ben. If you have any more questions in the future, don't hesitate to reach out. Thank you and goodbye.
+User: Thank you! Have a great day.
+System: You too, have a great day! Goodbye.

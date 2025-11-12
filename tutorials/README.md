@@ -2,13 +2,33 @@
 :point_right: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/idiap/sdialog/)
 
 
-> _(the content of this folder is a modified version of the tutorials prepared for JSALT 2025 available [here](https://github.com/Play-Your-Part/tutorials))_
+## Tutorial Organization
+
+Tutorials are organized into two main folders:
+
+- **`00_overview/`** - General and introductory tutorials covering core SDialog concepts:
+  - Dialog generation (single-agent and multi-agent)
+  - Orchestration and control flow
+  - Dialog analysis and evaluation
+  - Mechanistic interpretability with inspectors
+  - Agents with tools and thoughts
+  - Integration with Copilot
+
+- **`01_audio/`** - Audio generation tutorials using the `sdialog.audio` submodule:
+  - Text-to-speech conversion (`dialog.to_audio()`)
+  - Acoustic simulation and room effects
+  - Voice databases and voice assignment
+  - Advanced audio pipeline control
+
+> [!NOTE]
+> Audio tutorials require additional dependencies. Install with: `pip install sdialog[audio]`
+
 ---
 
 ## Getting started
 
 > ⚠️ **NOTE:**
-> If you have **no access to compute**, click on the "Open In Colab" badge above and ignore this README. If you do have access to compute with GPU, then you can proceed.
+> If you have **no access to compute** or prefer to use **Google Colab**, click on the "Open In Colab" badge above and ignore the rest of this README. If you do have access to compute with GPU, then you can proceed.
 
 Tutorials have only **one** requirement: Apptainer. So, make sure you have installed [Apptainer](https://apptainer.org/docs/user/main/introduction.html) on your machine.
 
@@ -105,7 +125,7 @@ exec jupyter lab --no-browser --ip 0.0.0.0 --port 3300
 
 And then copy the URL that was printed when running the Server including the token value. For instance, for the following log:
 
-![](imgs/jupyter_url.png)
+![](jupyter_url.png)
 
 The url is the following:
 ```

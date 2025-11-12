@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I just had an appointment with Dr. Alexis but forgot to write down her instructions. Could you please find out how often I should take my medicine?
+System: Could I get your name, please?
+User: Sure, my name is Mark. Thanks for helping me with this.
+System: Who is your doctor? I know you mentioned Dr. Alexis earlier, but let's confirm.
+User: Yes, it’s Dr. Alexis. Could you check how often I should be taking the medicine she prescribed?
+System: Your instructions are: Take the medication twice a day, in the morning and evening with water. Is there anything else that I can do for you?
+User: Thanks so much! That's exactly what I needed to know. No more help is required from your end, thank you!
+System: Thank you and goodbye.

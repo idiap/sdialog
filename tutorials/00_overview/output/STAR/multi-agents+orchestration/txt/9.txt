@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and wanted to make sure I understood everything correctly regarding my treatment plan. Could we go over it again please?
+System: Could I get your name, please?
+User: Of course, my name is Angela. How can you assist me today with following up on my appointment details?
+System: Who is your doctor? Just to confirm, is it Dr. Alexis that you saw recently?
+User: Yes, it's Dr. Alexis whom I saw recently for my check-up. Could we review the treatment plan she discussed with me?
+System: Your instructions are: Follow up on the medication regimen and schedule a follow-up appointment in 6 weeks as per Dr. Alexis's advice. Is there anything else that I can do for you?
+User: Thank you! Can you remind me of the specific details about my medication regimen and confirm when my next follow-up appointment is scheduled, please?
+System: According to your doctor's instructions, take 50mg of MedicationX once daily with food. Your follow-up appointment is set for 6 weeks from today at the same clinic. Is there anything else that I can do for you?
+User: Thank you so much! That clarifies everything for me. No further assistance is needed, thank you. See you in 6 weeks!
+System: Thank you and goodbye. Have a great day, Angela!

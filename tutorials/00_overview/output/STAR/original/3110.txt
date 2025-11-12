@@ -1,0 +1,8 @@
+User: I forgot to take notes on my meds from Dr. Morgan, I think that was her name.
+System: Could I get your name, please?
+User: Angela
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Well it gives me the shakes real bad and seeing things that are not there, I think.
+System: Is there anything else that I can do for you?
+User: That is all for now, thanks.
+System: Thank you and goodbye.

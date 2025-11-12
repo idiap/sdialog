@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Do you happen to know how often I should be taking my medication? I saw Dr. Johnson last week but forgot to write down what he said and now I'm not sure about the dosage schedule. It's driving me a bit crazy!
+System: Could I get your name, please?
+User: Of course, my name is Mark. And it seems like I should be talking to Dr. Alexis now since she saw me last week, right? But I'm still not clear on the instructions for my medicine. Could you help me with that, please?
+System: Who is your doctor? Since you mentioned seeing Dr. Johnson recently but are currently in contact with Dr. Alexis, could you clarify which doctor's instructions you need assistance with? This will ensure I provide accurate information regarding your medication schedule. (Note: In the actual flowchart action sequence, this would be followed by asking about the specific query or instructions from either of those doctors.)
+User: Oh right, it was Dr. Alexis who saw me last week. She's my current doctor now after Dr. Johnson. I just can't remember what she said about taking my medicine. Do you have any notes on that? And by the way, today I felt a bit more energetic than usual, could it be related to the medication?
+System: Your instructions are: Take your medication twice daily, in the morning and evening, with water. Regarding how you're feeling today, it's possible that your medication is helping manage your condition better, leading to increased energy levels. However, if you notice any unusual side effects or changes in your health status, please consult your doctor for further evaluation. Is there anything else that I can do for you?
+User: That's great to know! Thanks so much for the instructions and for checking on how I'm feeling today. I'll keep an eye out for any changes and talk to Dr. Alexis if needed.  Well, it was nice talking with you. Have a good day!
+System: Thank you and goodbye. Have a great day!

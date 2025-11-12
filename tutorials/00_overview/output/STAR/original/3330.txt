@@ -1,0 +1,7 @@
+User: Hey, it's Alexis again. I had an appointment with Dr. Morgan the other day but I want to make sure I understood the instructions. I am feeling a little loopy now.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: No, see how loopy I am. My name is Angela. I have seen Dr. Alexis and Dr. Johnson. And I saw him the last time. These pills have me out of it.
+System: Who is your doctor?
+User: It was Dr. Johnson last time.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: That makes sense, because when I was taking them in the morning I was confused all day. I do hope I will get better.

@@ -1,0 +1,6 @@
+User: Hi I was just at an appt with Dr Alexis and I forgot to write down the instructions can you please ask him what they were?
+System: Could I get your name, please?
+User: John
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: okay thanks
+System: Is there anything else that I can do for you?

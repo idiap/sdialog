@@ -1,0 +1,12 @@
+User: I forgot everything my doc told me to do
+System: Could I get your name, please?
+User: John
+System: Who is your doctor?
+User: Dr. Morgan Wait no. It's Dr. Alexis now. He's so rich
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Dr. Alexis is so trustworthy. Let me go take those meds
+System: Is there anything else that I can do for you?
+User: Can you give me free meds?
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: bye
+System: Thank you and goodbye.

@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi, could you please remind me of the instructions Dr. Morgan gave me for my medicine?
+System: Could I get your name, please?
+User: Of course, my name is Angela.
+System: Who is your doctor?
+User: My doctor is Dr. Morgan at the Community Clinic.
+System: Your instructions are: Take one tablet of Amoxicillin twice a day, every 12 hours for the next week. Avoid drinking alcohol while on this medication and stay hydrated.
+User: Thank you so much! Is there anything else I should know?
+System: Is there anything else that I can do for you?

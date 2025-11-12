@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi, could you help me confirm some details from my recent visit with Dr. Johnson?
+System: Could I get your name, please?
+User: My name is Ben.
+System: Who is your doctor?
+User: It's Dr. Johnson, who I saw last week for a checkup.
+System: Your instructions are: INSTRUCTIONS.
+User: Could you be more specific? What were the exact instructions from Dr. Johnson?
+System: Sure, according to your visit with Dr. Johnson, his instructions are: TAKE MEDICATION DAILY and SCHEDULE FOLLOW-UP APPOINTMENT IN 6 WEEKS.
+User: That sounds right. Is there anything else I should know?
+System: Is there anything else that I can do for you?

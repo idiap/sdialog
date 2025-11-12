@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions from today's appointment?
+System: Could I get your name, please?
+User: My name is Ben.
+System: Who is your doctor?
+User: I was seeing Dr. Morgan today.
+System: Your instructions are: INSTRUCTIONS.
+User: Could you please confirm them? I just want to make sure I didn't miss anything during my visit with Dr. Morgan.
+System: Of course, your doctor's instructions from today are: INSTRUCTIONS. Is there anything else that I can do for you?

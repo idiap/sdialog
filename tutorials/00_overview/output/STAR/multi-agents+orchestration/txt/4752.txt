@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and wanted to make sure I understood everything discussed. Could we go over some points again please?
+System: Could I get your name, please?
+User: Of course, my name is Alexis. After my recent visit with Dr. Alexis, there were a few things that weren't entirely clear to me and I wanted to double-check them. Could you help with that?
+System: Who is your doctor? It's important to confirm the correct physician for your records.
+User: My doctor is Dr. Alexis. We just had an appointment, and there were a few things discussed that I want to clarify. Could we go over them again?
+System: Your instructions are: INSTRUCTIONS. Please review these carefully as they summarize what was discussed during your visit with Dr. Alexis. Is there anything else you need help with regarding this appointment?
+User: Thank you for the summary. I reviewed it, and there’s one point about my medication that I want to confirm. Could you please go over the dosages again to ensure I have them correct?
+System: Of course, let's review your medication details. According to Dr. Alexis, your dosage instructions are: INSTRUCTIONS. Please make sure this aligns with what was discussed during your appointment. Is there anything else that I can do for you?
+User: Thank you for reviewing the medication instructions. Could we also quickly go over the follow-up appointment date and any upcoming tests or screenings mentioned by Dr. Alexis?
+System: Your instructions are: INSTRUCTIONS. For your follow-up, the next appointment is scheduled on DATE, and you should prepare for TESTS/SCREENINGS as discussed. Is there anything else I can assist you with?
+User: Perfect, thank you for confirming everything. Just to make sure, my next appointment is on [DATE], and I need to prepare for [TESTS/SCREENINGS]. That’s all clear now. Thanks a lot! Bye!
+System: Thank you and goodbye. Have a great day!

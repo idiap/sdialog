@@ -1,0 +1,8 @@
+User: I forgot what the beatiful Dr. Alexis told me to do. Can you remind me
+System: Could I get your name, please?
+User: Alexis
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: That seems like a lot. I might overdose
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Thank you
+System: Thank you and goodbye.

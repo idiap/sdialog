@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions from my last appointment with Dr. Johnson?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Johnson.
+System: Your instructions are: Take the prescribed medication twice a day, follow up with dietary changes and exercise, and schedule another appointment in six weeks to reassess your condition.
+User: Thank you. Is there anything else I should know?
+System: Is there anything else that I can do for you?

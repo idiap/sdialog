@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I'm trying to remember what Dr. Alexis told me regarding my medication after our last visit. Could you please remind me how often I should be taking it? Sometimes I get a bit confused with all the information.
+System: Could I get your name, please?
+User: Of course, my name is Ben. And actually, to clarify, my previous doctor was Dr. Alexis, but I recently switched and had an appointment with Dr. Morgan. It’s Dr. Morgan’s instructions that I’m trying to recall.
+System: Who is your doctor? I have the information from your last visit with Dr. Morgan. Your instructions are: Take your medication twice daily, in the morning and evening, with a full glass of water. Is there anything else that I can do for you?
+User: Thank you so much! That’s exactly what I needed to remember. And actually, while we’re at it, could you tell me if Dr. Morgan mentioned any side effects I should be aware of? Just want to make sure I’m on top of everything.  By the way, today felt particularly long and confusing with all these medical terms swirling around in my head. Thanks for your help though, really appreciate it!  Goodbye!
+System: Regarding the side effects, Dr. Morgan mentioned that you might experience some mild dizziness or nausea, but if these symptoms persist or worsen, you should contact them immediately. Is there anything else I can assist you with today? Thank you for reaching out and don’t hesitate to ask if you have more questions in the future. Take care!

@@ -1,0 +1,10 @@
+System: Hello, how can I help?
+User: I need some help with my recent doctor's visit.
+System: Could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: It's Dr. Alexis.
+System: Your instructions are: Take the prescribed medication three times a day, every eight hours apart.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thanks.
+System: Thank you and goodbye.

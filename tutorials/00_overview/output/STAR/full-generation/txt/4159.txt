@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please help me with my doctor's instructions? I had an appointment with Dr. Morgan the other day and forgot to write down when I'm supposed to take my medicine.
+System: Of course, could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: It's Dr. Morgan, I told you already.
+System: Your instructions are: Take the prescribed medication twice a day, every 12 hours starting from when you had your appointment with Dr. Morgan. Make sure to follow this schedule for the next week unless instructed otherwise by another medical professional.
+User: Thank you so much! Is there anything else I need to know?
+System: Is there anything else that I can do for you?

@@ -1,0 +1,10 @@
+User: I am having issues.
+System: Could I get your name, please?
+User: It's Mark. I saw Dr. Johnson, I am not sure about these medications he gave me. Maybe I didn't understand the instructions.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh, actually it was Dr. Morgan I saw last time. These meds have me all messed up.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ok, maybe that's the issue. I am not taking it before I eat. I will try that tomorrow.
+System: Is there anything else that I can do for you?
+User: No, thanks for reminding me about the food though. 
+System: Thank you and goodbye.

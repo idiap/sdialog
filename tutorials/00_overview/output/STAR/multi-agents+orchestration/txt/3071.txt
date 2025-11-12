@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Morgan today. Could we go over some points again please?
+System: Could I get your name, please?
+User: Of course, my name is Mark. And you are? But to be quick about it, Dr. Morgan mentioned something about medication adjustments, could you remind me of the details?
+System: Sure, Mark. Your instructions are: Dr. Morgan has adjusted your medication dosages and added a new antibiotic for your infection. Please follow up in two weeks. Is there anything else that I can do for you?
+User: Thanks for clarifying, with the medication changes and the new antibiotic, got it. No need to repeat everything, just wanted to double-check this part. See you in two weeks then!
+System: Thank you and goodbye, Mark. Have a great day!

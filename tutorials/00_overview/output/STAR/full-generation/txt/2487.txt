@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you tell me what Dr. Morgan instructed for my follow-up care after today's appointment?
+System: Could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: Dr. Morgan.
+System: Your instructions are: INSTRUCTIONS. Please review them and let me know if you need any clarification on them.
+User: Could you remind me what the next steps are after reviewing the instructions?
+System: Is there anything else that I can do for you? If not, please review your doctor's instructions and let her know if you have any questions.

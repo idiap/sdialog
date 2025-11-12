@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and wanted to make sure I understood everything correctly about my medication schedule. Could you please confirm what was discussed?
+System: Could I get your name, please?
+User: Of course, my name is Angela. How can I ensure I've got the right information from my recent appointment with Dr. Alexis regarding my medication?
+System: Who is your doctor? Just to confirm, did you see Dr. Alexis today?
+User: Yes, I saw Dr. Alexis today for my appointment. I want to make sure I have all the details correct about my new medication regimen. Could you help with that please?
+System: Your instructions are: Follow Dr. Alexis's orders to take your new medication twice daily, in the morning and evening, with meals. Make sure to schedule a follow-up appointment in four weeks for a check-up. Is there anything else that I can do for you?
+User: Thank you so much! So, I should be taking my new medication twice daily—in the morning and evening—with meals, and scheduling another appointment with Dr. Alexis in four weeks for a check-up. Is that everything I need to know right now?
+System: That's correct, Angela. Take your medication as directed and schedule your follow-up appointment in four weeks. Is there anything else you would like to clarify or any other assistance you need?
+User: Perfect, thank you! That’s everything I needed to confirm. No other questions at the moment. Thank you for your help. See you soon!
+System: You're welcome, Angela. Feel free to reach out if you have any more questions in between appointments. Take care and see you soon! Thank you and goodbye.

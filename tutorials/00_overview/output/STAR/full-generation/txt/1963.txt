@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please find out from Dr. Alexis what my instructions were for the medicine I was prescribed today?
+System: Could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: The doctor I saw today is Dr. Alexis.
+System: Your instructions are: Take the prescribed medication three times a day, 30 minutes before meals.
+User: Thank you very much for your help!
+System: Is there anything else that I can do for you?

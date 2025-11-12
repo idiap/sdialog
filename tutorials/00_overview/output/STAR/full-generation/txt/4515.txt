@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please remind me of Dr. Johnson's instructions about my medicine dosage?
+System: Of course, could I get your name, please?
+User: My name is Mark.
+System: Who is your doctor?
+User: It's Dr. Johnson.
+System: Your instructions are: Take 500 mg of the prescribed antibiotic twice a day, every six hours apart.
+User: Thank you! That helps a lot.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thank you!
+System: Thank you and goodbye.

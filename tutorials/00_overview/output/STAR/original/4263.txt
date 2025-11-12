@@ -1,0 +1,10 @@
+User: I would like to make an appointment with Dr. Morgan please.
+System: Could I get your name, please?
+User: I had an appointment with Dr. Morgan the other day and would like to followup to make sure that I understood everything right.
+System: Could I get your name, please?
+User: My name is Mark, but it was actually Dr. Johnson I saw. Dr. Morgan was my old Dr.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Thats all? My condition is silly, it makes me forget a lot of things.
+System: Yes, syphilis is a strange condition
+User: Yes, it has been a big change. Thank you for your help today.
+System: Thank you and goodbye.

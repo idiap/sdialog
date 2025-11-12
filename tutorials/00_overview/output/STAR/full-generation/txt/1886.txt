@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please help me find out how often I should take my medicine? I just finished an appointment with Dr. Morgan but forgot to write down the instructions.
+System: Of course, could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: I saw Dr. Morgan today.
+System: Your instructions are: Take the medication three times a day, every 8 hours apart starting from when you left the office, with food and water. If you have any side effects or worsening symptoms, contact your doctor immediately.
+User: Thank you so much!
+System: Is there anything else that I can do for you?

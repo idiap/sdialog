@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please remind me of Dr. Morgan's instructions from my last appointment?
+System: Could I get your name, please?
+User: My name is Mark.
+System: Who is your doctor?
+User: It's Dr. Morgan, I saw him last week for a checkup.
+System: Your instructions are: Take the prescribed medication twice daily with meals and schedule another appointment in two months. Also, monitor your blood pressure daily and report any unusual symptoms to our clinic immediately.
+User: Thank you for reminding me of that. Is there anything else I need to know?
+System: Is there anything else that I can do for you?

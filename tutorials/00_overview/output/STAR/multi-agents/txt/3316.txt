@@ -1,0 +1,13 @@
+System: Hello! How can I assist you today?
+User: Hi, how are you? Can we go over the notes from my appointment with Dr. Morgan again to make sure I understood everything correctly?
+System: Of course, I'd be happy to help with that. Could I get your name, please?
+User: My name is Angela. We just had an appointment and I want to clarify a few things about the treatment plan and next steps.
+System: Thanks for letting me know, Angela. Who is your doctor? It's Dr. Morgan as you mentioned earlier. Can we proceed with reviewing your instructions from him?
+User: Yes, that’s right. Let’s go over what Dr. Morgan said about my medication and when I should schedule the next appointment.
+System: Your instructions are: Take your medication as prescribed by Dr. Morgan and schedule a follow-up appointment in 3 months for a checkup. Is there anything else that I can do for you?
+User: That's perfect, thank you. Could you remind me of the dosage and any side effects I should be aware of for this medication?
+System: Certainly! Make sure to take your medication at the prescribed dosage of 10 mg daily. Be on the lookout for possible side effects such as drowsiness or nausea. Is there anything else you need to know before we wrap up?
+User: Thanks for that information. No, I think everything is clear now. Thanks a lot for your help!
+System: You're welcome, Angela! If you have any more questions in the future, feel free to ask. Thank you and goodbye.
+User: Thank you! Goodbye.
+System: Goodbye, take care!

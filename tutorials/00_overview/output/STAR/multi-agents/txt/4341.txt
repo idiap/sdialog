@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I'm Ben. After my appointment with Dr. Alexis, I forgot the instructions for my medicine. Could you remind me how often I should take it?
+System: Could I get your name, please? Oh, hello Ben. Who is your doctor? It seems like you've already mentioned Dr. Alexis. Your instructions are: Take your medication twice a day, in the morning and before bedtime. Is there anything else that I can do for you?
+User: That's great, thanks! So, I should take my medicine in the morning and at night before bed, correct? And is there anything else Dr. Alexis mentioned I need to follow up on? Thanks!
+System: Yes, Ben, that's correct. Take your medication twice a day, in the morning and before bedtime. As for any other instructions from Dr. Alexis, it seems like you've got the main one covered with taking your medicine as prescribed. Is there anything else that I can do for you?
+User: Perfect, thanks for confirming! No more questions for now, just wanted to make sure about the medication timing. Thanks a lot! Bye!
+System: You're welcome, Ben. If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.

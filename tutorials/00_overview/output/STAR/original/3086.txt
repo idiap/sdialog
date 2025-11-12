@@ -1,0 +1,8 @@
+User: hello
+System: Could I get your name, please?
+User: My name is Alexis. I saw Dr. Johnson the other day, and can't remember my medication instructions. Wait, I forgot, my new doctor is Dr. Morgan.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: I really liked Dr. Morgan. She was so nice.
+System: She is, is that all?
+User: Yes. Thank you for your help. Have a nice day.
+System: Thank you and goodbye.

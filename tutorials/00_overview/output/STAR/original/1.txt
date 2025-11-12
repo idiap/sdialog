@@ -1,0 +1,8 @@
+User: Hello, I'm really worried. I forgot what I'm supposed to do and forgot to write it down... What do I do?
+System: Could I get your name, please?
+User: My name is Alexis and my last doctor was Dr. Morgan, but now my doctor is Dr. Johnson and I forgot how to take my medicine.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Are you sure I'm supposed to take it before bed? I don't go to sleep every day because my sleep schedule is totally off right now because of the Coronavirus.
+System: Yes. It must be before bed or it will not be effective.
+User: Okay thank you. I will get back in touch if this doesn't help.
+System: Thank you and goodbye.

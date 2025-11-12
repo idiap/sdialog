@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Johnson last week and wanted to make sure I understood everything correctly regarding my treatment plan. Could we go over it again please?
+System: Of course, could I get your name, please?
+User: Sure, my name is Angela. How can we review the details of my appointment with Dr. Johnson?
+System: Who is your doctor, Angela? Just to confirm, is it Dr. Johnson?
+User: Yes, it's Dr. Johnson. I wanted to make sure I didn't miss any important points during our last visit. Could we go over the treatment plan again?
+System: Your instructions are: Follow up on your medication regimen and schedule a follow-up appointment in 4 weeks for further evaluation. Is there anything else that I can do for you?
+User: That's very helpful. So, to summarize, I need to continue with my current medication regimen and have another checkup in four weeks. Is there anything specific I should be aware of or prepare for before the next appointment?
+System: Your instructions are: Continue your current medication regimen and prepare a list of any symptoms or concerns you've had since your last visit. Is there anything else that I can do for you, Angela?
+User: Thanks for the reminder. I'll make sure to keep track of my symptoms and bring a list to our next appointment. Is there anything else I should consider doing between now and then?
+System: Thank you, Angela. If you have any questions or concerns before your next appointment, feel free to reach out. Take care and goodbye.
+User: Thanks so much! I'll be in touch if I have any questions. Have a great day!
+System: You're welcome, Angela. Have a great day and take care!

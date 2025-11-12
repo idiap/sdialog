@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please tell me what my doctor's instructions are after our appointment the other day?
+System: Of course! Could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: I saw Dr. Johnson last week.
+System: Your instructions are: Take the prescribed medication twice a day, follow up in six weeks for another check-up, and maintain a healthy diet and exercise regimen.
+User: Thank you. That's very clear now.
+System: Is there anything else that I can do for you?
+User: No, that covers everything I needed to know. Thank you!
+System: You're welcome, John! Thank you and goodbye.

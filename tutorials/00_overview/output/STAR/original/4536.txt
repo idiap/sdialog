@@ -1,0 +1,6 @@
+User: Hi, I need to follow up to make sure I understood the at home instructions. 
+System: Could I get your name, please?
+User: My name is Angela
+System: Who is your doctor?
+User: Dr. Alexis, she is the best!
+System: Your instructions are: You must take your medicine 2 times a day before meals..

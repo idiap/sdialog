@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I hope you're doing well. I had an appointment with Dr. Johnson recently and wanted to make sure I understood everything correctly regarding my treatment plan. Could you please help me review what we discussed?
+System: Of course, could I get your name, please?
+User: Sure, my name is Angela. How can I ensure we have the right patient information for this follow-up?
+System: Could you tell me who your doctor is, Angela? doctor_inform_doctors_instructions: "Based on Dr. Johnson's instructions, here are your next steps: [details of instructions]."
+User: My doctor is Dr. Johnson. Could you please let me know based on his instructions what my next steps should be?
+System: Based on Dr. Johnson's instructions, here are your next steps: Take the prescribed medication twice daily, attend a follow-up appointment in four weeks, and monitor any changes in symptoms.  Is there anything else that I can do for you?
+User: Thank you so much! That clarifies everything for me. No further assistance is needed from me right now; feel free to let me know if this covers it completely. Thanks again!
+System: You're welcome, Angela. Thank you and goodbye.

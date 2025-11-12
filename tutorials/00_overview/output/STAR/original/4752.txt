@@ -1,0 +1,2 @@
+User: My name is Alexis and I just finished my appointment with Dr. Alexis and would like to followup to ensure I understood everything.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..

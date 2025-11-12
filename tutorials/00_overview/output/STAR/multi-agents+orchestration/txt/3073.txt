@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I had an appointment with Dr. Alexis last week and I wanted to make sure I understood everything correctly regarding my treatment plan. Could we go over it again please?
+System: Could I get your name, please?
+User: Of course, my name is John. And if I may ask, could you tell me, was Dr. Alexis the doctor I was supposed to see for my appointment last week or is there a new doctor now?
+System: Who is your doctor? I need to make sure we have the correct information before proceeding. Dr. Alexis could be your primary care physician or a specialist, so it's important to clarify this first.
+User: Oh, you're right! It seems like my appointment last week was with Dr. Johnson, not Dr. Alexis. I must have mixed them up in my head. Can we go over the notes from that visit? I'm still a bit unsure about the new medication and if it might cause dizziness.  By the way, do you happen to know if any of my other doctors are planning to retire soon? My current primary care is Dr. Johnson, but I wouldn't want any sudden changes right now. Thanks for your help!  Goodbye!
+System: Your instructions are: Please review the notes from your appointment with Dr. Johnson and be aware that the new medication might cause dizziness as a side effect. Regarding your other doctors, I don't have specific information on their retirement plans but I recommend checking in with them directly for any updates.  Thank you and goodbye.
