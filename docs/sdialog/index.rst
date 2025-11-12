@@ -655,6 +655,556 @@ Ready to dive deeper? Here's how we can inspect multiple layers simultaneously a
 
 ----
 
+Audio Generation
+=============================
+
+The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
+
+Audio Module Overview
+---------------------
+
+The audio module provides:
+
+- **Audio Generation**: Text-to-speech conversion using various TTS engines (Kokoro, IndexTTS or any other TTS engines)
+- **Voice Management**: Voice databases with speaker characteristics (gender, age, language, ...)
+- **Acoustic Simulation**: Realistic room environments with reverberation effects and ray tracing
+- **Audio Pipeline**: Complete dialogue processing with turn-based audio generation
+
+Core Components
+---------------
+
+**AudioDialog** (:class:`~sdialog.audio.dialog.AudioDialog`)
+    Extended dialogue class that inherits from :class:`~sdialog.Dialog` and adds audio turn support. It also contains all the information to generate the audio dialogue.
+
+**AudioTurn** (:class:`~sdialog.audio.turn.AudioTurn`)
+    Individual dialogue turns with associated audio metadata. Stores audio files, durations, temporal positions, and voice information.
+
+**TTS Engines** (:class:`~sdialog.audio.tts_engine.BaseTTS`)
+    Abstract interface for text-to-speech engines. Available implementations:
+    - :class:`~sdialog.audio.tts_engine.KokoroTTS`: Kokoro engine for speech synthesis
+    - :class:`~sdialog.audio.tts_engine.IndexTTS`: IndexTTS engine
+    - :class:`~sdialog.audio.tts_engine.HuggingFaceTTS`: Generic implementation for models from the Hugging Face Hub
+    - Any other TTS engine that inherits from :class:`~sdialog.audio.tts_engine.BaseTTS`
+
+**Voice Databases** (:class:`~sdialog.audio.voice_database.BaseVoiceDatabase`)
+    Voice management with speaker metadata (gender, age, language, ...). Implementations:
+    - :class:`~sdialog.audio.voice_database.HuggingfaceVoiceDatabase`: Voices gathered from Hugging Face
+    - :class:`~sdialog.audio.voice_database.LocalVoiceDatabase`: Local database of voices
+    - Any other voice database that inherits from :class:`~sdialog.audio.voice_database.BaseVoiceDatabase`
+
+**Acoustic Simulation** (:class:`~sdialog.audio.acoustics_simulator.AcousticsSimulator`)
+    Realistic acoustic environment simulation with:
+    - :class:`~sdialog.audio.room.Room`: 3D room specifications with furniture, speakers, microphones, ...
+    - :class:`~sdialog.audio.room_generator.RoomGenerator`: Automatic room generation with customizable dimensions and aspect ratios. Two implementations are available: :class:`~sdialog.audio.room_generator.BasicRoomGenerator` and :class:`~sdialog.audio.jsalt.MedicalRoomGenerator`.
+    - Integration with dSCAPER for timeline generation and pyroomacoustics for acoustic simulation of the room.
+
+**Impulse Response Databases** (:class:`~sdialog.audio.impulse_response_database.ImpulseResponseDatabase`)
+    Impulse response management for microphone effect simulation. Implementations:
+    - :class:`~sdialog.audio.impulse_response_database.HuggingfaceImpulseResponseDatabase`: IRs gathered from Hugging Face
+    - :class:`~sdialog.audio.impulse_response_database.LocalImpulseResponseDatabase`: Local IR database
+    - Any other impulse response database that inherits from :class:`~sdialog.audio.impulse_response_database.ImpulseResponseDatabase`
+
+**Audio Processor** (:class:`~sdialog.audio.processing.AudioProcessor`)
+    Applies audio effects, such as microphone simulation by convolving audio with an impulse response from an impulse response database.
+
+Quick Usage
+-----------------------
+
+For simple use cases, SDialog provides convenient one-function audio generation:
+
+**Using the `to_audio` utility function**:
+
+.. code-block:: python
+
+    from sdialog.audio.pipeline import to_audio
+    
+    # Generate complete audio in one call
+    audio_dialog = to_audio(
+        original_dialog,
+        do_step_1=True,  # Combine utterances
+        do_step_2=True,  # Generate dSCAPER timeline
+        do_step_3=True,  # Apply room acoustics
+        audio_file_format="mp3"  # or "wav", "flac"
+    )
+    
+    # Access generated files
+    print(f"Combined audio: {audio_dialog.audio_step_1_filepath}")
+    print(f"Timeline audio: {audio_dialog.audio_step_2_filepath}")
+    print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
+
+**Using Dialog's built-in method**:
+
+.. code-block:: python
+
+    # Convert dialog directly to audio
+    audio_dialog = original_dialog.to_audio(
+        do_step_1=True,
+        do_step_2=True, 
+        do_step_3=True
+    )
+    
+    # Access generated files
+    print(f"Combined audio: {audio_dialog.audio_step_1_filepath}")
+    print(f"Timeline audio: {audio_dialog.audio_step_2_filepath}")
+    print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
+
+Complete Usage Example
+----------------------
+
+Here's how to create a complete audio dialogue with environment simulation using the audio pipeline:
+
+.. code-block:: python
+
+    from sdialog.audio import AudioDialog, KokoroTTS, HuggingfaceVoiceDatabase
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.room import DirectivityType
+    from sdialog.audio.utils import SourceVolume, SourceType
+    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole, RoomPosition
+    from sdialog.personas import Persona
+    from sdialog.agents import Agent
+
+    # 1. Create a base text dialogue
+    doctor = Persona(name="Dr. Smith", role="doctor", age=40, gender="male", language="english")
+    patient = Persona(name="John", role="patient", age=45, gender="male", language="english")
+    
+    doctor_agent = Agent(persona=doctor)
+    patient_agent = Agent(persona=patient, first_utterance="Hello doctor, I have chest pain.")
+    
+    dialog = patient_agent.dialog_with(doctor_agent, max_turns=6)
+    
+    # 2. Convert to audio dialogue
+    audio_dialog = AudioDialog.from_dialog(dialog)
+    
+    # 3. Configure TTS engine and voice database
+    tts_engine = KokoroTTS(lang_code="a")  # American English
+    voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+    
+    # 4. Setup audio pipeline
+    audio_pipeline = AudioPipeline(
+        voice_database=voice_database,
+        tts_pipeline=tts_engine,
+        dir_audio="./audio_outputs"
+    )
+    
+    # 5. Generate a medical examination room
+    room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+    
+    # 6. Position speakers around furniture in the room
+    room.place_speaker_around_furniture(
+        speaker_name="speaker_1", 
+        furniture_name="desk", 
+        max_distance=1.0
+    )
+    room.place_speaker_around_furniture(
+        speaker_name="speaker_2", 
+        furniture_name="desk", 
+        max_distance=1.0
+    )
+    
+    # 7. Set microphone directivity
+    room.set_directivity(direction=DirectivityType.OMNIDIRECTIONAL)
+    
+    # 8. Run the complete audio pipeline
+    audio_dialog = audio_pipeline.inference(
+        audio_dialog,
+        environment={
+            "room": room,
+            "background_effect": "white_noise",
+            "foreground_effect": "ac_noise_minimal",
+            "source_volumes": {
+                SourceType.ROOM: SourceVolume.HIGH,
+                SourceType.BACKGROUND: SourceVolume.VERY_LOW
+            },
+            "kwargs_pyroom": {
+                "ray_tracing": True,
+                "air_absorption": True
+            }
+        },
+        do_step_1=True,  # Combine utterances into a single dialogue audio
+        do_step_2=True,  # Generate dSCAPER timeline
+        do_step_3=True,  # Apply room acoustics simulation
+        dialog_dir_name="medical_consultation",
+        room_name="examination_room"
+    )
+    
+    # 9. Access the generated audio files
+    print(f"Combined utterances: {audio_dialog.audio_step_1_filepath}")
+    print(f"DScaper timeline: {audio_dialog.audio_step_2_filepath}")
+    print(f"Room acoustics simulation: {audio_dialog.audio_step_3_filepaths}")
+
+Room Generation and Configuration
+---------------------------------
+
+SDialog provides powerful room generation capabilities for creating realistic acoustic environments:
+
+**Medical Room Generator** - Create specialized medical environments:
+
+.. code-block:: python
+
+    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+    
+    # Generate different types of medical rooms
+    generator = MedicalRoomGenerator()
+    
+    # Various medical room types
+    consultation_room = generator.generate({"room_type": RoomRole.CONSULTATION})
+    examination_room = generator.generate({"room_type": RoomRole.EXAMINATION})
+    # ... other room types ...
+    
+    # Get room properties
+    print(f"Room area: {examination_room.get_square_meters():.1f} m²")
+    print(f"Room volume: {examination_room.get_volume():.1f} m³")
+
+**Basic Room Generator** - Create simple rectangular rooms:
+
+.. code-block:: python
+
+    from sdialog.audio.room_generator import BasicRoomGenerator
+    
+    # Generate rooms with different sizes
+    generator = BasicRoomGenerator(seed=123)  # For reproducible results
+    
+    small_room = generator.generate({"room_size": 8})   # 8 m²
+    large_room = generator.generate({"room_size": 20})  # 20 m²
+    
+    print(f"Small room: {small_room.get_square_meters():.1f} m²")
+    print(f"Large room: {large_room.get_square_meters():.1f} m²")
+
+**Room Visualization** - Visualize room layouts and configurations:
+
+.. code-block:: python
+
+    # Generate and visualize a room
+    room = MedicalRoomGenerator().generate({"room_type": RoomRole.EXAMINATION})
+    
+    # Create detailed visualization
+    img = room.to_image(
+        show_anchors=True,
+        show_walls=True,
+        show_furnitures=True,
+        show_speakers=True,
+        show_microphones=True
+    )
+    
+    # Display or save the image
+    img.show()  # Display in notebook
+    img.save("room_layout.png")  # Save to file
+
+**Custom Room Generator** - Create specialized room types:
+
+.. code-block:: python
+
+    from sdialog.audio.room import Room
+    from sdialog.audio.utils import Furniture, RGBAColor
+    from sdialog.audio.room_generator import RoomGenerator, Dimensions3D
+    
+    class WarehouseRoomGenerator(RoomGenerator):
+        def __init__(self):
+            super().__init__()
+            self.ROOM_SIZES = {
+                "big_warehouse": ([1000, 2500], 0.47, "big_warehouse"),
+                "small_warehouse": ([100, 200, 300], 0.75, "small_warehouse"),
+            }
+        
+        def generate(self, args):
+            warehouse_type = args["warehouse_type"]
+            floor_area, reverberation_ratio, name = self.ROOM_SIZES[warehouse_type]
+            
+            # Calculate dimensions
+            dims = Dimensions3D(width=20, length=25, height=10)
+            
+            room = Room(
+                name=f"Warehouse: {name}",
+                dimensions=dims,
+                reverberation_time_ratio=reverberation_ratio,
+                furnitures={
+                    "door": Furniture(
+                        name="door",
+                        x=0.10, y=0.10,
+                        width=0.70, height=2.10, depth=0.5
+                    )
+                }
+            )
+            return room
+    
+    # Use custom generator
+    warehouse_gen = WarehouseRoomGenerator()
+    warehouse = warehouse_gen.generate({"warehouse_type": "big_warehouse"})
+
+**Microphone Positioning** - Configure microphone placement:
+
+.. code-block:: python
+
+    from sdialog.audio.room import MicrophonePosition, Position3D
+    
+    # Different microphone positions
+    room = Room(
+        name="Demo Room",
+        dimensions=Dimensions3D(width=10, length=10, height=3),
+        mic_position=MicrophonePosition.CHEST_POCKET_SPEAKER_1
+    )
+    
+    # Position microphone on desk
+    room_with_desk = Room(
+        name="Office Room",
+        dimensions=Dimensions3D(width=5, length=4, height=3),
+        mic_position=MicrophonePosition.DESK_SMARTPHONE,
+        furnitures={
+            "desk": Furniture(
+                name="desk",
+                x=2.0, y=2.0,
+                width=1.5, height=0.8, depth=1.0,
+                color=RGBAColor.BROWN
+            )
+        }
+    )
+    
+    # Custom 3D position
+    room_custom = Room(
+        name="Custom Mic Room",
+        dimensions=Dimensions3D(width=8, length=6, height=3),
+        mic_position=MicrophonePosition.CUSTOM,
+        mic_position_3d=Position3D(x=4.0, y=3.0, z=1.5)
+    )
+
+**Speaker and Furniture Placement** - Position speakers around furniture:
+
+.. code-block:: python
+
+    from sdialog.audio.utils import SpeakerSide, Role
+
+    room = Room(
+        name="Demo Room with Speakers and Furniture",
+        dimensions=Dimensions3D(width=10, length=10, height=3),
+        mic_position=MicrophonePosition.CEILING_CENTERED
+    )
+    
+    # Add furniture to room
+    room.add_furnitures({
+        "lamp": Furniture(
+            name="lamp",
+            x=6.5, y=1.5,
+            width=0.72, height=1.3, depth=0.72
+        ),
+        "chair": Furniture(
+            name="chair",
+            x=2.5, y=4.5,
+            width=0.2, height=1.3, depth=0.2
+        )
+    })
+    
+    # Position speakers around furniture
+    room.place_speaker_around_furniture(
+        speaker_name=Role.SPEAKER_1, 
+        furniture_name="lamp"
+    )
+    room.place_speaker_around_furniture(
+        speaker_name=Role.SPEAKER_2, 
+        furniture_name="chair",
+        max_distance=2.0,
+        side=SpeakerSide.BACK
+    )
+    
+    # Calculate distances
+    distances = room.get_speaker_distances_to_microphone(dimensions=2)
+    print(f"Speaker 2D distances to the microphone: {distances}")
+
+Voice Database Management
+-------------------------
+
+SDialog supports multiple voice database types for flexible voice selection:
+
+**HuggingFace Voice Databases** - Use pre-trained voice collections:
+
+.. code-block:: python
+
+    from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
+    
+    # LibriTTS voices
+    voices_libritts = HuggingfaceVoiceDatabase("sdialog/voices-libritts")
+    
+    # Kokoro voices
+    voices_kokoro = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+    
+    # Get voice statistics
+    print(voices_kokoro.get_statistics(pretty=True))
+    
+    # Select voices based on characteristics
+    female_voice = voices_libritts.get_voice(gender="female", age=25, seed=42)
+    # Prevent voice reuse
+    male_voice = voices_libritts.get_voice(gender="male", age=30, keep_duplicate=False)
+    
+    # Reset used voices for reuse
+    voices_libritts.reset_used_voices()
+
+**Local Voice Databases** - Use your own voice files:
+
+.. code-block:: python
+
+    from sdialog.audio.voice_database import LocalVoiceDatabase
+    
+    # Create database from local files with CSV metadata
+    voice_database = LocalVoiceDatabase(
+        directory_audios="./my_custom_voices/",
+        metadata_file="./my_custom_voices/metadata.csv"
+    )
+    
+    # Add custom voices programmatically
+    voice_database.add_voice(
+        gender="female",
+        age=42,
+        identifier="french_female_42",
+        voice="./my_custom_voices/french_female_42.wav",
+        lang="french",
+        language_code="f"
+    )
+    
+    # Get voice by language and prevent voice reuse (it will give you the closest age for the specified gender)
+    french_voice = voice_database.get_voice(gender="female", age=20, lang="french", keep_duplicate=False)
+    
+    # Get statistics
+    print(voice_database.get_statistics(pretty=True))
+
+**Quick Voice Database** - Create databases from dictionaries:
+
+.. code-block:: python
+
+    from sdialog.audio.voice_database import VoiceDatabase
+    
+    # Create database from predefined voice list
+    quick_voices = VoiceDatabase(
+        data=[
+            {
+                "voice": "am_echo",
+                "language": "english",
+                "language_code": "a",
+                "identifier": "am_echo",
+                "gender": "male",
+                "age": 20
+            },
+            {
+                "voice": "af_heart",
+                "language": "english", 
+                "language_code": "a",
+                "identifier": "af_heart",
+                "gender": "female",
+                "age": 25
+            }
+        ]
+    )
+    
+    # Use the voices
+    male_voice = quick_voices.get_voice(gender="male", age=20)
+    female_voice = quick_voices.get_voice(gender="female", age=25)
+
+    # Unavailable voice for this language (an error will be raised)
+    female_voice_spanish = quick_voices.get_voice(gender="female", age=25, lang="spanish")
+
+Microphone Effects
+-----------------------------
+
+SDialog allows you to simulate various microphone effects by applying impulse responses to your generated audio. This is useful for creating more realistic audio by simulating different recording environments and devices.
+
+.. code-block:: python
+
+    from sdialog.audio.processing import AudioProcessor
+    from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+    import soundfile as sf
+    import numpy as np
+
+    # Create dummy files for the example
+    with open("metadata.csv", "w") as f:
+        f.write("identifier,file_name\\n")
+        f.write("my_ir,my_ir.wav\\n")
+    sf.write("my_ir.wav", np.random.randn(16000), 16000)
+    sf.write("input.wav", np.random.randn(16000 * 3), 16000)
+
+    # Use a local impulse response database
+    ir_db = LocalImpulseResponseDatabase(metadata_file="metadata.csv", directory=".")
+
+    # Apply a microphone effect
+    AudioProcessor.apply_microphone_effect(
+        input_audio_path="input.wav",
+        output_audio_path="output.wav",
+        device=RecordingDevice.SHURE_SM57,  # Or a custom device identifier like "my_ir"
+        impulse_response_database=ir_db
+    )
+
+Multilingual Audio Generation
+-----------------------------
+
+SDialog supports multilingual audio generation with custom TTS engines:
+
+**Custom TTS Engine** - Create your own TTS implementation:
+
+.. code-block:: python
+
+    import torch
+    import numpy as np
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.voice_database import LocalVoiceDatabase
+    
+    class XTTSEngine(BaseTTS):
+        def __init__(self, lang_code: str = "en", model="xtts_v2"):
+            from TTS.api import TTS
+            self.lang_code = lang_code
+            self.pipeline = TTS(model).to("cuda" if torch.cuda.is_available() else "cpu")
+        
+        def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
+            wav_data = self.pipeline.tts(
+                text=text,
+                speaker_wav=speaker_voice,
+                language=self.lang_code
+            )
+            return (wav_data, 24000)
+    
+    # Use custom TTS for Spanish
+    spanish_tts = XTTSEngine(lang_code="es")
+    
+    # Create spanish voice database
+    spanish_voices = LocalVoiceDatabase(
+        directory_audios="./spanish_voices/",
+        metadata_file="./spanish_voices/metadata.csv"
+    )
+    
+    # Generate Spanish audio
+    audio_pipeline = AudioPipeline(
+        voice_database=spanish_voices,
+        tts_pipeline=spanish_tts,
+        dir_audio="./spanish_audio_outputs"
+    )
+
+    spanish_dialog = AudioDialog.from_dialog(dialog)
+    
+    spanish_audio = audio_pipeline.inference(
+        spanish_dialog,
+        do_step_1=True,
+        do_step_2=True,
+        do_step_3=True,
+        dialog_dir_name="spanish_dialogue"
+    )
+
+**Language-specific Voice Assignment**:
+
+.. code-block:: python
+
+    from sdialog.audio.utils import Role
+    
+    # Assign specific voices from your voice database for different languages
+    spanish_voices = {
+        Role.SPEAKER_1: ("spanish_male_1", "spanish"),
+        Role.SPEAKER_2: ("spanish_female_1", "spanish")
+    }
+    
+    spanish_audio = audio_pipeline.inference(
+        spanish_dialog,
+        voices=spanish_voices
+    )
+
+----
+
 Configuration & Control
 =======================
 

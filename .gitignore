@@ -6,10 +6,38 @@ docs_html
 __*__
 
 dscaper_data/
-
-#audio files
 *.wav
 *.mp3
 *.mp4
 *.flac
 *.ogg
+*.zip
+!tests/data/my_custom_voices.zip
+!tests/data/my_custom_ir.zip
+!tests/data/demo_dialog_doctor_patient.json
+!tests/data/customer_support_dialogue.json
+*.tar
+old.git
+
+# Audio ignore files
+tutorials/audio/demo_dialog_doctor_patient.json
+tutorials/audio/demo_dialog_doctor_patient_no_age_no_gender.json
+tutorials/audio/customer_support_dialogue.json
+tutorials/audio/=0.9.4
+tutorials/audio/dscaper
+tutorials/audio/dscaper_data
+tutorials/audio/dscaper_data_customer_support
+tutorials/audio/audio_outputs
+tutorials/audio/audio_outputs_customer_support
+tutorials/audio/dscaper_data_impulse_response
+tutorials/audio/audio_outputs_impulse_response
+tutorials/audio/my_custom_voices
+tutorials/audio/my_custom_ir
+tutorials/audio/room.png
+tutorials/audio/outputs_annotations/*
+tutorials/audio/outputs_annotations_asr/*
+tutorials/audio/outputs_to_audio/*
+tutorials/audio/dscaper_data_impulse_response/*
+*audio_dialog.json
+./src/sdialog/sdialog
+tutorials/audio/*.png

@@ -50,6 +50,7 @@ sdialog = ["**/*.yaml", "**/*.j2", "evaluation/dialog2flow/util/visualization/**
 
 [tool.pytest.ini_options]
 pythonpath = "src/"
+norecursedirs = "tutorials/dscaper"
 addopts = [
     "--import-mode=importlib",
 ]
