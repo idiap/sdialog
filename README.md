@@ -261,7 +261,7 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 > See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
 
 
-## � Audio generation
+## 🔊 Audio generation
 
 <details>
 <summary>Convert text dialogs to realistic audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
