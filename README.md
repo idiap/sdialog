@@ -332,7 +332,7 @@ audio_dialog = audio_pipeline.inference(
 > See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
 
 
-## �📖 Documentation and tutorials
+## 📖 Documentation and tutorials
 
 - [Demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb)
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
