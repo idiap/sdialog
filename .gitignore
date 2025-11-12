@@ -8,7 +8,6 @@ __*__
 dscaper_data/
 *.wav
 *.mp3
-*.png
 *.mp4
 *.flac
 *.ogg
@@ -41,4 +40,4 @@ tutorials/audio/outputs_to_audio/*
 tutorials/audio/dscaper_data_impulse_response/*
 *audio_dialog.json
 ./src/sdialog/sdialog
-tutorials/9.generating_data.ipynb
+tutorials/audio/*.png
