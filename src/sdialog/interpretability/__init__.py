@@ -357,11 +357,9 @@ class ActivationHook(BaseHook):
             # Check if min_token should steer all system prompt tokens (non-integer or string "-1")
             steer_all_system_prompt = not isinstance(min_token, (int, np.integer))
 
-            # Check if max_token should steer all generated tokens (string "-1" or non-integer)
+            # Check if max_token should steer all generated tokens (any string or integer -1)
             steer_all_generated = (
-                max_token == "-1"
-                or max_token == -1
-                or not isinstance(max_token, (int, np.integer))
+                isinstance(max_token, str) or max_token == -1
             )
 
             if output_tensor.shape[1] > 1:
@@ -556,7 +554,7 @@ class Inspector:
     :param steering_interval: (min_token, max_token) steering window (optional). Defaults to (0, -1),
                               where -1 means no upper bound.
     :type steering_interval: Optional[Tuple[int, int]]
-    :param top_k: Number of top predictions to store for each token. If None, logits are not captured.
+    :param top_k: Number of top token predictions to store for each token. If None, logits are not captured.
                  If -1, all tokens in the vocabulary are returned with their logits. Defaults to None.
     :type top_k: Optional[int]
     :param lm_head_layer: Name of the language model head layer (e.g., "lm_head"). Defaults to "lm_head".
@@ -1054,27 +1052,22 @@ class InspectionToken:
         # Get the activation tensor for this cache key
         rep_tensor = rep_tensor_dict[key]
 
-        # need to know if token is system prompt or generated to properly index activation tensor
+        # Calculate activation index: system prompt tokens come first, then generated tokens
         if self.is_system_prompt:
-            # For system prompt tokens, handle negative indices properly
-            # Negative index means "from the end of system prompt tokens" for proper recursion
+            # For system prompt, normalize negative index relative to system prompt length
             if self.token_index < 0:
-                # Convert negative index to positive: -1 -> last system prompt token
                 activation_index = self.response.length_system_prompt + self.token_index
             else:
                 activation_index = self.token_index
         else:
-            # For generated tokens, handle negative indices properly
-            # Negative index means "from the end of generated tokens", not from the end of all tokens
+            # For generated tokens: positive indices need offset
             input_response = self.agent._hooked_responses[self.response_index]['input'][0]
             if self.token_index < 0:
-                # Convert negative index to positive relative to generated tokens
-                # Then add the system prompt offset
-                num_generated_tokens = len(self.response.tokens)
-                positive_index = num_generated_tokens + self.token_index
-                activation_index = positive_index + input_response.length_system_prompt
+                # Negative index: Python indexing from end of tensor (last generated token is at the end)
+                activation_index = self.token_index
             else:
-                activation_index = self.token_index + input_response.length_system_prompt
+                # Positive index: add system prompt offset
+                activation_index = input_response.length_system_prompt + self.token_index
 
         if hasattr(rep_tensor, '__getitem__'):
             return rep_tensor[activation_index]
