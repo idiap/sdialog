@@ -147,13 +147,16 @@ class ResponseHook(BaseHook):
 
     :param agent: Agent instance owning this hook.
     :type agent: Agent
+    :param inspector: Inspector instance that owns this hook (for accessing top_k).
+    :type inspector: Optional[Inspector]
     :meta private:
     """
-    def __init__(self, agent):
+    def __init__(self, agent, inspector=None):
         super().__init__('model.embed_tokens', self._hook, agent=agent)
         self.responses = []
         self.current_response_ids = None
         self.agent = agent
+        self.inspector = inspector
         self.register(agent.base_model)
 
     def _hook(self, module, input, output):
@@ -175,6 +178,8 @@ class ResponseHook(BaseHook):
         self.responses.clear()
         self.agent._hook_response_act.clear()
         self.agent._hook_response_act.update(defaultdict(lambda: defaultdict(list)))
+        self.agent._hook_response_logit.clear()
+        self.agent._hook_response_logit.update(defaultdict(list))
         self.current_response_ids = None  # Now a tensor
 
     def response_begin(self, memory):
@@ -184,7 +189,7 @@ class ResponseHook(BaseHook):
         :param memory: Snapshot of agent memory at response start.
         :type memory: list
         """
-        self.responses.append({'mem': memory, 'output': []})
+        self.responses.append({'mem': memory, 'output': [], 'input': []})
         self.current_response_ids = None
 
     def response_end(self):
@@ -193,18 +198,48 @@ class ResponseHook(BaseHook):
         """
         token_list = self.current_response_ids.squeeze()
         token_list = token_list.tolist()
-        text = self.agent.tokenizer.decode(token_list, skip_special_tokens=False)
-        tokens = self.agent.tokenizer.convert_ids_to_tokens(token_list)
 
-        # No longer create an InspectionToken here; just store the tokens list
+        system_prompt_text = self.agent.tokenizer.decode(
+            token_list[:self.length_system_prompt],
+            skip_special_tokens=False,
+        )
+
+        system_prompt_tokens = self.agent.tokenizer.convert_ids_to_tokens(
+            token_list[:self.length_system_prompt]
+        )
+
+        response_text = self.agent.tokenizer.decode(
+            token_list[self.length_system_prompt:],
+            skip_special_tokens=False,
+        )
+
+        response_tokens = self.agent.tokenizer.convert_ids_to_tokens(
+            token_list[self.length_system_prompt:]
+        )
+
+        # Store the system prompt dictionary (knowing its actual length)
+        system_prompt_dict = {
+            'input_ids': self.current_response_ids[:self.length_system_prompt],
+            'text': system_prompt_text,
+            'tokens': system_prompt_tokens,
+            'response_index': len(self.responses) - 1,
+            'length_system_prompt': self.length_system_prompt  # Needed to pass the offset for the proper indexing
+        }
+
+        # Append an InspectionResponse instance instead of a dict. We need to flag if it a system prompt or not.
+        system_prompt_inspector = InspectionResponse(
+            system_prompt_dict, agent=self.agent, inspector=self.inspector, is_system_prompt=True)
+        self.responses[-1]['input'].append(system_prompt_inspector)
+
+        # Store the generated response dictionary
         response_dict = {
-            'input_ids': self.current_response_ids,
-            'text': text,
-            'tokens': tokens,
+            'input_ids': self.current_response_ids[self.length_system_prompt:],
+            'text': response_text,
+            'tokens': response_tokens,
             'response_index': len(self.responses) - 1
         }
-        # Append an InspectionResponse instance instead of a dict
-        current_response_inspector = InspectionResponse(response_dict, agent=self.agent)
+
+        current_response_inspector = InspectionResponse(response_dict, agent=self.agent, inspector=self.inspector)
         self.responses[-1]['output'].append(current_response_inspector)
 
     def register_response_tokens(self, input_ids):
@@ -216,7 +251,12 @@ class ResponseHook(BaseHook):
         """
         # Accumulate token IDs as a tensor (generated tokens only)
         if self.current_response_ids is None:
-            self.current_response_ids = input_ids[..., -1]
+            self.current_response_ids = input_ids[0]
+            self.length_system_prompt = len(input_ids[0]) - 1  # OFFSET by 1 for the first generated token.
+
+            # The order is : print(inspector[0][0]) -> Input token
+            #                print(inspector[0][0].act) -> Activation that serves to generate the new token
+            #                print(inspector[0][1]) -> Output of token
         else:
             self.current_response_ids = torch.cat([self.current_response_ids, input_ids[..., -1]], dim=-1)
 
@@ -268,16 +308,19 @@ class ActivationHook(BaseHook):
     :type steering_function: Optional[Union[Callable, List[Callable]]]
     :param steering_interval: (min_token, max_token) steering window (max=-1 => unbounded).
     :type steering_interval: Tuple[int, int]
+    :param inspector: Inspector instance that owns this hook (for accessing top_k).
+    :type inspector: Optional[Inspector]
     :meta private:
     """
     def __init__(self, cache_key, layer_key, agent, response_hook,
-                 steering_function=None, steering_interval=(0, -1)):
+                 steering_function=None, steering_interval=(0, -1), inspector=None):
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.agent = agent
         self.response_hook = response_hook
         self.steering_function = steering_function  # Store the optional function
         self.steering_interval = steering_interval
+        self.inspector = inspector
         self._token_counter_steering = 0
         self.register(agent.base_model)
 
@@ -309,33 +352,165 @@ class ActivationHook(BaseHook):
 
         # Store representation only if the second dimension is 1
         if output_tensor.ndim >= 2:
-            if output_tensor.shape[1] > 1:
-                self._token_counter_steering = 0  # Reset counter if more than one token
             min_token, max_token = self.steering_interval
-            steer_this_token = (
-                self._token_counter_steering >= min_token
-                and (max_token == -1 or self._token_counter_steering < max_token)
+
+            # Check if min_token should steer all system prompt tokens (non-integer or string "-1")
+            steer_all_system_prompt = not isinstance(min_token, (int, np.integer))
+
+            # Check if max_token should steer all generated tokens (any string or integer -1)
+            steer_all_generated = (
+                isinstance(max_token, str) or max_token == -1
             )
 
-            self.agent._hook_response_act[response_index][self.cache_key].append(
-                output_tensor[:, -1, :].detach().cpu()
-            )
+            if output_tensor.shape[1] > 1:
+                # Will store the system prompt
+                # "Unbind" on dim 1 splits the tensor into tuple of tensors, "extend" adds them to _hook_response_act
+                # Handle steering for system prompt tokens
+                length_system_prompt = self.response_hook.length_system_prompt
 
-            if steer_this_token:
-                # Now apply the steering function, if it exists
-                if self.steering_function is not None:
-                    if type(self.steering_function) is list:
-                        for func in self.steering_function:
-                            output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
-                    elif callable(self.steering_function):
-                        output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
+                # Determine steering range for system prompt tokens
+                if steer_all_system_prompt:
+                    # Steer all system prompt tokens (min_token is non-integer)
+                    start_system_steer = 0
+                    end_system_steer = length_system_prompt  # exclusive end
+                elif min_token < 0:
+                    # Steer the last abs(min_token) system prompt tokens
+                    # e.g., min_token=-3 means steer tokens at indices:
+                    # length_system_prompt-3, length_system_prompt-2, length_system_prompt-1
+                    start_system_steer = length_system_prompt + min_token  # e.g., length-3
+                    end_system_steer = length_system_prompt  # exclusive end
 
-            self._token_counter_steering += 1
+                    # Assert that we're not trying to steer beyond system prompt boundaries
+                    assert start_system_steer >= 0, (
+                        f"Steering interval {self.steering_interval} tries to steer beyond system prompt "
+                        f"boundary. System prompt has {length_system_prompt} tokens, but min_token={min_token} "
+                        f"would start at index {start_system_steer}."
+                    )
+                else:
+                    # No system prompt steering
+                    start_system_steer = end_system_steer = 0
+
+                # Apply steering function if specified and range is valid
+                if self.steering_function is not None and start_system_steer < end_system_steer:
+                    for i in range(start_system_steer, end_system_steer):
+                        if type(self.steering_function) is list:
+                            for func in self.steering_function:
+                                output_tensor[:, i, :] = func(output_tensor[:, i, :])
+                        elif callable(self.steering_function):
+                            output_tensor[:, i, :] = self.steering_function(output_tensor[:, i, :])
+
+                # Store all activations
+                self.agent._hook_response_act[response_index][self.cache_key].extend(
+                    output_tensor.detach().cpu().unbind(dim=1)
+                )
+
+                self._token_counter_steering = 0  # Reset counter if more than one token
+
+            else:
+                # Single-token forward pass (subsequent generated tokens)
+                # Steer if: counter >= 0 AND (steer all generated OR counter < max_token)
+                steer_this_token = (
+                    self._token_counter_steering >= 0
+                    and (steer_all_generated or self._token_counter_steering < max_token)
+                )
+
+                # Append the last token (the newly generated token)
+                # Each hook has its own cache_key (layer name), so duplicates won't occur across different layers
+                # For the same layer, we rely on the fact that the hook is only called once per forward pass
+                self.agent._hook_response_act[response_index][self.cache_key].append(
+                    output_tensor[:, -1, :].detach().cpu()
+                )
+
+                if steer_this_token:
+                    # Now apply the steering function, if it exists
+                    if self.steering_function is not None:
+                        if type(self.steering_function) is list:
+                            for func in self.steering_function:
+                                output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
+                        elif callable(self.steering_function):
+                            output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
+
+                self._token_counter_steering += 1
 
         if isinstance(output, (tuple, list)):
             output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
         else:
             output = output_tensor
+
+        return output
+
+
+class LogitsHook(BaseHook):
+    """
+    A BaseHook for capturing logits from the language model head (lm_head) layer.
+    This class is not meant to be used directly, but rather used by the `Inspector` class.
+
+    :param cache_key: Key under which logits will be stored (typically "logits").
+    :type cache_key: Union[str, int]
+    :param layer_key: Layer name for lm_head (typically "lm_head").
+    :type layer_key: str
+    :param agent: the target Agent object.
+    :type agent: Agent
+    :param response_hook: ResponseHook instance (for current response index).
+    :type response_hook: ResponseHook
+    :param inspector: Inspector instance that owns this hook (for accessing top_k).
+    :type inspector: Optional[Inspector]
+    :meta private:
+    """
+    def __init__(self, cache_key, layer_key, agent, response_hook, inspector=None):
+        super().__init__(layer_key, self._hook, agent=None)
+        self.cache_key = cache_key
+        self.agent = agent
+        self.response_hook = response_hook
+        self.inspector = inspector
+        self.register(agent.base_model)
+
+        # Initialize the logits cache for this response
+        _ = self.agent._hook_response_logit[len(self.response_hook.responses)] = []
+
+    def _hook(self, module, input, output):
+        """
+        Hook to extract and store logits from the lm_head output.
+
+        :param module: The lm_head module.
+        :type module: torch.nn.Module
+        :param input: Forward pass inputs.
+        :type input: tuple
+        :param output: Logits tensor (batch_size, seq_len, vocab_size).
+        :type output: torch.Tensor
+        :return: Unmodified output.
+        :rtype: torch.Tensor
+        """
+        response_index = len(self.response_hook.responses) - 1
+
+        # Extract logits tensor
+        if isinstance(output, (tuple, list)):
+            logits_tensor = output[0]
+        else:
+            logits_tensor = output
+
+        if not isinstance(logits_tensor, torch.Tensor):
+            return output
+
+        # Store logits for all forward passes (both multi-token and single-token)
+        # Always extract the last token's logits, which represents the prediction for the next token
+        if logits_tensor.ndim >= 2:
+            # Get the current number of generated tokens to ensure we store logits in the correct order
+            # The number of logits stored should match the number of generated tokens
+            current_logits_count = len(self.agent._hook_response_logit[response_index])
+
+            # For the first forward pass (multi-token), we only want to store the logits
+            # for the first generated token. For subsequent forward passes (single-token),
+            # we store the logits for each new token.
+            # Only store if: (1) first forward pass (current_logits_count == 0), or
+            # (2) single-token forward pass (logits_tensor.shape[1] == 1)
+            # This ensures we store one logit entry per generated token
+            if current_logits_count == 0 or logits_tensor.shape[1] == 1:
+                # First forward pass (store logits for first token) or
+                # single-token forward pass (store logits for new token)
+                self.agent._hook_response_logit[response_index].append(
+                    logits_tensor[:, -1, :].detach().cpu()
+                )
 
         return output
 
@@ -379,12 +554,20 @@ class Inspector:
     :param steering_interval: (min_token, max_token) steering window (optional). Defaults to (0, -1),
                               where -1 means no upper bound.
     :type steering_interval: Optional[Tuple[int, int]]
+    :param top_k: Number of top token predictions to store for each token. If None, logits are not captured.
+                 If -1, all tokens in the vocabulary are returned with their logits. Defaults to None.
+    :type top_k: Optional[int]
+    :param lm_head_layer: Name of the language model head layer (e.g., "lm_head"). Defaults to "lm_head".
+                          If the specified layer is not found, the code will attempt to auto-detect it.
+    :type lm_head_layer: Optional[str]
     """
     def __init__(self,
                  target: Union[Dict, List[str], str] = None,
                  agent: Optional[Any] = None,
                  steering_function: Optional[Callable] = None,
-                 steering_interval: Optional[Tuple[int, int]] = (0, -1)):
+                 steering_interval: Optional[Tuple[int, int]] = (0, -1),
+                 top_k: Optional[int] = None,
+                 lm_head_layer: Optional[str] = "lm_head"):
         """
         Initializes the Inspector with optional target layers, agent, and steering functions.
         """
@@ -401,10 +584,31 @@ class Inspector:
         self.steering_function = steering_function
         self._steering_strength = None
         self.steering_interval = steering_interval
+        self.top_k = top_k
+        self.lm_head_layer = lm_head_layer
+        self._logits_hook = None
 
         if self.agent is not None and self.target:
             self.agent._add_activation_hooks(self.target, steering_function=self.steering_function,
-                                             steering_interval=self.steering_interval)
+                                             steering_interval=self.steering_interval, inspector=self)
+
+        # Register logits hook if top_k is specified
+        if self.agent is not None and self.top_k is not None:
+            self._register_logits_hook()
+
+    @property
+    def input(self):
+        class input_wrapper:
+            def __init__(self, inspector):
+                self.inspector = inspector
+
+            def __getitem__(self, index):
+                response = self.inspector.agent._hooked_responses[index]['input'][0]
+                # Override the inspector reference to use this Inspector's top_k
+                response.inspector = self.inspector
+                return response
+
+        return input_wrapper(self)
 
     def __len__(self):
         """Return number of completed responses captured so far."""
@@ -414,15 +618,34 @@ class Inspector:
         """Iterate over InspectionResponse objects (one per response)."""
         return (utt['output'][0] for utt in self.agent._hooked_responses)
 
+    @property
+    def vocab_size(self):
+        """
+        Return the vocabulary size of the tokenizer.
+
+        :return: Vocabulary size (number of tokens in the tokenizer's vocabulary).
+        :rtype: int
+        :raises ValueError: If no agent is attached.
+        """
+        if self.agent is None:
+            raise ValueError(
+                "No agent attached to Inspector. Cannot determine vocab_size. "
+                "Attach an agent to the Inspector first."
+            )
+        return len(self.agent.tokenizer)
+
     def __getitem__(self, index):
         """Return the InspectionResponse at given index.
 
         :param index: Response index (0-based).
         :type index: int
-        :return: The InspectionResponse object.
+        :return: The InspectionResponse object with this Inspector's reference.
         :rtype: InspectionResponse
         """
-        return self.agent._hooked_responses[index]['output'][0]
+        response = self.agent._hooked_responses[index]['output'][0]
+        # Override the inspector reference to use this Inspector's top_k
+        response.inspector = self
+        return response
 
     def __add__(self, other):
         """
@@ -505,6 +728,56 @@ class Inspector:
         self.add_steering_function(partial(_default_steering_function, **kwargs))
         return self
 
+    def _register_logits_hook(self):
+        """
+        Register a LogitsHook to capture logits from the lm_head layer.
+        Only one LogitsHook is registered per agent, even if multiple inspectors have top_k set.
+        """
+        if self.agent is None:
+            return
+
+        # Check if a LogitsHook already exists for this agent
+        # We only need one LogitsHook per agent, regardless of how many inspectors have top_k
+        if hasattr(self.agent, '_hook_logits') and self.agent._hook_logits:
+            # A LogitsHook already exists, don't create another one
+            # Just store a reference to the existing hook for cleanup purposes
+            self._logits_hook = self.agent._hook_logits[0]
+            return
+
+        # Try to find the lm_head layer
+        model = self.agent.base_model
+        lm_head_key = self.lm_head_layer
+
+        # Check if the specified layer exists
+        if lm_head_key not in dict(model.named_modules()):
+            logger.warning(
+                f"Specified lm_head layer '{lm_head_key}' not found. "
+                "Top-k predictions will not be available."
+            )
+            return
+
+        # Register the logits hook
+        response_hook = self.agent._hook_response_data
+        if response_hook is None:
+            # Ensure response hook exists with this inspector
+            self.agent._set_hook_response_data(inspector=self)
+            response_hook = self.agent._hook_response_data
+        elif response_hook.inspector is None:
+            # Update the inspector reference if not already set (needed for top_k access)
+            response_hook.inspector = self
+
+        self._logits_hook = LogitsHook(
+            cache_key="logits",
+            layer_key=lm_head_key,
+            agent=self.agent,
+            response_hook=response_hook,
+            inspector=self
+        )
+        # Store the hook in agent's hook list for cleanup
+        if not hasattr(self.agent, '_hook_logits'):
+            self.agent._hook_logits = []
+        self.agent._hook_logits.append(self._logits_hook)
+
     def add_agent(self, agent):
         """
         Attach an Agent after construction and (re)register hooks if target specified.
@@ -516,7 +789,12 @@ class Inspector:
         if self.target:
             self.agent._add_activation_hooks(self.target,
                                              steering_function=self.steering_function,
-                                             steering_interval=self.steering_interval)
+                                             steering_interval=self.steering_interval,
+                                             inspector=self)
+
+        # Register logits hook if top_k is specified
+        if self.top_k is not None:
+            self._register_logits_hook()
 
     def add_steering_function(self, steering_function):
         """
@@ -548,7 +826,7 @@ class Inspector:
         # Append to existing target instead of replacing
         self.target.update(target)
 
-        self.agent._add_activation_hooks(target, steering_function=self.steering_function)
+        self.agent._add_activation_hooks(target, steering_function=self.steering_function, inspector=self)
 
     def recap(self):
         """
@@ -579,6 +857,17 @@ class Inspector:
 
         for match in instruction_recap:
             logger.info(f"\nInstruction found at response index {match['index']}:\n{match['content']}\n")
+
+        logger.info("")
+        # Display top_k information if enabled
+        if self.top_k is not None:
+            if self.top_k == -1:
+                logger.info("  Top-k predictions: Enabled (all tokens)")
+            else:
+                logger.info(f"  Top-k predictions: Enabled (k={self.top_k})")
+            # Display vocabulary size
+            vocab_size = len(self.agent.tokenizer)
+            logger.info(f"  Vocabulary size: {vocab_size}")
 
     def find_instructs(self, verbose=False):
         """
@@ -619,20 +908,29 @@ class InspectionResponse:
     :type response: dict
     :param agent: Parent agent.
     :type agent: Agent
+    :param inspector: Inspector instance that owns this response (for accessing top_k).
+    :type inspector: Optional[Inspector]
     :meta private:
     """
-    def __init__(self, response, agent):
+    def __init__(self, response, agent, inspector=None, is_system_prompt=False):
         self.response = response
         self.tokens = response['tokens']
         self.text = response['text']
         self.agent = agent
-        # Store response_index if present
+        self.inspector = inspector
         self.response_index = response.get('response_index', 0)
+        # Flag to distinguish input (system prompt) from output (generated) tokens
+        self.is_system_prompt = is_system_prompt
+        # Store length_system_prompt for calculating activation indices (only for system prompt responses)
+        self.length_system_prompt = response.get('length_system_prompt', 0)
 
     def __iter__(self):
         """Yield InspectionToken objects for each token."""
         for idx, token in enumerate(self.tokens):
-            yield InspectionToken(token, self.agent, self, idx, response_index=self.response_index)
+            yield InspectionToken(
+                token, self.agent, self, idx,
+                response_index=self.response_index, is_system_prompt=self.is_system_prompt, inspector=self.inspector
+            )
 
     def __str__(self):
         """Return decoded response text."""
@@ -651,11 +949,15 @@ class InspectionResponse:
         """
         if isinstance(index, slice):
             return [
-                InspectionToken(token, self.agent, self, i, response_index=self.response_index)
+                InspectionToken(
+                    token, self.agent, self, i,
+                    response_index=self.response_index, is_system_prompt=self.is_system_prompt, inspector=self.inspector
+                )
                 for i, token in enumerate(self.tokens[index])
             ]
         return InspectionToken(
-            self.tokens[index], self.agent, self, index, response_index=self.response_index
+            self.tokens[index], self.agent, self, index,
+            response_index=self.response_index, is_system_prompt=self.is_system_prompt, inspector=self.inspector
         )
 
 
@@ -674,14 +976,19 @@ class InspectionToken:
     :type token_index: int
     :param response_index: Index of response in dialogue sequence.
     :type response_index: int
+    :param inspector: Inspector instance that owns this token (for accessing top_k).
+    :type inspector: Optional[Inspector]
     :meta private:
     """
-    def __init__(self, token, agent, response, token_index, response_index):
+    def __init__(self, token, agent, response, token_index, response_index, is_system_prompt=False, inspector=None):
         self.token = token
         self.token_index = token_index
         self.response = response  # Reference to parent response
         self.agent = agent
         self.response_index = response_index
+        self.inspector = inspector
+        # Flag to distinguish input (system prompt) from output (generated) tokens
+        self.is_system_prompt = is_system_prompt
 
     @property
     def act(self):
@@ -697,6 +1004,18 @@ class InspectionToken:
             raise KeyError("Agent has no _hook_response_act.")
         # Directly use response_index (assume always populated)
         rep_tensor = self.agent._hook_response_act[self.response_index]
+
+        # If inspector is available, use layer name from target (since we store by layer name)
+        if self.inspector is not None and self.inspector.target:
+            if len(self.inspector.target) > 1:
+                # Multiple targets - return self for indexing by layer name
+                return self
+            else:
+                # Single target - use layer name directly as cache key
+                layer_name = next(iter(self.inspector.target.values()))
+                return self[layer_name]
+
+        # Fallback: return self if multiple cache keys, otherwise return the single activation
         return self if len(rep_tensor) > 1 else self[next(iter(rep_tensor))]
 
     def __iter__(self):
@@ -722,7 +1041,114 @@ class InspectionToken:
             raise KeyError("Agent has no _hook_response_act.")
         rep_cache = self.agent._hook_response_act
         # Directly use response_index (assume always populated)
-        rep_tensor = rep_cache[self.response_index][key]
+        rep_tensor_dict = rep_cache[self.response_index]
+
+        # Check if key is an original cache key from target dict
+        if key in self.inspector.target:
+            # Map original cache key to layer name (which is the actual cache key)
+            layer_name = self.inspector.target[key]
+            key = layer_name
+
+        # Get the activation tensor for this cache key
+        rep_tensor = rep_tensor_dict[key]
+
+        # Calculate activation index: system prompt tokens come first, then generated tokens
+        if self.is_system_prompt:
+            # For system prompt, normalize negative index relative to system prompt length
+            if self.token_index < 0:
+                activation_index = self.response.length_system_prompt + self.token_index
+            else:
+                activation_index = self.token_index
+        else:
+            # For generated tokens: positive indices need offset
+            input_response = self.agent._hooked_responses[self.response_index]['input'][0]
+            if self.token_index < 0:
+                # Negative index: Python indexing from end of tensor (last generated token is at the end)
+                activation_index = self.token_index
+            else:
+                # Positive index: add system prompt offset
+                activation_index = input_response.length_system_prompt + self.token_index
+
         if hasattr(rep_tensor, '__getitem__'):
-            return rep_tensor[self.token_index]
+            return rep_tensor[activation_index]
         return rep_tensor
+
+    @property
+    def top_k(self):
+        """
+        Return top-k predicted tokens and their probabilities that led to this token being generated.
+
+        Returns a list of tuples (token_string, probability) sorted by probability (descending).
+        The number of predictions (k) is determined by the Inspector's top_k parameter.
+        If top_k=-1, returns all tokens in the vocabulary with their probabilities.
+
+        Note: System prompt tokens do not have top_k predictions (they are not generated).
+        For generated tokens, this returns the probabilities that predicted this token.
+
+        :return: List of (token_string, probability) tuples.
+        :rtype: List[Tuple[str, float]]
+        :raises KeyError: If logits are not available (logits hook not registered).
+        :raises ValueError: If called on a system prompt token.
+        """
+        # System prompt tokens don't have predictions
+        if self.is_system_prompt:
+            raise ValueError("top_k is not available for system prompt tokens (they are not generated).")
+
+        # Get top_k value from Inspector
+        if self.inspector.top_k is None:
+            raise KeyError("top_k is not set on the Inspector. Set top_k when creating the Inspector.")
+        k = self.inspector.top_k
+
+        # Get logits for this token from the separate logits cache
+        if self.response_index not in self.agent._hook_response_logit:
+            raise KeyError(
+                "Logits not available for this response. "
+                "The logits hook may not have captured any logits yet."
+            )
+
+        logits_tensor = self.agent._hook_response_logit[self.response_index]
+
+        # For generated tokens, logits are stored per generated token
+        # logits[i] contains the predictions that led to token[i] being generated
+        logits_index = self.token_index
+
+        # Get logits for this token position
+        if hasattr(logits_tensor, '__getitem__'):
+            token_logits = logits_tensor[logits_index]
+        else:
+            raise KeyError(f"Logits tensor is not indexable at position {logits_index}")
+
+        # Handle both 1D and 2D logits tensors
+        if token_logits.ndim > 1:
+            token_logits = token_logits.squeeze()
+
+        # Apply softmax to convert logits to probabilities
+        probs = torch.softmax(token_logits, dim=-1)
+
+        # Get vocab_size using len(tokenizer) (same as Inspector.vocab_size)
+        vocab_size = len(self.agent.tokenizer)
+
+        # If k == -1, return all tokens with their probabilities
+        if k == -1:
+            # Get all probabilities and indices
+            # Sort by probability value (descending) to get all tokens sorted
+            sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+        else:
+            # Get top-k probabilities
+            top_probs, top_indices = torch.topk(probs, k=min(k, vocab_size), dim=-1)
+            sorted_probs = top_probs
+            sorted_indices = top_indices
+
+        # Decode tokens
+        tokenizer = self.agent.tokenizer
+        results = []
+        # Handle both 0D and 1D results
+        if sorted_probs.ndim == 0:
+            sorted_probs = sorted_probs.unsqueeze(0)
+            sorted_indices = sorted_indices.unsqueeze(0)
+        for prob, idx in zip(sorted_probs.tolist(), sorted_indices.tolist()):
+            # Decode the token ID
+            token_str = tokenizer.decode([int(idx)], skip_special_tokens=False)
+            results.append((token_str, float(prob)))
+
+        return results
