@@ -37,4 +37,4 @@ jupyterlab-lsp
 python-lsp-server[all]
 FlagEmbedding
 strsimpy
-sdialog
+sdialog[audio]

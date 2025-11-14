@@ -322,12 +322,12 @@ class ActivationHook(BaseHook):
         self.steering_interval = steering_interval
         self.inspector = inspector
         self._token_counter_steering = 0
-        self.register(agent.base_model)
+        self.register(agent.base_model, self.inspector.inspect_input)
 
         # Initialize the nested cache
         _ = self.agent._hook_response_act[len(self.response_hook.responses)][self.cache_key]
 
-    def _hook(self, module, input, output):
+    def _hook(self, module, input, output=None):
         """
         Hook to extract and store model representation from the output.
 
@@ -344,14 +344,15 @@ class ActivationHook(BaseHook):
         response_index = len(self.response_hook.responses) - 1
 
         # Extract the main tensor from output if it's a tuple or list
-        output_tensor = output[0] if isinstance(output, (tuple, list)) else output
+        activations = input if self.inspector.inspect_input else output
+        activation_tensor = activations[0] if isinstance(activations, (tuple, list)) else activations
 
-        # Ensure output_tensor is a torch.Tensor before proceeding
-        if not isinstance(output_tensor, torch.Tensor):
-            raise TypeError(f"Expected output to be a Tensor, got {type(output_tensor)}")
+        # Ensure activation_tensor is a torch.Tensor before proceeding
+        if not isinstance(activation_tensor, torch.Tensor):
+            raise TypeError(f"Expected output to be a Tensor, got {type(activation_tensor)}")
 
         # Store representation only if the second dimension is 1
-        if output_tensor.ndim >= 2:
+        if activation_tensor.ndim >= 2:
             min_token, max_token = self.steering_interval
 
             # Check if min_token should steer all system prompt tokens (non-integer or string "-1")
@@ -362,7 +363,7 @@ class ActivationHook(BaseHook):
                 isinstance(max_token, str) or max_token == -1
             )
 
-            if output_tensor.shape[1] > 1:
+            if activation_tensor.shape[1] > 1:
                 # Will store the system prompt
                 # "Unbind" on dim 1 splits the tensor into tuple of tensors, "extend" adds them to _hook_response_act
                 # Handle steering for system prompt tokens
@@ -395,13 +396,13 @@ class ActivationHook(BaseHook):
                     for i in range(start_system_steer, end_system_steer):
                         if type(self.steering_function) is list:
                             for func in self.steering_function:
-                                output_tensor[:, i, :] = func(output_tensor[:, i, :])
+                                activation_tensor[:, i, :] = func(activation_tensor[:, i, :])
                         elif callable(self.steering_function):
-                            output_tensor[:, i, :] = self.steering_function(output_tensor[:, i, :])
+                            activation_tensor[:, i, :] = self.steering_function(activation_tensor[:, i, :])
 
                 # Store all activations
                 self.agent._hook_response_act[response_index][self.cache_key].extend(
-                    output_tensor.detach().cpu().unbind(dim=1)
+                    activation_tensor.detach().cpu().unbind(dim=1)
                 )
 
                 self._token_counter_steering = 0  # Reset counter if more than one token
@@ -418,7 +419,7 @@ class ActivationHook(BaseHook):
                 # Each hook has its own cache_key (layer name), so duplicates won't occur across different layers
                 # For the same layer, we rely on the fact that the hook is only called once per forward pass
                 self.agent._hook_response_act[response_index][self.cache_key].append(
-                    output_tensor[:, -1, :].detach().cpu()
+                    activation_tensor[:, -1, :].detach().cpu()
                 )
 
                 if steer_this_token:
@@ -426,18 +427,21 @@ class ActivationHook(BaseHook):
                     if self.steering_function is not None:
                         if type(self.steering_function) is list:
                             for func in self.steering_function:
-                                output_tensor[:, -1, :] = func(output_tensor[:, -1, :])
+                                activation_tensor[:, -1, :] = func(activation_tensor[:, -1, :])
                         elif callable(self.steering_function):
-                            output_tensor[:, -1, :] = self.steering_function(output_tensor[:, -1, :])
+                            activation_tensor[:, -1, :] = self.steering_function(activation_tensor[:, -1, :])
 
                 self._token_counter_steering += 1
 
-        if isinstance(output, (tuple, list)):
-            output = (output_tensor, *output[1:]) if isinstance(output, tuple) else [output_tensor, *output[1:]]
+        if isinstance(activations, (tuple, list)):
+            if isinstance(activations, tuple):
+                activations = (activation_tensor, *activations[1:])
+            else:
+                activations = [activation_tensor, *activations[1:]]
         else:
-            output = output_tensor
+            activations = activation_tensor
 
-        return output
+        return activations
 
 
 class LogitsHook(BaseHook):
@@ -463,7 +467,7 @@ class LogitsHook(BaseHook):
         self.agent = agent
         self.response_hook = response_hook
         self.inspector = inspector
-        self.register(agent.base_model)
+        self.register(agent.base_model, self.inspector.inspect_input)
 
         # Initialize the logits cache for this response
         _ = self.agent._hook_response_logit[len(self.response_hook.responses)] = []
@@ -560,6 +564,10 @@ class Inspector:
     :param lm_head_layer: Name of the language model head layer (e.g., "lm_head"). Defaults to "lm_head".
                           If the specified layer is not found, the code will attempt to auto-detect it.
     :type lm_head_layer: Optional[str]
+    :param inspect_input: If True, captures activations before the layer processes them (input activations).
+                         If False (default), captures activations after the layer processes them (output activations).
+                         Defaults to False.
+    :type inspect_input: bool
     """
     def __init__(self,
                  target: Union[Dict, List[str], str] = None,
@@ -567,7 +575,8 @@ class Inspector:
                  steering_function: Optional[Callable] = None,
                  steering_interval: Optional[Tuple[int, int]] = (0, -1),
                  top_k: Optional[int] = None,
-                 lm_head_layer: Optional[str] = "lm_head"):
+                 lm_head_layer: Optional[str] = "lm_head",
+                 inspect_input: bool = False):
         """
         Initializes the Inspector with optional target layers, agent, and steering functions.
         """
@@ -586,6 +595,7 @@ class Inspector:
         self.steering_interval = steering_interval
         self.top_k = top_k
         self.lm_head_layer = lm_head_layer
+        self.inspect_input = inspect_input
         self._logits_hook = None
 
         if self.agent is not None and self.target:
