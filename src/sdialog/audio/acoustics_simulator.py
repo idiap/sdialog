@@ -129,7 +129,7 @@ class AcousticsSimulator:
         self.ref_db = -65  # - 45 dB
         self.audiosources: List[AudioSource] = []
         self.room: Room = room
-        self.kwargs_pyroom: dict = kwargs_pyroom
+        self.kwargs_pyroom: dict = kwargs_pyroom if kwargs_pyroom is not None else {}
 
         if room is None:
             raise ValueError("Room is required")
@@ -260,14 +260,14 @@ class AcousticsSimulator:
                 if audio_source.position.startswith("room-"):
                     audio = (
                         audio * source_volumes["room-"].value
-                        if "room-" in source_volumes
-                        else SourceVolume.HIGH.value
+                        if source_volumes is not None and "room-" in source_volumes
+                        else audio * SourceVolume.HIGH.value
                     )
                 elif audio_source.position.startswith("no_type"):
                     audio = (
                         audio * source_volumes["no_type"].value
-                        if "no_type" in source_volumes
-                        else SourceVolume.VERY_LOW.value
+                        if source_volumes is not None and "no_type" in source_volumes
+                        else audio * SourceVolume.VERY_LOW.value
                     )
 
                 # Add the audio source to the room acoustics simulator at the position

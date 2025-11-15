@@ -19,6 +19,16 @@ Development installation
    cd sdialog
    pip install -e .
 
+..
+
+   [!NOTE]
+   If you plan to work with the audio capabilities of SDialog (\ ``sdialog.audio``\ ), install with audio dependencies:
+
+   .. code-block:: bash
+
+      pip install -e .[audio]
+
+
 Running tests & style
 ---------------------
 

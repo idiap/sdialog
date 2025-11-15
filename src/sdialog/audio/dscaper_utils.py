@@ -117,7 +117,7 @@ def send_utterances_to_dscaper(
 
 def generate_dscaper_timeline(
         dialog: AudioDialog,
-        _dscaper: scaper.Dscaper,
+        dscaper: scaper.Dscaper,
         dialog_directory: str,
         sampling_rate: int = 24_000,
         background_effect: str = "white_noise",
@@ -138,8 +138,8 @@ def generate_dscaper_timeline(
 
     :param dialog: Audio dialogue containing turns with audio data.
     :type dialog: AudioDialog
-    :param _dscaper: dSCAPER instance for timeline generation.
-    :type _dscaper: scaper.Dscaper
+    :param dscaper: dSCAPER instance for timeline generation.
+    :type dscaper: scaper.Dscaper
     :param dialog_directory: Directory name for organizing timeline in dSCAPER.
     :type dialog_directory: str
     :param sampling_rate: Audio sampling rate in Hz.
@@ -179,28 +179,32 @@ def generate_dscaper_timeline(
         duration=total_duration,
         description=f"Timeline for dialog {dialog.id}"
     )
-    _dscaper.create_timeline(timeline_metadata)
+    dscaper.create_timeline(timeline_metadata)
 
     # Add the background to the timeline
     background_metadata = DscaperBackground(
         library="background",
-        label=["const", background_effect],
+        label=[
+            "const",
+            background_effect if background_effect is not None and background_effect != "" else "white_noise"
+        ],
         source_file=["choose", "[]"]
     )
-    _dscaper.add_background(timeline_name, background_metadata)
+    dscaper.add_background(timeline_name, background_metadata)
 
     # Add the foreground to the timeline
-    foreground_metadata = DscaperEvent(
-        library="foreground",
-        speaker="foreground",
-        text="foreground",
-        label=["const", foreground_effect],
-        source_file=["choose", "[]"],
-        event_time=["const", "0"],
-        event_duration=["const", str(f"{total_duration:.1f}")],  # Force loop
-        position=foreground_effect_position,
-    )
-    _dscaper.add_event(timeline_name, foreground_metadata)
+    if foreground_effect is not None and foreground_effect != "":
+        foreground_metadata = DscaperEvent(
+            library="foreground",
+            speaker="foreground",
+            text="foreground",
+            label=["const", foreground_effect],
+            source_file=["choose", "[]"],
+            event_time=["const", "0"],
+            event_duration=["const", str(f"{total_duration:.1f}")],  # Force loop
+            position=foreground_effect_position if foreground_effect_position is not None else RoomPosition.TOP_RIGHT,
+        )
+        dscaper.add_event(timeline_name, foreground_metadata)
 
     # Add the events and utterances to the timeline
     current_time = 0.0
@@ -220,11 +224,11 @@ def generate_dscaper_timeline(
             text=turn.text,
             position=_speaker_role
         )
-        _dscaper.add_event(timeline_name, _event_metadata)
+        dscaper.add_event(timeline_name, _event_metadata)
         current_time += turn.audio_duration
 
     # Generate the timeline
-    resp = _dscaper.generate_timeline(
+    resp = dscaper.generate_timeline(
         timeline_name,
         DscaperGenerate(
             seed=seed if seed is not None else 0,
@@ -237,7 +241,7 @@ def generate_dscaper_timeline(
 
     # Build the generate directory path
     soundscape_positions_path = os.path.join(
-        _dscaper.get_dscaper_base_path(),
+        dscaper.get_dscaper_base_path(),
         "timelines",
         timeline_name,
         "generate",
@@ -247,7 +251,7 @@ def generate_dscaper_timeline(
 
     # Build the path to the audio output
     audio_output_path = os.path.join(
-        _dscaper.get_dscaper_base_path(),
+        dscaper.get_dscaper_base_path(),
         "timelines",
         timeline_name,
         "generate",

@@ -406,3 +406,10 @@ class Role(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+def default_dscaper_datasets() -> list[str]:
+    """
+    Default dSCAPER datasets
+    """
+    return ["sdialog/background", "sdialog/foreground"]

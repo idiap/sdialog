@@ -274,9 +274,7 @@ SDialog can transform text dialogs into realistic audio conversations with a sim
 
     # Or customize the audio generation
     audio_dialog = dialog.to_audio(
-        do_step_1=True,           # Concatenated utterances
-        do_step_2=True,           # Add natural pauses
-        do_step_3=True,           # Add room acoustics
+        perform_room_acoustics=True,
         audio_file_format="mp3",
         re_sampling_rate=16000,
     )

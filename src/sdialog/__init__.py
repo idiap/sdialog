@@ -176,12 +176,10 @@ class Dialog(BaseModel):
         :type dscaper_data_path: Optional[str]
         :param room_name: Custom name for the room configuration.
         :type room_name: Optional[str]
-        :param do_step_1: Enable text-to-speech conversion and voice assignment.
-        :type do_step_1: bool
-        :param do_step_2: Enable audio combination and dSCAPER timeline generation.
-        :type do_step_2: bool
-        :param do_step_3: Enable room acoustics simulation.
-        :type do_step_3: bool
+        :param perform_tts: Convert the dialog into audio using the text-to-speech engine.
+        :type perform_tts: Optional[bool]
+        :param perform_room_acoustics: Enable room acoustics simulation and dSCAPER timeline generation.
+        :type perform_room_acoustics: Optional[bool]
         :param tts_engine: Text-to-speech engine for audio generation.
         :type tts_engine: BaseTTS
         :param voice_database: Voice database for speaker selection.

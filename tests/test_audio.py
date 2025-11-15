@@ -725,7 +725,7 @@ def test_audio_pipeline_inference_step1(mock_dependencies, audio_dialog_instance
 
     mock_dependencies["gen_utt"].return_value = dialog_with_audio
 
-    pipeline.inference(audio_dialog_instance, do_step_1=True)
+    pipeline.inference(audio_dialog_instance)
 
     mock_dependencies["gen_utt"].assert_called_once()
     mock_dependencies["save_utt"].assert_called_once()
@@ -738,7 +738,7 @@ def test_audio_pipeline_inference_resampling(mock_dependencies, audio_dialog_ins
     audio_dialog_instance.audio_step_1_filepath = str(step1_file)
 
     pipeline = AudioPipeline(dir_audio=str(tmp_path), impulse_response_database=mock_dependencies["ir_db"])
-    pipeline.inference(audio_dialog_instance, do_step_1=False, re_sampling_rate=16000)
+    pipeline.inference(audio_dialog_instance, perform_tts=False, re_sampling_rate=16000)
 
     # This is a bit indirect. We check if librosa.resample was called.
     # The mocks need to be set up for this to be reachable.
@@ -746,19 +746,15 @@ def test_audio_pipeline_inference_resampling(mock_dependencies, audio_dialog_ins
     # A more detailed test would mock the os.path.exists and sf.write calls.
     # Given the complexity, we'll check that it *doesn't* get called when not requested.
 
-    pipeline.inference(audio_dialog_instance, do_step_1=False)
+    pipeline.inference(audio_dialog_instance, perform_tts=False)
     mock_dependencies["librosa"].resample.assert_not_called()
 
 
 def test_to_audio_wrapper_errors(mock_dependencies):
     """Tests validation logic in the to_audio wrapper function."""
     dialog = Dialog(turns=[Turn(speaker="A", text="t"), Turn(speaker="B", text="t")])
-    with pytest.raises(ValueError, match="step 3 requires the step 2"):
-        to_audio(dialog, do_step_3=True, do_step_2=False)
-    with pytest.raises(ValueError, match="step 2 requires the step 1"):
-        to_audio(dialog, do_step_2=True, do_step_1=False)
     with pytest.raises(ValueError, match="room name is only used if the step 3 is done"):
-        to_audio(dialog, room_name="test", do_step_3=False)
+        to_audio(dialog, room_name="test", perform_room_acoustics=False)
 
 
 def test_audio_pipeline_master_audio(audio_dialog_instance, mock_dependencies):
