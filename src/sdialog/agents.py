@@ -176,6 +176,7 @@ class Agent:
         self._preprocessing_fn = preprocessing_fn
         self._hook_response_data = None
         self._hook_response_act = defaultdict(lambda: defaultdict(list))
+        self._hook_response_logit = defaultdict(list)
 
         # Public attributes
         self.llm, llm_kwargs = get_llm_model(model_name=model,
@@ -478,7 +479,8 @@ class Agent:
             self.add_orchestrators(other)
         return self
 
-    def _add_activation_hooks(self, key_to_layer_name, steering_function=None, steering_interval=(0, -1)):
+    def _add_activation_hooks(self, key_to_layer_name, steering_function=None,
+                              steering_interval=(0, -1), inspector=None):
         """
         Registers ActivationHooks for each layer in the given mapping.
         Skips already registered layers.
@@ -489,25 +491,42 @@ class Agent:
         :type steering_function: Optional[Callable]
         :param steering_interval: (min_token, max_token). Skip first min_token; stop after max_token (-1 = no limit).
         :type steering_interval: Tuple[int, int]
+        :param inspector: Inspector instance that owns these hooks (for accessing top_k).
+        :type inspector: Optional[Inspector]
         """
         # Get the model (assume HuggingFace pipeline)
         if self.base_model is self.llm:
             raise RuntimeError("Base model not found or not a HuggingFace pipeline.")
 
-        # Always re-initialize cache and hooks
-        self._hook_acts = []
+        # Initialize hooks list if it doesn't exist (it is the case when 2 or more inpsectors are involved)
+        if not hasattr(self, '_hook_acts'):
+            self._hook_acts = []
 
-        # Register new hooks
+        # Register new hooks, but skip if a hook for this layer already exists
         for cache_key, layer_name in key_to_layer_name.items():
-            hook = ActivationHook(
-                cache_key=cache_key,
-                layer_key=layer_name,
-                agent=self,
-                response_hook=self._hook_response_data,
-                steering_function=steering_function,  # pass the function here,
-                steering_interval=steering_interval
-            )
-            self._hook_acts.append(hook)
+            # Check if a hook for this layer already exists
+            existing_hook = None
+            for existing in self._hook_acts:
+                if existing.layer_key == layer_name:
+                    existing_hook = existing
+                    break
+
+            if existing_hook is None:
+                # Use layer name as cache key to ensure uniqueness across inspectors
+                # This prevents collisions when multiple inspectors use the same cache key
+                # but for different layers
+                unique_cache_key = layer_name
+                # Create new hook for this layer
+                hook = ActivationHook(
+                    cache_key=unique_cache_key,
+                    layer_key=layer_name,
+                    agent=self,
+                    response_hook=self._hook_response_data,
+                    steering_function=steering_function,
+                    steering_interval=steering_interval,
+                    inspector=inspector
+                )
+                self._hook_acts.append(hook)
 
     def _clear_hooks(self):
         """
@@ -516,16 +535,25 @@ class Agent:
         for hook in getattr(self, '_hook_acts', []):
             hook.remove()
         self._hook_acts = []
+        # Clear logits hooks if they exist
+        for hook in getattr(self, '_hook_logits', []):
+            hook.remove()
+        self._hook_logits = []
+        self._hook_response_logit.clear()
+        self._hook_response_logit.update(defaultdict(list))
         if self._hook_response_data is not None:
             self._hook_response_data.reset()
         self._set_hook_response_data()
 
-    def _set_hook_response_data(self):
+    def _set_hook_response_data(self, inspector=None):
         """
         Ensures a ResponseHook is registered (idempotent).
+
+        :param inspector: Inspector instance that owns this hook (for accessing top_k).
+        :type inspector: Optional[Inspector]
         """
         if self._hook_response_data is None:
-            self._hook_response_data = ResponseHook(agent=self)
+            self._hook_response_data = ResponseHook(agent=self, inspector=inspector)
 
     def serve(self,
               host: str = "0.0.0.0",
