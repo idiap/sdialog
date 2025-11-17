@@ -721,9 +721,7 @@ For simple use cases, SDialog provides convenient one-function audio generation:
     # Generate complete audio in one call
     audio_dialog = to_audio(
         original_dialog,
-        do_step_1=True,  # Combine utterances
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics
+        perform_room_acoustics=True,
         audio_file_format="mp3"  # or "wav", "flac"
     )
     
@@ -738,9 +736,7 @@ For simple use cases, SDialog provides convenient one-function audio generation:
 
     # Convert dialog directly to audio
     audio_dialog = original_dialog.to_audio(
-        do_step_1=True,
-        do_step_2=True, 
-        do_step_3=True
+        perform_room_acoustics=True
     )
     
     # Access generated files
@@ -820,9 +816,7 @@ Here's how to create a complete audio dialogue with environment simulation using
                 "air_absorption": True
             }
         },
-        do_step_1=True,  # Combine utterances into a single dialogue audio
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics simulation
+        perform_room_acoustics=True,
         dialog_dir_name="medical_consultation",
         room_name="examination_room"
     )
@@ -1180,9 +1174,7 @@ SDialog supports multilingual audio generation with custom TTS engines:
     
     spanish_audio = audio_pipeline.inference(
         spanish_dialog,
-        do_step_1=True,
-        do_step_2=True,
-        do_step_3=True,
+        perform_room_acoustics=True,
         dialog_dir_name="spanish_dialogue"
     )
 

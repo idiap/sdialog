@@ -643,9 +643,7 @@ Let's start with the simplest way to generate audio from your dialogues! SDialog
     # Generate complete audio in one call
     audio_dialog = to_audio(
         dialog,
-        do_step_1=True,  # Combine utterances into single audio
-        do_step_2=True,  # Generate dSCAPER timeline with background effects
-        do_step_3=True,  # Apply room acoustics simulation
+        perform_room_acoustics=True,
         audio_file_format="mp3"  # or "wav", "flac"
     )
     
@@ -660,9 +658,7 @@ Let's start with the simplest way to generate audio from your dialogues! SDialog
 
     # Convert dialog directly to audio using the built-in method
     audio_dialog = dialog.to_audio(
-        do_step_1=True,
-        do_step_2=True, 
-        do_step_3=True
+        perform_room_acoustics=True
     )
 
 
@@ -739,9 +735,7 @@ For more control over the audio generation process, let's use the full AudioPipe
                 "air_absorption": True
             }
         },
-        do_step_1=True,  # Combine utterances into a single dialogue audio
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics simulation
+        perform_room_acoustics=True,
         dialog_dir_name="medical_consultation",
         room_name="examination_room"
     )
@@ -1099,10 +1093,7 @@ SDialog supports multilingual audio generation. You can use a compatible model f
     # For multilingual models, you might need to pass language information.
     # This can be done via tts_pipeline_kwargs. For example:
     # tts_pipeline_kwargs={"speaker_embeddings": speaker_embedding, "language": "es"}
-    audio_dialog = audio_pipeline.inference(
-        dialog,
-        do_step_1=True,
-    )
+    audio_dialog = audio_pipeline.inference(dialog)
 
 **Custom TTS Engine** - Create your own TTS implementation for more advanced use cases (e.g. for Spanish):
 
@@ -1149,9 +1140,7 @@ SDialog supports multilingual audio generation. You can use a compatible model f
     
     spanish_audio = audio_pipeline.inference(
         spanish_dialog,
-        do_step_1=True,
-        do_step_2=True,
-        do_step_3=True,
+        perform_room_acoustics=True,
         dialog_dir_name="spanish_dialogue"
     )
 

@@ -271,10 +271,11 @@ SDialog can transform text dialogs into realistic audio conversations with a sim
 * **Text-to-Speech (TTS)**: Multiple TTS engines including Kokoro and HuggingFace models
 * **Voice databases**: Automatic or manual voice assignment based on persona attributes (age, gender, language)
 * **Acoustic simulation**: Room acoustics simulation for realistic spatial audio
+* **Microphone simulation**: Professional microphones simulation from brands like Shure, Sennheiser, and Sony
 * **Multiple formats**: Export to WAV, MP3, or FLAC with custom sampling rates
-* **Multi-stage pipeline**: Step 1 (concatenated utterances), Step 2 (with pauses), Step 3 (with room acoustics)
+* **Multi-stage pipeline**: Step 1 (tts and concatenate utterances) and Step 2/3 (position based timeline generation and room acoustics)
 
-Generate audio from any dialog with a single line:
+Generate audio with room acoustics from any dialog with a single line:
 
 ```python
 from sdialog import Dialog
@@ -282,54 +283,23 @@ from sdialog import Dialog
 dialog = Dialog.from_file("my_dialog.json")
 
 # Convert to audio with default settings (Kokoro TTS)
-audio_dialog = dialog.to_audio()
+audio_dialog = dialog.to_audio(perform_room_acoustics=True)
+print(audio_dialog.display())
 
 # Or customize the audio generation
 audio_dialog = dialog.to_audio(
-    do_step_1=True,           # Concatenated utterances
-    do_step_2=True,           # Add natural pauses
-    do_step_3=True,           # Add room acoustics
-    audio_file_format="mp3",
-    re_sampling_rate=16000,
+  perform_room_acoustics=True,
+  audio_file_format="mp3",
+  re_sampling_rate=16000,
 )
-
-# Access the generated audio file
-print(audio_dialog.audio_step_3_filepath)
+print(audio_dialog.display())
 ```
 
-You can also manually control the audio pipeline for more advanced usage:
-
-```python
-from sdialog.audio.pipeline import AudioPipeline
-from sdialog.audio.tts_engine import KokoroTTS
-from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
-from sdialog.audio.utils import Role
-
-# Set up the audio pipeline with custom components
-voice_db = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-tts_engine = KokoroTTS()
-audio_pipeline = AudioPipeline(
-    voice_database=voice_db,
-    tts_pipeline=tts_engine,
-    dir_audio="./audio_outputs"
-)
-
-# Generate audio with specific voice assignments
-audio_dialog = audio_pipeline.inference(
-    dialog,
-    do_step_1=True,
-    do_step_2=True,
-    do_step_3=True,
-    voices={
-        Role.SPEAKER_1: ("am_michael", "english"),
-        Role.SPEAKER_2: ("af_bella", "english"),
-    }
-)
-```
 </details>
 
 > [!TIP]
-> See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
+> - See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
+> - You can find examples with more controlability in [this tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/2.accoustic_simulation.ipynb).
 
 
 ## 📖 Documentation and tutorials

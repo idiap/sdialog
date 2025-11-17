@@ -33,9 +33,7 @@ Example:
         audio_dialog = to_audio(
             dialog=dialog,
             dir_audio="./outputs",
-            do_step_1=True,
-            do_step_2=True,
-            do_step_3=True,
+            perform_room_acoustics=True,
             tts_engine=KokoroTTS(),
             voice_database=HuggingfaceVoiceDatabase("sdialog/voices-kokoro"),
             room=MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
@@ -46,6 +44,7 @@ Example:
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import os
+import scaper
 import librosa
 import logging
 import numpy as np
@@ -61,9 +60,9 @@ from sdialog.audio.processing import AudioProcessor
 from sdialog.audio.tts_engine import BaseTTS, KokoroTTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
-from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
+from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide, default_dscaper_datasets
 from sdialog.audio import (
     generate_utterances_audios,
     generate_audio_room_accoustic
@@ -76,9 +75,7 @@ def to_audio(
     dialog_dir_name: Optional[str] = None,
     dscaper_data_path: Optional[str] = "./dscaper_data",
     room_name: Optional[str] = None,
-    do_step_1: Optional[bool] = True,
-    do_step_2: Optional[bool] = False,
-    do_step_3: Optional[bool] = False,
+    perform_room_acoustics: Optional[bool] = False,
     tts_engine: Optional[BaseTTS] = None,
     voice_database: Optional[BaseVoiceDatabase] = None,
     dscaper_datasets: Optional[List[str]] = None,
@@ -116,12 +113,8 @@ def to_audio(
     :type dscaper_data_path: Optional[str]
     :param room_name: Custom name for the room configuration.
     :type room_name: Optional[str]
-    :param do_step_1: Enable text-to-speech conversion and voice assignment.
-    :type do_step_1: bool
-    :param do_step_2: Enable audio combination and dSCAPER timeline generation.
-    :type do_step_2: bool
-    :param do_step_3: Enable room acoustics simulation.
-    :type do_step_3: bool
+    :param perform_room_acoustics: Enable dSCAPER timeline generation and room acoustics simulation.
+    :type perform_room_acoustics: bool
     :param tts_engine: Text-to-speech engine for audio generation.
     :type tts_engine: BaseTTS
     :param voice_database: Voice database for speaker selection.
@@ -156,30 +149,6 @@ def to_audio(
     :rtype: AudioDialog
     """
 
-    if foreground_effect_position is None:
-        foreground_effect_position = RoomPosition.TOP_RIGHT
-
-    if source_volumes is None:
-        source_volumes = {
-            SourceType.ROOM: SourceVolume.HIGH,
-            SourceType.BACKGROUND: SourceVolume.VERY_LOW
-        }
-
-    if kwargs_pyroom is None:
-        kwargs_pyroom = {
-            "ray_tracing": True,
-            "air_absorption": True
-        }
-
-    if tts_engine is None:
-        tts_engine = KokoroTTS()
-
-    if dscaper_datasets is None:
-        dscaper_datasets = ["sdialog/background", "sdialog/foreground"]
-
-    if voice_database is None:
-        voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-
     if room is None:
         room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
 
@@ -200,10 +169,7 @@ def to_audio(
     if audio_file_format not in ["mp3", "wav", "flac"]:
         raise ValueError(f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}")
 
-    if do_step_2 and not do_step_1:
-        raise ValueError("The step 2 requires the step 1 to be done")
-
-    if room_name is not None and not do_step_3:
+    if room_name is not None and not perform_room_acoustics:
         raise ValueError("The room name is only used if the step 3 is done")
 
     # Build the path to save the audio dialog
@@ -225,36 +191,31 @@ def to_audio(
 
     os.makedirs(dir_audio, exist_ok=True)
 
-    if do_step_3 and not do_step_2:
-        if not os.path.exists(_dialog.audio_step_2_filepath):
-            raise ValueError("The step 3 requires the step 2 to be done")
-
-    if do_step_2 or do_step_3:
-
-        import scaper  # noqa: F401
-
-        if not dscaper_data_path:
-            raise ValueError("The dSCAPER data path is not provided")
-
-        os.makedirs(dscaper_data_path, exist_ok=True)
-        _dsc = scaper.Dscaper(dscaper_base_path=dscaper_data_path)
-
-    else:
-        _dsc = None
-
     # Initialize the audio pipeline
     _audio_pipeline = AudioPipeline(
-        voice_database=voice_database,
-        tts_pipeline=tts_engine,
-        dscaper=_dsc,
+        voice_database=(
+            voice_database
+            if voice_database is not None
+            else HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+        ),
+        tts_pipeline=(
+            tts_engine
+            if tts_engine is not None
+            else KokoroTTS()
+        ),
+        dscaper_data_path=dscaper_data_path,
         dir_audio=dir_audio,
         impulse_response_database=impulse_response_database
     )
 
-    if do_step_2 or do_step_3:
+    if (
+        perform_room_acoustics
+        and dscaper_datasets is not None
+        and dscaper_datasets != default_dscaper_datasets()
+    ):
         _audio_pipeline.populate_dscaper(dscaper_datasets)
 
-    if do_step_3:
+    if perform_room_acoustics:
 
         # Place the speakers around the furnitures in the room
         for _role, _kwargs in speaker_positions.items():
@@ -284,9 +245,7 @@ def to_audio(
     _dialog: AudioDialog = _audio_pipeline.inference(
         _dialog,
         environment=_environment,
-        do_step_1=do_step_1,
-        do_step_2=do_step_2,
-        do_step_3=do_step_3,
+        perform_room_acoustics=perform_room_acoustics,
         dialog_dir_name=dialog_dir_name,
         room_name=room_name,
         audio_file_format=audio_file_format,
@@ -318,9 +277,8 @@ class AudioPipeline:
 
     Pipeline Steps:
 
-      1. Step 1: Text-to-speech conversion and voice assignment
-      2. Step 2: Audio combination and dSCAPER timeline generation
-      3. Step 3: Room acoustics simulation and final audio processing
+      1. perform_tts: Text-to-speech conversion and voice assignment and audio combination
+      2. perform_room_acoustics: dSCAPER timeline generation and room acoustics simulation
 
     :ivar dir_audio: Base directory for audio file storage.
     :vartype dir_audio: str
@@ -342,7 +300,7 @@ class AudioPipeline:
         tts_pipeline: Optional[BaseTTS] = None,
         voice_database: Optional[BaseVoiceDatabase] = None,
         sampling_rate: Optional[int] = 24_000,
-        dscaper=None,
+        dscaper_data_path: Optional[str] = "./dscaper_data",
         impulse_response_database: Optional[ImpulseResponseDatabase] = None
     ):
         """
@@ -359,8 +317,8 @@ class AudioPipeline:
         :type voice_database: Optional[BaseVoiceDatabase]
         :param sampling_rate: Audio sampling rate in Hz.
         :type sampling_rate: Optional[int]
-        :param dscaper: dSCAPER instance for audio environment simulation.
-        :type dscaper: Optional[Dscaper]
+        :param dscaper_data_path: Path to dSCAPER data directory.
+        :type dscaper_data_path: Optional[str]
         :param impulse_response_database: The database for impulse responses.
         :type impulse_response_database: Optional[ImpulseResponseDatabase]
         """
@@ -375,11 +333,21 @@ class AudioPipeline:
         if self.voice_database is None:
             self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
 
-        self._dscaper = dscaper
+        self.dscaper_data_path = (
+            dscaper_data_path
+            if dscaper_data_path is not None or dscaper_data_path != ""
+            else "./dscaper_data"
+        )
+        os.makedirs(self.dscaper_data_path, exist_ok=True)
+
+        self._dscaper = scaper.Dscaper(dscaper_base_path=self.dscaper_data_path)
 
         self.sampling_rate = sampling_rate
 
         self.impulse_response_database = impulse_response_database
+
+        # Populate the dSCAPER with the default datasets
+        self.populate_dscaper(default_dscaper_datasets())
 
     def populate_dscaper(
             self,
@@ -400,14 +368,7 @@ class AudioPipeline:
         :return: Dictionary with statistics about the population process.
         :rtype: dict
         """
-
-        if self._dscaper is None:
-            raise ValueError("The dSCAPER is not provided to the audio pipeline")
-        else:
-            from scaper import Dscaper  # noqa: F401
-            from scaper.dscaper_datatypes import DscaperAudio  # noqa: F401
-            if not isinstance(self._dscaper, Dscaper):
-                raise ValueError("The dSCAPER is not a Dscaper instance")
+        from scaper.dscaper_datatypes import DscaperAudio  # noqa: F401
 
         count_existing_audio_files = 0
         count_error_audio_files = 0
@@ -476,9 +437,8 @@ class AudioPipeline:
         self,
         dialog: Dialog,
         environment: dict = {},
-        do_step_1: Optional[bool] = True,
-        do_step_2: Optional[bool] = False,
-        do_step_3: Optional[bool] = False,
+        perform_tts: Optional[bool] = True,
+        perform_room_acoustics: Optional[bool] = False,
         dialog_dir_name: Optional[str] = None,
         room_name: Optional[str] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
@@ -501,12 +461,10 @@ class AudioPipeline:
         :type dialog: Dialog
         :param environment: Environment configuration for room acoustics.
         :type environment: dict
-        :param do_step_1: Enable text-to-speech conversion and voice assignment.
-        :type do_step_1: Optional[bool]
-        :param do_step_2: Enable audio combination and dSCAPER timeline generation.
-        :type do_step_2: Optional[bool]
-        :param do_step_3: Enable room acoustics simulation.
-        :type do_step_3: Optional[bool]
+        :param perform_tts: Convert the dialog into audio using the text-to-speech engine.
+        :type perform_tts: Optional[bool]
+        :param perform_room_acoustics: Enable dSCAPER timeline generation and room acoustics simulation.
+        :type perform_room_acoustics: Optional[bool]
         :param dialog_dir_name: Custom name for the dialogue directory.
         :type dialog_dir_name: Optional[str]
         :param room_name: Custom name for the room configuration.
@@ -549,12 +507,19 @@ class AudioPipeline:
         else:
             logging.info(f"[Initialization] Audio file format for generation is set to {audio_file_format}")
 
-        # Create variables from the environment
-        room: Room = environment["room"] if "room" in environment else None
+        # Create variables from room from the environment
+        room: Room = (
+            environment["room"]
+            if environment is not None
+            and "room" in environment
+            else MedicalRoomGenerator().generate(args={"room_type": RoomRole.CONSULTATION})
+        )
 
         # Check if the ray tracing is enabled and the directivity is set to something else than omnidirectional
         if (
-            "kwargs_pyroom" in environment
+            environment is not None
+            and "kwargs_pyroom" in environment
+            and environment["kwargs_pyroom"] is not None
             and "ray_tracing" in environment["kwargs_pyroom"]
             and environment["kwargs_pyroom"]["ray_tracing"]
             and room.directivity_type is not None
@@ -599,7 +564,7 @@ class AudioPipeline:
                 "starting from scratch..."
             )
 
-        if not os.path.exists(dialog.audio_step_1_filepath) and do_step_1:
+        if not os.path.exists(dialog.audio_step_1_filepath) and perform_tts:
 
             logging.info(f"[Step 1] Generating audio recordings from the utterances of the dialogue: {dialog.id}")
 
@@ -653,13 +618,14 @@ class AudioPipeline:
 
                 logging.info(f"[Step 1] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
 
+        if perform_room_acoustics and not perform_tts and not os.path.exists(dialog.audio_step_1_filepath):
+            raise ValueError(
+                "Room acoustics cannot be performed without TTS unless the audio from step 1 is already available. "
+                "Please run with perform_tts=True first, or provide a dialog with existing audio paths."
+            )
+
         # If the user want to generate the timeline from dSCAPER (whatever if the timeline is already generated or not)
-        if self._dscaper is not None and do_step_2:
-
-            from scaper import Dscaper  # noqa: F401
-
-            if not isinstance(self._dscaper, Dscaper):
-                raise ValueError("The dSCAPER is not a Dscaper instance")
+        if perform_room_acoustics:
 
             from sdialog.audio.dscaper_utils import (
                 send_utterances_to_dscaper,
@@ -675,10 +641,10 @@ class AudioPipeline:
             logging.info("[Step 2] Generating timeline from dSCAPER...")
             dialog: AudioDialog = generate_dscaper_timeline(
                 dialog=dialog,
-                _dscaper=self._dscaper,
+                dscaper=self._dscaper,
                 dialog_directory=dialog_directory,
-                foreground_effect=environment.get("foreground_effect") or "ac_noise_low",
-                foreground_effect_position=environment.get("foreground_effect_position") or RoomPosition.TOP_RIGHT,
+                foreground_effect=environment.get("foreground_effect"),
+                foreground_effect_position=environment.get("foreground_effect_position"),
                 background_effect=environment.get("background_effect") or "white_noise",
                 audio_file_format=audio_file_format
             )
@@ -706,17 +672,10 @@ class AudioPipeline:
 
                 logging.info(f"[Step 2] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
 
-        elif do_step_2 and self._dscaper is None:
-
-            raise ValueError(
-                "The dSCAPER is not set, which makes the generation of the timeline impossible"
-            )
-
         # Generate the audio room accoustic
         if (
-            do_step_3
+            perform_room_acoustics
             and room is not None
-            and self._dscaper is not None
         ):
 
             logging.info("[Step 3] Starting...")
@@ -725,7 +684,7 @@ class AudioPipeline:
                 raise ValueError("The room must be a Room object")
 
             # Check if the step 2 is not done
-            if not do_step_2 and len(dialog.audio_step_2_filepath) < 1:
+            if len(dialog.audio_step_2_filepath) < 1:
 
                 logging.warning((
                     "[Step 3] The timeline from dSCAPER is not generated, which"
@@ -800,14 +759,14 @@ class AudioPipeline:
                             f"re-sampled successfully to {re_sampling_rate} Hz!"
                         )
 
-        elif do_step_3 and (room is None or self._dscaper is None):
+        elif perform_room_acoustics and room is None:
 
             raise ValueError(
-                "The room or the dSCAPER is not set, which makes the generation of the room accoustic audios impossible"
+                "The room is not set, which makes the generation of the room accoustic audios impossible"
             )
 
         # Apply microphone effect if a recording device is specified
-        if recording_devices is not None and do_step_3:
+        if recording_devices is not None and perform_room_acoustics:
 
             if self.impulse_response_database is None:
                 raise ValueError("The impulse response database is not set, simulation of the microphone is impossible")
