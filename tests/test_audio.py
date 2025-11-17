@@ -1,26 +1,40 @@
 import os
+import json
 import shutil
 import pytest
 import numpy as np
-from unittest.mock import MagicMock, patch
-import json
 import pandas as pd
-import soundfile as sf
+
+# Try to import audio dependencies
+try:
+    import soundfile as sf
+
+    from sdialog.audio.turn import AudioTurn
+    from sdialog.audio.room_generator import BasicRoomGenerator
+    from sdialog.audio.utils import Role, AudioUtils, Furniture, SpeakerSide
+    from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
+    from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, LocalVoiceDatabase, is_a_audio_file, VoiceDatabase
+    from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+    from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.pipeline import AudioPipeline, to_audio
+    from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
+    from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+    from sdialog.audio.processing import AudioProcessor
+except ImportError as e:
+    print("\n" + "="*80)
+    print("Audio dependencies are not installed. All audio tests will be skipped.")
+    print("="*80 + "\n")
+
+    # Skip the entire module - pytest will not collect any tests from this file
+    pytest.skip(
+        "Audio dependencies not installed. If you are working with audio, install them with: pip install sdialog[audio]",
+        allow_module_level=True
+    )
 
 from sdialog import Turn, Dialog
-from sdialog.audio.turn import AudioTurn
-from sdialog.audio.room_generator import BasicRoomGenerator
-from sdialog.audio.utils import Role, AudioUtils, Furniture, SpeakerSide
-from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
-from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, LocalVoiceDatabase, is_a_audio_file, VoiceDatabase
-from sdialog.audio.tts_engine import BaseTTS
-from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
-from sdialog.audio.dialog import AudioDialog
-from sdialog.audio.pipeline import AudioPipeline, to_audio
-from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
-from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
-from sdialog.audio.processing import AudioProcessor
+from unittest.mock import MagicMock, patch
 
 
 def test_position3d_initialization():

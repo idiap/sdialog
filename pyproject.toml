@@ -29,10 +29,7 @@ classifiers = [
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
-dynamic = ["version", "dependencies"]
-
-[project.optional-dependencies]
-audio = {file = "requirements-audio.txt"}
+dynamic = ["version", "dependencies", "optional-dependencies"]
 
 [project.urls]
 Homepage = "https://sdialog.readthedocs.io"
@@ -43,6 +40,7 @@ Documentation = "https://sdialog.readthedocs.io"
 [tool.setuptools.dynamic]
 version = {attr = "sdialog.util.__version__"}
 dependencies = {file = ["requirements.txt"]}
+optional-dependencies = {audio = {file = ["requirements-audio.txt"]}}
 
 [tool.setuptools.packages.find]
 where = ["src"]
