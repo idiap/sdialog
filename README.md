@@ -295,59 +295,11 @@ audio_dialog = dialog.to_audio(
 print(audio_dialog.display())
 ```
 
-You can also manually control the audio pipeline for more advanced usage:
-
-```python
-from sdialog import Dialog
-from sdialog.audio.utils import Role
-from sdialog.audio.tts_engine import KokoroTTS
-from sdialog.audio.pipeline import AudioPipeline
-from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
-from sdialog.audio.room import SpeakerSide, Role, MicrophonePosition
-
-original_dialog = Dialog.from_file("my_dialog.json")
-
-dialog: AudioDialog = AudioDialog.from_dialog(original_dialog)
-
-# Set up the audio pipeline with custom components
-voice_db = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-tts_engine = KokoroTTS()
-
-audio_pipeline = AudioPipeline(
-    voice_database=voice_db,
-    tts_pipeline=tts_engine,
-    dir_audio="./my_audio_outputs"
-)
-
-room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.CONSULTATION})
-
-room.place_speaker_around_furniture(speaker_name=Role.SPEAKER_1, furniture_name="desk", max_distance=5.0, side=SpeakerSide.FRONT)
-room.place_speaker_around_furniture(speaker_name=Role.SPEAKER_2, furniture_name="desk", max_distance=5.0, side=SpeakerSide.BACK)
-
-room.set_mic_position(MicrophonePosition.CEILING_CENTERED)
-
-# Generate audio with specific voice assignments
-audio_dialog = audio_pipeline.inference(
-    dialog,
-    perform_room_acoustics=True,
-    voices={
-        Role.SPEAKER_1: ("am_michael", "english"),
-        Role.SPEAKER_2: ("af_bella", "english"),
-    },
-    environment={
-        "room": room,
-        "kwargs_pyroom": {
-            "ray_tracing": True,
-            "air_absorption": True
-        }
-    }
-)
-```
 </details>
 
 > [!TIP]
-> See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
+> - See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
+> - You can find examples with more controlability in [this tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/2.accoustic_simulation.ipynb).
 
 
 ## 📖 Documentation and tutorials
