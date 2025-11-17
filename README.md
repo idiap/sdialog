@@ -264,7 +264,7 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 ## 🔊 Audio generation
 
 <details>
-<summary>Convert text dialogs to realistic audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
+<summary>*(WIP)* Convert text dialogs to realistic audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
 
 SDialog can transform text dialogs into realistic audio conversations with a simple one-line command. The audio module supports:
 
