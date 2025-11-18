@@ -55,15 +55,15 @@ Example:
 import os
 import torch
 import librosa
-import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
 from typing import Union
+
+from sdialog.audio.tts import BaseTTS
 from sdialog.audio.dialog import AudioDialog
-from sdialog.audio.tts_engine import BaseTTS
 from sdialog.audio.room import Room, RoomPosition
-from sdialog.audio.utils import AudioUtils, SourceVolume, Role
+from sdialog.audio.utils import AudioUtils, SourceVolume, Role, logger
 from sdialog.audio.acoustics_simulator import AcousticsSimulator
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
 
@@ -137,7 +137,7 @@ def generate_utterances_audios(
         # If the sampling rate of the audio is not the same as the sampling rate of the project, resample the audio
         if utterance_sampling_rate != sampling_rate:
 
-            logging.warning(
+            logger.info(
                 f"[Step 1] Resampling the audio ({utterance_sampling_rate} Hz) to the sampling "
                 f"rate of the project ({sampling_rate} Hz)..."
             )
@@ -257,7 +257,7 @@ def generate_audio_room_accoustic(
 
     # Save the audio path and configuration into the dialog
     if room_name in dialog.audio_step_3_filepaths:
-        logging.warning(f"Room '{room_name}' already exists in the dialog")
+        logger.warning(f"Room '{room_name}' already exists in the dialog")
 
     # If the audio paths post processing are already in the dialog, use them, otherwise create a new dictionary
     if (
@@ -266,7 +266,7 @@ def generate_audio_room_accoustic(
         and dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"] != {}
     ):
         audio_paths_post_processing = dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"]
-        logging.info(
+        logger.info(
             f"Existing audio paths for the post processing stage "
             f"already exist for room name: '{room_name}' and are kept unchanged"
         )

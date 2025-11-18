@@ -55,14 +55,14 @@ Example:
 # SPDX-License-Identifier: MIT
 import time
 import math
-import logging
 import hashlib
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Dict, Optional, Tuple, List, Any
-from sdialog.audio.utils import BodyPosture, Furniture, RoomMaterials, SpeakerSide, Role
+
+from sdialog.audio.utils import logger, BodyPosture, Furniture, RoomMaterials, SpeakerSide, Role
 
 
 @dataclass
@@ -1405,7 +1405,7 @@ class Room(BaseModel):
         else:
 
             if directivity is not None:
-                logging.warning(
+                logger.warning(
                     "The given directivity is not taken into account for non-custom directivity type"
                 )
 

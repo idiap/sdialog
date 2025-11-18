@@ -10,6 +10,7 @@ for room acoustics simulation and audio processing workflows.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import numpy as np
+
 from sdialog import Turn
 
 

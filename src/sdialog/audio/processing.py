@@ -7,14 +7,13 @@ This module provides a class for processing audio signals.
 # SPDX-License-Identifier: MIT
 
 import os
-import logging
-import numpy as np
-from typing import Union
-
 import librosa
+import numpy as np
 import soundfile as sf
+from typing import Union
 from scipy.signal import fftconvolve
 
+from sdialog.audio.utils import logger
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 
 
@@ -95,7 +94,7 @@ class AudioProcessor:
 
         # Resample impulse response if sample rates don't match
         if ir_sr != sample_rate:
-            logging.info(
+            logger.info(
                 f"[Post-Processing] Impulse response sample rate ({ir_sr}Hz) does not match "
                 f"audio sample rate ({sample_rate}Hz). Resampling impulse response..."
             )

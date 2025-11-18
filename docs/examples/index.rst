@@ -1073,7 +1073,7 @@ SDialog supports multilingual audio generation. You can use a compatible model f
 
 .. code-block:: python
 
-    from sdialog.audio.tts_engine import HuggingFaceTTS
+    from sdialog.audio.tts import HuggingFaceTTS
     from sdialog.audio.pipeline import AudioPipeline
     
     # Use HuggingFaceTTS for any compatible model from the Hub
@@ -1101,8 +1101,8 @@ SDialog supports multilingual audio generation. You can use a compatible model f
 
     import torch
     import numpy as np
+    from sdialog.audio.tts import BaseTTS
     from sdialog.audio.dialog import AudioDialog
-    from sdialog.audio.tts_engine import BaseTTS
     from sdialog.audio.pipeline import AudioPipeline
     from sdialog.audio.voice_database import LocalVoiceDatabase
     

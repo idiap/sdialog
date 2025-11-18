@@ -679,12 +679,12 @@ Core Components
 **AudioTurn** (:class:`~sdialog.audio.turn.AudioTurn`)
     Individual dialogue turns with associated audio metadata. Stores audio files, durations, temporal positions, and voice information.
 
-**TTS Engines** (:class:`~sdialog.audio.tts_engine.BaseTTS`)
+**TTS** (:class:`~sdialog.audio.tts.BaseTTS`)
     Abstract interface for text-to-speech engines. Available implementations:
-    - :class:`~sdialog.audio.tts_engine.KokoroTTS`: Kokoro engine for speech synthesis
-    - :class:`~sdialog.audio.tts_engine.IndexTTS`: IndexTTS engine
-    - :class:`~sdialog.audio.tts_engine.HuggingFaceTTS`: Generic implementation for models from the Hugging Face Hub
-    - Any other TTS engine that inherits from :class:`~sdialog.audio.tts_engine.BaseTTS`
+    - :class:`~sdialog.audio.tts.KokoroTTS`: Kokoro engine for speech synthesis
+    - :class:`~sdialog.audio.tts.IndexTTS`: IndexTTS engine
+    - :class:`~sdialog.audio.tts.HuggingFaceTTS`: Generic implementation for models from the Hugging Face Hub
+    - Any other TTS engine that inherits from :class:`~sdialog.audio.tts.BaseTTS`
 
 **Voice Databases** (:class:`~sdialog.audio.voice_database.BaseVoiceDatabase`)
     Voice management with speaker metadata (gender, age, language, ...). Implementations:
@@ -1136,7 +1136,7 @@ SDialog supports multilingual audio generation with custom TTS engines:
     import torch
     import numpy as np
     from sdialog.audio.dialog import AudioDialog
-    from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.tts import BaseTTS
     from sdialog.audio.pipeline import AudioPipeline
     from sdialog.audio.voice_database import LocalVoiceDatabase
     

@@ -212,6 +212,8 @@ class Dialog(BaseModel):
         :type impulse_response_database: Optional[ImpulseResponseDatabase]
         :param override_tts_audio: Override the TTS audio if it already exists.
         :type override_tts_audio: Optional[bool]
+        :param verbose: Verbose mode for logging.
+        :type verbose: Optional[bool]
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.

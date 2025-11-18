@@ -43,10 +43,11 @@ Example:
 # SPDX-License-Identifier: MIT
 
 import os
+import scaper
 import shutil
 import logging
 
-import scaper  # noqa: F401
+from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.room import AudioSource, RoomPosition
 from scaper.dscaper_datatypes import (
@@ -55,7 +56,7 @@ from scaper.dscaper_datatypes import (
     DscaperEvent,
     DscaperGenerate,
     DscaperBackground
-)  # noqa: F401
+)
 
 
 def send_utterances_to_dscaper(
@@ -97,20 +98,20 @@ def send_utterances_to_dscaper(
                 count_audio_present += 1
                 turn.is_stored_in_dscaper = True
             else:
-                logging.error(f"Problem storing audio for turn {turn.audio_path}")
-                logging.error(f"Error: {resp.content['description']}")
+                logger.error(f"Problem storing audio for turn {turn.audio_path}")
+                logger.error(f"Error: {resp.content['description']}")
                 count_audio_error += 1
         else:
             count_audio_added += 1
             turn.is_stored_in_dscaper = True
 
-    logging.info("[dSCAPER] " + "=" * 30)
-    logging.info("[dSCAPER] " + "# Audio sent to dSCAPER")
-    logging.info("[dSCAPER] " + "=" * 30)
-    logging.info("[dSCAPER] " + f"Already present: {count_audio_present}")
-    logging.info("[dSCAPER] " + f"Correctly added: {count_audio_added}")
-    logging.info("[dSCAPER] " + f"Errors: {count_audio_error}")
-    logging.info("[dSCAPER] " + "=" * 30)
+    logger.info("[dSCAPER] " + "=" * 30)
+    logger.info("[dSCAPER] " + "# Audio sent to dSCAPER")
+    logger.info("[dSCAPER] " + "=" * 30)
+    logger.info("[dSCAPER] " + f"Already present: {count_audio_present}")
+    logger.info("[dSCAPER] " + f"Correctly added: {count_audio_added}")
+    logger.info("[dSCAPER] " + f"Errors: {count_audio_error}")
+    logger.info("[dSCAPER] " + "=" * 30)
 
     return dialog
 
@@ -299,8 +300,8 @@ def generate_dscaper_timeline(
 
     # Check if the timeline was generated successfully
     if resp.status == "success":
-        logging.info("Successfully generated dscaper timeline.")
+        logger.info("Successfully generated dscaper timeline.")
     else:
-        logging.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
+        logger.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
 
     return dialog

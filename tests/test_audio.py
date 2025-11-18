@@ -15,7 +15,7 @@ try:
     from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
     from sdialog.audio.voice_database import Voice, is_a_audio_file
     from sdialog.audio.voice_database import BaseVoiceDatabase, LocalVoiceDatabase, VoiceDatabase
-    from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.tts import BaseTTS
     from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
     from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
     from sdialog.audio.dialog import AudioDialog
@@ -623,9 +623,9 @@ def test_persona_to_voice_missing_persona_info(dialog_with_personas):
         identifier="v_random", gender="female", age=25, voice="r.wav", language="english"
     )
 
-    with patch('logging.warning') as mock_warning:
+    with patch('sdialog.audio.dialog.logger') as mock_logger:
         dialog_with_personas.persona_to_voice(mock_voice_db, seed=42)
-        assert mock_warning.call_count == 2  # one for age, one for language
+        assert mock_logger.warning.call_count == 2  # one for age, one for language
 
     call_args_list = mock_voice_db.get_voice.call_args_list
     alice_call = next((c for c in call_args_list if c.kwargs.get("gender") == "female"), None)
