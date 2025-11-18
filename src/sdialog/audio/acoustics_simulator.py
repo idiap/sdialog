@@ -47,16 +47,12 @@ Example:
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Pawel Cyrta <pawel@cyrta.com>
 # SPDX-License-Identifier: MIT
 import os
-import logging
 import numpy as np
 import soundfile as sf
 from typing import List
-from sdialog.audio.utils import SourceVolume
-from sdialog.audio.room import Room, AudioSource
-from sdialog.audio.room import (
-    RoomPosition,
-    DirectivityType
-)
+
+from sdialog.audio.utils import logger, SourceVolume
+from sdialog.audio.room import Room, AudioSource, RoomPosition, DirectivityType
 
 
 class AcousticsSimulator:
@@ -192,11 +188,11 @@ class AcousticsSimulator:
 
         # If reverberation time ratio is provided, use it to create the materials
         if room.reverberation_time_ratio is not None:
-            logging.info(f"Reverberation time ratio: {room.reverberation_time_ratio}")
+            logger.info(f"Reverberation time ratio: {room.reverberation_time_ratio}")
             e_absorption, max_order = pra.inverse_sabine(room.reverberation_time_ratio, room.dimensions)
             _m = pra.Material(e_absorption)
         else:
-            logging.info("Reverberation time ratio is not provided, using room materials")
+            logger.info("Reverberation time ratio is not provided, using room materials")
             max_order = 17  # Number of reflections
             _m = pra.make_materials(
                 ceiling=room.materials.ceiling,
@@ -277,7 +273,7 @@ class AcousticsSimulator:
                 )
 
             else:
-                logging.warning(f"Warning: No audio data found for '{audio_source.name}'")
+                logger.warning(f"Warning: No audio data found for '{audio_source.name}'")
 
     def simulate(
         self,
@@ -319,7 +315,7 @@ class AcousticsSimulator:
         try:
             self._add_sources(sources, source_volumes)
 
-            logging.info("[Step 3] Simulating room acoustics...")
+            logger.info("[Step 3] Simulating room acoustics...")
             self._pyroom.simulate()
 
         except ValueError as e:

@@ -50,23 +50,20 @@ import logging
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-
 from datasets import load_dataset
 from typing import List, Optional, Union
 
 from sdialog import Dialog
+from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
-from sdialog.audio.tts_engine import BaseTTS, KokoroTTS
+from sdialog.audio.tts import BaseTTS, HuggingFaceTTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
+from sdialog.audio import generate_utterances_audios, generate_audio_room_accoustic
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide, default_dscaper_datasets
-from sdialog.audio import (
-    generate_utterances_audios,
-    generate_audio_room_accoustic
-)
 
 
 def to_audio(
@@ -90,7 +87,9 @@ def to_audio(
     seed: Optional[int] = None,
     re_sampling_rate: Optional[int] = None,
     recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
-    impulse_response_database: Optional[ImpulseResponseDatabase] = None
+    impulse_response_database: Optional[ImpulseResponseDatabase] = None,
+    override_tts_audio: Optional[bool] = False,
+    verbose: Optional[bool] = False
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -145,114 +144,134 @@ def to_audio(
     :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
     :param impulse_response_database: The database for impulse responses.
     :type impulse_response_database: Optional[ImpulseResponseDatabase]
+    :param override_tts_audio: Override the TTS audio if it already exists.
+    :type override_tts_audio: Optional[bool]
+    :param verbose: Verbose mode for logging.
+    :type verbose: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
 
-    if room is None:
-        room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+    # Save the original logger level
+    original_level = logger.level
+    if not verbose:
+        logger.setLevel(logging.ERROR)
 
-    if speaker_positions is None:
-        speaker_positions = {
-            Role.SPEAKER_1: {
-                "furniture_name": "center",
-                "max_distance": 1.0,
-                "side": SpeakerSide.FRONT
-            },
-            Role.SPEAKER_2: {
-                "furniture_name": "center",
-                "max_distance": 1.0,
-                "side": SpeakerSide.BACK
+    # Reset the logger level to the original level after the function is executed
+    try:
+
+        if room is None:
+            room = MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
+
+        if speaker_positions is None:
+            speaker_positions = {
+                Role.SPEAKER_1: {
+                    "furniture_name": "center",
+                    "max_distance": 1.0,
+                    "side": SpeakerSide.FRONT
+                },
+                Role.SPEAKER_2: {
+                    "furniture_name": "center",
+                    "max_distance": 1.0,
+                    "side": SpeakerSide.BACK
+                }
             }
-        }
 
-    if audio_file_format not in ["mp3", "wav", "flac"]:
-        raise ValueError(f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}")
-
-    if room_name is not None and not perform_room_acoustics:
-        raise ValueError("The room name is only used if the step 3 is done")
-
-    # Build the path to save the audio dialog
-    if dialog_dir_name is not None and dir_audio is not None:
-        audio_dialog_save_path = os.path.join(
-            dir_audio,
-            dialog_dir_name,
-            "exported_audios",
-            "audio_dialog.json"
-        )
-    else:
-        audio_dialog_save_path = None
-
-    # Load the audio dialog from the existing file if it exists
-    if audio_dialog_save_path is not None and os.path.exists(audio_dialog_save_path):
-        _dialog: AudioDialog = AudioDialog.from_file(audio_dialog_save_path)
-    else:
-        _dialog: AudioDialog = AudioDialog.from_dialog(dialog)
-
-    os.makedirs(dir_audio, exist_ok=True)
-
-    # Initialize the audio pipeline
-    _audio_pipeline = AudioPipeline(
-        voice_database=(
-            voice_database
-            if voice_database is not None
-            else HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-        ),
-        tts_pipeline=(
-            tts_engine
-            if tts_engine is not None
-            else KokoroTTS()
-        ),
-        dscaper_data_path=dscaper_data_path,
-        dir_audio=dir_audio,
-        impulse_response_database=impulse_response_database
-    )
-
-    if (
-        perform_room_acoustics
-        and dscaper_datasets is not None
-        and dscaper_datasets != default_dscaper_datasets()
-    ):
-        _audio_pipeline.populate_dscaper(dscaper_datasets)
-
-    if perform_room_acoustics:
-
-        # Place the speakers around the furnitures in the room
-        for _role, _kwargs in speaker_positions.items():
-
-            if _role in room.speakers_positions:
-                continue
-
-            room.place_speaker_around_furniture(
-                speaker_name=_role,
-                furniture_name=_kwargs["furniture_name"],
-                max_distance=_kwargs["max_distance"],
-                side=_kwargs["side"]
+        if audio_file_format not in ["mp3", "wav", "flac"]:
+            raise ValueError(
+                f"The audio file format must be either mp3, wav or flac. You provided: {audio_file_format}"
             )
 
-        _environment = {
-            "room": room,
-            "background_effect": background_effect,
-            "foreground_effect": foreground_effect,
-            "foreground_effect_position": foreground_effect_position,
-            "source_volumes": source_volumes,
-            "kwargs_pyroom": kwargs_pyroom
-        }
+        if room_name is not None and not perform_room_acoustics:
+            raise ValueError("The room name is only used if the step 3 is done")
 
-    else:
-        _environment = {}
+        # Build the path to save the audio dialog
+        if dialog_dir_name is not None and dir_audio is not None:
+            audio_dialog_save_path = os.path.join(
+                dir_audio,
+                dialog_dir_name,
+                "exported_audios",
+                "audio_dialog.json"
+            )
+        else:
+            audio_dialog_save_path = None
 
-    _dialog: AudioDialog = _audio_pipeline.inference(
-        _dialog,
-        environment=_environment,
-        perform_room_acoustics=perform_room_acoustics,
-        dialog_dir_name=dialog_dir_name,
-        room_name=room_name,
-        audio_file_format=audio_file_format,
-        seed=seed,
-        re_sampling_rate=re_sampling_rate,
-        recording_devices=recording_devices
-    )
+        # Load the audio dialog from the existing file if it exists
+        if audio_dialog_save_path is not None and os.path.exists(audio_dialog_save_path):
+            _dialog: AudioDialog = AudioDialog.from_file(audio_dialog_save_path)
+        else:
+            _dialog: AudioDialog = AudioDialog.from_dialog(dialog)
+
+        os.makedirs(dir_audio, exist_ok=True)
+
+        # Initialize the audio pipeline
+        _audio_pipeline = AudioPipeline(
+            voice_database=(
+                voice_database
+                if voice_database is not None
+                else HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+            ),
+            tts_engine=(
+                tts_engine
+                if tts_engine is not None
+                else HuggingFaceTTS("facebook/mms-tts-eng")
+            ),
+            dscaper_data_path=dscaper_data_path,
+            dir_audio=dir_audio,
+            impulse_response_database=impulse_response_database
+        )
+
+        if (
+            perform_room_acoustics
+            and dscaper_datasets is not None
+            and dscaper_datasets != default_dscaper_datasets()
+        ):
+            _audio_pipeline.populate_dscaper(dscaper_datasets)
+
+        if perform_room_acoustics:
+
+            # Place the speakers around the furnitures in the room
+            for _role, _kwargs in speaker_positions.items():
+
+                if _role in room.speakers_positions:
+                    continue
+
+                room.place_speaker_around_furniture(
+                    speaker_name=_role,
+                    furniture_name=_kwargs["furniture_name"],
+                    max_distance=_kwargs["max_distance"],
+                    side=_kwargs["side"]
+                )
+
+            _environment = {
+                "room": room,
+                "background_effect": background_effect,
+                "foreground_effect": foreground_effect,
+                "foreground_effect_position": foreground_effect_position,
+                "source_volumes": source_volumes,
+                "kwargs_pyroom": kwargs_pyroom
+            }
+
+        else:
+            _environment = {}
+
+        _dialog: AudioDialog = _audio_pipeline.inference(
+            _dialog,
+            environment=_environment,
+            perform_room_acoustics=perform_room_acoustics,
+            dialog_dir_name=dialog_dir_name,
+            room_name=room_name,
+            audio_file_format=audio_file_format,
+            seed=seed,
+            re_sampling_rate=re_sampling_rate,
+            recording_devices=recording_devices,
+            override_tts_audio=override_tts_audio,
+            verbose=verbose
+        )
+
+    finally:
+        # Reset the logger level to the original level
+        logger.setLevel(original_level)
 
     return _dialog
 
@@ -282,8 +301,8 @@ class AudioPipeline:
 
     :ivar dir_audio: Base directory for audio file storage.
     :vartype dir_audio: str
-    :ivar tts_pipeline: Text-to-speech engine for audio generation.
-    :vartype tts_pipeline: BaseTTS
+    :ivar tts_engine: Text-to-speech engine for audio generation.
+    :vartype tts_engine: BaseTTS
     :ivar voice_database: Voice database for speaker selection.
     :vartype voice_database: BaseVoiceDatabase
     :ivar _dscaper: dSCAPER instance for audio environment simulation.
@@ -297,11 +316,11 @@ class AudioPipeline:
     def __init__(
         self,
         dir_audio: Optional[str] = "./outputs",
-        tts_pipeline: Optional[BaseTTS] = None,
+        tts_engine: Optional[BaseTTS] = None,
         voice_database: Optional[BaseVoiceDatabase] = None,
         sampling_rate: Optional[int] = 24_000,
         dscaper_data_path: Optional[str] = "./dscaper_data",
-        impulse_response_database: Optional[ImpulseResponseDatabase] = None
+        impulse_response_database: Optional[ImpulseResponseDatabase] = None,
     ):
         """
         Initialize the audio generation pipeline with configuration.
@@ -311,8 +330,8 @@ class AudioPipeline:
 
         :param dir_audio: Base directory for audio file storage.
         :type dir_audio: Optional[str]
-        :param tts_pipeline: Text-to-speech engine for audio generation.
-        :type tts_pipeline: Optional[BaseTTS]
+        :param tts_engine: Text-to-speech engine for audio generation.
+        :type tts_engine: Optional[BaseTTS]
         :param voice_database: Voice database for speaker selection.
         :type voice_database: Optional[BaseVoiceDatabase]
         :param sampling_rate: Audio sampling rate in Hz.
@@ -325,9 +344,14 @@ class AudioPipeline:
 
         self.dir_audio = dir_audio
 
-        self.tts_pipeline = tts_pipeline
-        if self.tts_pipeline is None:
-            self.tts_pipeline = KokoroTTS()
+        self.tts_engine = tts_engine
+        if self.tts_engine is None:
+
+            logger.warning((
+                "No TTS provided, using the default Hugging Face TTS model: "
+                "HuggingFaceTTS(\"facebook/mms-tts-eng\")"
+            ))
+            self.tts_engine = HuggingFaceTTS("facebook/mms-tts-eng")
 
         self.voice_database = voice_database
         if self.voice_database is None:
@@ -380,7 +404,11 @@ class AudioPipeline:
             # Load huggingface dataset
             dataset = load_dataset(dataset_name, split=split)
 
-            for data in tqdm(dataset, desc=f"Populating dSCAPER with {dataset_name} dataset..."):
+            for data in tqdm(
+                dataset,
+                desc=f"Populating dSCAPER with {dataset_name} dataset...",
+                leave=False
+            ):
 
                 filename = data["audio"]["path"].split("/")[-1]
                 label_str = dataset.features["label"].names[data["label"]]
@@ -403,7 +431,7 @@ class AudioPipeline:
                     if resp.content["description"] == "File already exists. Use PUT to update it.":
                         count_existing_audio_files += 1
                     else:
-                        logging.error(
+                        logger.error(
                             f"Problem storing audio {data['audio']['path']}: {resp.content['description']}"
                         )
                         count_error_audio_files += 1
@@ -447,7 +475,9 @@ class AudioPipeline:
         seed: int = None,
         re_sampling_rate: Optional[int] = None,
         recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
-        tts_pipeline_kwargs: Optional[dict] = {}
+        tts_pipeline_kwargs: Optional[dict] = {},
+        override_tts_audio: Optional[bool] = False,
+        verbose: Optional[bool] = False
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -483,6 +513,10 @@ class AudioPipeline:
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
         :type tts_pipeline_kwargs: Optional[dict]
+        :param override_tts_audio: Override the TTS audio if it already exists.
+        :type override_tts_audio: Optional[bool]
+        :param verbose: Verbose mode for logging.
+        :type verbose: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -491,350 +525,367 @@ class AudioPipeline:
             to be set on the `AudioPipeline` instance.
         """
 
-        if self.impulse_response_database is None and recording_devices is not None:
-            logging.warning(
-                "[Initialization] The impulse response database is not set, "
-                "using the default Hugging Face database for microphone simulation..."
-            )
-            from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
-            self.impulse_response_database = HuggingFaceImpulseResponseDatabase("sdialog/impulse-responses")
+        # Save the original logger level
+        original_level = logger.level
+        if not verbose:
+            logger.setLevel(logging.ERROR)
 
-        if audio_file_format not in ["mp3", "wav", "flac"]:
-            raise ValueError((
-                "The audio file format must be either mp3, wav or flac."
-                f"You provided: {audio_file_format}"
-            ))
-        else:
-            logging.info(f"[Initialization] Audio file format for generation is set to {audio_file_format}")
+        # Reset the logger level to the original level after the function is executed
+        try:
 
-        # Create variables from room from the environment
-        room: Room = (
-            environment["room"]
-            if environment is not None
-            and "room" in environment
-            else MedicalRoomGenerator().generate(args={"room_type": RoomRole.CONSULTATION})
-        )
-
-        # Check if the ray tracing is enabled and the directivity is set to something else than omnidirectional
-        if (
-            environment is not None
-            and "kwargs_pyroom" in environment
-            and environment["kwargs_pyroom"] is not None
-            and "ray_tracing" in environment["kwargs_pyroom"]
-            and environment["kwargs_pyroom"]["ray_tracing"]
-            and room.directivity_type is not None
-            and room.directivity_type != DirectivityType.OMNIDIRECTIONAL
-        ):
-            raise ValueError((
-                "The ray tracing is enabled with a non-omnidirectional directivity, "
-                "which make the generation of the room accoustic audio impossible.\n"
-                "The microphone directivity must be set to omnidirectional "
-                "(pyroomacoustics only supports omnidirectional directivity for ray tracing)."
-            ))
-
-        # Override the dialog directory name if provided otherwise use the dialog id as the directory name
-        dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
-        dialog.audio_dir_path = self.dir_audio
-
-        dialog.audio_step_1_filepath = os.path.join(
-            dialog.audio_dir_path,
-            dialog_directory,
-            "exported_audios",
-            f"audio_pipeline_step1.{audio_file_format}"
-        )
-
-        # Path to save the audio dialog
-        audio_dialog_save_path = os.path.join(
-            dialog.audio_dir_path,
-            dialog_directory,
-            "exported_audios",
-            "audio_dialog.json"
-        )
-
-        # Load the audio dialog from the existing file
-        if os.path.exists(audio_dialog_save_path):
-            dialog = AudioDialog.from_file(audio_dialog_save_path)
-            logging.info(
-                f"[Initialization] Dialogue ({dialog.id}) has been loaded successfully from "
-                f"the existing file: {audio_dialog_save_path} !"
-            )
-        else:
-            logging.info(
-                f"[Initialization] No existing file found for the dialogue ({dialog.id}), "
-                "starting from scratch..."
-            )
-
-        if not os.path.exists(dialog.audio_step_1_filepath) and perform_tts:
-
-            logging.info(f"[Step 1] Generating audio recordings from the utterances of the dialogue: {dialog.id}")
-
-            dialog: AudioDialog = generate_utterances_audios(
-                dialog,
-                voice_database=self.voice_database,
-                tts_pipeline=self.tts_pipeline,
-                voices=voices,
-                keep_duplicate=keep_duplicate,
-                seed=seed,
-                sampling_rate=self.sampling_rate,
-                tts_pipeline_kwargs=tts_pipeline_kwargs
-            )
-
-            # Save the utterances audios to the project path
-            dialog.save_utterances_audios(
-                dir_audio=self.dir_audio,
-                project_path=os.path.join(dialog.audio_dir_path, dialog_directory)
-            )
-
-            # Combine the audio segments into a single master audio track as a baseline
-            dialog.set_combined_audio(
-                self.master_audio(dialog)
-            )
-
-            # Save the combined audio to exported_audios folder
-            sf.write(
-                dialog.audio_step_1_filepath,
-                dialog.get_combined_audio(),
-                self.sampling_rate
-            )
-            logging.info(f"[Step 1] Audio files have been saved here: {dialog.audio_step_1_filepath}")
-
-            # If the user want to re-sample the output audio to a different sampling rate
-            if re_sampling_rate is not None and os.path.exists(dialog.audio_step_1_filepath):
-
-                logging.info(f"[Step 1] Re-sampling audio to {re_sampling_rate} Hz...")
-
-                y_resampled = librosa.resample(
-                    y=dialog.get_combined_audio().T,
-                    orig_sr=self.sampling_rate,
-                    target_sr=re_sampling_rate
+            if self.impulse_response_database is None and recording_devices is not None:
+                logger.warning(
+                    "[Initialization] The impulse response database is not set, "
+                    "using the default Hugging Face database for microphone simulation..."
                 )
+                from sdialog.audio.impulse_response_database import HuggingFaceImpulseResponseDatabase
+                self.impulse_response_database = HuggingFaceImpulseResponseDatabase("sdialog/impulse-responses")
 
-                # Overwrite the audio file with the new sampling rate
-                sf.write(
-                    dialog.audio_step_1_filepath,
-                    y_resampled,
-                    re_sampling_rate
-                )
+            if audio_file_format not in ["mp3", "wav", "flac"]:
+                raise ValueError((
+                    "The audio file format must be either mp3, wav or flac."
+                    f"You provided: {audio_file_format}"
+                ))
+            else:
+                logger.info(f"[Initialization] Audio file format for generation is set to {audio_file_format}")
 
-                logging.info(f"[Step 1] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
-
-        if perform_room_acoustics and not perform_tts and not os.path.exists(dialog.audio_step_1_filepath):
-            raise ValueError(
-                "Room acoustics cannot be performed without TTS unless the audio from step 1 is already available. "
-                "Please run with perform_tts=True first, or provide a dialog with existing audio paths."
+            # Create variables from room from the environment
+            room: Room = (
+                environment["room"]
+                if environment is not None
+                and "room" in environment
+                else MedicalRoomGenerator().generate(args={"room_type": RoomRole.CONSULTATION})
             )
 
-        # If the user want to generate the timeline from dSCAPER (whatever if the timeline is already generated or not)
-        if perform_room_acoustics:
-
-            from sdialog.audio.dscaper_utils import (
-                send_utterances_to_dscaper,
-                generate_dscaper_timeline
-            )
-
-            logging.info("[Step 2] Sending utterances to dSCAPER...")
-
-            # Send the utterances to dSCAPER
-            dialog: AudioDialog = send_utterances_to_dscaper(dialog, self._dscaper, dialog_directory=dialog_directory)
-
-            # Generate the timeline from dSCAPER
-            logging.info("[Step 2] Generating timeline from dSCAPER...")
-            dialog: AudioDialog = generate_dscaper_timeline(
-                dialog=dialog,
-                dscaper=self._dscaper,
-                dialog_directory=dialog_directory,
-                foreground_effect=environment.get("foreground_effect"),
-                foreground_effect_position=environment.get("foreground_effect_position"),
-                background_effect=environment.get("background_effect") or "white_noise",
-                audio_file_format=audio_file_format
-            )
-            logging.info("[Step 2] Has been completed!")
-
-            # If the user want to re-sample the output audio to a different sampling rate
-            if re_sampling_rate is not None and os.path.exists(dialog.audio_step_2_filepath):
-
-                logging.info(f"[Step 2] Re-sampling audio to {re_sampling_rate} Hz...")
-
-                y, sr = librosa.load(dialog.audio_step_2_filepath, sr=None)
-
-                y_resampled = librosa.resample(
-                    y=y,
-                    orig_sr=sr,
-                    target_sr=re_sampling_rate
-                )
-
-                # Overwrite the audio file with the new sampling rate
-                sf.write(
-                    dialog.audio_step_2_filepath,
-                    y_resampled,
-                    re_sampling_rate
-                )
-
-                logging.info(f"[Step 2] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
-
-        # Generate the audio room accoustic
-        if (
-            perform_room_acoustics
-            and room is not None
-        ):
-
-            logging.info("[Step 3] Starting...")
-
-            if not isinstance(environment["room"], Room):
-                raise ValueError("The room must be a Room object")
-
-            # Check if the step 2 is not done
-            if len(dialog.audio_step_2_filepath) < 1:
-
-                logging.warning((
-                    "[Step 3] The timeline from dSCAPER is not generated, which"
-                    "makes the generation of the room accoustic impossible"
+            # Check if the ray tracing is enabled and the directivity is set to something else than omnidirectional
+            if (
+                environment is not None
+                and "kwargs_pyroom" in environment
+                and environment["kwargs_pyroom"] is not None
+                and "ray_tracing" in environment["kwargs_pyroom"]
+                and environment["kwargs_pyroom"]["ray_tracing"]
+                and room.directivity_type is not None
+                and room.directivity_type != DirectivityType.OMNIDIRECTIONAL
+            ):
+                raise ValueError((
+                    "The ray tracing is enabled with a non-omnidirectional directivity, "
+                    "which make the generation of the room accoustic audio impossible.\n"
+                    "The microphone directivity must be set to omnidirectional "
+                    "(pyroomacoustics only supports omnidirectional directivity for ray tracing)."
                 ))
 
-                # Save the audio dialog to a json file
-                dialog.to_file(audio_dialog_save_path)
-                logging.info(f"[Step 3] Audio dialog saved to the existing file ({dialog.id}) successfully!")
+            # Override the dialog directory name if provided otherwise use the dialog id as the directory name
+            dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
+            dialog.audio_dir_path = self.dir_audio
 
-                return dialog
+            dialog.audio_step_1_filepath = os.path.join(
+                dialog.audio_dir_path,
+                dialog_directory,
+                "exported_audios",
+                f"audio_pipeline_step1.{audio_file_format}"
+            )
 
-            logging.info(f"[Step 3] Generating room accoustic for dialogue {dialog.id}")
+            # Path to save the audio dialog
+            audio_dialog_save_path = os.path.join(
+                dialog.audio_dir_path,
+                dialog_directory,
+                "exported_audios",
+                "audio_dialog.json"
+            )
 
-            # Override the room name if provided otherwise use the hash of the room
-            room_name = room_name if room_name is not None else room.name
-
-            # Generate the audio room accoustic from the dialog and room object
-            dialog: AudioDialog = generate_audio_room_accoustic(
-                dialog=dialog,
-                room=room,
-                dialog_directory=dialog_directory,
-                room_name=room_name,
-                kwargs_pyroom=environment["kwargs_pyroom"] if "kwargs_pyroom" in environment else {},
-                source_volumes=environment["source_volumes"] if "source_volumes" in environment else {},
-                audio_file_format=audio_file_format,
-                background_effect=(
-                    environment["background_effect"]
-                    if "background_effect" in environment
-                    else "white_noise"
-                ),
-                foreground_effect=(
-                    environment["foreground_effect"]
-                    if "foreground_effect" in environment
-                    else "ac_noise_minimal"
-                ),
-                foreground_effect_position=(
-                    environment["foreground_effect_position"]
-                    if "foreground_effect_position" in environment
-                    else RoomPosition.TOP_RIGHT
+            # Load the audio dialog from the existing file
+            if os.path.exists(audio_dialog_save_path):
+                dialog = AudioDialog.from_file(audio_dialog_save_path)
+                logger.info(
+                    f"[Initialization] Dialogue ({dialog.id}) has been loaded successfully from "
+                    f"the existing file: {audio_dialog_save_path} !"
                 )
-            )
+            else:
+                logger.info(
+                    f"[Initialization] No existing file found for the dialogue ({dialog.id}), "
+                    "starting from scratch..."
+                )
 
-            logging.info(f"[Step 3] Room accoustic generated for dialogue {dialog.id}!")
-            logging.info("[Step 3] Done!")
+            if (not os.path.exists(dialog.audio_step_1_filepath) or override_tts_audio) and perform_tts:
 
-            # If the user want to re-sample the output audio to a different sampling rate
-            if re_sampling_rate is not None:
+                logger.info(f"[Step 1] Generating audio recordings from the utterances of the dialogue: {dialog.id}")
 
-                for config_name, config_data in dialog.audio_step_3_filepaths.items():
-                    audio_path = config_data["audio_path"]
-                    if os.path.exists(audio_path):
-                        logging.info(f"[Step 3] Re-sampling audio for '{config_name}' to {re_sampling_rate} Hz...")
+                dialog: AudioDialog = generate_utterances_audios(
+                    dialog,
+                    voice_database=self.voice_database,
+                    tts_pipeline=self.tts_engine,
+                    voices=voices,
+                    keep_duplicate=keep_duplicate,
+                    seed=seed,
+                    sampling_rate=self.sampling_rate,
+                    tts_pipeline_kwargs=tts_pipeline_kwargs,
+                )
 
-                        y, sr = librosa.load(audio_path, sr=None)
+                # Save the utterances audios to the project path
+                dialog.save_utterances_audios(
+                    dir_audio=self.dir_audio,
+                    project_path=os.path.join(dialog.audio_dir_path, dialog_directory)
+                )
 
-                        y_resampled = librosa.resample(
-                            y=y,
-                            orig_sr=sr,
-                            target_sr=re_sampling_rate
-                        )
+                # Combine the audio segments into a single master audio track as a baseline
+                dialog.set_combined_audio(
+                    self.master_audio(dialog)
+                )
 
-                        # Overwrite the audio file with the new sampling rate
-                        sf.write(
-                            audio_path,
-                            y_resampled,
-                            re_sampling_rate
-                        )
+                # Save the combined audio to exported_audios folder
+                sf.write(
+                    dialog.audio_step_1_filepath,
+                    dialog.get_combined_audio(),
+                    self.sampling_rate
+                )
+                logger.info(f"[Step 1] Audio files have been saved here: {dialog.audio_step_1_filepath}")
 
-                        logging.info(
-                            f"[Step 3] Audio for '{config_name}' has been "
-                            f"re-sampled successfully to {re_sampling_rate} Hz!"
-                        )
+                # If the user want to re-sample the output audio to a different sampling rate
+                if re_sampling_rate is not None and os.path.exists(dialog.audio_step_1_filepath):
 
-        elif perform_room_acoustics and room is None:
+                    logger.info(f"[Step 1] Re-sampling audio to {re_sampling_rate} Hz...")
 
-            raise ValueError(
-                "The room is not set, which makes the generation of the room accoustic audios impossible"
-            )
+                    y_resampled = librosa.resample(
+                        y=dialog.get_combined_audio().T,
+                        orig_sr=self.sampling_rate,
+                        target_sr=re_sampling_rate
+                    )
 
-        # Apply microphone effect if a recording device is specified
-        if recording_devices is not None and perform_room_acoustics:
+                    # Overwrite the audio file with the new sampling rate
+                    sf.write(
+                        dialog.audio_step_1_filepath,
+                        y_resampled,
+                        re_sampling_rate
+                    )
 
-            if self.impulse_response_database is None:
-                raise ValueError("The impulse response database is not set, simulation of the microphone is impossible")
+                    logger.info(f"[Step 1] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
 
-            logging.info(f"[Post-Processing] Applying microphone effect for devices: {recording_devices}")
+            if perform_room_acoustics and not perform_tts and not os.path.exists(dialog.audio_step_1_filepath):
+                raise ValueError(
+                    "Room acoustics cannot be performed without TTS unless the audio from step 1 is already available. "
+                    "Please run with perform_tts=True first, or provide a dialog with existing audio paths."
+                )
 
-            if not dialog.audio_step_3_filepaths or len(dialog.audio_step_3_filepaths) == 0:
-                raise ValueError("[Post-Processing] No room acoustics audio found to apply post-processing on.")
+            # If the user want to generate the timeline from dSCAPER
+            if perform_room_acoustics:
 
-            for _room_name, room_data in list(dialog.audio_step_3_filepaths.items()):
+                from sdialog.audio.dscaper_utils import (
+                    send_utterances_to_dscaper,
+                    generate_dscaper_timeline
+                )
 
-                # Process only the room with the same name as the one specified
-                if room_name is not None and room_name != _room_name:
-                    continue
+                logger.info("[Step 2] Sending utterances to dSCAPER...")
 
-                input_audio_path = room_data["audio_path"]
+                # Send the utterances to dSCAPER
+                dialog: AudioDialog = send_utterances_to_dscaper(
+                    dialog,
+                    self._dscaper,
+                    dialog_directory=dialog_directory
+                )
 
-                # Check if the input audio (step 3) path exists
-                if not os.path.exists(input_audio_path):
-                    raise ValueError(f"[Post-Processing] Input audio path not found: {input_audio_path}")
+                # Generate the timeline from dSCAPER
+                logger.info("[Step 2] Generating timeline from dSCAPER...")
+                dialog: AudioDialog = generate_dscaper_timeline(
+                    dialog=dialog,
+                    dscaper=self._dscaper,
+                    dialog_directory=dialog_directory,
+                    foreground_effect=environment.get("foreground_effect"),
+                    foreground_effect_position=environment.get("foreground_effect_position"),
+                    background_effect=environment.get("background_effect") or "white_noise",
+                    audio_file_format=audio_file_format
+                )
+                logger.info("[Step 2] Has been completed!")
 
-                # If the audio paths post processing are not in the room data, create a new dictionary
-                if "audio_paths_post_processing" not in room_data:
-                    room_data["audio_paths_post_processing"] = {}
+                # If the user want to re-sample the output audio to a different sampling rate
+                if re_sampling_rate is not None and os.path.exists(dialog.audio_step_2_filepath):
 
-                # For each recording device, apply the microphone effect
-                for recording_device in recording_devices:
+                    logger.info(f"[Step 2] Re-sampling audio to {re_sampling_rate} Hz...")
 
-                    if str(recording_device) in room_data["audio_paths_post_processing"]:
-                        logging.warning(
-                            f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
-                            f" and room configuration: {_room_name}. Skipping..."
-                        )
+                    y, sr = librosa.load(dialog.audio_step_2_filepath, sr=None)
+
+                    y_resampled = librosa.resample(
+                        y=y,
+                        orig_sr=sr,
+                        target_sr=re_sampling_rate
+                    )
+
+                    # Overwrite the audio file with the new sampling rate
+                    sf.write(
+                        dialog.audio_step_2_filepath,
+                        y_resampled,
+                        re_sampling_rate
+                    )
+
+                    logger.info(f"[Step 2] Audio has been re-sampled successfully to {re_sampling_rate} Hz!")
+
+            # Generate the audio room accoustic
+            if (
+                perform_room_acoustics
+                and room is not None
+            ):
+
+                logger.info("[Step 3] Starting...")
+
+                if not isinstance(environment["room"], Room):
+                    raise ValueError("The room must be a Room object")
+
+                # Check if the step 2 is not done
+                if len(dialog.audio_step_2_filepath) < 1:
+
+                    logger.warning((
+                        "[Step 3] The timeline from dSCAPER is not generated, which"
+                        "makes the generation of the room accoustic impossible"
+                    ))
+
+                    # Save the audio dialog to a json file
+                    dialog.to_file(audio_dialog_save_path)
+                    logger.info(f"[Step 3] Audio dialog saved to the existing file ({dialog.id}) successfully!")
+
+                    return dialog
+
+                logger.info(f"[Step 3] Generating room accoustic for dialogue {dialog.id}")
+
+                # Override the room name if provided otherwise use the hash of the room
+                room_name = room_name if room_name is not None else room.name
+
+                # Generate the audio room accoustic from the dialog and room object
+                dialog: AudioDialog = generate_audio_room_accoustic(
+                    dialog=dialog,
+                    room=room,
+                    dialog_directory=dialog_directory,
+                    room_name=room_name,
+                    kwargs_pyroom=environment["kwargs_pyroom"] if "kwargs_pyroom" in environment else {},
+                    source_volumes=environment["source_volumes"] if "source_volumes" in environment else {},
+                    audio_file_format=audio_file_format,
+                    background_effect=(
+                        environment["background_effect"]
+                        if "background_effect" in environment
+                        else "white_noise"
+                    ),
+                    foreground_effect=(
+                        environment["foreground_effect"]
+                        if "foreground_effect" in environment
+                        else "ac_noise_minimal"
+                    ),
+                    foreground_effect_position=(
+                        environment["foreground_effect_position"]
+                        if "foreground_effect_position" in environment
+                        else RoomPosition.TOP_RIGHT
+                    )
+                )
+
+                logger.info(f"[Step 3] Room accoustic has been generated successfully for dialogue {dialog.id}!")
+
+                # If the user want to re-sample the output audio to a different sampling rate
+                if re_sampling_rate is not None:
+
+                    for config_name, config_data in dialog.audio_step_3_filepaths.items():
+                        audio_path = config_data["audio_path"]
+                        if os.path.exists(audio_path):
+                            logger.info(f"[Step 3] Re-sampling audio for '{config_name}' to {re_sampling_rate} Hz...")
+
+                            y, sr = librosa.load(audio_path, sr=None)
+
+                            y_resampled = librosa.resample(
+                                y=y,
+                                orig_sr=sr,
+                                target_sr=re_sampling_rate
+                            )
+
+                            # Overwrite the audio file with the new sampling rate
+                            sf.write(
+                                audio_path,
+                                y_resampled,
+                                re_sampling_rate
+                            )
+
+                            logger.info(
+                                f"[Step 3] Audio for '{config_name}' has been "
+                                f"re-sampled successfully to {re_sampling_rate} Hz!"
+                            )
+
+            elif perform_room_acoustics and room is None:
+
+                raise ValueError(
+                    "The room is not set, which makes the generation of the room accoustic audios impossible"
+                )
+
+            # Apply microphone effect if a recording device is specified
+            if recording_devices is not None and perform_room_acoustics:
+
+                if self.impulse_response_database is None:
+                    raise ValueError(
+                        "The impulse response database is not set, simulation of the microphone is impossible"
+                    )
+
+                logger.info(f"[Post-Processing] Applying microphone effect for devices: {recording_devices}")
+
+                if not dialog.audio_step_3_filepaths or len(dialog.audio_step_3_filepaths) == 0:
+                    raise ValueError("[Post-Processing] No room acoustics audio found to apply post-processing on.")
+
+                for _room_name, room_data in list(dialog.audio_step_3_filepaths.items()):
+
+                    # Process only the room with the same name as the one specified
+                    if room_name is not None and room_name != _room_name:
                         continue
 
-                    output_audio_name = (
-                        f"audio_post_processing-{_room_name}-"
-                        f"{str(recording_device)}"
-                        f".{audio_file_format}"
-                    )
+                    input_audio_path = room_data["audio_path"]
 
-                    # Build the path to save the output audio
-                    output_audio_path = os.path.join(
-                        dialog.audio_dir_path,
-                        dialog_directory,
-                        "exported_audios",
-                        "post_processing",
-                        output_audio_name
-                    )
+                    # Check if the input audio (step 3) path exists
+                    if not os.path.exists(input_audio_path):
+                        raise ValueError(f"[Post-Processing] Input audio path not found: {input_audio_path}")
 
-                    # Create the directory if it doesn't exist
-                    os.makedirs(os.path.dirname(output_audio_path), exist_ok=True)
+                    # If the audio paths post processing are not in the room data, create a new dictionary
+                    if "audio_paths_post_processing" not in room_data:
+                        room_data["audio_paths_post_processing"] = {}
 
-                    AudioProcessor.apply_microphone_effect(
-                        input_audio_path=input_audio_path,
-                        output_audio_path=output_audio_path,
-                        device=recording_device,
-                        impulse_response_database=self.impulse_response_database
-                    )
+                    # For each recording device, apply the microphone effect
+                    for recording_device in recording_devices:
 
-                    room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+                        if str(recording_device) in room_data["audio_paths_post_processing"]:
+                            logger.warning(
+                                f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
+                                f" and room configuration: {_room_name}. Skipping..."
+                            )
+                            continue
 
-                    logging.info(
-                        f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
-                        f"Output saved to: {output_audio_path}"
-                    )
+                        output_audio_name = (
+                            f"audio_post_processing-{_room_name}-"
+                            f"{str(recording_device)}"
+                            f".{audio_file_format}"
+                        )
 
-        # Save the audio dialog to a json file
-        dialog.to_file(audio_dialog_save_path)
+                        # Build the path to save the output audio
+                        output_audio_path = os.path.join(
+                            dialog.audio_dir_path,
+                            dialog_directory,
+                            "exported_audios",
+                            "post_processing",
+                            output_audio_name
+                        )
+
+                        # Create the directory if it doesn't exist
+                        os.makedirs(os.path.dirname(output_audio_path), exist_ok=True)
+
+                        AudioProcessor.apply_microphone_effect(
+                            input_audio_path=input_audio_path,
+                            output_audio_path=output_audio_path,
+                            device=recording_device,
+                            impulse_response_database=self.impulse_response_database
+                        )
+
+                        room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+
+                        logger.info(
+                            f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
+                            f"Output saved to: {output_audio_path}"
+                        )
+
+            # Save the audio dialog to a json file
+            dialog.to_file(audio_dialog_save_path)
+
+        finally:
+            # Reset the logger level to the original level
+            logger.setLevel(original_level)
 
         return dialog

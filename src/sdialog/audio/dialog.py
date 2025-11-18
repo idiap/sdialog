@@ -39,14 +39,14 @@ Example:
 import os
 import json
 import random
-import logging
 import numpy as np
 import soundfile as sf
-from sdialog import Dialog
 from typing import List, Union
-from sdialog.audio.utils import Role
+
+from sdialog import Dialog
 from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room import AudioSource
+from sdialog.audio.utils import logger, Role
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
 
 
@@ -291,19 +291,10 @@ class AudioDialog(Dialog):
 
         if len(self.audio_step_1_filepath) > 0:
             print("-" * 25)
-            print("Step 1:")
+            print("TTS Audio:")
             print("-" * 25)
             display(Audio(
                 self.audio_step_1_filepath,
-                autoplay=False
-            ))
-
-        if len(self.audio_step_2_filepath) > 0:
-            print("-" * 25)
-            print("Step 2:")
-            print("-" * 25)
-            display(Audio(
-                self.audio_step_2_filepath,
                 autoplay=False
             ))
 
@@ -317,7 +308,7 @@ class AudioDialog(Dialog):
             for config_name in self.audio_step_3_filepaths:
 
                 print(f"> Room Configuration: {config_name}")
-                print("Original audio:")
+                print("Room Accoustic Audio:")
                 display(Audio(
                     self.audio_step_3_filepaths[config_name]["audio_path"],
                     autoplay=False
@@ -330,7 +321,7 @@ class AudioDialog(Dialog):
                     and len(self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]) > 0
                 ):
                     print("#" * 10)
-                    print("Processed audio:")
+                    print("Post Processing Audio (e.g. microphone effect):")
                     print("#" * 10)
 
                     # For each recording device, display the processed audio
@@ -427,15 +418,17 @@ class AudioDialog(Dialog):
             # Check if the information about the voice is already in the persona, else add a random information
             if "gender" not in persona or persona["gender"] is None:
                 persona["gender"] = random.choice(["male", "female"])
-                logging.warning(f"Gender not found in the persona {speaker}, a random gender has been added")
+                logger.warning(f"Gender not found in the persona {speaker}, a random gender has been added")
 
             if "age" not in persona or persona["age"] is None:
                 persona["age"] = random.randint(18, 65)
-                logging.warning(f"Age not found in the persona {speaker}, a random age has been added")
+                logger.warning(f"Age not found in the persona {speaker}, a random age has been added")
 
             if "language" not in persona or persona["language"] is None:
                 persona["language"] = "english"
-                logging.warning(f"Language not found in the persona {speaker}, english has been considered by default")
+                logger.warning(
+                    f"Language not found in the persona {speaker}, english has been considered by default"
+                )
 
             # Get the role of the speaker (speaker_1 or speaker_2)
             role: Role = self.speakers_roles[speaker]

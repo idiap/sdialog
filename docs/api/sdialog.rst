@@ -183,10 +183,10 @@ sdialog.audio.turn
    :members:
    :show-inheritance:
 
-sdialog.audio.tts_engine
-^^^^^^^^^^^^^^^^^^^^^^^^
+sdialog.audio.tts
+^^^^^^^^^^^^^^^^^
 
-.. automodule:: sdialog.audio.tts_engine
+.. automodule:: sdialog.audio.tts
    :member-order: bysource
    :members:
    :show-inheritance:
