@@ -1,0 +1,7 @@
+System: Hello! How can I assist you today?
+User: Hi! I just had an appointment with Dr. Morgan but forgot to write down the instructions. Could you help me find out how often I should take my medicine?
+System: Of course, I can help with that. Who is your doctor? If it's Dr. Morgan, I can fetch the instructions for you.
+User: Yes, it's Dr. Morgan. Can you get those details for me please?
+System: Your instructions are: Take the medication twice a day, 30 minutes before meals.  Is there anything else that I can do for you?
+User: Thank you so much! That’s very helpful. No, that covers everything for now.
+System: You're welcome! If you need any more assistance in the future, feel free to ask. Thank you and goodbye.

@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Can we go over some points from my appointment with Dr. Johnson today? I want to make sure I understood everything correctly.
+System: Of course, could I get your name, please?
+User: My name is Mark. How can I review the details of my visit with Dr. Johnson?
+System: Who is your doctor, Mark? Just confirming it's Dr. Johnson we're discussing.
+User: Yes, it's Dr. Johnson. Can you help me go through what was discussed during my appointment?
+System: Your instructions are: Follow up on medication regimen and schedule a follow-up visit in three weeks for progress review. Is there anything else that I can do for you?
+User: Thanks! Could you remind me of the specifics of the medication regimen Dr. Johnson prescribed? And when should I schedule my next appointment?
+System: For your medication, take two pills daily with meals and avoid alcohol consumption. Schedule a follow-up visit in three weeks to review progress. Is there anything else that I can do for you?
+User: Perfect, thanks for the reminder about the medication and scheduling the follow-up. That covers everything I needed to clarify. Thanks!
+System: You're welcome, Mark. Thank you for your time and have a great day! Thank you and goodbye.
+User: Thanks to you too! Have a great day as well.
+System: Goodbye, Mark! Take care.

@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi there! Could you please check if I understood my doctor's instructions correctly?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Alexis.
+System: Your instructions are: INSTRUCTIONS. Please let me know if that matches what you remember from your appointment with Dr. Alexis.
+User: Yes, it does match. Thank you!
+System: Is there anything else that I can do for you?
+User: No, thank you. That's all.
+System: Thank you and goodbye.

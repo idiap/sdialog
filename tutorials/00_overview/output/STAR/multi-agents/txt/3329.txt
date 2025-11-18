@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! Can we go over the treatment plan Dr. Johnson mentioned again? I want to make sure I didn’t miss anything important during my appointment.
+System: Of course, let's review your doctor's instructions. Your instructions are: Take your medication as prescribed, attend a follow-up appointment in 4 weeks, and monitor your symptoms closely. Is there anything else you need help with?
+User: Thanks for summarizing that. Could you remind me of the specific side effects I should be aware of while taking this new medication? And how often should I check my blood pressure at home?
+System: You're welcome! Regarding the medication, watch out for dizziness and nausea as potential side effects. It's also important to monitor your blood pressure twice a week using the device provided during your appointment. Is there anything else you need assistance with regarding your treatment plan?
+User: That’s really helpful. No further questions from me right now, thanks! See you in 4 weeks for my follow-up.
+System: You're welcome! Feel free to reach out if any concerns arise before our next meeting. Thank you and goodbye.

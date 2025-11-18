@@ -1,0 +1,11 @@
+System: Hello! How can I assist you today?
+User: Hi! I had an appointment with Dr. Alexis a few days ago and wanted to make sure I understood everything that was discussed. Could we go over my treatment plan again?
+System: Of course, I can help with that. Could I get your name, please?
+User: Sure thing, my name is Angela. Thanks for your help!
+System: Thank you, Angela. Who is your doctor at the clinic? Was it Dr. Alexis?
+User: Yes, it was Dr. Alexis. I wanted to make sure I didn't miss anything important during our consultation.
+System: Your instructions are: Follow up with daily medication as prescribed and schedule a follow-up appointment in 4 weeks. Is there anything else that I can do for you?
+User: That's great, thank you for confirming. Dr. Alexis did mention scheduling another checkup in four weeks, right? Also, could you remind me of the details regarding my daily medication again?
+System: Yes, Angela, your next follow-up is scheduled for 4 weeks from now and take your medication once a day with food as prescribed. Is there anything else that I can do for you?
+User: Perfect, thank you. That's very clear. No more questions for now; just wanted to make sure I had everything right. Thanks again!   Goodbye!
+System: You're welcome, Angela! If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye!

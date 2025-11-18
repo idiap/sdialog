@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Do you happen to know how often I should be taking my medication? I saw Dr. Alexis recently but forgot to write down the instructions she gave me. It's driving me a bit crazy trying to remember!
+System: Could I get your name, please?
+User: Of course, my name is Angela. And according to my notes, my last appointment was actually with Dr. Morgan, not Dr. Alexis. But I think Dr. Alexis might have been the one before her. Can you help me figure out how often I should take my medicine? It's really important that I follow the right schedule.
+System: Who is your doctor? Your instructions are: Take your medication three times a day, 30 minutes before each meal. Is there anything else that I can do for you?
+User: Thank you so much! That helps a lot. Dr. Morgan must have given me the same instructions since they sound familiar. I just couldn't remember them clearly.  By the way, today was quite hectic—I had to rush out of my house and almost forgot my keys. It’s days like these that remind me to slow down!  Is there anything else you think is important for me to know or do regarding my medication? Thanks again!
+System: Is there anything else that I can do for you? Thank you and goodbye, Angela.
+User: No, that's it for now. Thank you so much for your help! Have a great day!
+System: Thank you and goodbye.

@@ -643,9 +643,7 @@ Let's start with the simplest way to generate audio from your dialogues! SDialog
     # Generate complete audio in one call
     audio_dialog = to_audio(
         dialog,
-        do_step_1=True,  # Combine utterances into single audio
-        do_step_2=True,  # Generate dSCAPER timeline with background effects
-        do_step_3=True,  # Apply room acoustics simulation
+        perform_room_acoustics=True,
         audio_file_format="mp3"  # or "wav", "flac"
     )
     
@@ -660,9 +658,7 @@ Let's start with the simplest way to generate audio from your dialogues! SDialog
 
     # Convert dialog directly to audio using the built-in method
     audio_dialog = dialog.to_audio(
-        do_step_1=True,
-        do_step_2=True, 
-        do_step_3=True
+        perform_room_acoustics=True
     )
 
 
@@ -701,7 +697,7 @@ For more control over the audio generation process, let's use the full AudioPipe
     # 4. Setup audio pipeline
     audio_pipeline = AudioPipeline(
         voice_database=voice_database,
-        tts_pipeline=tts_engine,
+        tts_engine=tts_engine,
         dir_audio="./audio_outputs"
     )
     
@@ -739,9 +735,7 @@ For more control over the audio generation process, let's use the full AudioPipe
                 "air_absorption": True
             }
         },
-        do_step_1=True,  # Combine utterances into a single dialogue audio
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics simulation
+        perform_room_acoustics=True,
         dialog_dir_name="medical_consultation",
         room_name="examination_room"
     )
@@ -1073,15 +1067,44 @@ SDialog allows you to simulate different microphone effects by convolving audio 
 
 Multilingual Audio Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SDialog supports multilingual audio generation with custom TTS engines. Let's create a custom TTS engine for Spanish!
+SDialog supports multilingual audio generation. You can use a compatible model from the Hugging Face Hub via ``HuggingFaceTTS`` or create your own custom TTS engine for more advanced use cases.
 
-**Custom TTS Engine** - Create your own TTS implementation:
+**Using ``HuggingFaceTTS``** - Use any compatible model from the Hugging Face Hub:
+
+.. code-block:: python
+
+    from sdialog.audio.tts import HuggingFaceTTS
+    from sdialog.audio.pipeline import AudioPipeline
+    
+    # Use HuggingFaceTTS for any compatible model from the Hub
+    # For example, with facebook/mms-tts-fra
+    hf_tts = HuggingFaceTTS(model_id="facebook/mms-tts-fra")
+    
+    # Create an audio pipeline with the HuggingFaceTTS engine
+    # A voice_database is not specified, so a default one will be used.
+    # Note that the default voice database might not contain voices
+    # compatible with the selected HuggingFaceTTS model.
+    audio_pipeline = AudioPipeline(
+        tts_engine=hf_tts,
+        dir_audio="./hf_audio_outputs"
+    )
+    
+    # Generate audio for the dialogue (assuming 'dialog' is an existing Dialog object)
+    # For multilingual models, you might need to pass language information.
+    # This can be done via tts_pipeline_kwargs. For example:
+    # tts_pipeline_kwargs={"speaker_embeddings": speaker_embedding, "language": "es"}
+    audio_dialog = audio_pipeline.inference(dialog)
+
+**Custom TTS Engine** - Create your own TTS implementation for more advanced use cases (e.g. for Spanish):
 
 .. code-block:: python
 
     import torch
     import numpy as np
-    from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.tts import BaseTTS
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.voice_database import LocalVoiceDatabase
     
     class XTTSEngine(BaseTTS):
         def __init__(self, lang_code: str = "en", model="xtts_v2"):
@@ -1089,10 +1112,10 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
             self.lang_code = lang_code
             self.pipeline = TTS(model).to("cuda" if torch.cuda.is_available() else "cpu")
         
-        def generate(self, text: str, voice: str) -> tuple[np.ndarray, int]:
+        def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
             wav_data = self.pipeline.tts(
                 text=text,
-                speaker_wav=voice,
+                speaker_wav=speaker_voice,
                 language=self.lang_code
             )
             return (wav_data, 24000)
@@ -1109,7 +1132,7 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
     # Generate Spanish audio
     audio_pipeline = AudioPipeline(
         voice_database=spanish_voices,
-        tts_pipeline=spanish_tts,
+        tts_engine=spanish_tts,
         dir_audio="./spanish_audio_outputs"
     )
 
@@ -1117,9 +1140,7 @@ SDialog supports multilingual audio generation with custom TTS engines. Let's cr
     
     spanish_audio = audio_pipeline.inference(
         spanish_dialog,
-        do_step_1=True,
-        do_step_2=True,
-        do_step_3=True,
+        perform_room_acoustics=True,
         dialog_dir_name="spanish_dialogue"
     )
 

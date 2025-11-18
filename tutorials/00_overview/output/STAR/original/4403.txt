@@ -1,0 +1,8 @@
+User: My name is Ben, I had an appointment with Dr. Morgan the other day, and would like to make sure that I have understood everything right.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Im sorry I actually had my appointment with Dr.Alexis. Morgan was my old Dr.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Cool. Today I imagined that I was flying in the sky, my Dr. says that it is normal with my crazy condition. 
+System: That's nice. Anything else I can help with?
+User: No, that will be all today. Thank you for your help.
+System: Thank you and goodbye.

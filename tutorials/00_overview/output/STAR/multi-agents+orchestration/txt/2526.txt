@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Could you please remind me how often I should take my medication that Dr. Alexis prescribed today? I didn't get a chance to write down the instructions during our visit.
+System: Could I get your name, please? That way, I can look up your medical records and retrieve the specific instructions for you from Dr. Alexis's notes.
+User: Of course, my name is Angela. Could you please check the instructions on how often to take the medicine prescribed by Dr. Alexis today?
+System: Who is your doctor? I see that you have mentioned Dr. Alexis, so let me confirm if this is the correct physician for your current prescription and then proceed with fetching the details. doctor_inform_doctors_instructions: Your instructions are: Take the medication prescribed by Dr. Alexis three times a day, 8 hours apart. Is there anything else you need help with regarding your medications or any other concerns?
+User: Thank you! The medicine should be taken three times a day, 8 hours apart, correct? Just want to make sure I have it right. And no, that's all for now, thanks!
+System: That's correct, Angela. Take the medication prescribed by Dr. Alexis three times a day, 8 hours apart. If you need any more assistance or have further questions in the future, feel free to ask. Thank you and goodbye.
+User: Great, thank you so much for confirming! Have a great day!
+System: You're welcome, Angela! Have a great day and take care. Goodbye!

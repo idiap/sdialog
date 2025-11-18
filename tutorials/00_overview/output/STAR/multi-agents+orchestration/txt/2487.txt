@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Morgan today. Could we go over some points again please?
+System: Of course, could I get your name, please? That will help me look up your information and ensure accuracy.
+User: Sure thing, it's Alexis. Thanks for helping me out!
+System: Nice to meet you, Alexis. Who is your doctor? I see Dr. Morgan is the one who saw you today.
+User: Yes, that's right. I had a consultation with Dr. Morgan and wanted to confirm some details from our discussion. Could we review points about my medication and next steps for monitoring my condition?
+System: Of course, Alexis. Your instructions are: Take your medication as prescribed, attend the follow-up appointment in three months, and monitor your symptoms closely. Is there anything else that I can do for you?
+User: That's perfect, thank you! Just to clarify, should I be looking out for any specific symptoms between now and our next meeting? And could you remind me of the dosage for my medication?
+System: For your medication, take one tablet twice daily. As for symptoms, keep an eye on any unusual changes in how you feel and report them at your follow-up appointment. Is there anything else that I can do for you?
+User: Thank you so much! That clears everything up. No more questions from me, just wanted to make sure I had it all straight. Thanks again! See you in three months.
+System: You're welcome, Alexis. Take care and see you at your next appointment. Thank you and goodbye.

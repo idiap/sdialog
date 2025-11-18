@@ -1,0 +1,10 @@
+User: Hello
+System: Hello, how can I help?
+User: I just finished an appointment with a doctor and wanted to follow up to ensure I understood everything
+System: Could I get your name, please?
+User: Ben
+System: Who is your doctor?
+User: Dr Johnson
+System: Here's the instruction for you - You must take your medicine 2 times a day before meals.
+User: Perfect! Thank you so much
+System: Is there anything else that I can do for you?

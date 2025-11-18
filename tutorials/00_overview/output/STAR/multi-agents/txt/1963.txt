@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I just had an appointment with Dr. Alexis but I forgot to write down my medication instructions. Could you please find out how often I should take my medicine?
+System: Could I get your name, please? Once I have it, I'll check the records for your doctor's instructions regarding your medication.
+User: My name is Alexis. Thanks for helping me with this!
+System: Who is your doctor, Alexis? This will help me find the correct medical record to retrieve your prescription details.
+User: My doctor is Dr. Alexis. Could you check what she told me about my medication?
+System: Your instructions are: Take your medication twice a day, in the morning and before bedtime. Is there anything else that I can do for you?
+User: Thanks so much! That's really helpful. No, that covers everything for now. Thanks again!
+System: You're welcome, Alexis. If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.

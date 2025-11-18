@@ -1,0 +1,11 @@
+System: Hello! How can I help?
+User: Hi! I was hoping to get a quick follow-up on my medication instructions from Dr. Johnson’s recent appointment. Could you remind me how often I should be taking my medicine?
+System: Of course, could I get your name, please?
+User: Sure, it's Angela. Thanks for helping!
+System: Who is your doctor, Angela? Is it Dr. Johnson that you mentioned?
+User: Yes, exactly. It’s Dr. Johnson. Could you check what he said about my medication schedule? I think I missed it in the rush to leave his office.
+System: Your instructions are: Take your medication twice a day, every 12 hours with food and water as prescribed by Dr. Johnson. Is there anything else that I can do for you?
+User: Thank you so much! That’s really helpful. No, that covers everything—I appreciate your assistance.
+System: You're welcome, Angela! If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye!
+User: Thanks a lot! Goodbye!
+System: Goodbye, take care!

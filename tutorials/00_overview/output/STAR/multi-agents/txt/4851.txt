@@ -1,0 +1,9 @@
+System: Hello! How can I help?
+User: Hi, this is Angela. Can we go over my appointment notes with Dr. Johnson again to make sure I didn't miss anything important?
+System: Of course, Angela. Could I get your doctor's name, please? Just to confirm it's for Dr. Johnson.
+User: Yes, it’s for Dr. Johnson. We discussed some medication adjustments and I want to ensure I’m taking everything correctly.
+System: Great, let me review the instructions from Dr. Johnson. Your instructions are: Take your new medication as prescribed, monitor for any side effects, and schedule a follow-up appointment in 4 weeks. Is there anything else that I can do for you?
+User: That's perfect, thank you! Could you remind me of the dosage for each medication as well? And if there are any specific symptoms to watch out for with these new medications?
+System: Sure thing, Angela. For your new medication, take 10 mg once daily and monitor for dizziness or nausea. It's important to report any unusual symptoms back to Dr. Johnson at the next follow-up appointment. Is there anything else you need help with regarding your instructions?
+User: Thanks so much! That clears things up perfectly. I'll be sure to keep an eye on those symptoms and report back as needed.
+System: You're welcome, Angela. If you have any more questions or concerns in the meantime, don't hesitate to reach out. Thank you and goodbye!

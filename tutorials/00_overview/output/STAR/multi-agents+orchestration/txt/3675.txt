@@ -1,0 +1,15 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Morgan today. Could we go over some points again please?
+System: Could I get your name, please?
+User: Sure, it's Ben. How can you assist me with following up on my appointment details?
+System: Who is your doctor? Just to confirm, is it Dr. Morgan?
+User: Yes, it’s Dr. Morgan. Could we review some of the things discussed during today’s visit?
+System: Your instructions are: INSTRUCTIONS. Please let me know if you need clarification on any specific points from your appointment with Dr. Morgan.
+User: I’d like to clarify a few points about my treatment plan and next steps. Could we go over those again, please?
+System: Of course, Ben. Your instructions are: Follow the prescribed medication regimen, attend your follow-up appointment in 4 weeks, and monitor symptoms closely. Is there anything else that I can do for you?
+User: Thanks for summarizing that. Could you remind me of any specific symptoms I should be monitoring between now and my next visit? And are there any side effects of the medication I should watch out for?
+System: For your treatment plan, monitor for symptoms such as headache, nausea, or changes in vision. Regarding side effects,留意任何头痛、恶心或视力变化等症状。关于副作用，注意可能出现的疲劳和嗜睡。如果您有任何疑问或症状加重，请及时联系Dr. Morgan。还有其他我可以帮助您的吗？
+User: 谢谢提醒。我会注意那些症状和可能的副作用。如果出现严重的问题或者症状恶化，我应该直接联系Dr. Morgan对吧？除此之外没有别的需要跟进的事情了吗？  关于我的下一个预约，您能确认一下具体日期吗？谢谢！
+System: 是的，Ben，如果出现任何严重的症状或病情加重，请立即联系Dr. Morgan。至于您的下一次预约，按照计划是在四周后的同一天和时间。  请问还有其他我可以帮助您的吗？如果没有的话，请注意遵循医生的指示并保持健康。感谢您使用我的服务，祝您一切顺利！
+User: 好的，非常感谢你的帮助和提醒。我会按时复查，并留意任何可能的症状或副作用。如果没有其他事情了，我们就可以结束了。  再见！
+System: Thank you and goodbye, Ben. Take care and follow up as scheduled. If you have any concerns, don't hesitate to reach out.

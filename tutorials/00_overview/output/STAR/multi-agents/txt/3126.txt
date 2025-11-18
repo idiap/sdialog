@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Morgan a few days ago, and I want to make sure I understood everything correctly about my health plan. Could you please help me follow up on that?
+System: Of course, could I get your name, please?
+User: Sure, my name is John. How can I proceed with following up regarding my appointment?
+System: Who is your doctor, John? It should be Dr. Morgan since you mentioned earlier.
+User: Yes, it's Dr. Morgan. Could we review the recommendations and any medications discussed during my last visit?
+System: Your instructions are: Follow the dietary restrictions and take prescribed medication twice daily. Is there anything else that I can do for you?
+User: Thanks for the summary. Just to clarify, should I be avoiding any specific foods or activities as part of these dietary restrictions? Also, could you remind me of the name of the medication again?
+System: For your dietary restrictions, avoid high-fat and sugar-rich foods. The prescribed medication is called Meditab. Is there anything else that I can do for you?
+User: That's very helpful. No more questions from my side now, thanks a lot! It was great getting this confirmation.  Goodbye!
+System: Thank you and goodbye, John! Take care.

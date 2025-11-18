@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! Can we go over some points from my appointment with Dr. Johnson today? I want to make sure I understood everything correctly.
+System: Of course, could I get your name, please?
+User: My name is Mark. I just had an appointment and wanted to clarify a few things about my treatment plan and next steps.
+System: Who is your doctor, Mark? Just confirming it's Dr. Johnson.
+User: Yes, it's Dr. Johnson. Could you help me review what we discussed today regarding my medication adjustments and upcoming tests?
+System: Your instructions are: Adjust your current medication as prescribed by Dr. Johnson and schedule the necessary follow-up tests in two weeks. Is there anything else that I can do for you?
+User: Thanks for confirming those details. Could you also remind me of any specific symptoms or changes I should watch out for before my next appointment? And are there any lifestyle adjustments suggested alongside the medication changes?
+System: In addition to following your new medication regimen, Dr. Johnson advised monitoring for any unusual side effects such as dizziness or nausea. He also recommended incorporating regular exercise and a balanced diet into your routine. Is there anything else you'd like to know?
+User: That's very helpful. Thank you! No further questions from my end. I appreciate it. See you next time. Bye!
+System: Thank you, Mark. If you have any concerns before our next meeting, don't hesitate to reach out. Have a great day!

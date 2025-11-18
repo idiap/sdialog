@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I'm calling to follow up on my recent visit with Dr. Morgan. I want to make sure I understood everything regarding my diagnosis and medication regimen. Could we go over it again please?
+System: Could I get your name, please?
+User: Of course, my name is Ben. And actually, if you could clarify something for me, my last appointment was with Dr. Alexis since Dr. Morgan isn't my current doctor anymore, right?
+System: I see, so your doctor is Dr. Alexis. Your instructions are: Take your medication as prescribed and follow up in 6 weeks unless any side effects occur or symptoms worsen. Is there anything else that I can do for you?
+User: Thank you for the reminder. I just wanted to confirm if it’s normal to feel a bit dizzy after taking the new medication, or should I be concerned about that? Also, do you happen to know what time my next appointment is with Dr. Alexis?  Oh, by the way, on my way home today, I saw an ad for a health fair coming up next month. It sounds interesting! Anyway, thanks so much for your help.  Goodbye!
+System: It's generally common to experience some side effects when starting new medication, but if dizziness persists or worsens, contact Dr. Alexis immediately. Your next appointment with Dr. Alexis is scheduled at 3 PM on the 15th of this month. Is there anything else that I can do for you?   Thank you and goodbye.

@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Morgan last week and wanted to make sure I understood everything that was discussed about my health condition. Could we go over it again?
+System: Could I get your name, please? Once I have it, I'll be able to look up your records and go over the instructions from Dr. Morgan.
+User: Of course, my name is Alexis. Thank you for helping me with this.
+System: Who is your doctor, Alexis? To ensure I'm looking at the correct record, could you confirm that it's Dr. Morgan we're discussing today?
+User: Yes, it's Dr. Morgan. I saw her last week and would like to make sure I followed all her instructions correctly.
+System: Your instructions are: Follow up on your medication regimen as prescribed by Dr. Morgan, attend a scheduled follow-up appointment in four weeks, and monitor any changes or new symptoms to report back at the next visit.  Is there anything else that I can do for you?
+User: That's perfect, thank you! Just to clarify, no other specific advice or lifestyle changes were mentioned besides those instructions?
+System: Based on Dr. Morgan’s notes, there are no additional specific advice or lifestyle changes noted beyond the medication regimen and follow-up appointment. If anything new comes up, it would be best to reach out directly to her office.  Thank you and goodbye, Alexis. Take care!
+User: Thanks so much for your help! Have a great day. Goodbye.
+System: You're welcome, Alexis! Have a great day too. Goodbye!

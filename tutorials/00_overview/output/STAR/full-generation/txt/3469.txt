@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please confirm my understanding of the instructions Dr. Alexis gave me during my appointment yesterday?
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Alexis.
+System: Your instructions are: Take the prescribed medication twice a day, monitor your blood pressure daily and report any changes to me or call 911 if you experience severe symptoms such as chest pain or difficulty breathing. Schedule another appointment in one month for a follow-up.
+User: Thank you very much!
+System: Is there anything else that I can do for you?

@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please remind me of the instructions Dr. Morgan gave me for my medication?
+System: Of course, could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: It's Dr. Morgan.
+System: Your instructions are: Take the medication twice a day, every 12 hours with food. Do not miss any doses and contact your doctor if you experience side effects such as dizziness or nausea.
+User: Thank you so much!
+System: Is there anything else that I can do for you?

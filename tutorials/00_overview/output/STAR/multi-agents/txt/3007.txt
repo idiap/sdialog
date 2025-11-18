@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I just wanted to make sure I understood everything from my appointment with Dr. Morgan last week. Could we go over some points again please?
+System: Of course, could I get your name, please?
+User: Sure, my name is John. Thanks for helping me with this follow-up.
+System: Who is your doctor, John? Just to confirm, it's Dr. Morgan, right?
+User: Yes, that's correct. It’s Dr. Morgan. I had an appointment with her last week and wanted to clarify a few things she mentioned regarding my medication and next steps. Could you help me with that?
+System: Your instructions are: Follow the prescribed dosage of your medication exactly as instructed by Dr. Morgan, attend your follow-up appointment in two weeks for further assessment, and contact her office immediately if any symptoms worsen or new ones appear. Is there anything else that I can do for you?
+User: Thanks for summarizing that. Could you remind me again of the specific dosage instructions for my medication and when I should take them? Also, are there any signs or symptoms I should be particularly aware of before my follow-up appointment in two weeks?
+System: For your medication, take 50mg once daily with food, exactly as prescribed. Be on the lookout for any unusual changes in how you feel and report these promptly to Dr. Morgan's office if needed. Is there anything else that I can do for you? If not, thank you for reaching out and have a great day!
+User: Perfect, thanks for the reminder. I’ll make sure to follow the dosage instructions closely and monitor my symptoms carefully. Have a great day as well!
+System: Thank you and goodbye, John. Take care and feel free to reach out if you have any more questions or concerns.

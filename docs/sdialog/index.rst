@@ -679,11 +679,12 @@ Core Components
 **AudioTurn** (:class:`~sdialog.audio.turn.AudioTurn`)
     Individual dialogue turns with associated audio metadata. Stores audio files, durations, temporal positions, and voice information.
 
-**TTS Engines** (:class:`~sdialog.audio.tts_engine.BaseTTS`)
+**TTS** (:class:`~sdialog.audio.tts.BaseTTS`)
     Abstract interface for text-to-speech engines. Available implementations:
-    - :class:`~sdialog.audio.tts_engine.KokoroTTS`: Kokoro engine for speech synthesis
-    - :class:`~sdialog.audio.tts_engine.IndexTTS`: IndexTTS engine
-    - Any other TTS engine that inherits from :class:`~sdialog.audio.tts_engine.BaseTTS`
+    - :class:`~sdialog.audio.tts.KokoroTTS`: Kokoro engine for speech synthesis
+    - :class:`~sdialog.audio.tts.IndexTTS`: IndexTTS engine
+    - :class:`~sdialog.audio.tts.HuggingFaceTTS`: Generic implementation for models from the Hugging Face Hub
+    - Any other TTS engine that inherits from :class:`~sdialog.audio.tts.BaseTTS`
 
 **Voice Databases** (:class:`~sdialog.audio.voice_database.BaseVoiceDatabase`)
     Voice management with speaker metadata (gender, age, language, ...). Implementations:
@@ -720,9 +721,7 @@ For simple use cases, SDialog provides convenient one-function audio generation:
     # Generate complete audio in one call
     audio_dialog = to_audio(
         original_dialog,
-        do_step_1=True,  # Combine utterances
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics
+        perform_room_acoustics=True,
         audio_file_format="mp3"  # or "wav", "flac"
     )
     
@@ -737,9 +736,7 @@ For simple use cases, SDialog provides convenient one-function audio generation:
 
     # Convert dialog directly to audio
     audio_dialog = original_dialog.to_audio(
-        do_step_1=True,
-        do_step_2=True, 
-        do_step_3=True
+        perform_room_acoustics=True
     )
     
     # Access generated files
@@ -781,7 +778,7 @@ Here's how to create a complete audio dialogue with environment simulation using
     # 4. Setup audio pipeline
     audio_pipeline = AudioPipeline(
         voice_database=voice_database,
-        tts_pipeline=tts_engine,
+        tts_engine=tts_engine,
         dir_audio="./audio_outputs"
     )
     
@@ -819,9 +816,7 @@ Here's how to create a complete audio dialogue with environment simulation using
                 "air_absorption": True
             }
         },
-        do_step_1=True,  # Combine utterances into a single dialogue audio
-        do_step_2=True,  # Generate dSCAPER timeline
-        do_step_3=True,  # Apply room acoustics simulation
+        perform_room_acoustics=True,
         dialog_dir_name="medical_consultation",
         room_name="examination_room"
     )
@@ -1140,7 +1135,10 @@ SDialog supports multilingual audio generation with custom TTS engines:
 
     import torch
     import numpy as np
-    from sdialog.audio.tts_engine import BaseTTS
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.tts import BaseTTS
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.voice_database import LocalVoiceDatabase
     
     class XTTSEngine(BaseTTS):
         def __init__(self, lang_code: str = "en", model="xtts_v2"):
@@ -1148,10 +1146,10 @@ SDialog supports multilingual audio generation with custom TTS engines:
             self.lang_code = lang_code
             self.pipeline = TTS(model).to("cuda" if torch.cuda.is_available() else "cpu")
         
-        def generate(self, text: str, voice: str) -> tuple[np.ndarray, int]:
+        def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
             wav_data = self.pipeline.tts(
                 text=text,
-                speaker_wav=voice,
+                speaker_wav=speaker_voice,
                 language=self.lang_code
             )
             return (wav_data, 24000)
@@ -1168,7 +1166,7 @@ SDialog supports multilingual audio generation with custom TTS engines:
     # Generate Spanish audio
     audio_pipeline = AudioPipeline(
         voice_database=spanish_voices,
-        tts_pipeline=spanish_tts,
+        tts_engine=spanish_tts,
         dir_audio="./spanish_audio_outputs"
     )
 
@@ -1176,9 +1174,7 @@ SDialog supports multilingual audio generation with custom TTS engines:
     
     spanish_audio = audio_pipeline.inference(
         spanish_dialog,
-        do_step_1=True,
-        do_step_2=True,
-        do_step_3=True,
+        perform_room_acoustics=True,
         dialog_dir_name="spanish_dialogue"
     )
 

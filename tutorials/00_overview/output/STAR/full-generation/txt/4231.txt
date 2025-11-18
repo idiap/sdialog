@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you confirm my doctor's instructions for me? My name is Mark.
+System: Who is your doctor, Mark?
+User: My doctor is Dr. Johnson.
+System: Your instructions are: INSTRUCTIONS.
+User: Could you be more specific, please?
+System: Sure, your doctor's instructions are as follows: Take the prescribed medication twice daily for two weeks and follow up with a blood test in 10 days. Call if any side effects occur.
+User: That clears things up, thank you.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thank you very much!
+System: Thank you and goodbye.

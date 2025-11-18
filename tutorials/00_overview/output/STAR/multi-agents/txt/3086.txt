@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I'm here to follow up on my appointment with Dr. Johnson from last week. I want to make sure I understood everything correctly regarding my treatment plan. Could we go over that again?
+System: Could I get your name, please? Once I have it, I'll be able to proceed with confirming the details of your doctor's instructions.
+User: Of course! My name is Alexis. I had an appointment with Dr. Johnson and I want to make sure I understood all the instructions regarding my treatment plan. Could we review that again, please?
+System: Who is your doctor, Alexis? I need to verify that it's indeed Dr. Johnson before proceeding.
+User: Yes, it's Dr. Johnson at Coastal Medical Center. We discussed a treatment plan for my condition last week and I want to make sure I have all the details correct. Could we review that now?
+System: Your instructions are: Follow up with your daily medication as prescribed by Dr. Johnson. Attend your next appointment in two weeks for a follow-up examination, and contact the office if you experience any adverse reactions or worsening symptoms.  Is there anything else that I can do for you, Alexis?
+User: Thank you for summarizing my instructions. To clarify, I should continue taking my medication as prescribed, schedule another appointment in two weeks, and reach out immediately if I notice any issues. Does that cover everything Dr. Johnson discussed during the visit?
+System: That covers all of Dr. Johnson's instructions accurately. If you have no further questions or need additional assistance, is there anything else I can do for you before we conclude this follow-up call?
+User: No, that's perfect. Thank you very much for your help in confirming my treatment plan and next steps. It's reassuring to know everything is on track. Is it okay if I say goodbye now?
+System: Thank you, Alexis! If anything comes up or you need further assistance, don't hesitate to reach out. Have a great day!
+User: Thanks to you too! Take care and have a wonderful day. Goodbye!
+System: Goodbye, Alexis! Take care.

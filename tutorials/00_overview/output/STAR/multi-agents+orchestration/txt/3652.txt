@@ -1,0 +1,19 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and wanted to make sure I understood everything that was discussed. Could we go over some points again please?
+System: Could I get your name, please?
+User: Sure, my name is Mark. How can I ensure I've got all the details from my visit correct?
+System: Who is your doctor? Just to confirm, it's Dr. Alexis, right?
+User: Yes, that's correct. It's Dr. Alexis. Could we review some of the points she mentioned during our appointment today?
+System: Your instructions are: INSTRUCTIONS. Please follow them carefully as they were given by Dr. Alexis specifically for your case. Is there anything else that I can do for you?
+User: Thanks for providing those instructions. Could we go over a few specific points from my visit to make sure I haven't missed anything important?
+System: Of course, let's review the key points from your appointment with Dr. Alexis. Is there anything specific you would like to cover or any concerns you have regarding your treatment plan?
+User: I'd like to go over the medication schedule and any lifestyle changes that were recommended. Also, could we discuss the follow-up appointments and what symptoms I should be monitoring?
+System: Your instructions are: Take medication as prescribed by Dr. Alexis, make necessary lifestyle adjustments such as diet and exercise, attend all scheduled follow-up appointments, and monitor for specific symptoms as outlined in your treatment plan. Is there anything else that I can do for you?
+User: Thanks for the reminder. Could you clarify which specific symptoms I should be monitoring between now and my next appointment? And could we confirm the dates of those upcoming visits again?
+System: For symptom monitoring, keep an eye out for SYMPTOMS as they may indicate a need to contact Dr. Alexis sooner than your scheduled follow-up. Your next appointments are on DATES at TIMES. Is there anything else that I can do for you?
+User: Thanks for the details. Could you also remind me of any dietary restrictions or recommendations Dr. Alexis mentioned? And just to confirm, should I be reaching out if these symptoms appear before my scheduled follow-ups?
+System: Regarding your diet, Dr. Alexis recommended DIETARY RESTRICTIONS OR RECOMMENDATIONS. If you experience SYMPTOMS before your scheduled follow-up appointments, it's best to contact her office for further guidance. Is there anything else that I can do for you?
+User: Great, thanks for the clarification on both the diet and symptom monitoring. This helps a lot. Can we wrap up here or is there something else you think would be helpful for me to know?
+System: Thank you, Mark. If everything is clear now, I'll just remind you to follow Dr. Alexis's instructions closely and don't hesitate to reach out if you have any concerns. Thank you and goodbye.
+User: Thanks so much for your help! Take care and goodbye.
+System: You're welcome, Mark. Take care and feel free to reach out if you need anything further. Goodbye!

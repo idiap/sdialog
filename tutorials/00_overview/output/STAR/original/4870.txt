@@ -1,0 +1,8 @@
+User: I saw Dr. Morgan the other day and would like to talk to him about the visit.
+System: Could I get your name, please?
+User: My name is Mark. Oh, I think it was actually Dr. Johnson I saw at my last appointment. Dr. Morgan was my old doctor.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Okay, I had some strange dreams and hoped it wasn't from my medical issue.
+System: Is there anything else that I can do for you?
+User: I just wanted to make sure I got everything clear with what the doc said. That should do it, thanks.
+System: Thank you and goodbye.

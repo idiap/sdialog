@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I was wondering if we could go over my appointment notes from last week with Dr. Johnson. I want to make sure I didn’t miss any important details about my medication and next steps. Could you help me with that please?
+System: Of course, I can assist with that. Could I get your name, please?
+User: Sure thing! It's Alexis. Oh wait, wasn't my appointment supposed to be with Dr. Johnson? Or was it Dr. Morgan? My memory is a bit fuzzy lately.
+System: Who is your doctor? It will help me look up the correct notes for you.
+User: Oh yes, Dr. Morgan. That's right! I had my appointment last week with her. Thank you for reminding me.  By the way, do you happen to know if there are any new studies on my condition? Today I read something about a breakthrough but wasn't sure if it was reliable information.  Anyway, thanks again for your help and feel free to send over any notes or reminders from Dr. Morgan's appointment. It's been great catching up! Goodbye!
+System: Your instructions are: Check for the latest studies on Alexis' condition and provide a summary of relevant findings if available. For now, here are your doctor's instructions from the last visit: INSTRUCTIONS.  Is there anything else that I can do for you? If not, thank you and goodbye!

@@ -10,7 +10,7 @@ for room acoustics simulation and audio processing workflows.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import numpy as np
-from typing import List
+
 from sdialog import Turn
 
 
@@ -28,13 +28,13 @@ class AudioTurn(Turn):
       - Audio data storage with lazy loading capabilities
       - Timing information for audio synchronization
       - Voice and speaker position metadata
-      - Audio quality metrics (SNR, alignment)
+      - Audio quality metrics (SNR)
       - Integration with room acoustics simulation
       - Support for external audio processing tools (dscaper)
 
     Audio Processing Attributes:
       - _audio: Raw audio data as numpy array
-      - _sampling_rate: Audio sampling rate in Hz
+      - sampling_rate: Audio sampling rate in Hz
       - audio_path: File path to stored audio data
       - audio_duration: Duration of the audio in seconds
       - audio_start_time: Start time within the dialogue timeline
@@ -44,14 +44,12 @@ class AudioTurn(Turn):
       - position: Spatial position of the speaker
       - microphone_position: Microphone position for recording
       - snr: Signal-to-noise ratio of the audio
-      - alignment: Text-to-audio alignment information
-      - transcript: Transcribed text (if different from original)
       - is_stored_in_dscaper: Flag for external tool integration
 
     :ivar _audio: Raw audio data as numpy array (lazy-loaded).
     :vartype _audio: Optional[np.ndarray]
-    :ivar _sampling_rate: Audio sampling rate in Hz.
-    :vartype _sampling_rate: Optional[int]
+    :ivar sampling_rate: Audio sampling rate in Hz.
+    :vartype sampling_rate: Optional[int]
     :ivar audio_path: File path to the stored audio data.
     :vartype audio_path: str
     :ivar audio_duration: Duration of the audio in seconds.
@@ -60,10 +58,6 @@ class AudioTurn(Turn):
     :vartype audio_start_time: float
     :ivar snr: Signal-to-noise ratio of the audio.
     :vartype snr: float
-    :ivar alignment: Text-to-audio alignment information.
-    :vartype alignment: List[dict]
-    :ivar transcript: Transcribed text (may differ from original text).
-    :vartype transcript: str
     :ivar voice: Voice identifier used for TTS generation.
     :vartype voice: str
     :ivar position: Spatial position of the speaker in the room.
@@ -75,13 +69,11 @@ class AudioTurn(Turn):
     """
 
     _audio: np.ndarray = None
-    _sampling_rate: int = None
+    sampling_rate: int = -1
     audio_path: str = ""
     audio_duration: float = -1.0
     audio_start_time: float = -1.0
     snr: float = -1.0
-    alignment: List[dict] = []
-    transcript: str = ""
     voice: str = ""
     position: str = ""
     microphone_position: str = ""
@@ -115,77 +107,21 @@ class AudioTurn(Turn):
         :type sampling_rate: int
         """
         self._audio = audio
-        self._sampling_rate = sampling_rate
+        self.sampling_rate = sampling_rate
 
     @staticmethod
-    def from_turn(
-            turn: Turn,
-            audio: np.ndarray = None,
-            audio_path: str = "",
-            audio_duration: float = -1.0,
-            audio_start_time: float = -1.0,
-            snr: float = -1.0,
-            alignment: List[dict] = [],
-            transcript: str = "",
-            voice: str = "",
-            position: str = "",
-            microphone_position: str = "",
-            is_stored_in_dscaper: bool = False):
+    def from_turn(turn: Turn):
         """
-        Creates an AudioTurn object from a base Turn object with optional audio data.
+        Creates an AudioTurn object from a base Turn object.
 
         This static method converts a regular Turn object into an AudioTurn by
-        copying the base turn data (text, speaker) and optionally adding
-        audio-specific attributes and data.
+        copying the base turn data (text, speaker).
 
-        The conversion process:
-        1. Creates a new AudioTurn with the base turn's text and speaker
-        2. Optionally sets audio data and sampling rate
-        3. Sets audio-specific metadata (paths, timing, quality metrics)
-        4. Configures spatial and processing metadata
-
-        :param turn: The base Turn object to convert.
-        :type turn: Turn
-        :param audio: Optional raw audio data as numpy array.
-        :type audio: Optional[np.ndarray]
-        :param audio_path: Optional file path to stored audio data.
-        :type audio_path: str
-        :param audio_duration: Duration of the audio in seconds (default: -1.0).
-        :type audio_duration: float
-        :param audio_start_time: Start time within dialogue timeline in seconds (default: -1.0).
-        :type audio_start_time: float
-        :param snr: Signal-to-noise ratio of the audio (default: -1.0).
-        :type snr: float
-        :param alignment: Text-to-audio alignment information (default: empty list).
-        :type alignment: List[dict]
-        :param transcript: Transcribed text, may differ from original (default: empty string).
-        :type transcript: str
-        :param voice: Voice identifier used for TTS generation (default: empty string).
-        :type voice: str
-        :param position: Spatial position of the speaker in the room (default: empty string).
-        :type position: str
-        :param microphone_position: Microphone position for recording (default: empty string).
-        :type microphone_position: str
-        :param is_stored_in_dscaper: Flag for dscaper tool integration (default: False).
-        :type is_stored_in_dscaper: bool
         :return: A new AudioTurn object with audio-specific functionality.
         :rtype: AudioTurn
         """
 
         # Create AudioTurn with base turn data
         audio_turn = AudioTurn(text=turn.text, speaker=turn.speaker)
-
-        # Set audio data and metadata
-        audio_turn._audio = audio
-        audio_turn.audio_path = audio_path
-        audio_turn.audio_duration = audio_duration
-        audio_turn.audio_start_time = audio_start_time
-        audio_turn.snr = snr
-        audio_turn.alignment = alignment
-        audio_turn.transcript = transcript
-        audio_turn.voice = voice
-        audio_turn.position = position
-        audio_turn.microphone_position = microphone_position
-        audio_turn.is_stored_in_dscaper = is_stored_in_dscaper
 
         return audio_turn

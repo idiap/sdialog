@@ -1,0 +1,10 @@
+User: Hi i need help
+System: Hello, how can I help?
+User: I have just finished my appointment with Dr. Alexis, but i forgot how often i should take my medicine, i whant to followup and find out
+System: Could I get your name, please?
+User: Yes my name is Alexis, same as the doctor lol 
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ah great, i was so scared i almost took it three times,thanks
+System: I'm glad I could help. Is there anything else I can help you with?
+User: No thanks thats it, bye bye
+System: Thank you and goodbye.

@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Johnson today. Could we go over a few points again?
+System: Could I get your name, please?
+User: Of course, it's Angela. And you are? But to proceed, could we review some details from my visit with Dr. Johnson today?
+System: Who is your doctor? Just to make sure I have the right information for you, Angela.
+User: My doctor is Dr. Johnson. I just had an appointment with him and want to clarify a few things. Could we go over some of the details again?
+System: Your instructions are: INSTRUCTIONS. Please let me know if there's anything specific you need help with regarding your visit today, Angela. Is there anything else that I can do for you?
+User: I just want to make sure I understood everything about my treatment plan and next steps. Could we review those parts again?
+System: Sure, according to Dr. Johnson's instructions: INSTRUCTIONS. Is there anything specific you would like to clarify or any other assistance you need? Is there anything else that I can do for you?
+User: Could you go over the medication dosages and when to schedule my next appointment? I want to make sure I have everything right.
+System: According to Dr. Johnson's instructions, your medication dosages are: DOSAGES and your next appointment should be scheduled for DATE. Is there anything else that I can do for you? Thank you and goodbye.
+User: Perfect, thank you for clarifying that. No more assistance is needed from me at this moment. Thank you! Goodbye.
+System: You're welcome, Angela. If you have any further questions in the future, don't hesitate to reach out. Have a great day! Thank you and goodbye.

@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! Could you please remind me how often I should take my medication according to Dr. Alexis's instructions? Thanks!
+System: Could I get your name, please?
+User: Of course, my name is John. Could you please remind me about the dosage and frequency of my medication from Dr. Alexis’s appointment? I didn’t quite catch it earlier.
+System: Who is your doctor? If it's Dr. Alexis, then I can help you with her instructions.
+User: Yes, it's Dr. Alexis. Could you please tell me how often I should take my medication according to her instructions? I forgot to write them down during the appointment.
+System: Your instructions are: Take your medication twice a day, in the morning and evening, with water. Is there anything else that I can do for you?
+User: Thank you! That’s very helpful. There’s nothing else for now, just this information. Could you confirm if there are any specific times or additional instructions regarding meal times? Thanks again!
+System: Your instructions are: Take your medication 30 minutes before breakfast and dinner. No other meals need to be considered. Is there anything else that I can do for you?
+User: Got it, so I should take the medicine 30 minutes before breakfast and dinner. Thanks for confirming! There’s nothing else I need right now. Could you let me know if there are any side effects I should watch out for or any follow-up appointments coming up? That would be great!
+System: Thank you for asking, John. Watch out for the common side effects such as dizziness and nausea. Your next appointment with Dr. Alexis is scheduled in 4 weeks. Thank you and goodbye.

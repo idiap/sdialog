@@ -1,0 +1,14 @@
+User: I'm not sure this medicine my doctor prescribed me is working right.. I can't seem to remember details well at all.
+System: Could I get your name, please?
+User: I'm John.
+System: Who is your doctor?
+User: I'm not sure this medicine is really doing anything for my memory loss, I think it's worse now..I might just flush these pills.
+System: I understand.Who is your doctor?
+User: I think it's Dr. Morgan?
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: I guess that sounds right..
+System: Please call your doctor before you flush any medications
+User: I guess that might be a good idea.
+System: Is there anything else that I can do for you?
+User: That'll be all for now.
+System: Thank you and goodbye.

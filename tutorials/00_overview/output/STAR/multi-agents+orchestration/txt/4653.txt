@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Could you please remind me how often I should be taking my medication according to Dr. Morgan's instructions? I couldn't write them down during our appointment and I want to make sure I'm following her advice correctly.
+System: Could I get your name, please?
+User: Of course, my name is Ben. Could you help me with the details about taking my medication from Dr. Morgan's visit? Thank you!
+System: Who is your doctor? I believe you mentioned Dr. Morgan earlier.
+User: Yes, that’s right. My doctor is Dr. Morgan. She prescribed some medicine for me and I need a reminder on how often to take it. Could you please assist with that?
+System: Your instructions are: Take the medication twice daily, in the morning and at night, preferably with food to avoid stomach upset. Make sure to complete the full course as prescribed by Dr. Morgan. Is there anything else that I can do for you?
+User: Thank you so much! That’s really helpful. So, it’s twice a day, morning and night, with food. Got it. No further assistance needed from me, thank you! Say goodbye.
+System: Thank you and goodbye, Ben. Have a great day!

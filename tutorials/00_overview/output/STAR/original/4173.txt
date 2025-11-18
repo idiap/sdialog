@@ -1,0 +1,12 @@
+User: Hello
+System: Hello, how can I help?
+User: I need to contact Dr. Morgan. Oops, I mean Dr. Alexis. That's who I had an appointment with, I think.
+System: Could I get your name, please?
+User: My name is Angela. I don't remember where I left my keys. Do you know? I had them when I went to the grocery store.
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: I just need to know when to take my medicine. Dr. Morgan, I mean, Dr. Alexis told me, but I forgot.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh, alright. Thank you. 
+System: Is there anything else that I can do for you?
+User: No, thank you. Goodbye.
+System: Thank you and goodbye.

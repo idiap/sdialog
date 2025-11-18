@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please help me find out from my doctor how often to take the medicine he prescribed?
+System: Could I get your name, please?
+User: My name is Mark.
+System: Who is your doctor?
+User: Dr. Alexis.
+System: Your instructions are: Take the medication three times a day, 30 minutes before meals.
+User: Thank you for your help!
+System: Is there anything else that I can do for you?
+User: No, thank you. Goodbye.
+System: Thank you and goodbye.

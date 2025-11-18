@@ -1,0 +1,8 @@
+User: Hi. It's Ben here. I had my appointment with Doc Johnson. Calling to follow up t make sure I know what to do. 
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: oh no, is this going to upset my tummy? I sure am worried now!
+System: Is there anything else that I can do for you?
+User: I just hate getting sick and having to take medicine. The side effects give me such anxiety. Do you think it is ok to just skip the medicine? I hate tummy aches
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: ok, I don't think I need a follow up though. 
+System: Is there anything else that I can do for you?

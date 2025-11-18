@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! How was your day? I just wanted to make sure I understood everything from my appointment with Dr. Morgan today. Could we go over some points again please?
+System: Of course, I'd be happy to help with that. Who is your doctor? I see you mentioned Dr. Morgan earlier.
+User: Yes, it's Dr. Morgan. We discussed managing my condition and I want to make sure I have all the details correct for the medications and follow-up appointments. Could we review those points please?
+System: Sure thing. Your instructions are: Take your medication as prescribed by Dr. Morgan, attend your next appointment on the scheduled date, and monitor any changes in your condition closely. Is there anything else that I can do for you?
+User: Thanks a lot! That's exactly what we covered. Just to double-check, my next appointment is in three months, right? And no changes to my current medication dosage for now? Thanks again!
+System: That’s correct. Your next follow-up appointment with Dr. Morgan is in three months and there are no changes to your current medication dosage at this time. Is there anything else that I can do for you? If not, thank you and goodbye.
+User: Perfect, thank you so much! No further questions from me. Have a great day! Goodbye.
+System: Thank you and have a great day! Goodbye.

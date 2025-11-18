@@ -1,0 +1,12 @@
+User: I need some help.
+System: How can I help you?
+User: I just saw Dr. Morgan, no, or maybe it was Dr. Johnson. But I can not remember the medication instructions and I think I am really confused right now. I may have taken too much.
+System: Could I get your name, please?
+User: I saw a rainbow, and I wanted to find the gold.
+System: Could I get your name, please?
+User: It's Ben, the rainbow guy.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh, I was taking it all day. Maybe that's the problem.
+System: Is there anything else that I can do for you?
+User: No, thank you so much! I will only take it at night now.
+System: Thank you and goodbye.

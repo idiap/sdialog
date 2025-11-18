@@ -1,0 +1,11 @@
+System: Hello! How can I assist you today?
+User: Hi! Could you please help me recall how often Dr. Morgan instructed me to take my medication from our last appointment?
+System: Of course, could I get your name, please?
+User: Sure, it's Mark. Thanks for helping!
+System: Who is your doctor, Mark? Just confirming as you mentioned Dr. Morgan.
+User: Yes, that’s right, Dr. Morgan. Can you tell me how often I should be taking my medication according to what was discussed during my appointment with him?
+System: Your instructions are: Take the medication twice daily, in the morning and evening, as prescribed by Dr. Morgan. Is there anything else that I can do for you?
+User: Great, thank you! That’s very helpful. No, that covers everything for now. Thanks a lot!
+System: You're welcome, Mark! If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.
+User: Thanks to you too! Goodbye.
+System: Goodbye, take care!

@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and wanted to make sure I understood everything correctly about my next steps and any new medications. Could you review that information with me please?
+System: Could I get your name, please?
+User: Of course, my name is Ben. How can you assist me today regarding the details from Dr. Alexis's appointment?
+System: Who is your doctor? Just to confirm, is it Dr. Alexis or someone else?
+User: It's Dr. Alexis. I had an appointment with her earlier and I want to go over some of the information we discussed to make sure I didn't miss anything important.
+System: Your instructions are: INSTRUCTIONS. Please replace "INSTRUCTIONS" with the actual medical instructions from Dr. Alexis as you remember them or have documented. Is there anything else that I can do for you?
+User: Dr. Alexis instructed me to take my new medication twice daily, monitor my blood pressure regularly, and schedule a follow-up appointment in four weeks. Is everything clear regarding these instructions?
+System: Your instructions are: Take your new medication twice daily, monitor your blood pressure regularly, and schedule a follow-up appointment in four weeks. Is there anything else that I can do for you?
+User: Those are the exact instructions I was looking for. Thank you! Is there anyone I should contact if I have further questions or concerns before our next visit?
+System: You're welcome, Ben. If you have any further questions or concerns before your next appointment, feel free to reach out to Dr. Alexis's office. Is there anything else that I can do for you?
+User: No, that covers everything. Thanks a lot for your help! I'll make sure to keep track of my medication and blood pressure as instructed. Take care!
+System: Thank you, Ben. If you need any more assistance in the future, don't hesitate to ask. Have a great day!

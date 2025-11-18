@@ -13,7 +13,7 @@ SDialog is an MIT-licensed open-source toolkit for building, simulating, and eva
 
 It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
 
-Quick links: [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## ✨ Key features
 - Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#project-vision--community-call))_
@@ -32,6 +32,12 @@ If you are building conversational systems, benchmarking dialog models, producin
 ```bash
 pip install sdialog
 ```
+
+> [!IMPORTANT]
+> If you plan to use the audio capabilities of SDialog via its audio sub-module (`sdialog.audio`), you must install SDialog with audio dependencies:
+> ```bash
+> pip install sdialog[audio]
+> ```
 
 Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies is available on Hugging Face and can be downloaded [here](https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif).
 
@@ -109,7 +115,7 @@ support_agent.serve(port=1333)
 > - Personas and context can be [automatically generated](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) (e.g. generate different customer profiles!).
 
 > [!NOTE]
-> - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/7.agents_with_tools_and_thoughts.ipynb) for a more complete example.
+> - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/7.agents_with_tools_and_thoughts.ipynb) for a more complete example.
 > - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for more details on server options.
 
 ### 🧪 Testing remote systems with simulated users
@@ -214,7 +220,7 @@ comparator.plot()
 </details>
 
 > [!TIP]
-> See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/5.evaluation.ipynb).
+> See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/5.evaluation.ipynb).
 
 ## 🧠 Mechanistic interpretability
 
@@ -252,12 +258,53 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 </details>
 
 > [!TIP]
-> See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
+> See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
+
+
+## 🔊 Audio generation
+
+<details>
+<summary>*(WIP)* Convert text dialogs to realistic audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
+
+SDialog can transform text dialogs into realistic audio conversations with a simple one-line command. The audio module supports:
+
+* **Text-to-Speech (TTS)**: Multiple TTS engines including Kokoro and HuggingFace models
+* **Voice databases**: Automatic or manual voice assignment based on persona attributes (age, gender, language)
+* **Acoustic simulation**: Room acoustics simulation for realistic spatial audio
+* **Microphone simulation**: Professional microphones simulation from brands like Shure, Sennheiser, and Sony
+* **Multiple formats**: Export to WAV, MP3, or FLAC with custom sampling rates
+* **Multi-stage pipeline**: Step 1 (tts and concatenate utterances) and Step 2/3 (position based timeline generation and room acoustics)
+
+Generate audio with room acoustics from any dialog with a single line:
+
+```python
+from sdialog import Dialog
+
+dialog = Dialog.from_file("my_dialog.json")
+
+# Convert to audio with default settings (Kokoro TTS)
+audio_dialog = dialog.to_audio(perform_room_acoustics=True)
+print(audio_dialog.display())
+
+# Or customize the audio generation
+audio_dialog = dialog.to_audio(
+  perform_room_acoustics=True,
+  audio_file_format="mp3",
+  re_sampling_rate=16000,
+)
+print(audio_dialog.display())
+```
+
+</details>
+
+> [!TIP]
+> - See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
+> - You can find examples with more controlability in [this tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/2.accoustic_simulation.ipynb).
 
 
 ## 📖 Documentation and tutorials
 
-- [Demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/0.demo.ipynb)
+- [Demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb)
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
 - [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
 - [Documentation](https://sdialog.readthedocs.io)

@@ -1,0 +1,6 @@
+User: Hello... I just had an appointment with Dr. Johnson but I forgot my instructions.
+System: Could I get your name, please?
+User: Alexis. I would forgot my brain if it wasn't attached!
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ah, that's. right! Thank you!
+System: Thank you and goodbye.

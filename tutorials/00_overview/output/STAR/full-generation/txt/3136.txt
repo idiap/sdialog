@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you remind me of the instructions Dr. Alexis gave during my last visit?
+System: Could I get your name, please?
+User: My name is Mark.
+System: Who is your doctor?
+User: It's Dr. Alexis, I was just seeing them last week for my annual check-up.
+System: Your instructions are: Take one pill of medication X before breakfast every day until your next appointment in 3 months. Also, follow up with a blood test at the lab on the corner of Main Street and Elm Street after two weeks from now.
+User: Got it, thank you for reminding me!
+System: Is there anything else that I can do for you?

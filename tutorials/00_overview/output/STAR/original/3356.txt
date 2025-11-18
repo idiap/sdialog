@@ -1,0 +1,10 @@
+User: Hi, my name is Angela
+System: Hello, how can I help?
+User: I had an appointment with Dr. Morgan and I forgot what he told me to do. I don't know how often to take my medication
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: oh wow, I forgot Dr Morgan was my old doctor. My current doctor is Dr. Johnson. This illness makes me so confused that I went to the wrong car today
+System: Don't worry, the instructions are still the same as mentioned previously.
+User: Ok great, thank you very much
+System: Is there anything else that I can do for you?
+User: No that's all have a great day
+System: Thank you and goodbye.

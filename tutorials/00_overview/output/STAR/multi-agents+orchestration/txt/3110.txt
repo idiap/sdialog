@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I'm feeling a bit lost today. Do you happen to know how often Dr. Morgan said I should take my medication from our last visit? I think I might have forgotten to write it down.
+System: Could I get your name, please? That way I can look up your records and help you with the instructions for your medication.
+User: Of course, it's Angela. Oh, and actually Dr. Morgan was my previous doctor. My new doctor is Dr. Alexis, who I had an appointment with recently. Could you check with her office about how often to take the medicine?
+System: Who is your current doctor then? You mentioned it’s Dr. Alexis, right? Let me confirm that and get the details for you.
+User: Yes, exactly! It's Dr. Alexis now. And while we're at it, do you happen to know if I should be worried about any side effects from this medicine? Today, I felt a bit dizzy after taking my dose.  Anyway, thanks so much for your help. I really appreciate it. Have a great day!
+System: I will check with Dr. Alexis's office regarding the dosage instructions and any potential side effects of your medication. As for today’s dizziness, it might be best to contact her office or speak directly with a nurse there who can provide immediate advice.  Is there anything else that I can do for you?

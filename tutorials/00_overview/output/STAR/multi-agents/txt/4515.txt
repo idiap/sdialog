@@ -1,0 +1,9 @@
+System: Hello! How can I help?
+User: Hi, I need to follow up on some instructions from my last visit with Dr. Johnson. Could you remind me how often I should be taking my medication?
+System: Of course, could I get your name, please? This will help me find your specific instructions.
+User: Sure, it's Mark. Thanks!
+System: Who is your doctor, Mark? Just to confirm, is it Dr. Johnson?
+User: Yes, it's Dr. Johnson. Could you check the instructions for my medication frequency?
+System: Your instructions are: Take your medication twice daily, in the morning and evening with meals. Is there anything else that I can do for you?
+User: That's perfect, thanks! No further assistance is needed at this time.
+System: You're welcome, Mark. Thank you and goodbye.

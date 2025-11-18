@@ -1,0 +1,6 @@
+User: Damn it. I forgot what Dr. Alexis told me. I was blinded by her beauty
+System: Dr Alexis is a man. Can I get your name, please?
+User: Alexis
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Ohh, that's what he said. Thank you
+System: Goodnight, ma'am.

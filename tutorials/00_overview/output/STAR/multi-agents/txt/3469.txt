@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I had an appointment with Dr. Alexis last week and I want to make sure I understood everything correctly regarding my medication and follow-up steps. Could you please review that information with me?
+System: Could I get your name, please? Once I have it, I'll be able to pull up your records and go over the details of Dr. Alexis's instructions.
+User: Of course, my name is Angela. Could we please go over what Dr. Alexis discussed with me about my medication and when my next follow-up should be?
+System: Who is your doctor, Angela? I need to ensure that I am looking at the correct records for Dr. Alexis.
+User: Yes, it's Dr. Alexis. She saw me last week for a checkup. Can you please pull up what we discussed regarding my current medication and when my next appointment should be scheduled?
+System: Your instructions are: According to your records, Dr. Alexis has prescribed you to continue taking your current medication as directed on the label. Your next follow-up is scheduled in six weeks from now. Is there anything else that I can do for you?
+User: Thank you so much! That's exactly what we discussed. No further assistance needed at this time, thank you. See you in six weeks for my follow-up. Bye!
+System: You're welcome, Angela. Thank you for confirming. Have a great day and see you in six weeks!

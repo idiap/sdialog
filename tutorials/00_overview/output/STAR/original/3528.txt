@@ -1,0 +1,10 @@
+User: I need to contact Dr. Johnson.
+System: Could I get your name, please?
+User: Angela, Angela Lansbury.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Are you trying to kill me! Dr. Morgan said to never take medicine before I eat. 
+System: Dr. Johnson said to take your medicine 2 times a day before meals.
+User: Dr. Morgan is my new Dr. That guy Johnson is a quack.
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: I'm just going to ask my son when he gets home.
+System: Is there anything else that I can do for you?

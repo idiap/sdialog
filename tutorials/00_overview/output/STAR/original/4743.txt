@@ -1,0 +1,12 @@
+User: Hi! I just had an appointment with Dr. Alexis.
+System: Could I get your name, please?
+User: My name is Angela. I would like to followup. I'm not sure if I understood everything she said.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: 2 times a day before meals? that's all? 
+System: Yes those are the instructions from Dr. Alexis.
+User: Okay. Thanks so much! Goodbye
+System: Is there anything else that I can do for you?
+User: No thank you. That's all. 
+System: Thank you and goodbye.
+User: Goodbye
+System: Thank you and goodbye.

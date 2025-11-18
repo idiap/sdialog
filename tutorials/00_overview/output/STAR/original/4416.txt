@@ -1,0 +1,8 @@
+User: I forgot to write down the instructions from my doctor appointment
+System: May I have your name and your doctor's name please?
+User: Alexis. My doctor is Dr. Morgan... or Dr. Alexis. I'm not sure
+System: Can you confirm which doctor you saw?
+User: Dr. Alexis. I'm quite sure it was Dr. Alexis. I have memory problems; that's what the appointment was about
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: great thakns
+System: Thank you and goodbye.

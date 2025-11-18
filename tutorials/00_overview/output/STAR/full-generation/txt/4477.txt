@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Could you please help me recall what Dr. Alexis instructed about my medication?
+System: Could I get your name, please?
+User: My name is Alexis.
+System: Who is your doctor?
+User: It's Dr. Alexis.
+System: Your instructions are: Take the prescribed medication twice a day, once in the morning and once at night before bedtime.
+User: Thank you very much!
+System: Is there anything else that I can do for you?

@@ -1,0 +1,14 @@
+User: I forgot what my doctor told me to do. Can you help me find out?
+System: Could I get your name, please?
+User: Alexis
+System: Who is your doctor?
+User: Dr. Johnson. He's great
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: How often should I be taking the meds?
+System: That is all the information I have available to me.
+User: Actually, my doctor is Dr. Alexis. Dr. Johnson was my old doc.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Dr. Alexis seems very wealthy
+System: Is there anything else that I can do for you?
+User: No, I'm good now
+System: Thank you and goodbye.

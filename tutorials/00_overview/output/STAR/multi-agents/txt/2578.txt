@@ -1,0 +1,11 @@
+System: Hello! How can I help?
+User: Hi, how are you today? I just had my appointment with Dr. Johnson and wanted to make sure I understood everything about my treatment plan. Could we go over it again please?
+System: Of course, I'd be happy to help with that. Who is your doctor?
+User: My doctor is Dr. Johnson. We discussed some changes to my medication and I want to ensure I have the right understanding of what needs to happen next.
+System: Your instructions are: Follow up on your medications as prescribed by Dr. Johnson, attend all scheduled follow-up appointments, and report any unusual symptoms immediately. Is there anything else that I can do for you?
+User: That's very helpful. Could we go over the specifics of my medication changes and when my next appointment is scheduled? Also, are there any particular symptoms I should be watching out for in the meantime?
+System: Certainly! For your medications, make sure to take them exactly as prescribed by Dr. Johnson. Your next follow-up appointment is scheduled for [date]. As for symptoms, watch out for [specific symptoms] and report them immediately if they occur. Is there anything else you need clarification on?
+User: Thank you, that clears things up. No further questions from my end; I appreciate your help. See you at the next appointment!
+System: You're welcome! Feel free to reach out if any concerns arise before then. Thank you and goodbye.
+User: Great, thanks again. Goodbye!
+System: Goodbye! Take care.

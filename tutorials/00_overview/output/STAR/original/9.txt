@@ -1,0 +1,16 @@
+User: hello
+System: Hello, how can I help?
+User: I would like a follow up with Dr. Alexis
+System: Could I get your name, please?
+User: Angela
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: I would like to schedule another appointment I have questions
+System: Unfortunately there is currently no doctor available.
+User: Can I make one for a different day?
+System: What day are you looking for?
+User: Any day will work
+System: Unfortunately there is currently no doctor available.
+User: How about next week?
+System: Sure we can schedule an appointment next week on Monday with Dr. Alexis
+User: That would be perfect
+System: Thank you and goodbye.

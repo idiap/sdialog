@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I'm calling to follow up on my visit with Dr. Johnson last week. I want to make sure I understood everything correctly regarding my treatment plan and any upcoming tests or appointments. Could you please review that with me again?
+System: Could I get your name, please?
+User: Of course, my name is Ben. And just to clarify, Dr. Johnson was actually my previous doctor, but the appointment last week was with Dr. Alexis, right?
+System: Who is your doctor? I have notes here that you saw Dr. Alexis last week. Can we confirm if Dr. Alexis or another doctor gave you instructions?
+User: Ah yes, Dr. Alexis. That's correct. I just wanted to make sure since my memory can be a bit unreliable sometimes. Did Dr. Alexis mention anything specific about continuing with certain medications or scheduling any further tests? Also, randomly speaking, today I felt a bit dizzy after taking the prescribed medication this morning. Should I be concerned?  Thank you for your help! Have a great day and goodbye!
+System: Your instructions are: Continue with the current medication as prescribed unless you experience side effects like dizziness, in which case contact Dr. Alexis immediately to discuss adjusting the dosage or trying an alternative treatment. Also, there is an upcoming blood test scheduled for next Tuesday at 9 AM.  Is there anything else that I can do for you?   Thank you and goodbye.

@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I'm having trouble remembering everything Dr. Alexis told me after my last visit. Could you remind me how often I should be taking my medication? I want to make sure I’m doing it correctly.
+System: Could I get your name, please?
+User: Of course, my name is Alexis. And actually, to clarify, Dr. Alexis was my previous doctor. I had a follow-up appointment with Dr. Johnson recently, but I forgot to ask about the medication schedule. Could you help me with that, please?
+System: Sure, Alexis. Your instructions from Dr. Johnson are: Take your medication twice daily, once in the morning and once at night before bedtime. Is there anything else that I can do for you?
+User: Thank you so much! That's a huge help. By the way, today during my walk to work, I saw this really cute puppy and it made me feel better instantly. Do you remember seeing any puppies around here recently? Just kidding, but thanks again for the reminder about my meds!  Well, since we've got what I needed, I'll let you get back to your day. Thanks a lot! Goodbye!
+System: You're welcome, Alexis! If anything else comes up, don't hesitate to ask. Have a great day! Thank you and goodbye.

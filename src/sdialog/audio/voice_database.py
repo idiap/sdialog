@@ -51,11 +51,12 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import random
-import logging
-from pydantic import BaseModel
 from typing import List, Union
-from sdialog.util import dict_to_table
+from pydantic import BaseModel
 from collections import defaultdict, Counter
+
+from sdialog.audio.utils import logger
+from sdialog.util import dict_to_table
 
 
 def is_a_audio_file(file: str) -> bool:
@@ -707,19 +708,19 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                 lang = d["language"].lower()
             else:
                 lang = "english"
-                logging.warning("[Voice Database] Language not found, english has been considered by default")
+                logger.warning("[Voice Database] Language not found, english has been considered by default")
 
             if "language_code" in d and d["language_code"] is not None:
                 lang_code = d["language_code"].lower()
             else:
                 lang_code = "e"
-                logging.warning("[Voice Database] Language code not found, e has been considered by default")
+                logger.warning("[Voice Database] Language code not found, e has been considered by default")
 
             if "gender" in d and d["gender"] is not None:
                 gender = self._gender_to_gender(d["gender"])
             else:
                 gender = random.choice(["male", "female"]).lower()
-                logging.warning(
+                logger.warning(
                     f"[Voice Database] Gender not found, a random gender ({gender}) has been considered by default"
                 )
 
@@ -727,13 +728,15 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                 age = int(d["age"])
             else:
                 age = random.randint(18, 65)
-                logging.warning(f"[Voice Database] Age not found, a random age ({age}) has been considered by default")
+                logger.warning(
+                    f"[Voice Database] Age not found, a random age ({age}) has been considered by default"
+                )
 
             if "identifier" in d and d["identifier"] is not None:
                 identifier = str(d["identifier"])
             else:
                 identifier = f"voice_{counter}"
-                logging.warning(
+                logger.warning(
                     "[Voice Database] Identifier not found, "
                     f"a random identifier ({identifier}) has been considered by default"
                 )
@@ -763,7 +766,7 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
             ))
             counter += 1
 
-        logging.info(f"[Voice Database] Has been populated with {counter} voices")
+        logger.info(f"[Voice Database] Has been populated with {counter} voices")
 
 
 class LocalVoiceDatabase(BaseVoiceDatabase):
@@ -927,7 +930,7 @@ class LocalVoiceDatabase(BaseVoiceDatabase):
             ))
             counter += 1
 
-        logging.info(f"[Voice Database] Has been populated with {counter} voices")
+        logger.info(f"[Voice Database] Has been populated with {counter} voices")
 
 
 class VoiceDatabase(BaseVoiceDatabase):
@@ -1069,4 +1072,4 @@ class VoiceDatabase(BaseVoiceDatabase):
             ))
             counter += 1
 
-        logging.info(f"[Voice Database] Has been populated with {counter} voices")
+        logger.info(f"[Voice Database] Has been populated with {counter} voices")

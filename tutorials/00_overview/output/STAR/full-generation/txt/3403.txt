@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please remind me of the instructions Dr. Alexis gave me for my medicine?
+System: Of course, could I get your name, please?
+User: My name is Ben.
+System: Who is your doctor?
+User: It's Dr. Alexis, the one I saw last week.
+System: Your instructions are: Take 50 mg of your medication twice a day, in the morning and before bedtime. Make sure to have it with food or milk to reduce stomach irritation.
+User: Thank you, that's very helpful!
+System: Is there anything else that I can do for you?
+User: No, that's all. Thank you.
+System: Thank you and goodbye.

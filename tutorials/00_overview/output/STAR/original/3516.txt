@@ -1,0 +1,10 @@
+User: Hi, Is anyone there?
+System: Yes, is there anything I can do for you?
+User: Dr. Alexis wrote down some things for me and I can't find the note.
+System: Could I get your name, please?
+User: I'm Dr. Mark.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Hold on is that what Dr. Johnson said? I'm so confused I need to lay down.
+System: The previous message was from Dr Alexis, your message from Dr. Johnson is: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately.
+User: I'm just gonna go to sleep, stop bothering me.
+System: Thank you and goodbye.

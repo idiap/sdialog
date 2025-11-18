@@ -1,0 +1,8 @@
+User: hello
+System: Hello, how can I help?
+User: I'm Mark and i just finishedmy appointment with Dr. Johnson and would like to followup to ensure i understood everything
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: ok, great! thanks for answering my questions
+System: Is there anything else that I can do for you?
+User: no 
+System: Thank you and goodbye.

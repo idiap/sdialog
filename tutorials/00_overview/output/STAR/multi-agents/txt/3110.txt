@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I was hoping you could assist me with following up on my medication instructions. I saw Dr. Morgan recently but forgot to write down how often I should take my medicine. Could you please look that up for me?
+System: Could I get your name, please? That will help me find your records more efficiently.
+User: Of course, it's Angela. Thank you!
+System: Who is your doctor? Is it Dr. Morgan that you recently saw?
+User: Yes, it’s Dr. Morgan. I had an appointment with her a few days ago and need to know how often I should take my medication.
+System: Your instructions are: Take the prescribed medication twice daily, once in the morning and once at night before bedtime. Is there anything else that I can do for you?
+User: Thank you so much! That’s a huge help. No, that covers everything for now. Thank you again!
+System: You're welcome, Angela. If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.

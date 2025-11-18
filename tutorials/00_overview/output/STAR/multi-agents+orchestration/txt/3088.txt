@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I just finished my appointment with Dr. Johnson but forgot to write down his instructions. Could you please find out how often I should take my medicine? Thanks!
+System: Could I get your name, please? This will help me look up your medical records and provide the correct information.
+User: Sure thing, it's Ben. Can you tell me how often I need to take my medication according to Dr. Johnson’s instructions?
+System: Of course, Ben. Your instructions are: Take your medication twice a day, in the morning and before bedtime. Is there anything else that I can do for you?
+User: Great, thanks for clarifying! No, that covers everything for now. Thanks a lot! See you next time.
+System: You're welcome, Ben. Thank you and goodbye. See you next time!

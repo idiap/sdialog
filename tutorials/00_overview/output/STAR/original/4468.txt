@@ -1,0 +1,6 @@
+User: Hi my name is mark and I had an appointment with Dr. Alexis.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: I am sorry, I meant Dr. Alexis. Morgan was actually the old doctor.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Thanks, have a great day.
+System: Thank you and goodbye.

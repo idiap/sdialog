@@ -1,0 +1,5 @@
+System: Hello! How can I help?
+User: Hi! Can you remind me how often Dr. Alexis said I should take my medicine? I couldn't write down all the instructions from our last appointment.
+System: Of course, your doctor mentioned that you should take your medication twice a day, in the morning and at night. Would you like to know any other details from the appointment?
+User: That's great, thanks! No, that covers everything I needed to know for now. Just making sure I have my dosage right. Thanks again! Say goodbye!
+System: You're welcome! If you have any more questions in the future, don't hesitate to ask. Take care and goodbye!

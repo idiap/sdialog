@@ -1,0 +1,8 @@
+User: Hi I just finished an appointment with Dr. Johnson and need to followup to make sure I understood everything
+System: Could I get your name, please?
+User: Mark
+System: You must take your medicine 2 times a day before meals.
+User: Ok thanks, do you know how many days I take it for?
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Ok, probably till it's gone. Thanks alot. Have a great day.
+System: Thank you and goodbye.

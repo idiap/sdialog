@@ -1,0 +1,14 @@
+User: HI. Where are my pills?
+System: Could I get your name, please?
+User: Mark, my old doctor was a fraud. His name was Morgan.
+System: Who is your doctor?
+User: That nice woman is my doctor do you know her?
+System: Who is your doctor?
+User: Her secretary calls her Alexis.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Okay, I just have to remember to eat.
+System: Is there anything else that I can do for you?
+User: Do you know my daughter?
+System: I am sorry, I don't quite understand what you mean. I am only able to help schedule a followup appointment with your doctor.
+User: GOod night
+System: Thank you and goodbye.

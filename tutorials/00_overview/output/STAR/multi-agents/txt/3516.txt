@@ -1,0 +1,11 @@
+System: Hello! How can I help?
+User: Hi, I was wondering if you could assist me with following up on my recent doctor's visit. I forgot to write down how often I should take my medication. Could you find out for me please?
+System: Of course, I can help with that. Could I get your name, please?
+User: Sure thing, my name is Mark. Can you reach Dr. Alexis and confirm how often I need to take the medicine she prescribed?
+System: Who is your doctor, Mark? Just to make sure I have the right one.
+User: My doctor is Dr. Alexis. Could you check with her about the medication schedule please?
+System: Your instructions are: Contact Dr. Alexis to confirm the medication schedule for Mark. Is there anything else that I can do for you, Mark?
+User: That's all for now, thanks! Once you have the information from Dr. Alexis, could you let me know how often I should take my medicine?
+System: Sure thing, Mark. I'll get that information for you and make sure to inform you once I have it. Thank you and goodbye for now.
+User: Thanks a lot! Looking forward to hearing from you soon. Bye!
+System: You're welcome, Mark. I'll be in touch with the details shortly. Have a great day!

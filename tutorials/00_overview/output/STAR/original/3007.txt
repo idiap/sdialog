@@ -1,0 +1,10 @@
+User: I need some help with my medicine.
+System: Could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: I think his name was Dr. Johnson, I can't exactly remember..
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Huh.. I guess that sounds right. I'm just gonna go to bed I guess.
+System: Is there anything else that I can do for you?
+User: I think my doctor may be wrong about my proper dosage, he seems like he's no good at his job, oh well.
+System: Thank you and goodbye.

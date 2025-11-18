@@ -1,0 +1,8 @@
+User: hi
+System: Hello, how can I help?
+User: Hi I just finished my appointment with Dr. Morgan and I forgot to write down the instructions he gave me, can you help me find out how often to take my meds?
+System: Could I get your name, please?
+User: Mark
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Phew thanks, you're a life safer!
+System: Thank you and goodbye.

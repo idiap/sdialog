@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Do you happen to know how often I should be taking my medication? I saw Dr. Johnson recently but forgot to write down what he said.
+System: Could I get your name, please?
+User: Of course, my name is John. And it turns out I actually saw Dr. Alexis recently, not Dr. Johnson as I initially thought. But I'm still unsure about the instructions for my medication. Could you help me with that?
+System: Who is your doctor? It seems like there might be a bit of confusion in your previous statement. You mentioned seeing both Dr. Johnson and Dr. Alexis, but could you clarify which doctor you saw most recently regarding your medication? This will help me provide the correct instructions.
+User: Oh right, I saw Dr. Alexis most recently. She took over from Dr. Johnson. And speaking of doctors, I remember feeling a bit overwhelmed during my last visit with all the new information. Can you tell me how often I should be taking my medication? Also, I had an odd dream last night where I forgot to take my pills and everything was in chaos! It was quite funny but also a little scary. Could you please help clear things up for real?
+System: Your instructions are: Take your medication twice daily, once in the morning and once before bedtime.  Is there anything else that I can do for you?
+User: Thank you so much! That clears everything up for me. No, that's all for now, thanks a lot for your help!  Goodbye!
+System: You're welcome, John. If you have any more questions in the future, don't hesitate to ask. Thank you and goodbye.

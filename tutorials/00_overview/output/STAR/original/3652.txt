@@ -1,0 +1,10 @@
+User: Hello, can I schedule a follow up?
+System: Who is your doctor?
+User: Dr. Alexis
+System: Could I get your name, please?
+User: Mark
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Thank you for that. Is it still possible to schedule a follow up? I REALLY want to make sure I understood everything.
+System: This is just for followup instructions. I cannot schedule an appointment at this time.
+User: Ok, thanks anyway. Have a good day
+System: Thank you and goodbye.

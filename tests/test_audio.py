@@ -1,26 +1,42 @@
 import os
+import json
 import shutil
 import pytest
 import numpy as np
-from unittest.mock import MagicMock, patch
-import json
 import pandas as pd
-import soundfile as sf
+
+# Try to import audio dependencies
+try:
+    import soundfile as sf
+
+    from sdialog.audio.turn import AudioTurn
+    from sdialog.audio.room_generator import BasicRoomGenerator
+    from sdialog.audio.utils import Role, AudioUtils, Furniture, SpeakerSide
+    from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
+    from sdialog.audio.voice_database import Voice, is_a_audio_file
+    from sdialog.audio.voice_database import BaseVoiceDatabase, LocalVoiceDatabase, VoiceDatabase
+    from sdialog.audio.tts import BaseTTS
+    from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
+    from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.pipeline import AudioPipeline, to_audio
+    from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
+    from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
+    from sdialog.audio.processing import AudioProcessor
+except ImportError:
+    print("\n" + "=" * 80)
+    print("Audio dependencies are not installed. All audio tests will be skipped.")
+    print("=" * 80 + "\n")
+
+    # Skip the entire module - pytest will not collect any tests from this file
+    pytest.skip(
+        "Audio dependencies not installed. If you are working with audio, install them with: "
+        "pip install sdialog[audio]",
+        allow_module_level=True
+    )
 
 from sdialog import Turn, Dialog
-from sdialog.audio.turn import AudioTurn
-from sdialog.audio.room_generator import BasicRoomGenerator
-from sdialog.audio.utils import Role, AudioUtils, Furniture, SpeakerSide
-from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
-from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, LocalVoiceDatabase, is_a_audio_file, VoiceDatabase
-from sdialog.audio.tts_engine import BaseTTS
-from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
-from sdialog.audio.acoustics_simulator import AcousticsSimulator, AudioSource
-from sdialog.audio.dialog import AudioDialog
-from sdialog.audio.pipeline import AudioPipeline, to_audio
-from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
-from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
-from sdialog.audio.processing import AudioProcessor
+from unittest.mock import MagicMock, patch
 
 
 def test_position3d_initialization():
@@ -607,9 +623,9 @@ def test_persona_to_voice_missing_persona_info(dialog_with_personas):
         identifier="v_random", gender="female", age=25, voice="r.wav", language="english"
     )
 
-    with patch('logging.warning') as mock_warning:
+    with patch('sdialog.audio.dialog.logger') as mock_logger:
         dialog_with_personas.persona_to_voice(mock_voice_db, seed=42)
-        assert mock_warning.call_count == 2  # one for age, one for language
+        assert mock_logger.warning.call_count == 2  # one for age, one for language
 
     call_args_list = mock_voice_db.get_voice.call_args_list
     alice_call = next((c for c in call_args_list if c.kwargs.get("gender") == "female"), None)
@@ -685,7 +701,7 @@ def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
 @pytest.fixture
 def mock_dependencies():
     """Mocks all external dependencies for AudioPipeline tests."""
-    with patch('sdialog.audio.pipeline.KokoroTTS') as mock_tts, \
+    with patch('sdialog.audio.pipeline.HuggingFaceTTS') as mock_tts, \
          patch('sdialog.audio.pipeline.HuggingfaceVoiceDatabase') as mock_db, \
          patch('sdialog.audio.pipeline.scaper', create=True) as mock_scaper, \
          patch('sdialog.audio.pipeline.generate_utterances_audios') as mock_gen_utt, \
@@ -703,7 +719,7 @@ def mock_dependencies():
 def test_audio_pipeline_initialization(mock_dependencies):
     """Tests that AudioPipeline initializes with default components if none are provided."""
     pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
-    assert isinstance(pipeline.tts_pipeline, MagicMock)
+    assert isinstance(pipeline.tts_engine, MagicMock)
     assert isinstance(pipeline.voice_database, MagicMock)
     mock_dependencies["tts"].assert_called_once()
     mock_dependencies["db"].assert_called_once()
@@ -725,7 +741,7 @@ def test_audio_pipeline_inference_step1(mock_dependencies, audio_dialog_instance
 
     mock_dependencies["gen_utt"].return_value = dialog_with_audio
 
-    pipeline.inference(audio_dialog_instance, do_step_1=True)
+    pipeline.inference(audio_dialog_instance)
 
     mock_dependencies["gen_utt"].assert_called_once()
     mock_dependencies["save_utt"].assert_called_once()
@@ -738,7 +754,7 @@ def test_audio_pipeline_inference_resampling(mock_dependencies, audio_dialog_ins
     audio_dialog_instance.audio_step_1_filepath = str(step1_file)
 
     pipeline = AudioPipeline(dir_audio=str(tmp_path), impulse_response_database=mock_dependencies["ir_db"])
-    pipeline.inference(audio_dialog_instance, do_step_1=False, re_sampling_rate=16000)
+    pipeline.inference(audio_dialog_instance, perform_tts=False, re_sampling_rate=16000)
 
     # This is a bit indirect. We check if librosa.resample was called.
     # The mocks need to be set up for this to be reachable.
@@ -746,19 +762,15 @@ def test_audio_pipeline_inference_resampling(mock_dependencies, audio_dialog_ins
     # A more detailed test would mock the os.path.exists and sf.write calls.
     # Given the complexity, we'll check that it *doesn't* get called when not requested.
 
-    pipeline.inference(audio_dialog_instance, do_step_1=False)
+    pipeline.inference(audio_dialog_instance, perform_tts=False)
     mock_dependencies["librosa"].resample.assert_not_called()
 
 
 def test_to_audio_wrapper_errors(mock_dependencies):
     """Tests validation logic in the to_audio wrapper function."""
     dialog = Dialog(turns=[Turn(speaker="A", text="t"), Turn(speaker="B", text="t")])
-    with pytest.raises(ValueError, match="step 3 requires the step 2"):
-        to_audio(dialog, do_step_3=True, do_step_2=False)
-    with pytest.raises(ValueError, match="step 2 requires the step 1"):
-        to_audio(dialog, do_step_2=True, do_step_1=False)
     with pytest.raises(ValueError, match="room name is only used if the step 3 is done"):
-        to_audio(dialog, room_name="test", do_step_3=False)
+        to_audio(dialog, room_name="test", perform_room_acoustics=False)
 
 
 def test_audio_pipeline_master_audio(audio_dialog_instance, mock_dependencies):

@@ -1,0 +1,8 @@
+User: What's going on
+System: Could I get your name, please?
+User: It's me, Angela. You don't recognize your own mother?
+System: Who is your doctor?
+User: Dr Alexis I think, sweetie. I'm feeling a little woozy. 
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: oh ok. Thank you
+System: Is there anything else that I can do for you?

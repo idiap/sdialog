@@ -1,0 +1,8 @@
+User: I forgot the instructions from my appointment.
+System: Could I get your name, please?
+User: Mark
+System: Who is your doctor?
+User: Dr. Johnson
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: thank you very much
+System: Thank you and goodbye.

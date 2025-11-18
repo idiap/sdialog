@@ -1,0 +1,4 @@
+User: Hello, I need to follow up with Dr Morgan to make sure I understood the instructions. 
+System: Could I get your name, please?
+User: Sure, my name is Mark
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..

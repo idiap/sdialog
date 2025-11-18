@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! Do you happen to know when I should take my medication that Dr. Alexis prescribed? I feel a bit foggy and can't remember the instructions she gave me.
+System: Could I get your name, please?
+User: Of course, it's Mark. And oh right, I think my last appointment was actually with Dr. Morgan since Dr. Alexis is no longer my doctor. Can you help me recall how often I should take the medication from what Dr. Morgan told me?
+System: Who is your doctor? I understand you mentioned both Dr. Alexis and Dr. Morgan. Could you clarify which one you are currently seeing for this issue?
+User: Oh yes, my apologies for the confusion. It's Dr. Morgan that I saw recently about my medication. She was the one who prescribed it during my last visit. Could you please remind me how often I should be taking it? And by the way, I felt a bit dizzy earlier today but I'm not sure if that’s related or just another day of feeling off.
+System: Your instructions are: Take your medication twice daily, once in the morning and once at night before bedtime. Regarding your dizziness, it might be worth mentioning to Dr. Morgan during your next follow-up call or visit. Is there anything else that I can do for you?
+User: Thanks a lot! That’s exactly what I needed to know. And yes, I’ll make sure to mention the dizziness to Dr. Morgan next time. It’s just one of those days, I guess.  Well, it was nice talking to you and getting this sorted out. Take care!
+System: You're welcome, Mark! If anything else comes up, don't hesitate to reach out. Thank you and goodbye.

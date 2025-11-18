@@ -259,7 +259,7 @@ def create_graph(trajectories: Dict,
     prune_graph(G, prune_threshold_edges,
                 by="edge",
                 remove_unrecheable=True)
-    logger.log(log_level, f"  #Nodes after pruning: {len(G.nodes)}")
+    logger.info(f"Final graph contains {len(G.nodes)} nodes after pruning and normalization.")
 
     normalize_edges(G, policy=edges_weight)  # normalizing again to recompute the weights
 
@@ -287,8 +287,8 @@ def create_graph(trajectories: Dict,
     g.node(DEFAULT_TOKEN_END, "END", shape='Mdiamond', fillcolor="#e0e0e0")
 
     g.graph_attr["dpi"] = "300"
-    logger.log(log_level, f"  Saving graph as DOT format in '{output_file}.dot'")
-    g.render(output_file, view=False, format="dot")
+    # logger.log(log_level, f"  Saving graph as DOT format in '{output_file}.dot'")
+    # g.render(output_file, view=False, format="dot")
     if png_visualization:
         logger.log(log_level, f"  Saving graph PNG visualization in '{output_file}.png'")
         g.render(output_file, view=False, format="png")

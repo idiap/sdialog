@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Johnson but I forgot to write down when I should take my medication. Could you remind me how often I need to take it?
+System: Could I get your name, please? Once I have that information, I can check the records and let you know about your medication schedule.
+User: Sure, my name is Ben. Thanks for helping me out!
+System: Who is your doctor? It will help me find the correct record to check your medication instructions.
+User: My doctor is Dr. Johnson. Could you please look up when I should be taking my medicine?
+System: Your instructions are: Take your medication twice a day, once in the morning and once in the evening with meals. Is there anything else that I can do for you?
+User: Thanks for checking that! Dr. Johnson mentioned something about taking it after meals, right? And how should I proceed if I miss a dose?
+System: If you miss a dose, take it as soon as you remember unless it's close to the time of the next dose, then skip the missed one and resume your regular schedule. Don't double up on doses. Thank you and goodbye.

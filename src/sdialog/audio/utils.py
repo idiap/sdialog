@@ -39,8 +39,12 @@ Example:
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import re
+import logging
 from enum import Enum
 from pydantic import BaseModel
+
+# Create a logger for the audio module
+logger = logging.getLogger("sdialog.audio")
 
 
 class RGBAColor(Enum):
@@ -406,3 +410,10 @@ class Role(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+def default_dscaper_datasets() -> list[str]:
+    """
+    Default dSCAPER datasets
+    """
+    return ["sdialog/background", "sdialog/foreground"]

@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! Could you please remind me how often I should take my medication according to Dr. Alexis's instructions? Thanks!
+System: Could I get your name, please? Once I have that information, I'll be able to look up Dr. Alexis's orders for you.
+User: Sure, it's Mark. Can you tell me how often I should take my medicine based on what Dr. Alexis said? Thanks!
+System: Of course, Mark. According to Dr. Alexis’s instructions, your medication regimen is as follows: INSTRUCTIONS. Is there anything else that I can do for you?
+User: Great, thanks for clarifying that. No, that's everything for now. Can't wait to feel better! Bye!
+System: You're welcome, Mark! If you have any more questions in the future, don't hesitate to ask. Take care and get well soon!

@@ -1,0 +1,10 @@
+User: Hello
+System: Hello, how can I help?
+User: I just saw Dr. Alexis but want to follow up to see that I understood everything.
+System: Could I get your name, please?
+User: Andrew M.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Great. That's exactly what I was going to ask.
+System: Is there anything else that I can do for you?
+User: No thanks. Goodbye
+System: Thank you and goodbye.

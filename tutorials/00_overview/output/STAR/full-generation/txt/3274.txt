@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please remind me of the instructions Dr. Johnson gave me for my medication?
+System: Of course, could I get your name, please?
+User: My name is John.
+System: Who is your doctor?
+User: It's Dr. Johnson, at the local clinic.
+System: Your instructions are: Take one tablet of Acetaminophen 500 mg every 6 hours as needed for pain relief, do not exceed 4 tablets in a day.
+User: Thank you. That's all I need to know.
+System: Is there anything else that I can do for you?
+User: No, thank you. Goodbye.
+System: Thank you and goodbye.

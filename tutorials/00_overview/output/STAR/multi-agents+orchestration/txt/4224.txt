@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! How are you today? I had that appointment with Dr. Johnson last week and I wanted to make sure I understood everything he said regarding my medication. Could you please clarify if I should be taking all the prescribed medicines three times a day or just twice? I'm a bit unsure about it.
+System: Could I get your name, please? Once I have that information, I can verify Dr. Johnson's instructions for your medication schedule and provide clarity on what he prescribed.
+User: Of course, my name is John. And actually, to be more precise, the latest appointment was with Dr. Morgan, not Dr. Johnson. Could you please check if I should continue taking my current medications as directed? I want to make sure I'm doing it right since some of them seem to affect me differently than before.
+System: Who is your doctor? You mentioned Dr. Morgan from the latest appointment, but let's confirm this detail so we can proceed accurately with checking your medical instructions.
+User: Yes, you're right! My new doctor is Dr. Morgan. I guess my mind was playing tricks on me for a moment there. So, could you please check in with Dr. Morgan about the specifics of my medication schedule? It would really help put my mind at ease.  Well, it's been great talking and thanks for your help! Have a wonderful day!
+System: Thank you John, I'll reach out to Dr. Morgan to confirm your medication details. Is there anything else that I can do for you? If not, have a great day!

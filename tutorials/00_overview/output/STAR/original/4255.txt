@@ -1,0 +1,10 @@
+User: Hi i need your help
+System: Could I get your name, please?
+User: Ok, My name is John i need a followup wit my doctor
+System: Who is your doctor?
+User: Its Dr. Morgan, i just whant to make sure i got everything right
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: ah, great that was all i wanted to know.
+System: Thank you and goodbye.
+User: Thanks goodbye
+System: Thank you and goodbye.

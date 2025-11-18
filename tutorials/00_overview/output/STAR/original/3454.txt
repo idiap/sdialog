@@ -1,0 +1,10 @@
+User: Hi I keep seeing talking cats everywhere I go.  I think I'm taking my medicine wrong can you help me?
+System: I can try. I'll just need your name and your doctor's name.
+User: My name is John and my doctor is Dr. Alexis.  She is a talking cat thought I think.
+System: That doesn't sound right. Most cats can't talk. Are you sure Alexis is your Doctor?
+User: Yes.  Oh wait nevermind it was Dr. Johnson.  I get them confused.  
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Perfect.  No wonder it wasn't working I have been taking them when I wake up.  Thanks for the help!
+System: Is there anything else that I can do for you?
+User: Nope thank you for the help!  Meow!
+System: Thank you and goodbye.

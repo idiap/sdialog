@@ -1,0 +1,8 @@
+User: Heyo! I just finished an appointment with Dr. Morgan. I need a followup, please. 
+System: Could I get your name, please?
+User: Yea, it's Ben
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh okay. That's all Dr. Morgan said?
+System: Is there anything else that I can do for you?
+User: No I don't think so.
+System: Thank you and goodbye.

@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I'm feeling a bit foggy today and wanted to make sure I understood everything Dr. Johnson said during my last visit. Could we go over it again please?
+System: Could I get your name, please?
+User: Of course, my name is Angela. And actually, Oh right, Dr. Johnson wasn't the doctor I saw this time, it was Dr. Morgan. My apologies for getting that mixed up. Could we go over what Dr. Morgan discussed with me during my appointment?
+System: Who is your doctor? Just to confirm, you mentioned Dr. Morgan? (Please note: In this case, since Angela has already correctly identified her doctor as Dr. Morgan, the next step should be directly informing about the instructions instead of asking again for confirmation)
+User: That's right! Dr. Morgan. I just wanted to make sure I didn't forget anything important from my visit. Do you think we could review the medication he prescribed? Sometimes it feels like a lot to take in at once.
+System: Your instructions are: Take your medications as prescribed by Dr. Morgan, which include [list of medications], and follow up with any questions or concerns. Is there anything else that I can do for you?
+User: Thanks so much! I'll make sure to stick to the regimen. Actually, one more thing—do you have any tips on managing side effects from these new meds? They seem pretty strong.  Thank you for all your help today. Have a great day!
+System: For managing side effects, it's important to monitor them closely and report back to Dr. Morgan if they become bothersome. Adjustments can often be made to minimize discomfort. Thank you for reaching out and take care! Bye!

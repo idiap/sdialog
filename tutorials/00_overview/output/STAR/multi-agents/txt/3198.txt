@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I saw Dr. Alexis last week but forgot to write down my medication instructions. Could you remind me how often I should take my medicine please?
+System: Could I get your name, please?
+User: Of course, my name is Alexis. Could you help me with my medication schedule please?
+System: Who is your doctor?
+User: My doctor is Dr. Alexis. I need a reminder about the dosage and frequency of my medication.
+System: Your instructions are: Take 500mg of the prescribed antibiotic twice daily, in the morning and evening, for one week. Is there anything else that I can do for you?
+User: Thank you! That's very helpful. There's nothing else I need right now, just this information about my medication schedule. Thanks a lot!
+System: You're welcome, Alexis. Thank you and goodbye.
+User: Thanks to you too! Goodbye.
+System: Goodbye! Take care.

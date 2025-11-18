@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and wanted to make sure I understood everything discussed regarding my treatment plan. Could we go over it one more time please?
+System: Of course, could I get your name, please?
+User: Sure, this is Alexis. We met earlier today during the consultation.
+System: Who is your doctor? Dr. Alexis has provided instructions for you: Take your medication as prescribed and schedule a follow-up appointment in six weeks. Is there anything else that I can do for you?
+User: Thanks for the summary. To clarify, Dr. Alexis wants me to take my medication as prescribed and come back in six weeks for another check-up, correct? Is there any additional information or advice she thinks is important for me right now?
+System: Your instructions are: Take your medication as prescribed and schedule a follow-up appointment in six weeks. There isn't any additional immediate advice from Dr. Alexis at this time. Is there anything else that I can do for you?
+User: Perfect, thank you for confirming that. No further actions seem necessary right now based on what you've provided. Just making sure everything is clear before I leave.
+System: Thank you and goodbye.

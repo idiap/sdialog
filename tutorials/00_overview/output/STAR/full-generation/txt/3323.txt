@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: I'm John. Can you please confirm what Dr. Alexis told me at my appointment last week?
+System: Could I get your doctor's name, please?
+User: Dr. Alexis is the one.
+System: Your instructions are: INSTRUCTIONS. Please review them and let me know if they are correct.
+User: Yes, those instructions seem to match what Dr. Alexis said.
+System: Is there anything else that I can do for you?
+User: No, that's all. Thanks!
+System: Thank you and goodbye.

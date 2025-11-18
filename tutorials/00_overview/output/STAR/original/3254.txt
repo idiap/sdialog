@@ -1,0 +1,6 @@
+User: Hi. I just finished my appointment, but I forgot to take note of how often to take my medicine. 
+System: May I have your name and your doctor's name please?
+User: My name is Alexis and Dr. Morgan is my primary care doctor.
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Alright, thanks for the quick response.
+System: Thank you and goodbye.

@@ -1,0 +1,6 @@
+User: My name is John and I had an appointment with Dr. Morgan the other day. How often should I take my medicine?
+System: Take your medicine 2 times a day and right before meals.
+User: I'm sorry. I mean Dr. Alexis. Dr. Morgan was my old doctor.
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: I can't believe I mixed the two doctors up. Thank you for your help. Goodbye.
+System: Thank you and goodbye.

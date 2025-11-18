@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi, could you please remind me of my doctor's instructions? I forgot to write them down during my appointment with Dr. Morgan.
+System: Could I get your name, please?
+User: Of course, my name is Angela.
+System: Who is your doctor?
+User: My doctor is Dr. Morgan.
+System: Your instructions are: Take the prescribed medication twice daily, in the morning and at night before bedtime. Follow up with Dr. Morgan after two weeks to discuss any side effects or changes in your condition.
+User: Thank you, that's very helpful. Is there anything else I need to know?
+System: Is there anything else that I can do for you?
+User: No, that's all. Thank you so much!
+System: You're welcome! If you have any more questions in the future, feel free to ask.

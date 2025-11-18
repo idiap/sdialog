@@ -1,0 +1,10 @@
+User: I forgot the instructions I was given by my doctor, can you help me out?
+System: Could I get your name, please?
+User: Ben
+System: Who is your doctor?
+User: Dr. Alexis, wait... that was my previous doctor I think..so hard to remember these days. I'm pretty sure it was Dr. Johnson!
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Cool, I don't even remember why I'm taking the medicine, but Dr. Johnson has a nice smile you know haha.
+System: Is there anything else that I can do for you?
+User: Nah, thanks.
+System: Thank you and goodbye.

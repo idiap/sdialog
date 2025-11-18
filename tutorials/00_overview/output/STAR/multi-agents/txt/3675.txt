@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Morgan today. Could we go over a few points again please?
+System: Of course, could I get your name, please?
+User: Sure, it's Ben. Thanks for your help!
+System: Who is your doctor, Ben? Just to confirm.
+User: My doctor is Dr. Morgan. I saw her this afternoon and wanted to clarify a few things about my treatment plan.
+System: Your instructions are: Follow up with blood tests in two weeks and continue taking the prescribed medication as directed until further notice. Is there anything else that I can do for you?
+User: That's great, thanks! So, just to confirm, Dr. Morgan wants me to follow up with blood tests in two weeks, right? And I should keep taking my current medications until she tells me otherwise?
+System: Yes, Ben. You need to have your blood tests done in two weeks and continue the prescribed medication as instructed by Dr. Morgan until you hear from her again. Is there anything else that I can do for you?
+User: No, that's perfect. Thank you so much for confirming everything! It helps a lot to have it clear. Take care! Bye!
+System: You're welcome, Ben. If you have any more questions in the future, don't hesitate to ask. Have a great day and take care! Thank you and goodbye.

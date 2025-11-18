@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions from the other day? My name is Mark.
+System: Who is your doctor?
+User: I was seeing Dr. Morgan.
+System: Your instructions are: INSTRUCTIONS. Please take your medication as prescribed, return for a follow-up visit in two weeks, and call if you have any side effects or worsening symptoms.
+User: Thank you. Can you remind me what the dosage is again?
+System: The prescribed dosage was mentioned in your instructions: INSTRUCTIONS. It should be taken twice daily, with meals.
+User: Okay, I understand now. Thanks a lot!
+System: Is there anything else that I can do for you?
+User: No, that's all for now. Thank you.
+System: Thank you and goodbye.

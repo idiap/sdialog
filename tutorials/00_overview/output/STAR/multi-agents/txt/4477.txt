@@ -1,0 +1,9 @@
+System: Hello! How can I help?
+User: Hi! I had an appointment with Dr. Alexis recently, but I forgot to write down how often I should take my medicine. Could you please look up that information for me?
+System: Of course, could I get your name, please?
+User: Sure thing, my name is Alexis. Thanks for helping!
+System: Who is your doctor, Alexis? It seems like there might be a mix-up since we both have the last name of Dr. Alexis.
+User: That's right, it's Dr. Alexis who I saw at the clinic on Pine Street yesterday. Could you check my records to find out how often I should take my medication?
+System: Your instructions are: Take your medicine three times a day, 30 minutes before meals. Is there anything else that I can do for you?
+User: That's perfect, thank you! So I need to take it three times a day, 30 minutes before meals. No other assistance needed, thanks so much! See you later!
+System: You're welcome, Alexis! If you have any more questions in the future, don't hesitate to ask. Have a great day and goodbye!

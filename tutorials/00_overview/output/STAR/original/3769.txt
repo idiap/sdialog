@@ -1,0 +1,6 @@
+User: hello
+System: Could I get your name, please?
+User: Im Mark and i just finished your appointment with Dr. Alexis. Unfortunately, i forgot to write down the instructions the doctor gave me. 
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: okay, thank you
+System: Thank you and goodbye.

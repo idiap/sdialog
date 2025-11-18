@@ -1,0 +1,8 @@
+User: Hi
+System: Hello, how can I help?
+User: I'm John I just finished an appointment with Dr Morgan and I would like a follow up to ensure I got everything right
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Oh! Thanks
+System: Is there anything else that I can do for you?
+User: That would be all 
+System: Have a great day!

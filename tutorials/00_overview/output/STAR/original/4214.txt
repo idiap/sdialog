@@ -1,0 +1,10 @@
+User: I had an appointment and I can't remember what he said
+System: Could I get your name, please?
+User: Angela
+System: Who is your doctor?
+User: Dr. Johnson... or Dr. Morgan. ugh wow I gan't remember
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: ok thank you. I have terrible memory problems. that's what the meds are for
+System: Is there anything else that I can do for you?
+User: that's all
+System: Thank you and goodbye.

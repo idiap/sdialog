@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi! I need to follow up on my instructions from Dr. Alexis. Could you remind me how often I should take my medication?
+System: Of course, could I get your name, please?
+User: Sure, my name is Mark. Thanks for helping with this.
+System: Who is your doctor, Mark? Just to confirm it's Dr. Alexis we're referring to.
+User: Yes, it’s Dr. Alexis. That’s who I saw recently.
+System: Your instructions are: Take your medication twice a day, in the morning and before bedtime. Is there anything else that I can do for you?
+User: That's perfect, thanks! No, that covers everything for now.
+System: Thank you and goodbye, Mark. Take care!

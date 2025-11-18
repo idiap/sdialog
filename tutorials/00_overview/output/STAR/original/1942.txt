@@ -1,0 +1,6 @@
+User: Hello, I just want to follow up on Dr. Johnson's orders. Can you help me?
+System: Could I get your name, please?
+User: Ben
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Okay, thanks. That was what I thought but I just wanted to make sure. Thank you.
+System: Thank you and goodbye.

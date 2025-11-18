@@ -1,0 +1,8 @@
+System: Hello, how can I help?
+User: Could you please find out from Dr. Alexis how often I need to take my medicine? I forgot to write it down during the appointment.
+System: Could I get your name, please?
+User: My name is Angela.
+System: Who is your doctor?
+User: Dr. Alexis.
+System: According to Dr. Alexis, you need to take your medicine three times a day, once in the morning, once at noon, and once before bed.
+System: Is there anything else that I can do for you?

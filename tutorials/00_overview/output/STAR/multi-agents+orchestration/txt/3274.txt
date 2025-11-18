@@ -1,0 +1,7 @@
+System: Hello, how can I help?
+User: Hi! I'm calling to follow up on my last visit to Dr. Johnson. I seem to have forgotten when and how often he prescribed for me to take my medication. Could you please remind me? It’s driving me a bit crazy not knowing!
+System: Could I get your name, please? This will help me look up your records more efficiently.
+User: Of course, it's John. And actually, I just remembered that Dr. Johnson isn't my current doctor anymore; it was Dr. Morgan who I saw recently for the appointment regarding this medication. Could you check with Dr. Morgan’s office instead? Thanks so much!
+System: Who is your doctor now then? To clarify, are you asking about instructions from Dr. Morgan or another physician?
+User: Oh yes, my current doctor is Dr. Morgan. I’m just a bit worried since I can’t recall the dosage for this new medication he prescribed. It’s been on my mind all day!  By the way, did anything funny happen to you today at work? Anyway, thanks so much for your help with this! I really appreciate it. I’ll talk to you soon. Bye!
+System: Your instructions are: Take 50 mg of the prescribed medication twice daily, in the morning and before bedtime. Is there anything else that I can do for you? If not, thank you and goodbye.

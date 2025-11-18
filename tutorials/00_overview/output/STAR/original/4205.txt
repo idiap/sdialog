@@ -1,0 +1,10 @@
+User: Hello I'd like to followup on an appointment
+System: May I have your name and your doctor's name please?
+User: Angela, with Dr Johnson
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Oh shoot, my doctor is actually Dr. Morgan. Dr. Johnson was my old doctor
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Are these the same medicines? I saw the doctors for different conditions I think. I'm not sure how well the medications work or how they interact with each other..
+System: Is there anything else that I can do for you?
+User: I trust my doctors. They're very reliable. That's all I have, thank you
+System: Thank you and goodbye.

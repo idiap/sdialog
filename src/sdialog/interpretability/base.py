@@ -80,17 +80,22 @@ class BaseHook(ABC):
         """Placeholder hook (override in subclasses)."""
         pass
 
-    def register(self, model):
+    def register(self, model, is_pre_hook=False):
         """
         Registers the hook on the given model using the layer_key.
 
         :param model: Model whose layer will be hooked.
         :type model: torch.nn.Module
+        :param is_pre_hook: Whether to register as a pre-forward hook.
+        :type is_pre_hook: bool
         :return: The hook handle.
         :rtype: Any
         """
         layer = dict(model.named_modules())[self.layer_key]
-        self.handle = layer.register_forward_hook(self.hook_fn)
+        if is_pre_hook:
+            self.handle = layer.register_forward_pre_hook(self.hook_fn)
+        else:
+            self.handle = layer.register_forward_hook(self.hook_fn)
         return self.handle
 
     def remove(self):

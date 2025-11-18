@@ -1,0 +1,13 @@
+System: Hello, how can I help?
+User: Hi! Just wanted to make sure I understood everything from my appointment with Dr. Johnson earlier today. Could we go over a few points again?
+System: Could I get your name, please?
+User: Sure, this is Ben. I saw Dr. Johnson recently and just want to clarify a couple of things from our visit.
+System: Who is your doctor? I see you mentioned Dr. Johnson already, but let's make sure we're on the same page.
+User: Yes, absolutely. My doctor is Dr. Johnson at Riverside Clinic. We discussed my treatment plan and some test results today, and there are a couple of things I want to confirm.
+System: Your instructions are: Follow up with your next scheduled appointment in two weeks for further evaluation based on the latest test results.  Is there anything else that I can do for you?
+User: Thanks for confirming that my next appointment is in two weeks for a follow-up based on the latest test results. Could you also remind me about any specific instructions Dr. Johnson gave regarding diet or medication between now and then?
+System: Your instructions include maintaining your current medication regimen as prescribed and adhering to a low-sodium diet until your next appointment.  Is there anything else that I can do for you?
+User: Thanks for the reminder about my medication and the low-sodium diet. No further questions from me right now, just wanted to make sure I had everything correct. Thanks!
+System: Thank you and goodbye.
+User: Thank you, have a great day!
+System: Goodbye! Take care.

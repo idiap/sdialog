@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Could you please confirm my doctor's instructions from today's appointment?
+System: Of course! Could I get your name, please?
+User: My name is Mark.
+System: Who is your doctor?
+User: I saw Dr. Morgan today.
+System: Your instructions are: Take the prescribed medication three times a day with meals, schedule a follow-up appointment in six weeks and call if your symptoms worsen or new ones arise.
+User: Thank you. That's what I thought, but wanted to double-check.
+System: Is there anything else that I can do for you?
+User: No, thank you. Have a good day!
+System: Thank you and goodbye.

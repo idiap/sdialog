@@ -1,0 +1,6 @@
+User: Hi I had an appointment with Dr. Morgan but I didn't write down the instructions he gave me
+System: Could I get your name, please?
+User: I'm Morgan. Wow I got confused. Morgan was my doctor 20 years ago. Dr. Johnson is my doctor now
+System: Your instructions are: Take your medicine before you go to sleep. If you experience nausea, please contact your doctor immediately..
+User: Why are you taking so long to respond. I have things to do and don't feel like waiting for you all day. It's not bad enough being sick, now these meds are making me puke. I'm not happy about that at all.
+System: Is there anything else that I can do for you?

@@ -1,0 +1,8 @@
+User: Hello
+System: Hello, how can I help?
+User: I need to get Doctor Johnson's instructions again. I'm afraid I forgot them.
+System: Could I get your name, please?
+User: Angela. I'm always forgetting everything. Must be all that drinking I did in college!
+System: Your instructions are: You must take your medicine 2 times a day before meals..
+User: Thank you!
+System: Is there anything else that I can do for you?

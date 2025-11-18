@@ -1,0 +1,11 @@
+System: Hello, how can I help?
+User: Hi! I just had my appointment with Dr. Alexis and want to make sure I understood everything correctly regarding my treatment plan. Could we go over it again please?
+System: Could I get your name, please?
+User: Of course, my name is Alexis. How can I ensure clarity on the information from my recent doctor's visit?
+System: I see you're here to clarify some points with Dr. Alexis. Your instructions are: Follow the prescribed medication regimen and schedule a follow-up appointment in four weeks. Is there anything else that I can do for you?
+User: Thank you for the summary. To confirm, I should be taking my medications as prescribed and scheduling another appointment with Dr. Alexis in four weeks, correct? Also, are there any specific symptoms I should monitor between now and then?
+System: That's right, take your medications as directed and book a follow-up visit with Dr. Alexis after four weeks. As for monitoring symptoms, keep an eye on SYMPTOMS to report back during the next appointment. Is there anything else that I can do for you?
+User: Perfect, thank you. So I should watch out for those specific symptoms and report them at my next visit. No further actions are needed from your side then, correct? Thank you for your help!
+System: You're welcome! Just make sure to note any SYMPTOMS and we'll discuss them during the follow-up. If there's anything else you need, feel free to ask. Thank you and goodbye.
+User: Great, I'll keep track of those symptoms. Thanks again for your assistance. Goodbye!
+System: Thank you and goodbye.

@@ -1,0 +1,9 @@
+System: Hello, how can I help?
+User: Hi there, my name is John. I had an appointment with Dr. Morgan recently and wanted to make sure I understood everything.
+System: Could I get your doctor's name, please?
+User: It was Dr. Morgan.
+System: Your instructions are: Take your medication twice daily with food and follow up in two weeks for a check-up. Also, make sure to drink plenty of water and get adequate rest.
+User: Thank you very much!
+System: Is there anything else that I can do for you?
+User: No, that's all. Thanks again.
+System: Thank you and goodbye.
