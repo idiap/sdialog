@@ -778,7 +778,7 @@ Here's how to create a complete audio dialogue with environment simulation using
     # 4. Setup audio pipeline
     audio_pipeline = AudioPipeline(
         voice_database=voice_database,
-        tts_pipeline=tts_engine,
+        tts_engine=tts_engine,
         dir_audio="./audio_outputs"
     )
     
@@ -1166,7 +1166,7 @@ SDialog supports multilingual audio generation with custom TTS engines:
     # Generate Spanish audio
     audio_pipeline = AudioPipeline(
         voice_database=spanish_voices,
-        tts_pipeline=spanish_tts,
+        tts_engine=spanish_tts,
         dir_audio="./spanish_audio_outputs"
     )
 

@@ -291,19 +291,10 @@ class AudioDialog(Dialog):
 
         if len(self.audio_step_1_filepath) > 0:
             print("-" * 25)
-            print("Step 1:")
+            print("TTS Audio:")
             print("-" * 25)
             display(Audio(
                 self.audio_step_1_filepath,
-                autoplay=False
-            ))
-
-        if len(self.audio_step_2_filepath) > 0:
-            print("-" * 25)
-            print("Step 2:")
-            print("-" * 25)
-            display(Audio(
-                self.audio_step_2_filepath,
                 autoplay=False
             ))
 
@@ -317,7 +308,7 @@ class AudioDialog(Dialog):
             for config_name in self.audio_step_3_filepaths:
 
                 print(f"> Room Configuration: {config_name}")
-                print("Original audio:")
+                print("Room Accoustic Audio:")
                 display(Audio(
                     self.audio_step_3_filepaths[config_name]["audio_path"],
                     autoplay=False
@@ -330,7 +321,7 @@ class AudioDialog(Dialog):
                     and len(self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]) > 0
                 ):
                     print("#" * 10)
-                    print("Processed audio:")
+                    print("Post Processing Audio (e.g. microphone effect):")
                     print("#" * 10)
 
                     # For each recording device, display the processed audio

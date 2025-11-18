@@ -210,6 +210,8 @@ class Dialog(BaseModel):
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :param impulse_response_database: The database for impulse responses.
         :type impulse_response_database: Optional[ImpulseResponseDatabase]
+        :param override_tts_audio: Override the TTS audio if it already exists.
+        :type override_tts_audio: Optional[bool]
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.

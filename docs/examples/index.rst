@@ -697,7 +697,7 @@ For more control over the audio generation process, let's use the full AudioPipe
     # 4. Setup audio pipeline
     audio_pipeline = AudioPipeline(
         voice_database=voice_database,
-        tts_pipeline=tts_engine,
+        tts_engine=tts_engine,
         dir_audio="./audio_outputs"
     )
     
@@ -1085,7 +1085,7 @@ SDialog supports multilingual audio generation. You can use a compatible model f
     # Note that the default voice database might not contain voices
     # compatible with the selected HuggingFaceTTS model.
     audio_pipeline = AudioPipeline(
-        tts_pipeline=hf_tts,
+        tts_engine=hf_tts,
         dir_audio="./hf_audio_outputs"
     )
     
@@ -1132,7 +1132,7 @@ SDialog supports multilingual audio generation. You can use a compatible model f
     # Generate Spanish audio
     audio_pipeline = AudioPipeline(
         voice_database=spanish_voices,
-        tts_pipeline=spanish_tts,
+        tts_engine=spanish_tts,
         dir_audio="./spanish_audio_outputs"
     )
 

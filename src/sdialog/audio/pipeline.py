@@ -57,7 +57,7 @@ from typing import List, Optional, Union
 from sdialog import Dialog
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
-from sdialog.audio.tts_engine import BaseTTS, KokoroTTS
+from sdialog.audio.tts_engine import BaseTTS, HuggingFaceTTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
 from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
@@ -90,7 +90,8 @@ def to_audio(
     seed: Optional[int] = None,
     re_sampling_rate: Optional[int] = None,
     recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
-    impulse_response_database: Optional[ImpulseResponseDatabase] = None
+    impulse_response_database: Optional[ImpulseResponseDatabase] = None,
+    override_tts_audio: Optional[bool] = False
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -145,6 +146,8 @@ def to_audio(
     :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
     :param impulse_response_database: The database for impulse responses.
     :type impulse_response_database: Optional[ImpulseResponseDatabase]
+    :param override_tts_audio: Override the TTS audio if it already exists.
+    :type override_tts_audio: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -198,10 +201,10 @@ def to_audio(
             if voice_database is not None
             else HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
         ),
-        tts_pipeline=(
+        tts_engine=(
             tts_engine
             if tts_engine is not None
-            else KokoroTTS()
+            else HuggingFaceTTS("facebook/mms-tts-eng")
         ),
         dscaper_data_path=dscaper_data_path,
         dir_audio=dir_audio,
@@ -251,7 +254,8 @@ def to_audio(
         audio_file_format=audio_file_format,
         seed=seed,
         re_sampling_rate=re_sampling_rate,
-        recording_devices=recording_devices
+        recording_devices=recording_devices,
+        override_tts_audio=override_tts_audio
     )
 
     return _dialog
@@ -282,8 +286,8 @@ class AudioPipeline:
 
     :ivar dir_audio: Base directory for audio file storage.
     :vartype dir_audio: str
-    :ivar tts_pipeline: Text-to-speech engine for audio generation.
-    :vartype tts_pipeline: BaseTTS
+    :ivar tts_engine: Text-to-speech engine for audio generation.
+    :vartype tts_engine: BaseTTS
     :ivar voice_database: Voice database for speaker selection.
     :vartype voice_database: BaseVoiceDatabase
     :ivar _dscaper: dSCAPER instance for audio environment simulation.
@@ -297,7 +301,7 @@ class AudioPipeline:
     def __init__(
         self,
         dir_audio: Optional[str] = "./outputs",
-        tts_pipeline: Optional[BaseTTS] = None,
+        tts_engine: Optional[BaseTTS] = None,
         voice_database: Optional[BaseVoiceDatabase] = None,
         sampling_rate: Optional[int] = 24_000,
         dscaper_data_path: Optional[str] = "./dscaper_data",
@@ -311,8 +315,8 @@ class AudioPipeline:
 
         :param dir_audio: Base directory for audio file storage.
         :type dir_audio: Optional[str]
-        :param tts_pipeline: Text-to-speech engine for audio generation.
-        :type tts_pipeline: Optional[BaseTTS]
+        :param tts_engine: Text-to-speech engine for audio generation.
+        :type tts_engine: Optional[BaseTTS]
         :param voice_database: Voice database for speaker selection.
         :type voice_database: Optional[BaseVoiceDatabase]
         :param sampling_rate: Audio sampling rate in Hz.
@@ -325,9 +329,12 @@ class AudioPipeline:
 
         self.dir_audio = dir_audio
 
-        self.tts_pipeline = tts_pipeline
-        if self.tts_pipeline is None:
-            self.tts_pipeline = KokoroTTS()
+        self.tts_engine = tts_engine
+        if self.tts_engine is None:
+            logging.warning(
+                "No TTS provided, using the default Hugging Face TTS model: HuggingFaceTTS(\"facebook/mms-tts-eng\")"
+            )
+            self.tts_engine = HuggingFaceTTS("facebook/mms-tts-eng")
 
         self.voice_database = voice_database
         if self.voice_database is None:
@@ -447,7 +454,8 @@ class AudioPipeline:
         seed: int = None,
         re_sampling_rate: Optional[int] = None,
         recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
-        tts_pipeline_kwargs: Optional[dict] = {}
+        tts_pipeline_kwargs: Optional[dict] = {},
+        override_tts_audio: Optional[bool] = False
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -483,6 +491,8 @@ class AudioPipeline:
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
         :type tts_pipeline_kwargs: Optional[dict]
+        :param override_tts_audio: Override the TTS audio if it already exists.
+        :type override_tts_audio: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -564,14 +574,14 @@ class AudioPipeline:
                 "starting from scratch..."
             )
 
-        if not os.path.exists(dialog.audio_step_1_filepath) and perform_tts:
+        if (not os.path.exists(dialog.audio_step_1_filepath) or override_tts_audio) and perform_tts:
 
             logging.info(f"[Step 1] Generating audio recordings from the utterances of the dialogue: {dialog.id}")
 
             dialog: AudioDialog = generate_utterances_audios(
                 dialog,
                 voice_database=self.voice_database,
-                tts_pipeline=self.tts_pipeline,
+                tts_pipeline=self.tts_engine,
                 voices=voices,
                 keep_duplicate=keep_duplicate,
                 seed=seed,

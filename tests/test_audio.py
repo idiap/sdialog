@@ -701,7 +701,7 @@ def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
 @pytest.fixture
 def mock_dependencies():
     """Mocks all external dependencies for AudioPipeline tests."""
-    with patch('sdialog.audio.pipeline.KokoroTTS') as mock_tts, \
+    with patch('sdialog.audio.pipeline.HuggingFaceTTS') as mock_tts, \
          patch('sdialog.audio.pipeline.HuggingfaceVoiceDatabase') as mock_db, \
          patch('sdialog.audio.pipeline.scaper', create=True) as mock_scaper, \
          patch('sdialog.audio.pipeline.generate_utterances_audios') as mock_gen_utt, \
@@ -719,7 +719,7 @@ def mock_dependencies():
 def test_audio_pipeline_initialization(mock_dependencies):
     """Tests that AudioPipeline initializes with default components if none are provided."""
     pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
-    assert isinstance(pipeline.tts_pipeline, MagicMock)
+    assert isinstance(pipeline.tts_engine, MagicMock)
     assert isinstance(pipeline.voice_database, MagicMock)
     mock_dependencies["tts"].assert_called_once()
     mock_dependencies["db"].assert_called_once()
