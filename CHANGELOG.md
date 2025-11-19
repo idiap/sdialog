@@ -4,6 +4,31 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [0.4.0] 2025-10-30 🔊
+
+### Added
+- **sdialog.audio**: New audio generation module to transform text dialogs into audio conversations
+  - `Dialog.to_audio()`: Convert any text dialog to audio with a single method call
+  - **Text-to-Speech (TTS)**: Support for multiple TTS engines including Kokoro and Hugging Face models
+  - **Voice databases**: Automatic or manual voice assignment from Hugging Face, local storage, or on-the-fly generation based on persona attributes (age, gender, language)
+  - **Acoustic simulation**: Realistic room acoustics simulation with ray tracing technology for spatial audio
+  - **Microphone simulation**: Professional microphone impulse responses from brands like Shure, Sennheiser, and Sony
+  - **Room generation**: Define and generate diverse room types with customizable properties (dimensions, wall materials, furniture placement)
+  - **Multiple formats**: Export to WAV, MP3, or FLAC with custom sampling rates
+  - **Background/foreground effects**: Add environmental sounds and acoustic variations
+  - 7 comprehensive tutorials covering audio generation, acoustic simulation, rooms, voice databases, and impulse responses
+- **sdialog.interpretability**: 
+  - Support for inspecting layer and component inputs with `Inspector(target="model.layers.15", inspect_input=True)`
+  - Support for inspecting and steering input tokens (tokens given as input, not only generated ones), e.g., `inspector.input[i][j].act` where `i` is turn index and `j` is input token index
+- **sdialog.config**: 
+  - Support for Anthropic backend (#100)
+  - Support for Azure OpenAI backend (#100)
+
+### Fixed
+- **sdialog.agents**: Agent memory reset when no prompt system and no persona is given
+
+---
+
 ## [0.3.3] 2025-10-30 🚀
 
 ### Added
