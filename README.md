@@ -237,7 +237,7 @@ from sdialog.agents import Agent
 sdialog.config.llm("huggingface:meta-llama/Llama-3.2-3B-Instruct")
 
 agent = Agent(name="Bob")
-inspector = Inspector(target="model.layers.16.post_attention_layernorm")
+inspector = Inspector(target="model.layers.15")
 agent = agent | inspector
 
 agent("How are you?")
@@ -282,13 +282,12 @@ from sdialog import Dialog
 
 dialog = Dialog.from_file("my_dialog.json")
 
-# Convert to audio with default settings (HuggingFace TTS)
-audio_dialog = dialog.to_audio(perform_room_acoustics=True)
+# Convert to audio with default settings (HuggingFace TTS - single speaker)
+audio_dialog = dialog.to_audio()
 print(audio_dialog.display())
 
 # Or customize the audio generation
 audio_dialog = dialog.to_audio(
-  perform_room_acoustics=True,
   audio_file_format="mp3",
   re_sampling_rate=16000,
 )
