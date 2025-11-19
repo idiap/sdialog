@@ -24,6 +24,7 @@ dscaper_data/
 !tests/data/customer_support_dialogue.json
 *.tar
 old.git
+build
 
 # Audio ignore files
 tutorials/01_audio/demo_dialog_doctor_patient.json

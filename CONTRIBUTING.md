@@ -21,6 +21,10 @@ pip install -e .
 > ```bash
 > pip install -e .[audio]
 > ```
+> For Mac users (zsh shell), you'll need to quote the argument:
+> ```bash
+> pip install -e '.[audio]'
+> ```
 
 ## Running tests & style
 
