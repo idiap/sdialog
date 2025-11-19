@@ -34,7 +34,7 @@ pip install sdialog
 ```
 
 > [!IMPORTANT]
-> If you plan to use the audio capabilities of SDialog via its audio sub-module (`sdialog.audio`), you must install SDialog with audio dependencies:
+> For audio generation (`sdialog.audio` submodule), install with audio dependencies:
 > ```bash
 > pip install sdialog[audio]
 > ```
@@ -237,7 +237,7 @@ from sdialog.agents import Agent
 sdialog.config.llm("huggingface:meta-llama/Llama-3.2-3B-Instruct")
 
 agent = Agent(name="Bob")
-inspector = Inspector(target="model.layers.16.post_attention_layernorm")
+inspector = Inspector(target="model.layers.15")
 agent = agent | inspector
 
 agent("How are you?")
@@ -264,9 +264,9 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 ## 🔊 Audio generation
 
 <details>
-<summary>*(WIP)* Convert text dialogs to realistic audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
+<summary>Convert text dialogs to audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
 
-SDialog can transform text dialogs into realistic audio conversations with a simple one-line command. The audio module supports:
+SDialog can transform text dialogs into audio conversations with a simple one-line command. The audio module supports:
 
 * **Text-to-Speech (TTS)**: Multiple TTS engines including Kokoro and HuggingFace models
 * **Voice databases**: Automatic or manual voice assignment based on persona attributes (age, gender, language)
@@ -282,13 +282,12 @@ from sdialog import Dialog
 
 dialog = Dialog.from_file("my_dialog.json")
 
-# Convert to audio with default settings (Kokoro TTS)
-audio_dialog = dialog.to_audio(perform_room_acoustics=True)
+# Convert to audio with default settings (HuggingFace TTS - single speaker)
+audio_dialog = dialog.to_audio()
 print(audio_dialog.display())
 
 # Or customize the audio generation
 audio_dialog = dialog.to_audio(
-  perform_room_acoustics=True,
   audio_file_format="mp3",
   re_sampling_rate=16000,
 )
