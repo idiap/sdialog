@@ -260,9 +260,6 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 <details>
 <summary>Convert text dialogs to audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
 
-> [!NOTE]
-> To use audio features, you'll need to install additional dependencies and system packages. See the [Audio Generation setup guide](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#setup-and-installation) for detailed installation instructions.
-
 SDialog can transform text dialogs into audio conversations with a simple one-line command. The audio module supports:
 
 * **Text-to-Speech (TTS)**: Multiple TTS engines including Kokoro and HuggingFace models
@@ -294,8 +291,7 @@ print(audio_dialog.display())
 </details>
 
 > [!TIP]
-> - See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
-> - You can find examples with more controlability in [this tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/2.accoustic_simulation.ipynb).
+> For audio setup and **installation instructions**, see the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation). For usage examples including acoustic simulation, room generation, and voice databases, check out the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio).
 
 
 ## 📖 Documentation and tutorials
