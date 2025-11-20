@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/idiap/sdialog/master/docs/_static/logo-banner.png" alt="SDialog Logo" title="SDialog" height="150" />
+<a href="https://sdialog.github.io/"><img src="https://raw.githubusercontent.com/idiap/sdialog/master/docs/_static/logo-banner.png" alt="SDialog Logo" title="SDialog" height="150" /></a>
 
 [![Documentation Status](https://app.readthedocs.org/projects/sdialog/badge/?version=latest)](https://sdialog.readthedocs.io)
 [![CI](https://img.shields.io/github/actions/workflow/status/idiap/sdialog/ci.yml?label=CI)](https://github.com/idiap/sdialog/actions/workflows/ci.yml)
@@ -13,7 +13,7 @@ SDialog is an MIT-licensed open-source toolkit for building, simulating, and eva
 
 It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
 
-Quick links: [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ## ✨ Key features
 - Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#project-vision--community-call))_
@@ -32,12 +32,6 @@ If you are building conversational systems, benchmarking dialog models, producin
 ```bash
 pip install sdialog
 ```
-
-> [!IMPORTANT]
-> For audio generation (`sdialog.audio` submodule), install with audio dependencies:
-> ```bash
-> pip install sdialog[audio]
-> ```
 
 Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies is available on Hugging Face and can be downloaded [here](https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif).
 
@@ -268,14 +262,23 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 
 SDialog can transform text dialogs into audio conversations with a simple one-line command. The audio module supports:
 
-* **Text-to-Speech (TTS)**: Multiple TTS engines including Kokoro and HuggingFace models
+* **Text-to-Speech (TTS)**: Kokoro and HuggingFace models (with planned support for better TTS like IndexTTS and API-based TTS like OpenAI)
 * **Voice databases**: Automatic or manual voice assignment based on persona attributes (age, gender, language)
 * **Acoustic simulation**: Room acoustics simulation for realistic spatial audio
 * **Microphone simulation**: Professional microphones simulation from brands like Shure, Sennheiser, and Sony
 * **Multiple formats**: Export to WAV, MP3, or FLAC with custom sampling rates
 * **Multi-stage pipeline**: Step 1 (tts and concatenate utterances) and Step 2/3 (position based timeline generation and room acoustics)
 
-Generate audio with room acoustics from any dialog with a single line:
+Generate audio from any dialog easily with just a few lines of code:
+
+Install dependencies (see [the documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#setup-and-installation) for complete setup instructions):
+
+```bash
+apt-get install sox ffmpeg espeak-ng
+pip install sdialog[audio]
+```
+
+Then, simply:
 
 ```python
 from sdialog import Dialog
@@ -283,11 +286,12 @@ from sdialog import Dialog
 dialog = Dialog.from_file("my_dialog.json")
 
 # Convert to audio with default settings (HuggingFace TTS - single speaker)
-audio_dialog = dialog.to_audio()
+audio_dialog = dialog.to_audio(perform_room_acoustics=True)
 print(audio_dialog.display())
 
 # Or customize the audio generation
 audio_dialog = dialog.to_audio(
+  perform_room_acoustics=True,
   audio_file_format="mp3",
   re_sampling_rate=16000,
 )
@@ -297,8 +301,7 @@ print(audio_dialog.display())
 </details>
 
 > [!TIP]
-> - See the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio) for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at [Audio Generation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
-> - You can find examples with more controlability in [this tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/2.accoustic_simulation.ipynb).
+> See the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation) for more details. For usage examples including acoustic simulation, room generation, and voice databases, check out the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio).
 
 
 ## 📖 Documentation and tutorials

@@ -1,5 +1,5 @@
 .. image:: _static/logo-banner.png
-    :target: https://github.com/idiap/sdialog
+    :target: https://sdialog.github.io/
     :height: 100px
     :align: right
 
@@ -28,6 +28,7 @@ If you are building conversational systems, benchmarking dialog models, producin
 Quick Links
 -----------
 
+- `Website <https://sdialog.github.io/>`_
 - `GitHub <https://github.com/idiap/sdialog>`_
 - `API Reference <https://sdialog.readthedocs.io/en/latest/api/sdialog.html>`_
 - `Demo (Colab) <https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb>`_

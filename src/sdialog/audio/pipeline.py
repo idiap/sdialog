@@ -88,7 +88,7 @@ def to_audio(
     re_sampling_rate: Optional[int] = None,
     recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
     impulse_response_database: Optional[ImpulseResponseDatabase] = None,
-    override_tts_audio: Optional[bool] = False,
+    override_tts_audio: Optional[bool] = True,
     verbose: Optional[bool] = False
 ) -> AudioDialog:
     """
@@ -476,7 +476,7 @@ class AudioPipeline:
         re_sampling_rate: Optional[int] = None,
         recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
         tts_pipeline_kwargs: Optional[dict] = {},
-        override_tts_audio: Optional[bool] = False,
+        override_tts_audio: Optional[bool] = True,
         verbose: Optional[bool] = False
     ) -> AudioDialog:
         """

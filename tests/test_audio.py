@@ -825,19 +825,30 @@ def test_send_utterances_to_dscaper(mock_dscaper, dscaper_dialog):
 
 def test_generate_dscaper_timeline(mock_dscaper, dscaper_dialog, tmp_path):
     """Tests the generation of a dscaper timeline."""
-    # Mock the directory structure that dscaper would create
-    timeline_path = tmp_path / "timelines" / "test_dir" / "generate" / "test_id"
-    soundscape_path = timeline_path / "soundscape_positions"
-    soundscape_path.mkdir(parents=True)
-    (timeline_path / "soundscape.wav").touch()
-    (soundscape_path / "speaker_1.wav").touch()
-
+    # Set up the base path for the mock dscaper
     mock_dscaper.get_dscaper_base_path.return_value = str(tmp_path)
+
+    # This is the full path to the soundscape file the function will try to copy.
+    timeline_base_path = tmp_path / "timelines" / "test_dir"
+    soundscape_wav_path = timeline_base_path / "generate" / "test_id" / "soundscape.wav"
+    soundscape_positions_path = soundscape_wav_path.parent / "soundscape_positions"
+
+    # We need to make the mock's `generate_timeline` method create the file.
+    # This simulates the real dscaper behavior more accurately.
+    def create_mock_files(*args, **kwargs):
+        soundscape_positions_path.mkdir(parents=True, exist_ok=True)
+        soundscape_wav_path.touch()
+        # Also create the source file it will look for
+        (soundscape_positions_path / "speaker_1.wav").touch()
+        # Return the original mock's response
+        return MagicMock(status="success", content={"id": "test_id"})
+
+    mock_dscaper.generate_timeline.side_effect = create_mock_files
 
     # Give the dialog some combined audio data
     dscaper_dialog.set_combined_audio(np.zeros(24000 * 5))  # 5 seconds
 
-    # Manually create the directory that the function expects to exist
+    # Manually create the directory that the function expects to exist for the output
     (tmp_path / "test_dir" / "exported_audios").mkdir(parents=True)
     dscaper_dialog.audio_dir_path = str(tmp_path)
 

@@ -660,6 +660,38 @@ Audio Generation
 
 The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
 
+Setup and Installation
+---------------------
+
+To work with audio features in SDialog, you'll need to install additional dependencies and system packages:
+
+**1. Install SDialog with Audio Dependencies**
+
+.. code-block:: bash
+
+    pip install sdialog[audio]
+
+**2. Install System Dependencies**
+
+Install Sox and FFmpeg for audio processing:
+
+.. code-block:: bash
+
+    apt-get install sox ffmpeg
+
+**3. TTS Engine Setup**
+
+- **HuggingFace TTS**: Already included with ``sdialog[audio]`` (default TTS engine).
+
+- **Kokoro TTS**: Requires installation after ``espeak-ng`` for phoneme processing:
+
+.. code-block:: bash
+
+    apt-get install espeak-ng
+    pip install -q kokoro>=0.9.4
+
+- **Other TTS Engines**: If you plan to use custom TTS engines (e.g., XTTS, IndexTTS), install them manually according to their documentation before use.
+
 Audio Module Overview
 ---------------------
 
@@ -1168,14 +1200,6 @@ SDialog supports multilingual audio generation with custom TTS engines:
         voice_database=spanish_voices,
         tts_engine=spanish_tts,
         dir_audio="./spanish_audio_outputs"
-    )
-
-    spanish_dialog = AudioDialog.from_dialog(dialog)
-    
-    spanish_audio = audio_pipeline.inference(
-        spanish_dialog,
-        perform_room_acoustics=True,
-        dialog_dir_name="spanish_dialogue"
     )
 
 **Language-specific Voice Assignment**:

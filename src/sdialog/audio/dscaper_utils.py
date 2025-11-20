@@ -162,6 +162,7 @@ def generate_dscaper_timeline(
     :return: Audio dialogue with generated timeline and audio sources.
     :rtype: AudioDialog
     """
+    dialog.audio_sources = []
 
     if audio_file_format not in ["mp3", "wav", "flac"]:
         raise ValueError((
@@ -173,6 +174,15 @@ def generate_dscaper_timeline(
     total_duration = dialog.get_combined_audio().shape[0] / sampling_rate
     dialog.total_duration = total_duration
     dialog.timeline_name = timeline_name
+
+    timeline_path = os.path.join(
+        dscaper.get_dscaper_base_path(),
+        "timelines",
+        timeline_name,
+    )
+    if os.path.exists(timeline_path):
+        logger.info(f"Timeline '{timeline_name}' already exists. Deleting it to avoid audio overlap.")
+        shutil.rmtree(timeline_path)
 
     sox_logger = logging.getLogger('sox')
     original_level = sox_logger.level
