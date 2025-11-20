@@ -681,13 +681,12 @@ Install Sox and FFmpeg for audio processing:
 
 **3. TTS Engine Setup**
 
-- **Kokoro TTS**: Already included with ``sdialog[audio]``, but requires ``espeak-ng`` for phoneme processing:
+- **HuggingFace TTS**: Already included with ``sdialog[audio]`` (default TTS engine).
 
-.. code-block:: bash
+- **Kokoro TTS**: Requires installation after ``espeak-ng`` for phoneme processing:
 
     apt-get install espeak-ng
-
-- **HuggingFace TTS**: Already included with ``sdialog[audio]``
+    pip install -q kokoro>=0.9.4
 
 - **Other TTS Engines**: If you plan to use custom TTS engines (e.g., XTTS, IndexTTS), install them manually according to their documentation before use.
 
@@ -1199,14 +1198,6 @@ SDialog supports multilingual audio generation with custom TTS engines:
         voice_database=spanish_voices,
         tts_engine=spanish_tts,
         dir_audio="./spanish_audio_outputs"
-    )
-
-    spanish_dialog = AudioDialog.from_dialog(dialog)
-    
-    spanish_audio = audio_pipeline.inference(
-        spanish_dialog,
-        perform_room_acoustics=True,
-        dialog_dir_name="spanish_dialogue"
     )
 
 **Language-specific Voice Assignment**:
