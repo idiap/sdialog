@@ -262,7 +262,7 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 
 SDialog can transform text dialogs into audio conversations with a simple one-line command. The audio module supports:
 
-* **Text-to-Speech (TTS)**: Kokoro and HuggingFace models (with planned support for IndexTTS and API-based TTS like OpenAI)
+* **Text-to-Speech (TTS)**: Kokoro and HuggingFace models (with planned support for better TTS like IndexTTS and API-based TTS like OpenAI)
 * **Voice databases**: Automatic or manual voice assignment based on persona attributes (age, gender, language)
 * **Acoustic simulation**: Room acoustics simulation for realistic spatial audio
 * **Microphone simulation**: Professional microphones simulation from brands like Shure, Sennheiser, and Sony
