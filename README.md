@@ -277,11 +277,12 @@ from sdialog import Dialog
 dialog = Dialog.from_file("my_dialog.json")
 
 # Convert to audio with default settings (HuggingFace TTS - single speaker)
-audio_dialog = dialog.to_audio()
+audio_dialog = dialog.to_audio(perform_room_acoustics=True)
 print(audio_dialog.display())
 
 # Or customize the audio generation
 audio_dialog = dialog.to_audio(
+  perform_room_acoustics=True,
   audio_file_format="mp3",
   re_sampling_rate=16000,
 )
