@@ -685,6 +685,8 @@ Install Sox and FFmpeg for audio processing:
 
 - **Kokoro TTS**: Requires installation after ``espeak-ng`` for phoneme processing:
 
+.. code-block:: bash
+
     apt-get install espeak-ng
     pip install -q kokoro>=0.9.4
 
