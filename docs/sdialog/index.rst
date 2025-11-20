@@ -660,6 +660,37 @@ Audio Generation
 
 The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
 
+Setup and Installation
+---------------------
+
+To work with audio features in SDialog, you'll need to install additional dependencies and system packages:
+
+**1. Install SDialog with Audio Dependencies**
+
+.. code-block:: bash
+
+    pip install sdialog[audio]
+
+**2. Install System Dependencies**
+
+Install Sox and FFmpeg for audio processing:
+
+.. code-block:: bash
+
+    apt-get install sox ffmpeg
+
+**3. TTS Engine Setup**
+
+- **Kokoro TTS**: Already included with ``sdialog[audio]``, but requires ``espeak-ng`` for phoneme processing:
+
+.. code-block:: bash
+
+    apt-get install espeak-ng
+
+- **HuggingFace TTS**: Already included with ``sdialog[audio]``
+
+- **Other TTS Engines**: If you plan to use custom TTS engines (e.g., XTTS, IndexTTS), install them manually according to their documentation before use.
+
 Audio Module Overview
 ---------------------
 

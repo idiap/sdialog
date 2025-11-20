@@ -17,7 +17,7 @@ pip install -e .
 ```
 
 > [!NOTE]
-> If you plan to work with the audio capabilities of SDialog (`sdialog.audio`), install with audio dependencies:
+> If you plan to work with audio capabilities, first install the [required system dependencies](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#setup-and-installation), then install SDialog locally with:
 > ```bash
 > pip install -e .[audio]
 > ```

@@ -33,12 +33,6 @@ If you are building conversational systems, benchmarking dialog models, producin
 pip install sdialog
 ```
 
-> [!IMPORTANT]
-> For audio generation (`sdialog.audio` submodule), install with audio dependencies:
-> ```bash
-> pip install sdialog[audio]
-> ```
-
 Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies is available on Hugging Face and can be downloaded [here](https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif).
 
 ```bash
@@ -265,6 +259,9 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 
 <details>
 <summary>Convert text dialogs to audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
+
+> [!NOTE]
+> To use audio features, you'll need to install additional dependencies and system packages. See the [Audio Generation setup guide](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#setup-and-installation) for detailed installation instructions.
 
 SDialog can transform text dialogs into audio conversations with a simple one-line command. The audio module supports:
 

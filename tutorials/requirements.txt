@@ -34,7 +34,9 @@ jupyter
 jupyterlab-spellchecker
 jupyterlab-git
 jupyterlab-lsp
+ipykernel<=6.30.1
 python-lsp-server[all]
 FlagEmbedding
 strsimpy
 sdialog[audio]
+kokoro>=0.9.4
