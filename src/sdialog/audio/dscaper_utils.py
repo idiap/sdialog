@@ -43,14 +43,14 @@ Example:
 # SPDX-License-Identifier: MIT
 
 import os
-import scaper
+import dscaper
 import shutil
 import logging
 
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.room import AudioSource, RoomPosition
-from scaper.dscaper_datatypes import (
+from dscaper.dscaper_datatypes import (
     DscaperAudio,
     DscaperTimeline,
     DscaperEvent,
@@ -61,7 +61,7 @@ from scaper.dscaper_datatypes import (
 
 def send_utterances_to_dscaper(
         dialog: AudioDialog,
-        _dscaper: scaper.Dscaper,
+        _dscaper: dscaper.Dscaper,
         dialog_directory: str) -> AudioDialog:
     """
     Send audio utterances to dSCAPER database for timeline generation.
@@ -74,7 +74,7 @@ def send_utterances_to_dscaper(
     :param dialog: Audio dialogue containing turns with audio data.
     :type dialog: AudioDialog
     :param _dscaper: dSCAPER instance for audio database management.
-    :type _dscaper: scaper.Dscaper
+    :type _dscaper: dscaper.Dscaper
     :param dialog_directory: Directory name for organizing audio files in dSCAPER.
     :type dialog_directory: str
     :return: Audio dialogue with updated dSCAPER storage status.
@@ -118,7 +118,7 @@ def send_utterances_to_dscaper(
 
 def generate_dscaper_timeline(
         dialog: AudioDialog,
-        dscaper: scaper.Dscaper,
+        dscaper: dscaper.Dscaper,
         dialog_directory: str,
         sampling_rate: int = 24_000,
         background_effect: str = "white_noise",
@@ -140,7 +140,7 @@ def generate_dscaper_timeline(
     :param dialog: Audio dialogue containing turns with audio data.
     :type dialog: AudioDialog
     :param dscaper: dSCAPER instance for timeline generation.
-    :type dscaper: scaper.Dscaper
+    :type dscaper: dscaper.Dscaper
     :param dialog_directory: Directory name for organizing timeline in dSCAPER.
     :type dialog_directory: str
     :param sampling_rate: Audio sampling rate in Hz.
