@@ -387,8 +387,7 @@ If you use SDialog in academic work, please cite:
 
 ## 🙏 Acknowledgments
 
-This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) and originated during the **Johns Hopkins University** ([JSALT 2025](https://jsalt2025.fit.vut.cz/)) workshop, specifically within the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part).
-
+This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) and received a significant development boost during the **Johns Hopkins University** [JSALT 2025 workshop](https://jsalt2025.fit.vut.cz/), as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part). We thank all contributors and the open-source community for their valuable feedback and contributions.
 
 ## 📝 License
 

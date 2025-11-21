@@ -692,6 +692,13 @@ Install Sox and FFmpeg for audio processing:
 
 - **Other TTS Engines**: If you plan to use custom TTS engines (e.g., XTTS, IndexTTS), install them manually according to their documentation before use.
 
+Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies (including Ollama server, Kokoro TTS, and other TTS engines) is available on Hugging Face and can be downloaded `here <https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif>`_.
+
+.. code-block:: bash
+
+    apptainer exec --nv sdialog.sif python3 -c "import sdialog; print(sdialog.__version__)"
+
+
 Audio Module Overview
 ---------------------
 
