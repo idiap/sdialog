@@ -790,7 +790,7 @@ def test_audio_pipeline_master_audio(audio_dialog_instance, mock_dependencies):
 # Tests for dscaper_utils
 @pytest.fixture
 def mock_dscaper():
-    """Mocks the scaper.Dscaper object."""
+    """Mocks the dscaper.Dscaper object."""
     dscaper_mock = MagicMock()
 
     # Mock the response object structure

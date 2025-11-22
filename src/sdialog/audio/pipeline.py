@@ -44,7 +44,7 @@ Example:
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import os
-import scaper
+import dscaper
 import librosa
 import logging
 import numpy as np
@@ -364,7 +364,7 @@ class AudioPipeline:
         )
         os.makedirs(self.dscaper_data_path, exist_ok=True)
 
-        self._dscaper = scaper.Dscaper(dscaper_base_path=self.dscaper_data_path)
+        self._dscaper = dscaper.Dscaper(dscaper_base_path=self.dscaper_data_path)
 
         self.sampling_rate = sampling_rate
 
@@ -392,7 +392,7 @@ class AudioPipeline:
         :return: Dictionary with statistics about the population process.
         :rtype: dict
         """
-        from scaper.dscaper_datatypes import DscaperAudio  # noqa: F401
+        from dscaper.dscaper_datatypes import DscaperAudio  # noqa: F401
 
         count_existing_audio_files = 0
         count_error_audio_files = 0
