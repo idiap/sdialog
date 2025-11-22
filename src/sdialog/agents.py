@@ -776,7 +776,7 @@ class Agent:
                     context: Union[str, Context] = None,
                     example_dialogs: List['Dialog'] = None,
                     scenario: Optional[Union[dict, str]] = None,
-                    max_turns: int = 200,
+                    max_turns: int = 100,
                     id: int = None,
                     parent_id: int = None,
                     seed: int = None,
@@ -819,7 +819,8 @@ class Agent:
 
         utter = None
         completion = False
-        pbar = tqdm(total=max_turns, desc="Dialogue", leave=keep_bar)
+        pbar = tqdm(total=max_turns, desc="Dialogue progress (max turns)",
+                    bar_format="{desc}: {percentage:3.0f}%|{bar}| {n}/{total}", leave=keep_bar)
         while len(dialog) < max_turns:
             utt_events = self(utter, return_events=True)
 
@@ -827,6 +828,7 @@ class Agent:
                 utter = utt_events[-1].content
                 utt_events[-1].content = utter.replace(self._STOP_WORD_TEXT, "").strip()
                 if not utt_events[-1].content:
+                    completion = True
                     break
             else:
                 completion = True
@@ -844,6 +846,7 @@ class Agent:
                 utter = utt_events[-1].content
                 utt_events[-1].content = utter.replace(self._STOP_WORD_TEXT, "").strip()
                 if not utt_events[-1].content:
+                    completion = True
                     break
             else:
                 completion = True
@@ -855,6 +858,14 @@ class Agent:
             ))
             events.extend(utt_events)
             pbar.update(1)
+
+        # Force bar to 100% if conversation completed successfully
+        if completion:
+            pbar.n = max_turns
+            pbar.refresh()
+        else:
+            # Turn bar red if max_turns reached without natural completion
+            pbar.colour = 'red'
 
         pbar.close()
 
