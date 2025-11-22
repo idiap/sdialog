@@ -272,18 +272,18 @@ sdialog.audio.processing
 
 ----
 
-sdialog.annotators
+sdialog.tasks
 ------------------
 
-.. automodule:: sdialog.annotators
+.. automodule:: sdialog.tasks
    :member-order: bysource
    :members:
    :show-inheritance:
 
-sdialog.annotators.annotator
+sdialog.tasks.task
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: sdialog.annotators.annotator
+.. automodule:: sdialog.tasks.task
    :member-order: bysource
    :members:
    :show-inheritance:

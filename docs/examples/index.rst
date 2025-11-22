@@ -1167,22 +1167,22 @@ Task-specific Annotation
 
 Dialogue Annotation
 ~~~~~~~~~~~~~~~~~~~
-You can annotate dialogues with task-specific information using `Annotator` classes. This is useful for preparing data for downstream models. Here's how to use the built-in `QuestionAnsweringAnnotator`.
+You can annotate dialogues with task-specific information using `Task` classes. This is useful for preparing data for downstream models. Here's how to use the built-in `QuestionAnsweringTask`.
 
 .. code-block:: python
 
     from sdialog import Dialog
-    from sdialog.annotators import apply_annotators
-    from sdialog.annotators.nlp import QuestionAnsweringAnnotator
+    from sdialog.tasks import apply_tasks
+    from sdialog.tasks.nlp import QuestionAnsweringTask
 
     dialog = Dialog.from_str("""User: What is the weather like in London?
     Agent: It is currently rainy and 12 degrees Celsius.""")
 
-    # Create an annotator instance
-    qa_annotator = QuestionAnsweringAnnotator()
+    # Create an task instance
+    qa_task = QuestionAnsweringTask()
 
-    # Apply the annotator to the dialog
-    annotated_dialog = apply_annotators(dialog, [qa_annotator])
+    # Apply the task to the dialog
+    annotated_dialog = apply_tasks(dialog, [qa_task])
 
     # Access the annotations
     annotations = annotated_dialog.get_annotations('question_answering')

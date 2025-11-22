@@ -1,5 +1,5 @@
 """
-This module contains the classes for the NLP-specific annotators.
+This module contains the classes for the NLP-specific tasks.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -12,15 +12,15 @@ from sdialog.config import config
 from pydantic import BaseModel, Field
 from sdialog.util import get_llm_model
 from typing import Any, Optional, Type
-from sdialog.annotators import Annotator, TaskModality
+from sdialog.tasks import Task, TaskModality
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
-class SummaryAnnotator(Annotator):
+class SummaryTask(Task):
     """
-    Annotator to annotate a dialog for summarization tasks.
+    Task to annotate a dialog for summarization tasks.
     The annotation is a string containing the summary.
-    This annotator has no requirements.
+    This task has no requirements.
     The modality of the task is text-to-text.
     """
 
@@ -48,7 +48,7 @@ class SummaryAnnotator(Annotator):
         """
         return "summarization"
 
-    def get_requirements(self) -> list[Annotator]:
+    def get_requirements(self) -> list[Task]:
         """
         Get the requirements for the summarization task.
         """
@@ -61,26 +61,26 @@ class SummaryAnnotator(Annotator):
         :param args: Additional arguments, including 'save_path'.
         """
         if args is None or "save_path" not in args or args["save_path"] is None:
-            logging.warning("[SummaryAnnotator] No 'save_path' provided, skipping saving")
+            logging.warning("[SummaryTask] No 'save_path' provided, skipping saving")
             return
 
         if not data:
-            logging.info("[SummaryAnnotator] No summary to save, skipping file creation.")
+            logging.info("[SummaryTask] No summary to save, skipping file creation.")
             return
 
         save_path = args["save_path"]
         try:
             with open(save_path, "w", encoding="utf-8") as f:
                 f.write(data)
-            logging.info(f"[SummaryAnnotator] Summary saved to {save_path}")
+            logging.info(f"[SummaryTask] Summary saved to {save_path}")
         except Exception as e:
-            logging.error(f"[SummaryAnnotator] Failed to save summary: {e}")
+            logging.error(f"[SummaryTask] Failed to save summary: {e}")
 
-    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
+    def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Annotate a dialog for summarization tasks.
+        Run the summarization task on a dialog.
         """
-        logging.info("[SummaryAnnotator] Annotating dialog for summarization tasks")
+        logging.info("[SummaryTask] Running dialog for summarization tasks")
 
         dialog = self.check_requirements(dialog)
 
@@ -116,11 +116,11 @@ class SummaryAnnotator(Annotator):
 
         try:
             raw_response = llm.invoke(messages)
-            logging.info(f"[SummaryAnnotator] Raw LLM response: {raw_response}")
+            logging.info(f"[SummaryTask] Raw LLM response: {raw_response}")
             structured_response = self._structured_model.model_validate(raw_response)
             data = structured_response.summary
         except Exception as e:
-            logging.error(f"[SummaryAnnotator] Failed to generate summary: {e}")
+            logging.error(f"[SummaryTask] Failed to generate summary: {e}")
             data = ""
 
         _annotations = {
@@ -130,7 +130,7 @@ class SummaryAnnotator(Annotator):
 
         dialog.add_annotations(self._task_name, _annotations)
 
-        logging.info("[SummaryAnnotator] Annotation done for summarization.")
+        logging.info("[SummaryTask] Annotation done for summarization.")
 
         self.save(data=_annotations["data"], args=args)
 

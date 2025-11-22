@@ -1,5 +1,5 @@
 """
-This module contains the classes for the audio-specific annotators.
+This module contains the classes for the audio-specific tasks.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -10,15 +10,15 @@ import os
 import logging
 from typing import Any
 from sdialog import Dialog
-from sdialog.annotators import Annotator, TaskModality
+from sdialog.tasks import Task, TaskModality
 
 
-class AutomaticSpeechRecognitionAnnotator(Annotator):
+class AutomaticSpeechRecognitionTask(Task):
     """
-    Annotator to convert a audio to text task to a automatic speech recognition task.
-    This annotator requires the AudioToTextAnnotator to be applied before.
+    Task to convert a audio to text task to a automatic speech recognition task.
+    This task requires the AudioToTextTask to be applied before.
     The modality of the task is audio-to-text.
-    This annotator is specific to the AudioDialog class.
+    This task is specific to the AudioDialog class.
     """
 
     def get_modality(self) -> list[TaskModality]:
@@ -39,11 +39,11 @@ class AutomaticSpeechRecognitionAnnotator(Annotator):
         """
         return "automatic_speech_recognition"
 
-    def get_requirements(self) -> list[Annotator]:
+    def get_requirements(self) -> list[Task]:
         """
         Get the requirements for the automatic speech recognition task.
         :return: The requirements for the spoken question answering task.
-        :rtype: list[Annotator]
+        :rtype: list[Task]
         """
         return []
 
@@ -61,11 +61,11 @@ class AutomaticSpeechRecognitionAnnotator(Annotator):
         import pandas as pd
 
         if args is None or "save_path" not in args or args["save_path"] is None:
-            logging.warning("[AutomaticSpeechRecognitionAnnotator] No 'save_path' provided, skipping saving")
+            logging.warning("[AutomaticSpeechRecognitionTask] No 'save_path' provided, skipping saving")
             return
 
         if not data:
-            logging.info("[AutomaticSpeechRecognitionAnnotator] No annotations to save, skipping file creation.")
+            logging.info("[AutomaticSpeechRecognitionTask] No annotations to save, skipping file creation.")
             return
 
         df = pd.DataFrame(data)
@@ -89,24 +89,24 @@ class AutomaticSpeechRecognitionAnnotator(Annotator):
         df.to_csv(args["save_path"], index=False)
 
         logging.info(
-            "[AutomaticSpeechRecognitionAnnotator] "
+            "[AutomaticSpeechRecognitionTask] "
             f"Data saved to {args['save_path']}"
         )
 
-    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
+    def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Annotate a dialog for automatic speech recognition tasks.
+        Run automatic speech recognition task on a dialog.
         The annotation is a list of questions and answers, with the audio path and the voice used.
         :param dialog: The dialog to annotate.
         :type dialog: Dialog
-        :param args: Additional arguments to pass to the annotate method.
+        :param args: Additional arguments to pass to the run method.
         This includes the 'save_path' where to save the data and can contain 'save_args'
         additional arguments to pass to the save method.
         :type args: dict[str, Any]
         :return: The annotated dialog.
         :rtype: Dialog
         """
-        logging.info("[AutomaticSpeechRecognitionAnnotator] Annotating dialog for automatic speech recognition tasks")
+        logging.info("[AutomaticSpeechRecognitionTask] Running dialog for automatic speech recognition tasks")
 
         import librosa
         import soundfile as sf
@@ -132,12 +132,12 @@ class AutomaticSpeechRecognitionAnnotator(Annotator):
             "modality": self._modality
         }
 
-        if args is not None and "room_audio_path" in args and args["room_audio_path"] is not None:
+        if args is not None and "room_audio_path" in args and args["room_audio_path"] is None:
             _step_3_audio_path = args["room_audio_path"]
         else:
             _step_3_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
             logging.warning(
-                "[AutomaticSpeechRecognitionAnnotator] No 'room_audio_path' provided, "
+                "[AutomaticSpeechRecognitionTask] No 'room_audio_path' provided, "
                 "using the first room audio path (step 3) found in the dialog."
             )
 
@@ -183,7 +183,7 @@ class AutomaticSpeechRecognitionAnnotator(Annotator):
         dialog.add_annotations(self._task_name, _annotations)
 
         logging.info(
-            "[SpokenQuestionAnsweringAnnotator] "
+            "[SpokenQuestionAnsweringTask] "
             f"Annotation done for {len(_annotations['data'])} questions"
         )
 

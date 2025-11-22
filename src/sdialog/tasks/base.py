@@ -1,5 +1,5 @@
 """
-This module contains the base classes for the annotators.
+This module contains the base classes for the tasks.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -33,28 +33,28 @@ class TaskModality(str, Enum):
         return self.value
 
 
-class Annotator(ABC):
+class Task(ABC):
     """
-    Abstract class for the annotators.
-    An annotator is a class that adds a specific annotation to a dialog.
+    Abstract class for the tasks.
+    A task is a class that adds a specific annotation to a dialog.
     The annotation is a dictionary that contains the data of the task, and some metadata.
-    To create a new annotator, you need to inherit from this class and implement the abstract methods.
+    To create a new task, you need to inherit from this class and implement the abstract methods.
     """
 
     def __init__(self):
         """
-        Initialize the annotator.
+        Initialize the task.
         """
         self._requirements = self.get_requirements()
         self._task_name = self.get_task_name()
         self._modality = self.get_modality()
         self._structured_model = self.get_structured_model()
 
-    def list_requirements(self) -> list["Annotator"]:
+    def list_requirements(self) -> list["Task"]:
         """
         List the requirements for the task.
         :return: The list of requirements for the task.
-        :rtype: list[Annotator]
+        :rtype: list[Task]
         """
         return [
             requirement.get_task_name() for requirement in self._requirements
@@ -67,17 +67,17 @@ class Annotator(ABC):
         :return: The modality of the task.
         :rtype: list[TaskModality]
         """
-        raise NotImplementedError("Annotator subclass must implement this method get_modality")
+        raise NotImplementedError("Task subclass must implement this method get_modality")
 
     @abstractmethod
-    def get_requirements(self) -> list["Annotator"]:
+    def get_requirements(self) -> list["Task"]:
         """
         Get the requirements for the task.
-        The requirements are a list of other annotators that need to be applied before this one.
+        The requirements are a list of other tasks that need to be applied before this one.
         :return: The requirements for the task.
-        :rtype: list[Annotator]
+        :rtype: list[Task]
         """
-        raise NotImplementedError("Annotator subclass must implement this method get_requirements")
+        raise NotImplementedError("Task subclass must implement this method get_requirements")
 
     @abstractmethod
     def get_task_name(self) -> str:
@@ -86,25 +86,25 @@ class Annotator(ABC):
         :return: The name of the task.
         :rtype: str
         """
-        raise NotImplementedError("Annotator subclass must implement this method get_task_name")
+        raise NotImplementedError("Task subclass must implement this method get_task_name")
 
     @abstractmethod
-    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
+    def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Annotate a dialog for a specific task.
-        :param dialog: The dialog to annotate.
+        Run a specific task on a dialog.
+        :param dialog: The dialog to run the task on.
         :type dialog: Dialog
-        :param args: Additional arguments to pass to the annotate method.
+        :param args: Additional arguments to pass to the run method.
         :type args: dict[str, Any]
-        :return: The annotated dialog.
+        :return: The dialog with the task's annotations.
         :rtype: Dialog
         """
-        raise NotImplementedError("Annotator subclass must implement this method annotate")
+        raise NotImplementedError("Task subclass must implement this method run")
 
     def check_requirements(self, dialog: Dialog) -> Dialog:
         """
-        Check if the dialog has the requirements for the annotator.
-        If the requirements are not met, apply the Annotator to the dialog.
+        Check if the dialog has the requirements for the task.
+        If the requirements are not met, apply the Task to the dialog.
         :param dialog: The dialog to check the requirements for.
         :type dialog: Dialog
         :return: The dialog with the requirements applied.
@@ -119,9 +119,9 @@ class Annotator(ABC):
                 or dialog.get_annotations(requirement.get_task_name())["data"] is None
             ):
                 logging.info(
-                    f"[Annotator] Requirement {requirement.get_task_name()} not met, applying it to the dialog"
+                    f"[Task] Requirement {requirement.get_task_name()} not met, applying it to the dialog"
                 )
-                dialog = requirement.annotate(dialog)
+                dialog = requirement.run(dialog)
 
         return dialog
 
@@ -148,4 +148,4 @@ class Annotator(ABC):
         :return: None
         :rtype: None
         """
-        raise NotImplementedError("Annotator subclass must implement this method save")
+        raise NotImplementedError("Task subclass must implement this method save")

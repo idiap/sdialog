@@ -1,4 +1,0 @@
-from .spoken_question_answering import SpokenQuestionAnsweringAnnotator
-from .automatic_speech_recognition import AutomaticSpeechRecognitionAnnotator
-
-__all__ = ["SpokenQuestionAnsweringAnnotator", "AutomaticSpeechRecognitionAnnotator"]

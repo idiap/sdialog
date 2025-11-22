@@ -1,5 +1,5 @@
 """
-This module contains the classes for the NLP-specific annotators.
+This module contains the classes for the NLP-specific tasks.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -12,15 +12,15 @@ from sdialog.config import config
 from pydantic import BaseModel, Field
 from sdialog.util import get_llm_model
 from typing import List, Optional, Any, Type
-from sdialog.annotators import Annotator, TaskModality
+from sdialog.tasks import Task, TaskModality
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
-class QuestionAnsweringAnnotator(Annotator):
+class QuestionAnsweringTask(Task):
     """
-    Annotator to annotate a dialog for question answering tasks.
+    Task to annotate a dialog for question answering tasks.
     The annotation is a list of questions and answers.
-    This annotator has no requirements.
+    This task has no requirements.
     The modality of the task is text-to-text.
     """
 
@@ -61,11 +61,11 @@ class QuestionAnsweringAnnotator(Annotator):
         """
         return "question_answering"
 
-    def get_requirements(self) -> list[Annotator]:
+    def get_requirements(self) -> list[Task]:
         """
         Get the requirements for the question answering task.
         :return: The requirements for the question answering task.
-        :rtype: list[Annotator]
+        :rtype: list[Task]
         """
         return []
 
@@ -83,11 +83,11 @@ class QuestionAnsweringAnnotator(Annotator):
         import pandas as pd
 
         if args is None or "save_path" not in args or args["save_path"] is None:
-            logging.warning("[QuestionAnsweringAnnotator] No 'save_path' provided, skipping saving")
+            logging.warning("[QuestionAnsweringTask] No 'save_path' provided, skipping saving")
             return
 
         if not data:
-            logging.info("[QuestionAnsweringAnnotator] No annotations to save, skipping file creation.")
+            logging.info("[QuestionAnsweringTask] No annotations to save, skipping file creation.")
             return
 
         df = pd.DataFrame(data)
@@ -96,24 +96,24 @@ class QuestionAnsweringAnnotator(Annotator):
         df.to_csv(args["save_path"], index=False)
 
         logging.info(
-            "[QuestionAnsweringAnnotator] "
+            "[QuestionAnsweringTask] "
             f"Data saved to {args['save_path']}"
         )
 
-    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
+    def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Annotate a dialog for question answering tasks.
+        Run the question answering task on a dialog.
         The annotation is a list of questions and answers.
         :param dialog: The dialog to annotate.
         :type dialog: Dialog
-        :param args: Additional arguments to pass to the annotate method.
+        :param args: Additional arguments to pass to the run method.
         This includes the 'save_path' where to save the data and can contain 'save_args'
         additional arguments to pass to the save method.
         :type args: dict[str, Any]
         :return: The annotated dialog.
         :rtype: Dialog
         """
-        logging.info("[QuestionAnsweringAnnotator] Annotating dialog for question answering tasks")
+        logging.info("[QuestionAnsweringTask] Running dialog for question answering tasks")
 
         dialog = self.check_requirements(dialog)
 
@@ -158,11 +158,11 @@ class QuestionAnsweringAnnotator(Annotator):
 
         try:
             raw_response = llm.invoke(messages)
-            logging.info(f"[QuestionAnsweringAnnotator] Raw LLM response: {raw_response}")
+            logging.info(f"[QuestionAnsweringTask] Raw LLM response: {raw_response}")
             structured_response = self._structured_model.model_validate(raw_response)
             data = [pair.model_dump() for pair in structured_response.questions_answers]
         except Exception as e:
-            logging.error(f"[QuestionAnsweringAnnotator] Failed to generate annotations: {e}")
+            logging.error(f"[QuestionAnsweringTask] Failed to generate annotations: {e}")
             data = []
 
         _annotations = {
@@ -173,7 +173,7 @@ class QuestionAnsweringAnnotator(Annotator):
         dialog.add_annotations(self._task_name, _annotations)
 
         logging.info(
-            "[QuestionAnsweringAnnotator] "
+            "[QuestionAnsweringTask] "
             f"Annotation done for {len(_annotations['data'])} questions"
         )
 

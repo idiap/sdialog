@@ -1,5 +1,5 @@
 """
-This module contains the classes for the audio-specific annotators.
+This module contains the classes for the audio-specific tasks.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -9,16 +9,16 @@ This module contains the classes for the audio-specific annotators.
 import logging
 from typing import Any
 from sdialog import Dialog
-from sdialog.annotators import Annotator, TaskModality
-from sdialog.annotators.nlp import QuestionAnsweringAnnotator
+from sdialog.tasks import Task, TaskModality
+from sdialog.tasks.nlp import QuestionAnsweringTask
 
 
-class SpokenQuestionAnsweringAnnotator(Annotator):
+class SpokenQuestionAnsweringTask(Task):
     """
-    Annotator to convert a question answering task to a spoken question answering task.
-    This annotator requires the QuestionAnsweringAnnotator to be applied before.
+    Task to convert a question answering task to a spoken question answering task.
+    This task requires the QuestionAnsweringTask to be applied before.
     The modality of the task is audio-to-text.
-    This annotator is specific to the AudioDialog class.
+    This task is specific to the AudioDialog class.
     """
 
     def get_modality(self) -> list[TaskModality]:
@@ -39,14 +39,14 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
         """
         return "spoken_question_answering"
 
-    def get_requirements(self) -> list[Annotator]:
+    def get_requirements(self) -> list[Task]:
         """
         Get the requirements for the spoken question answering task.
         :return: The requirements for the spoken question answering task.
-        :rtype: list[Annotator]
+        :rtype: list[Task]
         """
         return [
-            QuestionAnsweringAnnotator()
+            QuestionAnsweringTask()
         ]
 
     def save(self, data: Any, args: dict[str, Any] = {}) -> None:
@@ -63,11 +63,11 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
         import pandas as pd
 
         if args is None or "save_path" not in args or args["save_path"] is None:
-            logging.warning("[SpokenQuestionAnsweringAnnotator] No 'save_path' provided, skipping saving")
+            logging.warning("[SpokenQuestionAnsweringTask] No 'save_path' provided, skipping saving")
             return
 
         if not data:
-            logging.info("[SpokenQuestionAnsweringAnnotator] No annotations to save, skipping file creation.")
+            logging.info("[SpokenQuestionAnsweringTask] No annotations to save, skipping file creation.")
             return
 
         df = pd.DataFrame(data)
@@ -76,24 +76,24 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
         df.to_csv(args["save_path"], index=False)
 
         logging.info(
-            "[SpokenQuestionAnsweringAnnotator] "
+            "[SpokenQuestionAnsweringTask] "
             f"Data saved to {args['save_path']}"
         )
 
-    def annotate(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
+    def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Annotate a dialog for question answering tasks.
+        Run the spoken question answering task on a dialog.
         The annotation is a list of questions and answers, with the audio path and the voice used.
         :param dialog: The dialog to annotate.
         :type dialog: Dialog
-        :param args: Additional arguments to pass to the annotate method.
+        :param args: Additional arguments to pass to the run method.
         This includes the 'save_path' where to save the data and can contain 'save_args'
         additional arguments to pass to the save method.
         :type args: dict[str, Any]
         :return: The annotated dialog.
         :rtype: Dialog
         """
-        logging.info("[SpokenQuestionAnsweringAnnotator] Annotating dialog for spoken question answering tasks")
+        logging.info("[SpokenQuestionAnsweringTask] Running dialog for spoken question answering tasks")
 
         from sdialog.audio.dialog import AudioDialog
 
@@ -126,7 +126,7 @@ class SpokenQuestionAnsweringAnnotator(Annotator):
         dialog.add_annotations(self._task_name, _annotations)
 
         logging.info(
-            "[SpokenQuestionAnsweringAnnotator] "
+            "[SpokenQuestionAnsweringTask] "
             f"Annotation done for {len(_annotations['data'])} questions"
         )
 

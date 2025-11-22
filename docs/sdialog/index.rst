@@ -1230,36 +1230,36 @@ The annotation module in SDialog provides a structured way to add task-specific 
 Core Components
 ---------------
 
-**Annotator** (:class:`~sdialog.annotators.annotator.Annotator`)
-    Abstract base class for creating annotators. An annotator adds a specific annotation to a dialogue. Each annotator defines its task name, modality, and any prerequisite annotators.
+**Task** (:class:`~sdialog.tasks.task.Task`)
+    Abstract base class for creating tasks. An task adds a specific annotation to a dialogue. Each task defines its task name, modality, and any prerequisite tasks.
 
-**TaskModality** (:class:`~sdialog.annotators.annotator.TaskModality`)
+**TaskModality** (:class:`~sdialog.tasks.task.TaskModality`)
     An enum representing the input/output modalities of a task (e.g., TEXT_TO_TEXT, AUDIO_TO_TEXT).
 
-**apply_annotators** (:func:`~sdialog.annotators.apply_annotators`)
-    A function to apply a list of annotators to a dialogue in a sequential manner.
+**apply_tasks** (:func:`~sdialog.tasks.apply_tasks`)
+    A function to apply a list of tasks to a dialogue in a sequential manner.
 
-Creating a Custom Annotator
+Creating a Custom Task
 ---------------------------
 
-You can create your own annotator by inheriting from :class:`~sdialog.annotators.annotator.Annotator` and implementing the required methods. Here is an example of a simple summarization annotator:
+You can create your own task by inheriting from :class:`~sdialog.tasks.task.Task` and implementing the required methods. Here is an example of a simple summarization task:
 
 .. code-block:: python
 
     import sdialog
-    from sdialog.annotators import Annotator, TaskModality
+    from sdialog.tasks import Task, TaskModality
 
-    class SummarizationAnnotator(Annotator):
+    class SummarizationTask(Task):
         def get_modality(self) -> list[TaskModality]:
             return [TaskModality.TEXT_TO_TEXT]
 
         def get_task_name(self) -> str:
             return "summarization"
 
-        def get_requirements(self) -> list[Annotator]:
-            return []  # No requirements for this simple annotator
+        def get_requirements(self) -> list[Task]:
+            return []  # No requirements for this simple task
 
-        def annotate(self, dialog: sdialog.Dialog) -> sdialog.Dialog:
+        def run(self, dialog: sdialog.Dialog) -> sdialog.Dialog:
             self.check_requirements(dialog)
             
             # In a real scenario, you would use a model to generate the summary.
@@ -1272,28 +1272,28 @@ You can create your own annotator by inheriting from :class:`~sdialog.annotators
             dialog.add_annotations(self.get_task_name(), annotations)
             return dialog
 
-Applying Annotators
+Applying Tasks
 --------------------
 
-Once you have your annotators, you can apply them to a dialogue using the :func:`~sdialog.annotators.apply_annotators` function. SDialog also comes with built-in annotators like :class:`~sdialog.annotators.nlp.QuestionAnsweringAnnotator`.
+Once you have your tasks, you can apply them to a dialogue using the :func:`~sdialog.tasks.apply_tasks` function. SDialog also comes with built-in tasks like :class:`~sdialog.tasks.nlp.QuestionAnsweringTask`.
 
 .. code-block:: python
 
     from sdialog import Dialog
-    from sdialog.annotators import apply_annotators
-    from sdialog.annotators.nlp import QuestionAnsweringAnnotator
+    from sdialog.tasks import apply_tasks
+    from sdialog.tasks.nlp import QuestionAnsweringTask
 
     dialog = Dialog.from_str("""
     Alice: What is the capital of France?
     Bob: I think it's Paris.
     """)
 
-    # Instantiate the annotators
-    qa_annotator = QuestionAnsweringAnnotator()
-    # custom_summarizer = SummarizationAnnotator()
+    # Instantiate the tasks
+    qa_task = QuestionAnsweringTask()
+    # custom_summarizer = SummarizationTask()
 
-    # Apply the annotators to the dialogue
-    annotated_dialog = apply_annotators(dialog, [qa_annotator])
+    # Apply the tasks to the dialogue
+    annotated_dialog = apply_tasks(dialog, [qa_task])
 
     # Retrieve the annotations
     qa_annotations = annotated_dialog.get_annotations("question_answering")
