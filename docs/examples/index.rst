@@ -1213,14 +1213,14 @@ For more complex workflows, the :func:`~sdialog.tasks.dialog2tasks` function all
 
     from sdialog import Dialog
     from sdialog.tasks import dialog2tasks
-    from sdialog.tasks.nlp import SummaryTask, NERTask
+    from sdialog.tasks.nlp import SummaryTask, NamedEntityRecognitionTask
 
     # Assume `dialog` is an existing Dialog object
 
     # 1. Define the list of tasks to apply
     tasks_to_run = [
         (SummaryTask(), {"save_path": "summary.txt"}),
-        (NERTask(), {"save_path": "ner_results.csv"}),
+        (NamedEntityRecognitionTask(), {"save_path": "ner_results.csv"}),
     ]
 
     # 2. Apply the tasks to the dialog
@@ -1228,7 +1228,7 @@ For more complex workflows, the :func:`~sdialog.tasks.dialog2tasks` function all
 
     # 3. Access the annotations
     summary = annotated_dialog.get_annotations("summarization")
-    ner_results = annotated_dialog.get_annotations("ner")
+    ner_results = annotated_dialog.get_annotations("named_entity_recognition")
 
 
 Processing a Batch of Dialogs

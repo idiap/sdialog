@@ -16,9 +16,9 @@ from sdialog.tasks import Task, TaskModality
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
-class NERTask(Task):
+class NamedEntityRecognitionTask(Task):
     """
-    Task to annotate a dialog for Named Entity Recognition (NER).
+    Task to annotate a dialog for Named Entity Recognition.
     The annotation is a list of entities found in the dialog.
     This task has no requirements.
     The modality of the task is text-to-text.
@@ -37,15 +37,15 @@ class NERTask(Task):
             text: str = Field(description="The text of the named entity.")
             label: str = Field(description="The label of the named entity.")
 
-        class NERModel(BaseModel):
+        class NamedEntityRecognitionModel(BaseModel):
             """Represents the output of a Named Entity Recognition task."""
             entities: List[NamedEntity] = Field(description="A list of named entities found in the text.")
 
-        return NERModel
+        return NamedEntityRecognitionModel
 
     def get_modality(self) -> list[TaskModality]:
         """
-        Get the modality of the NER task.
+        Get the modality of the Named Entity Recognition task.
         """
         return [
             TaskModality.TEXT_TO_TEXT
@@ -53,13 +53,13 @@ class NERTask(Task):
 
     def get_task_name(self) -> str:
         """
-        Get the name of the NER task.
+        Get the name of the Named Entity Recognition task.
         """
-        return "ner"
+        return "named_entity_recognition"
 
     def get_requirements(self) -> list[Task]:
         """
-        Get the requirements for the NER task.
+        Get the requirements for the Named Entity Recognition task.
         """
         return []
 
@@ -70,14 +70,14 @@ class NERTask(Task):
         :param args: Additional arguments, including 'save_path'.
         """
         if args is None or "save_path" not in args or args["save_path"] is None:
-            logging.warning("[NERTask] No 'save_path' provided, skipping saving")
+            logging.warning("[NamedEntityRecognitionTask] No 'save_path' provided, skipping saving")
             return
 
         dialog = data.get("dialog")
         entities = data.get("entities")
 
         if not dialog or not entities:
-            logging.info("[NERTask] No data to save, skipping file creation.")
+            logging.info("[NamedEntityRecognitionTask] No data to save, skipping file creation.")
             return
 
         save_path = args["save_path"]
@@ -106,15 +106,15 @@ class NERTask(Task):
                     for token, label in zip(tokens, labels):
                         f.write(f"{token}\t{label}\n")
                     f.write("\n")  # Turn break
-            logging.info(f"[NERTask] BIO annotations saved to {save_path}")
+            logging.info(f"[NamedEntityRecognitionTask] BIO annotations saved to {save_path}")
         except Exception as e:
-            logging.error(f"[NERTask] Failed to save BIO annotations: {e}")
+            logging.error(f"[NamedEntityRecognitionTask] Failed to save BIO annotations: {e}")
 
     def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Run the NER task on a dialog.
+        Run the Named Entity Recognition task on a dialog.
         """
-        logging.info("[NERTask] Running dialog for NER tasks")
+        logging.info("[NamedEntityRecognitionTask] Running dialog for Named Entity Recognition tasks")
 
         dialog = self.check_requirements(dialog)
 
@@ -153,11 +153,11 @@ class NERTask(Task):
 
         try:
             raw_response = llm.invoke(messages)
-            logging.info(f"[NERTask] Raw LLM response: {raw_response}")
+            logging.info(f"[NamedEntityRecognitionTask] Raw LLM response: {raw_response}")
             structured_response = structured_model.model_validate(raw_response)
             data = structured_response.entities
         except Exception as e:
-            logging.error(f"[NERTask] Failed to generate NER data: {e}")
+            logging.error(f"[NamedEntityRecognitionTask] Failed to generate NER data: {e}")
             data = []
 
         _annotations = {
@@ -167,7 +167,7 @@ class NERTask(Task):
 
         dialog.add_annotations(self._task_name, _annotations)
 
-        logging.info("[NERTask] Annotation done for NER.")
+        logging.info("[NamedEntityRecognitionTask] Annotation done for Named Entity Recognition.")
 
         data_to_save = {"dialog": dialog, "entities": data}
         self.save(data=data_to_save, args=args)

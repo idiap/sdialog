@@ -21,7 +21,7 @@ from sdialog.audio.dialog import AudioDialog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
-class SLUTask(Task):
+class SpokenLanguageUnderstandingTask(Task):
     """
     Task to perform Spoken Language Understanding (SLU) on a dialog.
     This involves identifying the user's intent and extracting relevant slots from audio.
@@ -54,31 +54,31 @@ class SLUTask(Task):
 
     def get_structured_model(self) -> Optional[Type[BaseModel]]:
         """
-        Defines the structured output for the SLU task, including intent and slots.
+        Defines the structured output for the Spoken Language Understanding task, including intent and slots.
         """
         class Slot(BaseModel):
             """Represents a single slot with its name and value."""
             slot_name: str = Field(description="The name of the slot.")
             slot_value: str = Field(description="The value of the slot.")
 
-        class SLUModel(BaseModel):
-            """Represents the SLU output for a single utterance."""
+        class SpokenLanguageUnderstandingModel(BaseModel):
+            """Represents the Spoken Language Understanding output for a single utterance."""
             intent: str = Field(description="The identified intent.")
             slots: List[Slot] = Field(description="A list of extracted slots.", default=[])
 
-        return SLUModel
+        return SpokenLanguageUnderstandingModel
 
     def get_modality(self) -> list[TaskModality]:
         """
-        Get the modality of the SLU task.
+        Get the modality of the Spoken Language Understanding task.
         """
         return [TaskModality.AUDIO_TO_TEXT]
 
     def get_task_name(self) -> str:
         """
-        Get the name of the SLU task.
+        Get the name of the Spoken Language Understanding task.
         """
-        return "slu"
+        return "spoken_language_understanding"
 
     def get_requirements(self) -> list[Task]:
         """
@@ -88,36 +88,36 @@ class SLUTask(Task):
 
     def save(self, data: Any, args: dict[str, Any] = {}) -> None:
         """
-        Save the SLU annotations to a JSON file.
+        Save the Spoken Language Understanding annotations to a JSON file.
         """
         save_path = args.get("save_path")
         if not save_path:
-            logging.warning("[SLUTask] No 'save_path' provided, skipping saving.")
+            logging.warning("[SpokenLanguageUnderstandingTask] No 'save_path' provided, skipping saving.")
             return
 
         if not data:
-            logging.info("[SLUTask] No data to save, skipping file creation.")
+            logging.info("[SpokenLanguageUnderstandingTask] No data to save, skipping file creation.")
             return
 
         try:
             with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
-            logging.info(f"[SLUTask] SLU annotations saved to {save_path}")
+            logging.info(f"[SpokenLanguageUnderstandingTask] Spoken Language Understanding annotations saved to {save_path}")
         except Exception as e:
-            logging.error(f"[SLUTask] Failed to save SLU annotations: {e}")
+            logging.error(f"[SpokenLanguageUnderstandingTask] Failed to save Spoken Language Understanding annotations: {e}")
 
     def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
-        Run the SLU task on a dialog.
+        Run the Spoken Language Understanding task on a dialog.
         """
 
         if not isinstance(dialog, AudioDialog):
-            raise ValueError("Dialog must be an instance of AudioDialog for SLUTask.")
+            raise ValueError("Dialog must be an instance of AudioDialog for SpokenLanguageUnderstandingTask.")
 
-        logging.info("[SLUTask] Running dialog for SLU task")
+        logging.info("[SpokenLanguageUnderstandingTask] Running dialog for Spoken Language Understanding task")
 
         if not isinstance(dialog, AudioDialog):
-            raise ValueError("Dialog must be an instance of AudioDialog for SLUTask.")
+            raise ValueError("Dialog must be an instance of AudioDialog for SpokenLanguageUnderstandingTask.")
 
         if "output_dir" not in args or not args["output_dir"]:
             raise ValueError("'output_dir' is required in args to save audio segments.")
@@ -129,7 +129,7 @@ class SLUTask(Task):
         elif dialog.audio_step_3_filepaths:
             main_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
             logging.warning(
-                "[SLUTask] No 'room_audio_path' provided, using the first room audio path found in the dialog."
+                "[SpokenLanguageUnderstandingTask] No 'room_audio_path' provided, using the first room audio path found in the dialog."
             )
         else:
             raise ValueError("No audio file path found in the dialog or arguments.")
@@ -159,7 +159,7 @@ class SLUTask(Task):
         for turn_id, turn in enumerate(dialog.turns):
             transcription = turn.text
             if not transcription:
-                logging.warning(f"[SLUTask] No transcription found for turn {turn_id}, skipping.")
+                logging.warning(f"[SpokenLanguageUnderstandingTask] No transcription found for turn {turn_id}, skipping.")
                 continue
 
             start_time = turn.audio_start_time
@@ -173,7 +173,7 @@ class SLUTask(Task):
             sf.write(segment_path, segment_data, sampling_rate)
 
             human_prompt = (
-                f"Please perform SLU on the following utterance:\n---\n{transcription}\n---\n\n"
+                f"Please perform Spoken Language Understanding on the following utterance:\n---\n{transcription}\n---\n\n"
                 "Identify the intent and extract all relevant slots and their values. "
                 "The output must be a JSON object."
             )
@@ -205,7 +205,7 @@ class SLUTask(Task):
                 slu_annotations.append(annotation)
 
             except Exception as e:
-                logging.error(f"[SLUTask] Failed to process turn {turn_id}: {e}")
+                logging.error(f"[SpokenLanguageUnderstandingTask] Failed to process turn {turn_id}: {e}")
 
         annotations = {
             "data": slu_annotations,
@@ -213,7 +213,7 @@ class SLUTask(Task):
         }
 
         dialog.add_annotations(self.get_task_name(), annotations)
-        logging.info("[SLUTask] SLU annotation completed.")
+        logging.info("[SpokenLanguageUnderstandingTask] Spoken Language Understanding annotation completed.")
 
         # Save the annotations inside the dialog-specific folder
         segment_dir = os.path.join(args['output_dir'], dialog.id)
