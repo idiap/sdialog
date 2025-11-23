@@ -12,31 +12,12 @@ from sdialog import Dialog
 from typing import List, Tuple, Any
 from .base import Task, TaskModality
 
-from .audio import (
-    SpokenQuestionAnsweringTask,
-    AutomaticSpeechRecognitionTask,
-    SLUTask,
-    DiarizationTask,
-)
-from .nlp import (
-    QuestionAnsweringTask,
-    SummaryTask,
-    NERTask,
-)
-
 
 __all__ = [
     "Task",
     "TaskModality",
     "dialog2tasks",
     "dialogs2tasks",
-    "SpokenQuestionAnsweringTask",
-    "AutomaticSpeechRecognitionTask",
-    "SLUTask",
-    "DiarizationTask",
-    "QuestionAnsweringTask",
-    "SummaryTask",
-    "NERTask",
 ]
 
 

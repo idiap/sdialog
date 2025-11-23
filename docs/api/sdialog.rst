@@ -273,17 +273,15 @@ sdialog.audio.processing
 ----
 
 sdialog.tasks
-------------------
+-------------
 
 .. automodule:: sdialog.tasks
-   :member-order: bysource
-   :members:
-   :show-inheritance:
+   :members: dialog2tasks, dialogs2tasks
 
-sdialog.tasks.task
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autosummary::
+   :toctree: tasks
+   :recursive:
 
-.. automodule:: sdialog.tasks.task
-   :member-order: bysource
-   :members:
-   :show-inheritance:
+   base
+   nlp
+   audio

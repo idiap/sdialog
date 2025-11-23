@@ -661,7 +661,7 @@ Audio Generation
 The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
 
 Setup and Installation
----------------------
+----------------------
 
 To work with audio features in SDialog, you'll need to install additional dependencies and system packages:
 
@@ -1232,79 +1232,183 @@ SDialog supports multilingual audio generation with custom TTS engines:
 Task-specific Annotation
 ========================
 
-The annotation module in SDialog provides a structured way to add task-specific metadata to dialogues. This is useful for preparing datasets for various downstream tasks like question answering, summarization, or spoken dialogue systems.
+The ``sdialog.tasks`` module provides a powerful framework for applying various processing and annotation tasks to :class:`~sdialog.Dialog` objects. It is designed to be modular and extensible, allowing you to chain tasks together and create complex processing pipelines for both text and audio dialogues.
 
-Core Components
----------------
+Each task is a self-contained unit that performs a specific operation, such as summarizing a conversation or transcribing audio. Tasks can also define dependencies on other tasks, which are automatically resolved and executed at runtime. For a detailed reference of all available tasks, please see the API documentation for the :py:mod:`sdialog.tasks` module.
 
-**Task** (:class:`~sdialog.tasks.task.Task`)
-    Abstract base class for creating tasks. An task adds a specific annotation to a dialogue. Each task defines its task name, modality, and any prerequisite tasks.
+Using Tasks
+-----------
 
-**TaskModality** (:class:`~sdialog.tasks.task.TaskModality`)
-    An enum representing the input/output modalities of a task (e.g., TEXT_TO_TEXT, AUDIO_TO_TEXT).
+You can apply tasks to your dialogues in several ways, depending on your needs.
 
-**apply_tasks** (:func:`~sdialog.tasks.apply_tasks`)
-    A function to apply a list of tasks to a dialogue in a sequential manner.
+Running a Single Task
+~~~~~~~~~~~~~~~~~~~~~
 
-Creating a Custom Task
----------------------------
-
-You can create your own task by inheriting from :class:`~sdialog.tasks.task.Task` and implementing the required methods. Here is an example of a simple summarization task:
-
-.. code-block:: python
-
-    import sdialog
-    from sdialog.tasks import Task, TaskModality
-
-    class SummarizationTask(Task):
-        def get_modality(self) -> list[TaskModality]:
-            return [TaskModality.TEXT_TO_TEXT]
-
-        def get_task_name(self) -> str:
-            return "summarization"
-
-        def get_requirements(self) -> list[Task]:
-            return []  # No requirements for this simple task
-
-        def run(self, dialog: sdialog.Dialog) -> sdialog.Dialog:
-            self.check_requirements(dialog)
-            
-            # In a real scenario, you would use a model to generate the summary.
-            summary = "This is a summary of the dialogue."
-
-            annotations = {
-                "data": {"summary": summary},
-                "modality": self.get_modality()
-            }
-            dialog.add_annotations(self.get_task_name(), annotations)
-            return dialog
-
-Applying Tasks
---------------------
-
-Once you have your tasks, you can apply them to a dialogue using the :func:`~sdialog.tasks.apply_tasks` function. SDialog also comes with built-in tasks like :class:`~sdialog.tasks.nlp.QuestionAnsweringTask`.
+The most straightforward way to use a task is to instantiate it and call its ``run`` method with your :class:`~sdialog.Dialog` object. The task's results are added to the dialog's annotations.
 
 .. code-block:: python
 
     from sdialog import Dialog
-    from sdialog.tasks import apply_tasks
-    from sdialog.tasks.nlp import QuestionAnsweringTask
+    from sdialog.tasks.nlp.summary import SummaryTask
 
-    dialog = Dialog.from_str("""
-    Alice: What is the capital of France?
-    Bob: I think it's Paris.
-    """)
+    # Assume `dialog` is an existing Dialog object
+    # dialog = Dialog.from_file("my_dialog.json")
 
-    # Instantiate the tasks
-    qa_task = QuestionAnsweringTask()
-    # custom_summarizer = SummarizationTask()
+    # 1. Instantiate the task
+    summary_task = SummaryTask()
 
-    # Apply the tasks to the dialogue
-    annotated_dialog = apply_tasks(dialog, [qa_task])
+    # 2. Run the task on the dialog
+    annotated_dialog = summary_task.run(dialog)
 
-    # Retrieve the annotations
-    qa_annotations = annotated_dialog.get_annotations("question_answering")
-    print(qa_annotations)
+    # 3. Access the results from the dialog's annotations
+    summary_data = annotated_dialog.get_annotations("summarization")
+    if summary_data:
+        summary_text = summary_data.get("data")
+        print("Dialogue Summary:")
+        print(summary_text)
+
+    # You can also save the output directly during the run
+    summary_task.run(dialog, args={"save_path": "summary.txt"})
+
+
+Processing a Single Dialog with Multiple Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For more complex workflows, the :func:`~sdialog.tasks.dialog2tasks` function allows you to apply a sequence of tasks to a single dialog. The framework handles executing them in order.
+
+.. code-block:: python
+
+    from sdialog import Dialog
+    from sdialog.tasks import dialog2tasks
+    from sdialog.tasks.nlp import SummaryTask, NERTask
+
+    # Assume `dialog` is an existing Dialog object
+
+    # 1. Define the list of tasks to apply
+    tasks_to_run = [
+        (SummaryTask(), {"save_path": "summary.txt"}),
+        (NERTask(), {"save_path": "ner_results.csv"}),
+    ]
+
+    # 2. Apply the tasks to the dialog
+    annotated_dialog = dialog2tasks(dialog, tasks_to_run)
+
+    # 3. Access the annotations
+    summary = annotated_dialog.get_annotations("summarization")
+    ner_results = annotated_dialog.get_annotations("ner")
+
+
+Processing a Batch of Dialogs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When working with multiple dialogues, the :func:`~sdialog.tasks.dialogs2tasks` function efficiently applies your task pipeline to each dialog in a list.
+
+.. code-block:: python
+
+    from sdialog.tasks import dialogs2tasks
+    from sdialog.tasks.nlp import SummaryTask
+
+    # Assume `dialog_list` is a list of Dialog objects
+
+    # 1. Define the task pipeline
+    tasks_to_run = [
+        (SummaryTask(), {"output_dir": "./summaries"}),
+    ]
+
+    # 2. Apply the tasks to all dialogs
+    annotated_dialogs = dialogs2tasks(dialog_list, tasks_to_run)
+
+
+Creating a Custom Task
+----------------------
+
+You can easily create your own tasks by subclassing ``sdialog.tasks.base.Task``. This allows you to integrate custom processing logic, third-party libraries, or specialized models into the ``sdialog`` ecosystem.
+
+To create a new task, you must implement a few key methods:
+
+*   ``get_task_name(self) -> str``: Returns a unique string identifier for the task (e.g., ``"sentiment_analysis"``).
+*   ``get_modality(self) -> list[TaskModality]``: Specifies the input and output data types (e.g., ``TEXT_TO_TEXT``, ``AUDIO_TO_TEXT``).
+*   ``get_requirements(self) -> list["Task"]``: A list of other tasks that must be completed before this one can run.
+*   ``run(self, dialog: Dialog, ...)``: The main execution method. It takes a ``Dialog`` object, performs processing, and returns the dialog with new annotations.
+*   ``save(self, data: Any, ...)``: Saves the output of the task to a specified location.
+
+Here is a simple example of a custom task that performs sentiment analysis on each turn of a dialogue.
+
+.. code-block:: python
+
+    import logging
+    from sdialog import Dialog
+    from sdialog.tasks import Task, TaskModality
+    from typing import Any, List
+
+    # A mock sentiment analysis function for demonstration
+    def mock_sentiment_analyzer(text: str) -> str:
+        if "happy" in text.lower() or "good" in text.lower():
+            return "POSITIVE"
+        if "sad" in text.lower() or "bad" in text.lower():
+            return "NEGATIVE"
+        return "NEUTRAL"
+
+
+    class SentimentAnalysisTask(Task):
+        """
+        A custom task to analyze and annotate the sentiment of each dialogue turn.
+        """
+        def get_task_name(self) -> str:
+            return "sentiment_analysis"
+
+        def get_modality(self) -> List[TaskModality]:
+            return [TaskModality.TEXT_TO_TEXT]
+
+        def get_requirements(self) -> List[Task]:
+            # This task has no dependencies
+            return []
+
+        def save(self, data: Any, args: dict[str, Any] = {}) -> None:
+            if "save_path" in args:
+                with open(args["save_path"], "w") as f:
+                    for turn_sentiment in data:
+                        f.write(f"{turn_sentiment['speaker']}: {turn_sentiment['sentiment']}\\n")
+                logging.info(f"Sentiment data saved to {args['save_path']}")
+
+        def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
+            """
+            Analyzes the sentiment for each turn and adds it as an annotation.
+            """
+            logging.info(f"[{self.get_task_name()}] Running sentiment analysis.")
+
+            sentiment_results = []
+            for turn in dialog.turns:
+                sentiment = mock_sentiment_analyzer(turn.text)
+                sentiment_results.append({
+                    "speaker": turn.speaker,
+                    "text": turn.text,
+                    "sentiment": sentiment,
+                })
+
+            _annotations = {
+                "data": sentiment_results,
+                "modality": self.get_modality(),
+            }
+
+            dialog.add_annotations(self.get_task_name(), _annotations)
+            logging.info(f"[{self.get_task_name()}] Annotation complete.")
+
+            self.save(data=sentiment_results, args=args)
+
+            return dialog
+
+To use this custom task, you would instantiate and run it just like the pre-built tasks:
+
+.. code-block:: python
+
+    # Assuming `my_dialog` is a Dialog object
+    sentiment_task = SentimentAnalysisTask()
+    annotated_dialog = sentiment_task.run(my_dialog)
+
+    # Retrieve the results
+    sentiments = annotated_dialog.get_annotations("sentiment_analysis")
+    print(sentiments)
 
 ----
 
@@ -1447,8 +1551,4 @@ Performance Considerations
 Common Recipes
 --------------
 
-1. **Generate Multi-Variant Persona Set**: :class:`~sdialog.generators.PersonaGenerator` with rule lists and numeric ranges + seed cycle.
-2. **Scenario Simulation at Scale**: For each scenario → build Agents → attach orchestrators → run ``dialog_with`` for N seeds.
-3. **Quality Filtering Pipeline**: Generate dialogs → apply LLM judges (realism > threshold) → compute flow score percentile → retain top quantile.
-4. **Style Harmonization**: Paraphrase dialogs targeting only system speaker with controlled extra instructions.
-5. **Activation Steering Study**: Attach :class:`~sdialog.interpretability.Inspector` → collect baseline activations → compute direction (e.g., mean difference) → apply :class:`~sdialog.interpretability.DirectionSteerer` → compare linguistic + refusal metrics pre/post.
+1. **Generate Multi-Variant Persona Set**: :class:`~sdialog.generators.PersonaGenerator`
