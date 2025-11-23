@@ -16,6 +16,7 @@ from .audio import (
     SpokenQuestionAnsweringTask,
     AutomaticSpeechRecognitionTask,
     SLUTask,
+    DiarizationTask,
 )
 from .nlp import (
     QuestionAnsweringTask,
@@ -32,6 +33,7 @@ __all__ = [
     "SpokenQuestionAnsweringTask",
     "AutomaticSpeechRecognitionTask",
     "SLUTask",
+    "DiarizationTask",
     "QuestionAnsweringTask",
     "SummaryTask",
     "NERTask",
