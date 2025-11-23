@@ -12,5 +12,6 @@
 
    automatic_speech_recognition
    diarization
+   speaker_identification
    spoken_language_understanding
    spoken_question_answering

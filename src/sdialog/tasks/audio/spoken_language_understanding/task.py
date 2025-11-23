@@ -102,9 +102,13 @@ class SpokenLanguageUnderstandingTask(Task):
         try:
             with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
-            logging.info(f"[SpokenLanguageUnderstandingTask] Spoken Language Understanding annotations saved to {save_path}")
+            logging.info(
+                f"[SpokenLanguageUnderstandingTask] Spoken Language Understanding annotations saved to {save_path}"
+            )
         except Exception as e:
-            logging.error(f"[SpokenLanguageUnderstandingTask] Failed to save Spoken Language Understanding annotations: {e}")
+            logging.error(
+                f"[SpokenLanguageUnderstandingTask] Failed to save Spoken Language Understanding annotations: {e}"
+            )
 
     def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
@@ -129,7 +133,8 @@ class SpokenLanguageUnderstandingTask(Task):
         elif dialog.audio_step_3_filepaths:
             main_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
             logging.warning(
-                "[SpokenLanguageUnderstandingTask] No 'room_audio_path' provided, using the first room audio path found in the dialog."
+                "[SpokenLanguageUnderstandingTask] No 'room_audio_path' provided, "
+                "using the first room audio path found in the dialog."
             )
         else:
             raise ValueError("No audio file path found in the dialog or arguments.")
@@ -159,7 +164,9 @@ class SpokenLanguageUnderstandingTask(Task):
         for turn_id, turn in enumerate(dialog.turns):
             transcription = turn.text
             if not transcription:
-                logging.warning(f"[SpokenLanguageUnderstandingTask] No transcription found for turn {turn_id}, skipping.")
+                logging.warning(
+                    f"[SpokenLanguageUnderstandingTask] No transcription found for turn {turn_id}, skipping."
+                )
                 continue
 
             start_time = turn.audio_start_time
@@ -173,7 +180,8 @@ class SpokenLanguageUnderstandingTask(Task):
             sf.write(segment_path, segment_data, sampling_rate)
 
             human_prompt = (
-                f"Please perform Spoken Language Understanding on the following utterance:\n---\n{transcription}\n---\n\n"
+                "Please perform Spoken Language Understanding on the following "
+                f"utterance:\n---\n{transcription}\n---\n\n"
                 "Identify the intent and extract all relevant slots and their values. "
                 "The output must be a JSON object."
             )

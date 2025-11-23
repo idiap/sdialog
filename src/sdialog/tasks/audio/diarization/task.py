@@ -8,6 +8,7 @@ This module contains the classes for the audio diarization task.
 
 import os
 import logging
+import json
 import shutil
 from sdialog import Dialog
 from typing import Any
@@ -134,6 +135,16 @@ class DiarizationTask(Task):
         rttm_filename = f"{dialog.id}_diarization.rttm"
         rttm_save_path = os.path.join(dialog_output_dir, rttm_filename)
         self.save(data=rttm_data, args={'save_path': rttm_save_path})
+
+        # Save speaker mapping
+        mapping_filename = f"{dialog.id}_speaker_mapping.json"
+        mapping_save_path = os.path.join(dialog_output_dir, mapping_filename)
+        try:
+            with open(mapping_save_path, "w", encoding="utf-8") as f:
+                json.dump(speaker_map, f, indent=4)
+            logging.info(f"[DiarizationTask] Speaker mapping saved to: {mapping_save_path}")
+        except Exception as e:
+            logging.error(f"[DiarizationTask] Failed to save speaker mapping: {e}")
 
         # Copy the main audio file into the same directory
         try:
