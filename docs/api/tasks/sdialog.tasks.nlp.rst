@@ -10,6 +10,6 @@
    :toctree:
    :recursive:
 
-   ner
+   named_entity_recognition
    question_answering
-   summary
+   summarization

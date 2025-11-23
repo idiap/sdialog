@@ -16,7 +16,7 @@ from sdialog.tasks import Task, TaskModality
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
-class SummaryTask(Task):
+class SummarizationTask(Task):
     """
     Task to annotate a dialog for summarization tasks.
     The annotation is a string containing the summary.
@@ -61,26 +61,26 @@ class SummaryTask(Task):
         :param args: Additional arguments, including 'save_path'.
         """
         if args is None or "save_path" not in args or args["save_path"] is None:
-            logging.warning("[SummaryTask] No 'save_path' provided, skipping saving")
+            logging.warning("[SummarizationTask] No 'save_path' provided, skipping saving")
             return
 
         if not data:
-            logging.info("[SummaryTask] No summary to save, skipping file creation.")
+            logging.info("[SummarizationTask] No summary to save, skipping file creation.")
             return
 
         save_path = args["save_path"]
         try:
             with open(save_path, "w", encoding="utf-8") as f:
                 f.write(data)
-            logging.info(f"[SummaryTask] Summary saved to {save_path}")
+            logging.info(f"[SummarizationTask] Summary saved to {save_path}")
         except Exception as e:
-            logging.error(f"[SummaryTask] Failed to save summary: {e}")
+            logging.error(f"[SummarizationTask] Failed to save summary: {e}")
 
     def run(self, dialog: Dialog, args: dict[str, Any] = {}) -> Dialog:
         """
         Run the summarization task on a dialog.
         """
-        logging.info("[SummaryTask] Running dialog for summarization tasks")
+        logging.info("[SummarizationTask] Running dialog for summarization tasks")
 
         dialog = self.check_requirements(dialog)
 
@@ -116,11 +116,11 @@ class SummaryTask(Task):
 
         try:
             raw_response = llm.invoke(messages)
-            logging.info(f"[SummaryTask] Raw LLM response: {raw_response}")
+            logging.info(f"[SummarizationTask] Raw LLM response: {raw_response}")
             structured_response = self._structured_model.model_validate(raw_response)
             data = structured_response.summary
         except Exception as e:
-            logging.error(f"[SummaryTask] Failed to generate summary: {e}")
+            logging.error(f"[SummarizationTask] Failed to generate summary: {e}")
             data = ""
 
         _annotations = {
@@ -130,7 +130,7 @@ class SummaryTask(Task):
 
         dialog.add_annotations(self._task_name, _annotations)
 
-        logging.info("[SummaryTask] Annotation done for summarization.")
+        logging.info("[SummarizationTask] Annotation done for summarization.")
 
         self.save(data=_annotations["data"], args=args)
 

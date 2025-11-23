@@ -1,5 +1,5 @@
-sdialog.tasks.nlp.named_entity_recognition.task
-===============================================
+sdialog.tasks.nlp.named\_entity\_recognition.task
+=================================================
 
 .. automodule:: sdialog.tasks.nlp.named_entity_recognition.task
 

@@ -12,5 +12,5 @@
 
    automatic_speech_recognition
    diarization
-   slu
+   spoken_language_understanding
    spoken_question_answering
