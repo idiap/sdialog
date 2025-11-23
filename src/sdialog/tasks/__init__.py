@@ -14,11 +14,13 @@ from .base import Task, TaskModality
 
 from .audio import (
     SpokenQuestionAnsweringTask,
-    AutomaticSpeechRecognitionTask
+    AutomaticSpeechRecognitionTask,
+    SLUTask,
 )
 from .nlp import (
     QuestionAnsweringTask,
-    SummaryTask
+    SummaryTask,
+    NERTask,
 )
 
 
@@ -29,8 +31,10 @@ __all__ = [
     "dialogs2tasks",
     "SpokenQuestionAnsweringTask",
     "AutomaticSpeechRecognitionTask",
+    "SLUTask",
     "QuestionAnsweringTask",
     "SummaryTask",
+    "NERTask",
 ]
 
 
@@ -110,25 +114,12 @@ def dialogs2tasks(
             # Create the directory if it doesn't exist.
             os.makedirs(os.path.dirname(_path), exist_ok=True)
 
-            # if args["skip_if_existing"] and os.path.exists(_path):
-            #     logging.info(
-            #         f"[Task] Using existing data from {_path}"
-            #     )
-            #     dialog.set_annotations(
-            #         task.get_task_name(),
-            #         {
-            #             "data": pd.read_csv(_path),
-            #             "modality": task.get_modality()
-            #         }
-            #     )
-            #     continue
-
             # Apply the task and save the data.
+            run_args = args.copy()
+            run_args['save_path'] = _path
             dialog = task.run(
                 dialog=dialog,
-                args={
-                    "save_path": _path
-                }
+                args=run_args
             )
 
         output_dialogs.append(dialog)
