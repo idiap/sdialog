@@ -6,8 +6,35 @@ Base and abstract audio evaluation components.
 # SPDX-License-Identifier: MIT
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Dict, Any
 from sdialog.audio.dialog import AudioDialog
+
+
+class Result:
+    """
+    Result class for audio evaluation.
+    """
+    def __init__(
+        self,
+        metrics: float,
+        data: Dict[str, Any],
+        plots: list
+    ):
+        self.metrics = metrics
+        self.data = data
+        self.plots = plots
+
+    def display(self):
+        """
+        Display the result.
+        """
+        from IPython.display import display
+
+        print(self.metrics)
+
+        if self.plots is not None:
+            for img in self.plots:
+                display(img)
 
 
 class BaseAudioDialogScore(ABC):
@@ -32,10 +59,9 @@ class BaseAudioDialogScore(ABC):
     :param ai_speaker: If provided, restrict scoring to turns spoken by this AI speaker (case-insensitive).
     :type ai_speaker: Optional[str]
     """
-    def __init__(self, name: Optional[str] = None, ai_speaker: str = None):
+    def __init__(self, name: Optional[str] = None):
         """Initialize the dialog score object."""
         self.name = name
-        self.ai_speaker = ai_speaker
 
     def __call__(self, dialog: AudioDialog, **kwargs):
         """
@@ -53,13 +79,35 @@ class BaseAudioDialogScore(ABC):
         return self.name
 
     @abstractmethod
-    def score(self, dialog: AudioDialog) -> float:
+    def results2result(self, results: Dict[str, Any]) -> Result:
+        """
+        Compute the overall result from the results of the evaluator on all dialogs.
+        :param results: The results of the evaluator.
+        :type results: Dict[str, Any]
+        :return: The overall result of the evaluator on all dialogs.
+        :rtype: Result
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    @abstractmethod
+    def plot(self, data: Dict[str, Any]) -> list:
+        """
+        Plot the results of the evaluator.
+        :param data: The data to plot.
+        :type data: Dict[str, Any]
+        :return: A list of plots.
+        :rtype: list
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    @abstractmethod
+    def score(self, dialog: AudioDialog) -> Result:
         """
         Compute the score for the provided dialog.
         :param dialog: The dialog to score.
         :type dialog: AudioDialog
-        :return: Scalar score value.
-        :rtype: float
+        :return: A dictionary containing the score and any additional information.
+        :rtype: Dict[str, Any]
         :raises NotImplementedError: If not implemented in subclass.
         """
         raise NotImplementedError("Subclasses should implement this method.")
