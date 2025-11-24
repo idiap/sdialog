@@ -1229,6 +1229,19 @@ SDialog supports multilingual audio generation with custom TTS engines:
 
 ----
 
+
+Evaluation
+----------
+
+Evaluating the quality of generated audio is crucial. SDialog provides specific tools for this under ``sdialog.audio.evaluation``. One of the key metrics is speaker consistency.
+
+**SpeakerConsistency** (:class:`~sdialog.audio.evaluation.SpeakerConsistency`)
+    This evaluator assesses whether a speaker's voice remains consistent throughout a dialogue. It uses x-vector embeddings (voice fingerprints) to compute two scores:
+    - ``global_consistency``: The average similarity between all of a speaker's turns.
+    - ``turn_to_turn_consistency``: The average similarity between consecutive turns from the same speaker.
+    Scores are close to 1.0 for highly consistent voices. You can evaluate either the clean TTS output or the final audio with acoustic effects applied.
+
+
 Task-specific Annotation
 ========================
 

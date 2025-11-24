@@ -1161,6 +1161,40 @@ SDialog supports multilingual audio generation. You can use a compatible model f
         voices=spanish_voices
     )
 
+Evaluation
+~~~~~~~~~~
+
+Evaluating the quality of generated audio is crucial. SDialog provides tools to assess aspects like speaker consistency.
+
+**Speaker Consistency**
+
+Let's evaluate if each speaker's voice remains consistent throughout the dialogue. We'll use the :class:`~sdialog.audio.evaluation.SpeakerConsistency` evaluator.
+
+It computes two metrics:
+- ``turn_to_turn_consistency``: Similarity between consecutive turns from the same speaker.
+- ``global_consistency``: Similarity between all pairs of turns from the same speaker.
+
+Scores are close to 1.0 for highly consistent voices.
+
+.. code-block:: python
+
+    from sdialog.audio.evaluation import evaluate, SpeakerConsistency
+
+    # Assuming `audio_dialog` is an AudioDialog object from the previous examples
+    
+    # Evaluate the clean TTS audio (without room acoustics)
+    consistency_evaluator = SpeakerConsistency(use_acoustic_audio=False)
+    scores = evaluate([audio_dialog], [consistency_evaluator])
+    print(scores)
+    # {'speaker-consistency': [{'global_consistency': {'Dr. Smith': 0.85, 'John': 0.88}, 'turn_to_turn_consistency': {'Dr. Smith': 0.86, 'John': 0.89}}]}
+
+    # To evaluate audio with room acoustics, set use_acoustic_audio=True
+    # This requires `audio_dialog` to have been generated with `perform_room_acoustics=True`
+    if audio_dialog.audio_step_3_filepaths:
+        consistency_evaluator_acoustic = SpeakerConsistency(use_acoustic_audio=True)
+        scores_acoustic = evaluate([audio_dialog], [consistency_evaluator_acoustic])
+        print(scores_acoustic)
+
 --------------------------
 Task-specific Annotation
 --------------------------
