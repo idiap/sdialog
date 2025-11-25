@@ -467,7 +467,9 @@ class LogitsHook(BaseHook):
         self.agent = agent
         self.response_hook = response_hook
         self.inspector = inspector
-        self.register(agent.base_model, self.inspector.inspect_input)
+        # We always need a forward hook instead of a pre-hook if we want to capture the lm_head predictions.
+        # So, no pre hook here is mandatory.
+        self.register(agent.base_model, is_pre_hook=False)
 
         # Initialize the logits cache for this response
         _ = self.agent._hook_response_logit[len(self.response_hook.responses)] = []
