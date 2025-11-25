@@ -313,7 +313,7 @@ class ActivationHook(BaseHook):
     :meta private:
     """
     def __init__(self, cache_key, layer_key, agent, response_hook,
-                 steering_function=None, steering_interval=(0, -1), inspector=None):
+                 steering_function=None, steering_interval=("*", "*"), inspector=None):
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.agent = agent
