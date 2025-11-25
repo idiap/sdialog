@@ -5,20 +5,29 @@ Audio evaluation module.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 
-from .base import Result
-from .base import BaseAudioDialogScore
 from typing import Union, List, Dict, Any
 from sdialog.audio.dialog import AudioDialog
-from .speaker_consistency.evaluator import SpeakerConsistency
+from .base import BaseAudioDialogScore, Result
+from .speech_signal import SpeechSignalEvaluator
+from .audio_quality import AudioQualityEvaluator
+from .speaker_consistency import SpeakerConsistency
 
-__all__ = ["BaseAudioDialogScore", "SpeakerConsistency", "evaluate"]
+__all__ = [
+    "evaluate",
+    "Result",
+    "BaseAudioDialogScore",
+    "SpeakerConsistency",
+    "SpeechSignalEvaluator",
+    "AudioQualityEvaluator",
+]
 
 
 def evaluate(
     dialogs: Union[AudioDialog, List[AudioDialog]],
     evaluators: List[BaseAudioDialogScore],
     evaluator_args: Dict[str, Any] = None,
-    compute_on_all_dialogs: bool = False
+    compute_on_all_dialogs: bool = False,
+    compute_plots: bool = False
 ) -> Dict[str, any]:
     """
     Apply a list of audio evaluation functions to one or many dialogs.
@@ -28,6 +37,10 @@ def evaluate(
     :type evaluators: List[Union[str, BaseAudioDialogScore]]
     :param evaluator_args: Optional dictionary of arguments for instantiating evaluators from strings.
     :type evaluator_args: Dict[str, Any]
+    :param compute_on_all_dialogs: If True, compute the result on all dialogs.
+    :type compute_on_all_dialogs: bool
+    :param compute_plots: If True, compute the plots for the results.
+    :type compute_plots: bool
     :return: A dictionary of evaluation results, keyed by evaluator name.
     :rtype: Dict[str, any]
     """
@@ -54,7 +67,7 @@ def evaluate(
 
         # Compute the overall result of the evaluator on all dialogs
         if compute_on_all_dialogs:
-            overall_results[str(evaluator)] = evaluator.results2result(evaluator_results)
+            overall_results[str(evaluator)] = evaluator.results2result(evaluator_results, compute_plots=compute_plots)
 
     return {
         "per_dialog_results": per_dialog_results,

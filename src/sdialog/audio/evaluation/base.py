@@ -79,7 +79,7 @@ class BaseAudioDialogScore(ABC):
         return self.name
 
     @abstractmethod
-    def results2result(self, results: Dict[str, Any]) -> Result:
+    def results2result(self, results: Dict[str, Any], compute_plots: bool = False) -> Result:
         """
         Compute the overall result from the results of the evaluator on all dialogs.
         :param results: The results of the evaluator.

@@ -42,6 +42,10 @@ class SpeakerConsistency(BaseAudioDialogScore):
     :type use_auth_token: str
     :param use_acoustic_audio: If True, use audio with acoustic simulation for evaluation.
     :type use_acoustic_audio: bool
+    :param compute_plots: Whether to compute plots.
+    :type compute_plots: bool
+    :param plot_type: The type of plot to generate.
+    :type plot_type: str
     """
     def __init__(
         self,
@@ -81,7 +85,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
         )
         self.inference = Inference(model, window="whole", device=self.device)
 
-    def results2result(self, results: Dict[str, Result]) -> Result:
+    def results2result(self, results: Dict[str, Result], compute_plots: bool = False) -> Result:
         """
         Compute the overall result from the results of the evaluator on all dialogs.
         :param results: The results of the evaluator.
@@ -117,7 +121,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
 
         # Generate plots
         plots = []
-        if self.compute_plots:
+        if compute_plots:
             plots = self.plot(data={
                 "num_speakers": 1,
                 "per_speaker_all_global_consistency": data_global,
@@ -283,7 +287,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
                 per_speaker_all_global_consistency[speaker] = 1 - global_consistency_distances
                 global_consistency_dist = np.mean(global_consistency_distances)
                 # Convert distance to similarity
-                per_speaker_results_global_consistency[speaker] = 1 - global_consistency_dist
+                per_speaker_results_global_consistency[speaker] = float(1 - global_consistency_dist)
 
             # Compute turn-to-turn consistency
             all_consistency = []
@@ -291,7 +295,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
                 # cdist expects 2D arrays, and Inference already returns a 2D array (1, D)
                 distance = cdist(embeddings[i:i + 1], embeddings[i + 1:i + 2], metric="cosine")[0, 0]
                 all_consistency.append(1 - distance)
-            per_speaker_local_consistency[speaker] = np.mean(all_consistency)
+            per_speaker_local_consistency[speaker] = float(np.mean(all_consistency))
             per_speaker_all_consistency[speaker] = all_consistency
 
         if self.compute_plots:
