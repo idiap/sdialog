@@ -313,7 +313,7 @@ class ActivationHook(BaseHook):
     :meta private:
     """
     def __init__(self, cache_key, layer_key, agent, response_hook,
-                 steering_function=None, steering_interval=(0, -1), inspector=None):
+                 steering_function=None, steering_interval=("*", "*"), inspector=None):
         super().__init__(layer_key, self._hook, agent=None)
         self.cache_key = cache_key
         self.agent = agent
@@ -467,7 +467,9 @@ class LogitsHook(BaseHook):
         self.agent = agent
         self.response_hook = response_hook
         self.inspector = inspector
-        self.register(agent.base_model, self.inspector.inspect_input)
+        # We always need a forward hook instead of a pre-hook if we want to capture the lm_head predictions.
+        # So, no pre hook here is mandatory.
+        self.register(agent.base_model, is_pre_hook=False)
 
         # Initialize the logits cache for this response
         _ = self.agent._hook_response_logit[len(self.response_hook.responses)] = []
@@ -1088,15 +1090,15 @@ class InspectionToken:
         """
         Return top-k predicted tokens and their probabilities that led to this token being generated.
 
-        Returns a list of tuples (token_string, probability) sorted by probability (descending).
+        Returns a list of tuples (token_string, probability, token_id) sorted by probability (descending).
         The number of predictions (k) is determined by the Inspector's top_k parameter.
         If top_k=-1, returns all tokens in the vocabulary with their probabilities.
 
         Note: System prompt tokens do not have top_k predictions (they are not generated).
         For generated tokens, this returns the probabilities that predicted this token.
 
-        :return: List of (token_string, probability) tuples.
-        :rtype: List[Tuple[str, float]]
+        :return: List of (token_string, probability, token_id) tuples.
+        :rtype: List[Tuple[str, float, int]]
         :raises KeyError: If logits are not available (logits hook not registered).
         :raises ValueError: If called on a system prompt token.
         """
@@ -1132,6 +1134,9 @@ class InspectionToken:
         if token_logits.ndim > 1:
             token_logits = token_logits.squeeze()
 
+        # Convert to float64 for numerical precision (matching original logit-based approach)
+        token_logits = token_logits.to(torch.float64)
+
         # Apply softmax to convert logits to probabilities
         probs = torch.softmax(token_logits, dim=-1)
 
@@ -1158,7 +1163,8 @@ class InspectionToken:
             sorted_indices = sorted_indices.unsqueeze(0)
         for prob, idx in zip(sorted_probs.tolist(), sorted_indices.tolist()):
             # Decode the token ID
-            token_str = tokenizer.decode([int(idx)], skip_special_tokens=False)
-            results.append((token_str, float(prob)))
+            token_id = int(idx)
+            token_str = tokenizer.decode([token_id], skip_special_tokens=False)
+            results.append((token_str, float(prob), token_id))
 
         return results
