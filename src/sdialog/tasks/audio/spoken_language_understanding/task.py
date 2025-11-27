@@ -131,7 +131,7 @@ class SpokenLanguageUnderstandingTask(Task):
         if "room_audio_path" in args and args["room_audio_path"]:
             main_audio_path = args["room_audio_path"]
         elif dialog.audio_step_3_filepaths:
-            main_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
+            main_audio_path = list(dialog.audio_step_3_filepaths.values())[0].audio_path
             logging.warning(
                 "[SpokenLanguageUnderstandingTask] No 'room_audio_path' provided, "
                 "using the first room audio path found in the dialog."

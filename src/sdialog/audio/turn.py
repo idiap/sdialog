@@ -10,6 +10,7 @@ for room acoustics simulation and audio processing workflows.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 import numpy as np
+import soundfile as sf
 
 from sdialog import Turn
 
@@ -91,6 +92,8 @@ class AudioTurn(Turn):
         :rtype: np.ndarray
         :raises AttributeError: If no audio data has been set for this turn.
         """
+        if self._audio is None and self.audio_path != "":
+            self._audio, self.sampling_rate = sf.read(self.audio_path)
         return self._audio
 
     def set_audio(self, audio: np.ndarray, sampling_rate: int):

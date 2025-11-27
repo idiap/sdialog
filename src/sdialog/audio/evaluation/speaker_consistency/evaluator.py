@@ -9,11 +9,13 @@ import torch
 import logging
 import numpy as np
 import soundfile as sf
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
+from sklearn.metrics import roc_curve
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.evaluation.base import BaseAudioDialogScore, Result
+import os
 
 
 class SpeakerConsistency(BaseAudioDialogScore):
@@ -46,6 +48,8 @@ class SpeakerConsistency(BaseAudioDialogScore):
     :type compute_plots: bool
     :param plot_type: The type of plot to generate.
     :type plot_type: str
+    :param compute_eer: Whether to compute EER and ROC curve.
+    :type compute_eer: bool
     """
     def __init__(
         self,
@@ -54,7 +58,8 @@ class SpeakerConsistency(BaseAudioDialogScore):
         use_auth_token: str = None,
         use_acoustic_audio: bool = False,
         compute_plots: bool = False,
-        plot_type: str = "boxplot"
+        plot_type: str = "boxplot",
+        compute_eer: bool = False,
     ):
         super().__init__(name="speaker-consistency")
 
@@ -72,6 +77,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
         self.use_acoustic_audio = use_acoustic_audio
         self.compute_plots = compute_plots
         self.plot_type = plot_type
+        self.compute_eer = compute_eer
 
         if self.plot_type not in ["histogram", "violin", "boxplot"]:
             raise ValueError("plot_type must be one of 'histogram', 'violin', or 'boxplot'")
@@ -96,14 +102,41 @@ class SpeakerConsistency(BaseAudioDialogScore):
         # Aggregate data from all dialogs (generic, ignoring speaker names)
         all_global_consistency_values = []
         all_turn_to_turn_consistency_values = []
+        all_eer_values = []
+        all_target_scores = []
+        all_impostor_scores = []
 
         for result in results.values():
-            # Flatten all scores from all speakers in the dialog
-            for scores in result.data['global_consistency_all'].values():
-                all_global_consistency_values.extend(scores)
+            for step_name, step_data in result.metrics.items():
+                # Legacy support for single-step results
+                if "global_consistency" in step_data:
+                    if isinstance(step_data['global_consistency'], dict):
+                        # Multi-speaker dict
+                        all_global_consistency_values.extend([
+                            v for d in result.data[step_name]['global_consistency_all'].values() for v in d
+                        ])
+                    else:
+                        # Single value (older format)
+                        all_global_consistency_values.append(step_data['global_consistency'])
 
-            for scores in result.data['turn_to_turn_consistency_all'].values():
-                all_turn_to_turn_consistency_values.extend(scores)
+                if "turn_to_turn_consistency" in step_data:
+                    if isinstance(step_data['turn_to_turn_consistency'], dict):
+                        # Multi-speaker dict
+                        all_turn_to_turn_consistency_values.extend([
+                            v for d in result.data[step_name]['turn_to_turn_consistency_all'].values() for v in d
+                        ])
+                    else:
+                        all_turn_to_turn_consistency_values.append(step_data['turn_to_turn_consistency'])
+
+                if 'eer' in step_data and step_data['eer'] is not None:
+                    all_eer_values.append(step_data['eer'])
+
+            if self.compute_eer:
+                for step_name, step_data_values in result.data.items():
+                    if "target_scores" in step_data_values:
+                        all_target_scores.extend(step_data_values["target_scores"])
+                    if "impostor_scores" in step_data_values:
+                        all_impostor_scores.extend(step_data_values["impostor_scores"])
 
         # Prepare data for plotting - treat as one generic distribution
         data_global = {"All Dialogs": np.array(all_global_consistency_values)}
@@ -112,12 +145,14 @@ class SpeakerConsistency(BaseAudioDialogScore):
         # Compute overall metrics
         metrics = {
             "global_consistency": (
-                np.mean(all_global_consistency_values) if all_global_consistency_values else 0.0
+                float(np.mean(all_global_consistency_values)) if all_global_consistency_values else 0.0
             ),
             "turn_to_turn_consistency": (
-                np.mean(all_turn_to_turn_consistency_values) if all_turn_to_turn_consistency_values else 0.0
+                float(np.mean(all_turn_to_turn_consistency_values)) if all_turn_to_turn_consistency_values else 0.0
             )
         }
+        if all_eer_values:
+            metrics["mean_dialog_eer"] = float(np.mean(all_eer_values))
 
         # Generate plots
         plots = []
@@ -127,6 +162,26 @@ class SpeakerConsistency(BaseAudioDialogScore):
                 "per_speaker_all_global_consistency": data_global,
                 "per_speaker_all_consistency": data_turn,
             })
+
+        if self.compute_eer and all_target_scores and all_impostor_scores:
+            eer, thresh, fpr, tpr = self._compute_eer(
+                all_target_scores, all_impostor_scores
+            )
+            metrics["overall_eer"] = eer
+            metrics["overall_eer_threshold"] = thresh
+            if self.compute_plots or compute_plots:
+                roc_plot = self._plot_roc_curve(
+                    fpr,
+                    tpr,
+                    eer,
+                    thresh,
+                    title="Overall Receiver Operating Characteristic (ROC)"
+                )
+                plots.append(roc_plot)
+        elif self.compute_eer:
+            logging.warning(
+                "Could not compute overall EER due to insufficient scores across all dialogs."
+            )
 
         return Result(
             metrics=metrics,
@@ -162,7 +217,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
             if self.plot_type == "histogram":
                 for speaker, consistencies in per_speaker_all_global_consistency.items():
                     if consistencies.size > 0:
-                        axes[0].hist(consistencies, alpha=0.5, label=f'Speaker {speaker}', bins=10)
+                        axes[0].hist(consistencies, alpha=0.5, label=speaker, bins=10)
                 axes[0].legend()
             elif self.plot_type == "violin":
                 if all_speakers_global_consistency:
@@ -185,7 +240,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
             if self.plot_type == "histogram":
                 for speaker, consistencies in per_speaker_all_consistency.items():
                     if consistencies:
-                        axes[1].hist(consistencies, alpha=0.5, label=f'Speaker {speaker}', bins=10)
+                        axes[1].hist(consistencies, alpha=0.5, label=speaker, bins=10)
                 axes[1].legend()
             elif self.plot_type == "violin":
                 if all_speakers_consistency:
@@ -207,28 +262,54 @@ class SpeakerConsistency(BaseAudioDialogScore):
 
         return output_plots
 
-    def score(self, dialog: "AudioDialog") -> Dict[str, Any]:
-        """
-        Computes speaker consistency scores for the given audio dialog.
-        :param dialog: The audio dialog to evaluate.
-        :type dialog: AudioDialog
-        :return: A dictionary containing the 'turn_to_turn_consistency',
-        'global_consistency' scores and any additional information such as plots.
-        :rtype: Dict[str, Any]
-        """
+    def _compute_eer(self, target_scores, impostor_scores):
+        """Computes the Equal Error Rate (EER)."""
+        labels = [1] * len(target_scores) + [0] * len(impostor_scores)
+        scores = target_scores + impostor_scores
+        fpr, tpr, thresholds = roc_curve(labels, scores)
 
+        # Find the point where FPR is closest to 1 - TPR (FNR)
+        fnr = 1 - tpr
+        eer_index = np.nanargmin(np.abs(fpr - fnr))
+        eer = fpr[eer_index]
+
+        # Get the threshold corresponding to the EER
+        thresh = thresholds[eer_index]
+
+        return float(eer), float(thresh), fpr, tpr
+
+    def _plot_roc_curve(self, fpr, tpr, eer, thresh, title=None):
+        """Plots the ROC curve."""
+        fig, ax = plt.subplots()
+        ax.plot(fpr, tpr, marker='+', label='ROC curve')
+        ax.plot([0, 1], [0, 1], 'k--')
+        ax.plot(eer, 1 - eer, 'o', markersize=10, label=f'EER = {eer:.2f} @ t={thresh:.2f}')
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_xlim([0.0, 1.0])
+        if title is None:
+            title = 'Receiver Operating Characteristic (ROC)'
+        ax.set_title(title)
+        ax.legend(loc="lower right")
+        plt.close(fig)
+        return fig
+
+    def _compute_consistency_for_audio(
+        self, dialog: "AudioDialog", audio_file: Optional[str] = None
+    ) -> (Dict[str, Any], Dict[str, Any], list):
         plots = []
         metrics = {}
         data = {}
 
         # Use the acoustic audio if requested
-        if self.use_acoustic_audio:
-            if not dialog.audio_step_3_filepaths:
-                raise ValueError("Acoustic audio requested, but not found in the dialog.")
+        if audio_file is not None:
+            if not os.path.exists(audio_file):
+                raise ValueError(f"Audio file {audio_file} not found.")
 
             # Use the audio from the first room configuration
-            room_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
-            room_audio, sample_rate = sf.read(room_audio_path)
+            room_audio, sample_rate = sf.read(audio_file)
+        else:
+            room_audio, sample_rate = None, None
 
         speaker_turns = {}
 
@@ -239,7 +320,7 @@ class SpeakerConsistency(BaseAudioDialogScore):
                 speaker_turns[turn.speaker] = []
 
             # Use the acoustic audio if requested
-            if self.use_acoustic_audio:
+            if room_audio is not None and sample_rate is not None:
                 start_sample = int(turn.audio_start_time * sample_rate)
                 end_sample = int((turn.audio_start_time + turn.audio_duration) * sample_rate)
                 turn_audio = room_audio[start_sample:end_sample]
@@ -262,14 +343,9 @@ class SpeakerConsistency(BaseAudioDialogScore):
         per_speaker_all_global_consistency = {}
 
         # Compute embeddings for each turn
+        speaker_embeddings = {}
         for speaker, turns_data in speaker_turns.items():
-
-            # Check if the speaker has fewer than two turns
-            if len(turns_data) < 2:
-                logging.warning(
-                    f"Speaker '{speaker}' has fewer than two turns, "
-                    "skipping consistency calculation for this speaker."
-                )
+            if not turns_data:
                 continue
 
             # Compute embeddings for each turn
@@ -277,17 +353,22 @@ class SpeakerConsistency(BaseAudioDialogScore):
             embeddings = np.array(embeddings)
             if embeddings.ndim == 3:
                 embeddings = embeddings.squeeze(axis=1)
+            speaker_embeddings[speaker] = embeddings
+
+        # Calculate consistency metrics for speakers with at least 2 turns
+        for speaker, embeddings in speaker_embeddings.items():
+            if len(embeddings) < 2:
+                continue
 
             # Global consistency
-            if len(embeddings) > 1:
-                dist_matrix = cdist(embeddings, embeddings, "cosine")
-                # Get upper triangle indices, excluding diagonal to avoid self-similarity and duplicates
-                triu_indices = np.triu_indices(len(embeddings), k=1)
-                global_consistency_distances = dist_matrix[triu_indices]
-                per_speaker_all_global_consistency[speaker] = 1 - global_consistency_distances
-                global_consistency_dist = np.mean(global_consistency_distances)
-                # Convert distance to similarity
-                per_speaker_results_global_consistency[speaker] = float(1 - global_consistency_dist)
+            dist_matrix = cdist(embeddings, embeddings, "cosine")
+            # Get upper triangle indices, excluding diagonal to avoid self-similarity and duplicates
+            triu_indices = np.triu_indices(len(embeddings), k=1)
+            global_consistency_distances = dist_matrix[triu_indices]
+            per_speaker_all_global_consistency[speaker] = 1 - global_consistency_distances
+            global_consistency_dist = np.mean(global_consistency_distances)
+            # Convert distance to similarity
+            per_speaker_results_global_consistency[speaker] = float(1 - global_consistency_dist)
 
             # Compute turn-to-turn consistency
             all_consistency = []
@@ -298,27 +379,104 @@ class SpeakerConsistency(BaseAudioDialogScore):
             per_speaker_local_consistency[speaker] = float(np.mean(all_consistency))
             per_speaker_all_consistency[speaker] = all_consistency
 
+        if self.compute_eer:
+            target_scores = []
+            impostor_scores = []
+            speakers = list(speaker_embeddings.keys())
+
+            # A speaker needs at least 2 utterances to provide target scores (1 for enrollment, 1 for test)
+            enrollable_speakers = [s for s, e in speaker_embeddings.items() if len(e) >= 2]
+
+            if not enrollable_speakers or len(speakers) < 2:
+                logging.warning(
+                    "Not enough speakers/utterances for EER. "
+                    "Requires >=1 speaker with >=2 utterances and >=1 other speaker."
+                )
+            else:
+                for speaker_enroll in enrollable_speakers:
+                    # Use the first utterance for enrollment
+                    enroll_embedding = speaker_embeddings[speaker_enroll][0:1]
+                    test_embeddings_target = speaker_embeddings[speaker_enroll][1:]
+
+                    # Target scores: compare enrollment with other utterances from the same speaker
+                    dists = cdist(enroll_embedding, test_embeddings_target, "cosine")
+                    target_scores.extend((1 - dists).flatten().tolist())
+
+                    # Impostor scores: compare enrollment with all utterances from other speakers
+                    for speaker_impostor in speakers:
+                        if speaker_impostor == speaker_enroll:
+                            continue
+
+                        test_embeddings_impostor = speaker_embeddings[speaker_impostor]
+                        dists = cdist(enroll_embedding, test_embeddings_impostor, "cosine")
+                        impostor_scores.extend((1 - dists).flatten().tolist())
+
+            if target_scores and impostor_scores:
+                eer, thresh, fpr, tpr = self._compute_eer(target_scores, impostor_scores)
+                metrics["eer"] = eer
+                metrics["eer_threshold"] = thresh
+                data["fpr"] = fpr.tolist()
+                data["tpr"] = tpr.tolist()
+                data["target_scores"] = target_scores
+                data["impostor_scores"] = impostor_scores
+                if self.compute_plots:
+                    plots.append(self._plot_roc_curve(fpr, tpr, eer, thresh))
+            else:
+                logging.warning("Could not compute EER due to insufficient target or impostor scores.")
+                metrics["eer"] = None
+                metrics["eer_threshold"] = None
+
         if self.compute_plots:
-            plots = self.plot(data={
+            plot_data = {
                 "num_speakers": len(speaker_turns),
                 "per_speaker_all_global_consistency": per_speaker_all_global_consistency,
                 "per_speaker_all_consistency": per_speaker_all_consistency,
-            })
+            }
+            plots.extend(self.plot(data=plot_data))
 
-        metrics = {
+        metrics.update({
             "global_consistency": per_speaker_results_global_consistency,
             "turn_to_turn_consistency": per_speaker_local_consistency,
-        }
+        })
 
-        data = {
+        data.update({
             "global_consistency_all": {
                 s: v.tolist() for s, v in per_speaker_all_global_consistency.items()
             },
             "turn_to_turn_consistency_all": per_speaker_all_consistency,
-        }
+        })
+        return metrics, data, plots
+
+    def score(self, dialog: "AudioDialog") -> Dict[str, Any]:
+        """
+        Computes speaker consistency scores for the given audio dialog.
+        :param dialog: The audio dialog to evaluate.
+        :type dialog: AudioDialog
+        :return: A dictionary containing the 'turn_to_turn_consistency',
+        'global_consistency' scores and any additional information such as plots.
+        :rtype: Dict[str, Any]
+        """
+        # By default, compute consistency on the original audio ("step 1").
+        metrics, data, plots = self._compute_consistency_for_audio(dialog)
+        all_metrics = {"step_1": metrics}
+        all_data = {"step_1": data}
+        all_plots = plots
+
+        # If enabled, compute and add results from acoustic audio.
+        if self.use_acoustic_audio:
+            if not dialog.audio_step_3_filepaths:
+                raise ValueError("Acoustic audio requested, but not found in the dialog.")
+
+            for room_name, paths in dialog.audio_step_3_filepaths.items():
+                metrics, data, plots = self._compute_consistency_for_audio(
+                    dialog, paths.audio_path
+                )
+                all_metrics[f"step_{room_name}"] = metrics
+                all_data[f"step_{room_name}"] = data
+                all_plots.extend(plots)
 
         return Result(
-            metrics=metrics,
-            data=data,
-            plots=plots,
+            metrics=all_metrics,
+            data=all_data,
+            plots=all_plots,
         )

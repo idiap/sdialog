@@ -41,13 +41,46 @@ import json
 import random
 import numpy as np
 import soundfile as sf
-from typing import List, Union
+from typing import List, Union, Dict, Any
+from pydantic import BaseModel, Field, field_validator
 
 from sdialog import Dialog
 from sdialog.audio.turn import AudioTurn
-from sdialog.audio.room import AudioSource
-from sdialog.audio.utils import logger, Role
+from sdialog.audio.room import AudioSource, Room, MicrophonePosition, RoomPosition
+from sdialog.audio.utils import logger, Role, SourceVolume
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+
+
+class RoomAcousticsConfig(BaseModel):
+    audio_path: str
+    microphone_position: MicrophonePosition
+    room_name: str
+    room: Room
+    source_volumes: Dict[str, SourceVolume] = Field(default_factory=dict)
+    kwargs_pyroom: Dict[str, Any] = Field(default_factory=dict)
+    background_effect: str = "white_noise"
+    foreground_effect: str = "ac_noise_minimal"
+    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+    audio_paths_post_processing: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("source_volumes", "kwargs_pyroom", "audio_paths_post_processing", mode="before")
+    def _validate_dicts(cls, v):
+        return v if v is not None else {}
+
+    @field_validator("background_effect", mode="before")
+    def _validate_background_effect(cls, v):
+        return v if v is not None else "white_noise"
+
+    @field_validator("foreground_effect", mode="before")
+    def _validate_foreground_effect(cls, v):
+        return v if v is not None else "ac_noise_minimal"
+
+    @field_validator("foreground_effect_position", mode="before")
+    def _validate_foreground_effect_position(cls, v):
+        return v if v is not None else RoomPosition.TOP_RIGHT
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class AudioDialog(Dialog):
@@ -65,7 +98,7 @@ class AudioDialog(Dialog):
 
     audio_step_1_filepath: str = ""
     audio_step_2_filepath: str = ""
-    audio_step_3_filepaths: dict[str, dict] = {}
+    audio_step_3_filepaths: Dict[str, RoomAcousticsConfig] = {}
 
     speakers_names: dict[str, str] = {}
     speakers_roles: dict[str, str] = {}
@@ -306,28 +339,28 @@ class AudioDialog(Dialog):
 
             # For each room configuration, display the original audio and the processed audio
             for config_name in self.audio_step_3_filepaths:
-
+                config_data = self.audio_step_3_filepaths[config_name]
                 print(f"> Room Configuration: {config_name}")
                 print("Room Accoustic Audio:")
                 display(Audio(
-                    self.audio_step_3_filepaths[config_name]["audio_path"],
+                    config_data.audio_path,
                     autoplay=False
                 ))
 
                 # If the room configuration has processed audio, display it
                 if (
                     config_name in self.audio_step_3_filepaths
-                    and "audio_paths_post_processing" in self.audio_step_3_filepaths[config_name]
-                    and len(self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]) > 0
+                    and config_data.audio_paths_post_processing is not None
+                    and len(config_data.audio_paths_post_processing) > 0
                 ):
                     print("#" * 10)
                     print("Post Processing Audio (e.g. microphone effect):")
                     print("#" * 10)
 
                     # For each recording device, display the processed audio
-                    for _rd in self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]:
+                    for _rd in config_data.audio_paths_post_processing:
                         display(Audio(
-                            self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"][_rd],
+                            config_data.audio_paths_post_processing[_rd],
                             autoplay=False
                         ))
 

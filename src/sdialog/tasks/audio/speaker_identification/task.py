@@ -85,9 +85,15 @@ class SpeakerIdentificationTask(Task):
         if "room_audio_path" in args and args["room_audio_path"]:
             main_audio_path = args["room_audio_path"]
         elif dialog.audio_step_3_filepaths:
-            main_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
+            main_audio_path = list(dialog.audio_step_3_filepaths.values())[0].audio_path
+        elif dialog.audio_step_1_filepath:
+            logging.warning(
+                "[SpeakerIdentificationTask] No 'room_audio_path' or 'audio_step_3_filepaths' provided, "
+                "using the anechoic audio (tts only) path found in the dialog."
+            )
+            main_audio_path = dialog.audio_step_1_filepath
         else:
-            raise ValueError("No audio file path found for speaker identification in the dialog or arguments.")
+            raise ValueError("No audio path found in the dialog.")
 
         try:
             waveform, sample_rate = librosa.load(main_audio_path, sr=None, mono=False)

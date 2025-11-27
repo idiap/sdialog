@@ -8,10 +8,11 @@ This module provides an audio evaluation metric for audio quality.
 import os
 import torch
 import librosa
+import logging
 import numpy as np
 import soundfile as sf
 import matplotlib.pyplot as plt
-import logging
+from collections import defaultdict
 from typing import Dict, Any, Optional, List
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.evaluation.base import BaseAudioDialogScore, Result
@@ -33,6 +34,8 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
     :type compute_plots: bool
     :param plot_type: The type of plot to generate.
     :type plot_type: str
+    :param max_turns_to_evaluate: The maximum number of turns to evaluate.
+    :type max_turns_to_evaluate: int
     """
 
     def __init__(
@@ -42,12 +45,17 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
         steps_to_evaluate: List[int] = [1, 3],
         compute_plots: bool = False,
         plot_type: str = "boxplot",
+        max_turns_to_evaluate: int = 4
     ):
         super().__init__(name="audio-quality-evaluator")
         self.sample_rate = sample_rate
         self.steps_to_evaluate = steps_to_evaluate
         self.compute_plots = compute_plots
         self.plot_type = plot_type
+
+        if max_turns_to_evaluate < 1:
+            raise ValueError("max_turns_to_evaluate must be greater than 0")
+        self.max_turns_to_evaluate = max_turns_to_evaluate
 
         default_metrics = {
             "nisqa": True,
@@ -109,20 +117,39 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
         """
         all_metrics = {}
 
-        audio_steps = {
-            1: dialog.audio_step_1_filepath,
-        }
+        # Compute N'th turn end time
+        if self.max_turns_to_evaluate < 1 or self.max_turns_to_evaluate > len(dialog.turns):
+            raise ValueError(
+                "max_turns_to_evaluate must be greater than 0 and "
+                "less than or equal to the number of turns in the dialog"
+            )
+        n_th_turn = dialog.turns[-self.max_turns_to_evaluate - 1]
+        n_th_turn_end_time = n_th_turn.audio_start_time + n_th_turn.audio_duration
 
+        audio_steps = {}
+        if hasattr(dialog, 'audio_step_1_filepath') and dialog.audio_step_1_filepath:
+            audio_steps[1] = dialog.audio_step_1_filepath
+
+        room_configs = {}
         # Handle multiple audio files from step 3
         if dialog.audio_step_3_filepaths:
             for i, (room_config, paths) in enumerate(dialog.audio_step_3_filepaths.items()):
-                audio_steps[3 + i] = paths["audio_path"]
+                step_idx = 3 + i
+                audio_steps[step_idx] = paths.audio_path
+                room_configs[step_idx] = room_config
 
-        for step in self.steps_to_evaluate:
-            if step not in audio_steps or not os.path.exists(audio_steps[step]):
+        for step in sorted(audio_steps.keys()):
+            # Determine if we should evaluate this step
+            is_step_3_related = step >= 3
+            should_evaluate = (
+                step in self.steps_to_evaluate
+                or (is_step_3_related and 3 in self.steps_to_evaluate)
+            )
+
+            if not should_evaluate or not os.path.exists(audio_steps[step]):
                 continue
 
-            audio = self._load_audio(audio_steps[step])
+            audio = self._load_audio(audio_steps[step], n_th_turn_end_time=n_th_turn_end_time)
             metrics = {}
 
             if self.srmr:
@@ -138,15 +165,15 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
                     metrics[f"dnsmos|{step}"] = dnsmos_scores.mean().item()
 
             # Use a more descriptive key if there are multiple step 3 audios
-            if step > 2:
-                config_name = list(dialog.audio_step_3_filepaths.keys())[step - 3]
+            if step in room_configs:
+                config_name = room_configs[step]
                 all_metrics[f"step_{config_name}"] = metrics
             else:
                 all_metrics[f"step_{step}"] = metrics
 
         return Result(metrics=all_metrics, data=all_metrics, plots=[])
 
-    def _load_audio(self, path):
+    def _load_audio(self, path, n_th_turn_end_time: Optional[float] = None):
         audio, sr = sf.read(path)
         if sr != self.sample_rate:
             if audio.ndim > 1:
@@ -154,6 +181,11 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
             audio = librosa.resample(audio, orig_sr=sr, target_sr=self.sample_rate)
             if audio.ndim > 1:
                 audio = audio.T
+
+        if n_th_turn_end_time is not None:
+            num_samples = int(n_th_turn_end_time * self.sample_rate)
+            audio = audio[:num_samples]
+
         return torch.from_numpy(audio)
 
     def _calculate_nisqa_in_chunks(self, audio_tensor, chunk_duration_sec=10):
@@ -205,10 +237,10 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
 
         summary_metrics = {
             name: {
-                "mean": np.mean(values),
-                "std": np.std(values),
-                "min": np.min(values),
-                "max": np.max(values),
+                "mean": float(np.mean(values)),
+                "std": float(np.std(values)),
+                "min": float(np.min(values)),
+                "max": float(np.max(values)),
             }
             for name, values in aggregated_metrics.items()
         }
@@ -226,21 +258,57 @@ class AudioQualityEvaluator(BaseAudioDialogScore):
         if not data:
             return []
 
-        figs = []
+        grouped_data = defaultdict(dict)
         for metric_name, values in data.items():
-            fig, ax = plt.subplots(figsize=(8, 6))
+            if '|' in metric_name:
+                base_name, step = metric_name.split('|', 1)
+                grouped_data[base_name][step] = values
+            else:
+                grouped_data[metric_name][metric_name] = values
+
+        num_metrics = len(grouped_data)
+        if num_metrics == 0:
+            return []
+
+        ncols = 2
+        nrows = (num_metrics + ncols - 1) // ncols
+        fig, axes = plt.subplots(
+            nrows, ncols, figsize=(8 * ncols, 6 * nrows), squeeze=False
+        )
+        axes = axes.flatten()
+
+        for i, (base_name, step_data) in enumerate(grouped_data.items()):
+            ax = axes[i]
+
+            # Aggregate values from all steps to show a single distribution
+            all_values = [
+                value for values_for_step in step_data.values() for value in values_for_step
+            ]
+
+            if not all_values:
+                continue
+
+            labels = [""]
+            plot_values = [all_values]
+
             if self.plot_type == "boxplot":
-                ax.boxplot(values)
-            elif self.plot_type == "histogram":
-                ax.hist(values, bins="auto")
+                ax.boxplot(plot_values, labels=labels)
             elif self.plot_type == "violin":
-                ax.violinplot(values, showmeans=True)
+                ax.violinplot(plot_values, showmeans=True)
+                ax.set_xticks(np.arange(1, len(labels) + 1))
+                ax.set_xticklabels(labels)
+            elif self.plot_type == "histogram":
+                ax.hist(all_values, bins="auto", alpha=0.75)
 
-            ax.set_title(f"Distribution of {metric_name}")
+            ax.set_title(f"Distribution of {base_name}")
             ax.set_ylabel("Value")
-            ax.set_xlabel(metric_name)
-            plt.tight_layout()
-            figs.append(fig)
-            plt.close(fig)
+            ax.set_xlabel("Aggregated across all steps")
 
-        return figs
+        # Hide any unused subplots
+        for j in range(num_metrics, len(axes)):
+            axes[j].set_visible(False)
+
+        plt.tight_layout()
+        plt.close(fig)
+
+        return [fig]

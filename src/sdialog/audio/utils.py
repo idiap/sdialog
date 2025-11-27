@@ -41,7 +41,7 @@ Example:
 import re
 import logging
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # Create a logger for the audio module
 logger = logging.getLogger("sdialog.audio")
@@ -139,6 +139,12 @@ class Furniture(BaseModel):
     depth: float  # depth in meters
 
     color: RGBAColor = RGBAColor.RED
+
+    @field_validator("color", mode="before")
+    def _validate_color(cls, v):
+        if isinstance(v, list):
+            return tuple(v)
+        return v
 
     def get_top_z(self) -> float:
         """

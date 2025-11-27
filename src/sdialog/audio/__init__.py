@@ -61,11 +61,11 @@ import soundfile as sf
 from typing import Union
 
 from sdialog.audio.tts import BaseTTS
-from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.room import Room, RoomPosition
-from sdialog.audio.utils import AudioUtils, SourceVolume, Role, logger
 from sdialog.audio.acoustics_simulator import AcousticsSimulator
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+from sdialog.audio.dialog import AudioDialog, RoomAcousticsConfig
+from sdialog.audio.utils import AudioUtils, SourceVolume, Role, logger
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -262,10 +262,10 @@ def generate_audio_room_accoustic(
     # If the audio paths post processing are already in the dialog, use them, otherwise create a new dictionary
     if (
         room_name in dialog.audio_step_3_filepaths
-        and "audio_paths_post_processing" in dialog.audio_step_3_filepaths[room_name]
-        and dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"] != {}
+        and dialog.audio_step_3_filepaths[room_name].audio_paths_post_processing is not None
+        and dialog.audio_step_3_filepaths[room_name].audio_paths_post_processing != {}
     ):
-        audio_paths_post_processing = dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"]
+        audio_paths_post_processing = dialog.audio_step_3_filepaths[room_name].audio_paths_post_processing
         logger.info(
             f"Existing audio paths for the post processing stage "
             f"already exist for room name: '{room_name}' and are kept unchanged"
@@ -273,17 +273,17 @@ def generate_audio_room_accoustic(
     else:
         audio_paths_post_processing = {}
 
-    dialog.audio_step_3_filepaths[room_name] = {
-        "audio_path": current_room_audio_path,
-        "microphone_position": room.mic_position,
-        "room_name": room_name,
-        "room": room,
-        "source_volumes": source_volumes,
-        "kwargs_pyroom": kwargs_pyroom,
-        "background_effect": background_effect,
-        "foreground_effect": foreground_effect,
-        "foreground_effect_position": foreground_effect_position,
-        "audio_paths_post_processing": audio_paths_post_processing
-    }
+    dialog.audio_step_3_filepaths[room_name] = RoomAcousticsConfig(
+        audio_path=current_room_audio_path,
+        microphone_position=room.mic_position,
+        room_name=room_name,
+        room=room,
+        source_volumes=source_volumes,
+        kwargs_pyroom=kwargs_pyroom,
+        background_effect=background_effect,
+        foreground_effect=foreground_effect,
+        foreground_effect_position=foreground_effect_position,
+        audio_paths_post_processing=audio_paths_post_processing,
+    )
 
     return dialog

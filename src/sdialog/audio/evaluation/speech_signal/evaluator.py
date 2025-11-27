@@ -33,18 +33,26 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
     :type compute_plots: bool
     :param plot_type: The type of plot to generate.
     :type plot_type: str
+    :param max_turns_to_evaluate: The maximum number of turns to evaluate.
+    :type max_turns_to_evaluate: int
     """
+
     def __init__(
         self,
         sample_rate: int = 16_000,
         metrics_to_compute: Optional[Dict[str, bool]] = None,
         compute_plots: bool = False,
-        plot_type: str = "boxplot"
+        plot_type: str = "boxplot",
+        max_turns_to_evaluate: int = 4
     ):
         super().__init__(name="speech-signal-evaluator")
         self.sample_rate = sample_rate
         self.compute_plots = compute_plots
         self.plot_type = plot_type
+
+        if max_turns_to_evaluate < 1:
+            raise ValueError("max_turns_to_evaluate must be greater than 0")
+        self.max_turns_to_evaluate = max_turns_to_evaluate
 
         default_metrics = {
             "stoi": True,
@@ -105,17 +113,29 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
         if not dialog.audio_step_1_filepath or not dialog.audio_step_3_filepaths:
             raise ValueError("AudioDialog is missing file paths for one or more augmentation steps.")
 
+        # Compute N'th turn end time
+        if self.max_turns_to_evaluate < 1 or self.max_turns_to_evaluate > len(dialog.turns):
+            raise ValueError(
+                "max_turns_to_evaluate must be greater than 0 and "
+                "less than or equal to the number of turns in the dialog"
+            )
+        n_th_turn = dialog.turns[-self.max_turns_to_evaluate - 1]
+        n_th_turn_end_time = n_th_turn.audio_start_time + n_th_turn.audio_duration
+
         # Load audios
-        audio_1 = self._load_audio(dialog.audio_step_1_filepath)
+        audio_1 = self._load_audio(
+            dialog.audio_step_1_filepath, n_th_turn_end_time=n_th_turn_end_time
+        )
 
         all_metrics = {}
 
+        # Process room acoustics audio if available
         for room_config, paths in dialog.audio_step_3_filepaths.items():
-            audio_3_path = paths["audio_path"]
-            if not os.path.exists(audio_3_path):
+            audio_path = paths.audio_path
+            if not os.path.exists(audio_path):
                 continue
 
-            audio_3 = self._load_audio(audio_3_path)
+            audio_3 = self._load_audio(audio_path, n_th_turn_end_time=n_th_turn_end_time)
 
             # Truncate audios
             min_len = min(audio_1.shape[0], audio_3.shape[0])
@@ -141,7 +161,7 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
 
         return Result(metrics=all_metrics, data=all_metrics, plots=[])
 
-    def _load_audio(self, path):
+    def _load_audio(self, path, n_th_turn_end_time: Optional[float] = None):
         audio, sr = sf.read(path)
         if sr != self.sample_rate:
             if audio.ndim > 1:
@@ -149,6 +169,11 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
             audio = librosa.resample(audio, orig_sr=sr, target_sr=self.sample_rate)
             if audio.ndim > 1:
                 audio = audio.T
+
+        if n_th_turn_end_time is not None:
+            num_samples = int(n_th_turn_end_time * self.sample_rate)
+            audio = audio[:num_samples]
+
         return torch.from_numpy(audio)
 
     def results2result(self, results: Dict[str, Result], compute_plots: bool = False) -> Result:
@@ -167,10 +192,10 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
 
         summary_metrics = {
             name: {
-                "mean": np.mean(values),
-                "std": np.std(values),
-                "min": np.min(values),
-                "max": np.max(values),
+                "mean": float(np.mean(values)),
+                "std": float(np.std(values)),
+                "min": float(np.min(values)),
+                "max": float(np.max(values))
             }
             for name, values in aggregated_metrics.items()
         }
@@ -192,10 +217,19 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
         if not data:
             return []
 
-        # Create a plot for each metric
-        figs = []
-        for metric_name, values in data.items():
-            fig, ax = plt.subplots(figsize=(8, 6))
+        num_metrics = len(data)
+        if num_metrics == 0:
+            return []
+
+        ncols = 2
+        nrows = (num_metrics + ncols - 1) // ncols  # Ceiling division
+        fig, axes = plt.subplots(
+            nrows, ncols, figsize=(8 * ncols, 6 * nrows), squeeze=False
+        )
+        axes = axes.flatten()
+
+        for i, (metric_name, values) in enumerate(data.items()):
+            ax = axes[i]
             if self.plot_type == "boxplot":
                 ax.boxplot(values)
             elif self.plot_type == "histogram":
@@ -206,8 +240,12 @@ class SpeechSignalEvaluator(BaseAudioDialogScore):
             ax.set_title(f"Distribution of {metric_name}")
             ax.set_ylabel("Value")
             ax.set_xlabel(metric_name)
-            plt.tight_layout()
-            figs.append(fig)
-            plt.close(fig)
 
-        return figs
+        # Hide any unused subplots
+        for j in range(num_metrics, len(axes)):
+            axes[j].set_visible(False)
+
+        plt.tight_layout()
+        plt.close(fig)
+
+        return [fig]

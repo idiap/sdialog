@@ -135,7 +135,7 @@ class AutomaticSpeechRecognitionTask(Task):
         if args is not None and "room_audio_path" in args and args["room_audio_path"] is None:
             _step_3_audio_path = args["room_audio_path"]
         else:
-            _step_3_audio_path = list(dialog.audio_step_3_filepaths.values())[0]["audio_path"]
+            _step_3_audio_path = list(dialog.audio_step_3_filepaths.values())[0].audio_path
             logging.warning(
                 "[AutomaticSpeechRecognitionTask] No 'room_audio_path' provided, "
                 "using the first room audio path (step 3) found in the dialog."

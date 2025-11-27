@@ -780,7 +780,7 @@ class AudioPipeline:
                 if re_sampling_rate is not None:
 
                     for config_name, config_data in dialog.audio_step_3_filepaths.items():
-                        audio_path = config_data["audio_path"]
+                        audio_path = config_data.audio_path
                         if os.path.exists(audio_path):
                             logger.info(f"[Step 3] Re-sampling audio for '{config_name}' to {re_sampling_rate} Hz...")
 
@@ -829,20 +829,20 @@ class AudioPipeline:
                     if room_name is not None and room_name != _room_name:
                         continue
 
-                    input_audio_path = room_data["audio_path"]
+                    input_audio_path = room_data.audio_path
 
                     # Check if the input audio (step 3) path exists
                     if not os.path.exists(input_audio_path):
                         raise ValueError(f"[Post-Processing] Input audio path not found: {input_audio_path}")
 
                     # If the audio paths post processing are not in the room data, create a new dictionary
-                    if "audio_paths_post_processing" not in room_data:
-                        room_data["audio_paths_post_processing"] = {}
+                    if room_data.audio_paths_post_processing is None:
+                        room_data.audio_paths_post_processing = {}
 
                     # For each recording device, apply the microphone effect
                     for recording_device in recording_devices:
 
-                        if str(recording_device) in room_data["audio_paths_post_processing"]:
+                        if str(recording_device) in room_data.audio_paths_post_processing:
                             logger.warning(
                                 f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
                                 f" and room configuration: {_room_name}. Skipping..."
@@ -874,7 +874,7 @@ class AudioPipeline:
                             impulse_response_database=self.impulse_response_database
                         )
 
-                        room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+                        room_data.audio_paths_post_processing[str(recording_device)] = output_audio_path
 
                         logger.info(
                             f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
