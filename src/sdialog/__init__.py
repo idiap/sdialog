@@ -616,6 +616,49 @@ class Dialog(BaseModel):
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
     @staticmethod
+    def from_folder(path: str,
+                    type: str = "auto",
+                    txt_template: str = "{speaker}: {text}",
+                    csv_speaker_col: Union[int, str] = "speaker",
+                    csv_text_col: Union[int, str] = "text",
+                    collapse_consecutive_speakers: bool = False,
+                    collapse_separator: str = "\n") -> List["Dialog"]:
+        """
+        Loads all dialogues from a folder.
+
+        :param path: Path to the directory containing dialogue files.
+        :type path: str
+        :param type: ``"json"``, ``"txt"``, ``"csv"``, ``"tsv"``, or ``"auto"`` (determined by file extension).
+        :type type: str
+        :param txt_template: Template for parsing text dialogue turns (default "{speaker}: {text}").
+        :type txt_template: str
+        :param csv_speaker_col: Column identifier for speaker in CSV/TSV files (can be index or header name).
+        :type csv_speaker_col: Union[int, str]
+        :param csv_text_col: Column identifier for text in CSV/TSV files (can be index or header name).
+        :type csv_text_col: Union[int, str]
+        :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker into one
+                                              turn.
+        :type collapse_consecutive_speakers: bool
+        :param collapse_separator: String used to join texts when collapsing consecutive turns (default: ``"\\n"``).
+        :type collapse_separator: str
+        :return: A list of loaded dialogue objects from the folder.
+        :rtype: List[Dialog]
+        :raises ValueError: If the path is not a directory.
+        """
+        if not os.path.isdir(path):
+            raise ValueError(f"Path '{path}' is not a directory. Use Dialog.from_file() to load individual files.")
+        
+        return Dialog.from_file(
+            path=path,
+            type=type,
+            txt_template=txt_template,
+            csv_speaker_col=csv_speaker_col,
+            csv_text_col=csv_text_col,
+            collapse_consecutive_speakers=collapse_consecutive_speakers,
+            collapse_separator=collapse_separator
+        )
+
+    @staticmethod
     def from_file(path: str,
                   type: str = "auto",
                   txt_template: str = "{speaker}: {text}",
