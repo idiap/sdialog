@@ -440,17 +440,25 @@ class Agent:
                                     timestamp=int(time())))
                 if tool_call["name"] in self._tools:
                     selected_tool = self._tools[tool_call["name"]]
-                    tool_msg = selected_tool.invoke(tool_call)
-                    messages.append(tool_msg)
-                    if update_tool_memory:
-                        self.memory.append(tool_msg)
-                    events.append(Event(agent=self.get_name(),
-                                        action="tool",
-                                        actionLabel="output",
-                                        content={"name": tool_msg.name,
-                                                 "output": tool_msg.content,
-                                                 "call_id": tool_msg.tool_call_id},
-                                        timestamp=int(time())))
+
+                    try:
+                        tool_error = False
+                        tool_msg = selected_tool.invoke(tool_call)
+                    except Exception:
+                        logger.error(f"Error invoking tool '{tool_call['name']}' with args {tool_call['args']}.")
+                        tool_error = True
+
+                    if not tool_error:
+                        messages.append(tool_msg)
+                        if update_tool_memory:
+                            self.memory.append(tool_msg)
+                        events.append(Event(agent=self.get_name(),
+                                            action="tool",
+                                            actionLabel="output",
+                                            content={"name": tool_msg.name,
+                                                    "output": tool_msg.content,
+                                                    "call_id": tool_msg.tool_call_id},
+                                            timestamp=int(time())))
                 else:
                     logger.warning(f"Tool '{tool_call['name']}' not found among bound tools.")
 
