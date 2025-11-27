@@ -105,6 +105,16 @@
         "code",
         "ideas"
       ]
+    },
+    {
+      "login": "villatoroe",
+      "name": "Esaú Villatoro-Tello, Ph. D.",
+      "avatar_url": "https://avatars.githubusercontent.com/u/49253959?v=4",
+      "profile": "https://www.idiap.ch/~evillatoro/",
+      "contributions": [
+        "ideas",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
