@@ -251,6 +251,59 @@ class LinguisticFeatureScore(BaseDialogScore):
         return results if len(results) > 1 else list(results.values())[0]
 
 
+class ToolSequenceValidator(BaseDialogScore):
+    """Returns True if the agent used the specified tools in the given order in the dialog.
+    
+    Tool names can be prefixed with "not:" to indicate that the tool must NOT be called before
+    the subsequent tools in the list (e.g., "not:verify_account" means verify_account should not
+    be called before the next tool, if it's called at all).
+    """
+    def __init__(self, tool_names: list[str], name: str = "tool-sequence-validator"):
+        super().__init__(name=name)
+        self.tool_names = tool_names
+
+    def score(self, dialog: Dialog) -> int:
+        # Check if all tools were used in that order from the event list.
+        if not dialog.events or not self.tool_names:
+            return 0
+
+        # Extract tool calls from events in order
+        event_name_list = []
+        for event in dialog.events:
+            if event.action == "tool" and event.actionLabel == "call" and isinstance(event.content, dict):
+                event_name_list.append(event.content["name"])
+            else:
+                event_name_list.append(event.action)
+
+        # Process tool names and check ordering constraints
+        try:
+            indices = []
+            for i, tool in enumerate(self.tool_names):
+                if tool.startswith("not:"):
+                    # Tool must NOT be called before subsequent tools
+                    actual_tool_name = tool.split(":", 1)[1]
+                    try:
+                        tool_index = event_name_list.index(actual_tool_name)
+                        # If this tool exists, check it comes after the previous tool (if any)
+                        if indices and tool_index <= indices[-1]:
+                            return 0  # Tool was called before the previous one
+                        indices.append(tool_index)
+                    except ValueError:
+                        # Tool not found - this is OK for ~ prefixed tools
+                        # Use a placeholder that won't break ordering (previous index or -1)
+                        indices.append(indices[-1] if indices else -1)
+                else:
+                    # Tool must be called
+                    tool_index = event_name_list.index(tool)
+                    indices.append(tool_index)
+            
+            # Check tools are in correct order and first tool comes after utterance
+            return 1 if indices == sorted(indices) and (not indices or indices[0] > 0 or indices[0] == -1) else 0
+        except ValueError:
+            # One or more required tools not found
+            return 0
+
+
 class DialogFlowPPL(BaseDialogFlowScore):
     """
     Compute flow perplexity-like score of a dialogue against reference dialogues.
