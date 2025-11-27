@@ -95,6 +95,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Seikened",
+      "name": "Fernando Leon Franco",
+      "avatar_url": "https://avatars.githubusercontent.com/u/91928331?v=4",
+      "profile": "https://blog.leonesfrancos.com/",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
