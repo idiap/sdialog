@@ -451,7 +451,7 @@ class Dialog(BaseModel):
 
     def prompt(self) -> str:
         """Generates a prompt string for the entire dialogue."""
-        return self.json(string=True)
+        return json.dumps(self.json()["turns"], indent=2)
 
     def json(self, string: bool = False, indent: int = 2):
         """
