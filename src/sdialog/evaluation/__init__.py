@@ -276,18 +276,205 @@ class LinguisticFeatureScore(BaseDialogScore):
         return results if len(results) > 1 else list(results.values())[0]
 
 
-class ToolSequenceValidator(BaseDialogScore):
-    """Returns True if the agent used the specified tools in the given order in the dialog.
-    
-    Tool names can be prefixed with "not:" to indicate that the tool must NOT be called before
-    the subsequent tools in the list (e.g., "not:verify_account" means verify_account should not
-    be called before the next tool, if it's called at all).
+class MeanTurnLengthScore(LinguisticFeatureScore):
     """
-    def __init__(self, tool_names: list[str], name: str = "tool-sequence-validator"):
+    Compute the mean turn length (average number of words per turn) for a dialogue.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import MeanTurnLengthScore
+
+            scorer = MeanTurnLengthScore()
+            print(scorer(dialog))  # Outputs mean turn length as float
+
+    :param name: Optional score name (defaults to "mean-turn-length").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize mean turn length scorer."""
+        super().__init__(feature="mean-turn-length", name=name, speaker=speaker)
+
+
+class HesitationRateScore(LinguisticFeatureScore):
+    """
+    Compute the hesitation rate (percentage of hesitation tokens over total words) for a dialogue.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import HesitationRateScore
+
+            scorer = HesitationRateScore()
+            print(scorer(dialog))  # Outputs hesitation rate as percentage (float)
+
+    :param name: Optional score name (defaults to "hesitation-rate").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize hesitation rate scorer."""
+        super().__init__(feature="hesitation-rate", name=name, speaker=speaker)
+
+
+class GunningFogScore(LinguisticFeatureScore):
+    """
+    Compute the Gunning Fog readability index for a dialogue.
+
+    The Gunning Fog index estimates the years of formal education needed to understand
+    the text on a first reading. Higher values indicate more complex text.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import GunningFogScore
+
+            scorer = GunningFogScore()
+            print(scorer(dialog))  # Outputs Gunning Fog index as float
+
+    :param name: Optional score name (defaults to "gunning-fog").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Gunning Fog index scorer."""
+        super().__init__(feature="gunning-fog", name=name, speaker=speaker)
+
+
+class FleschReadingEaseScore(LinguisticFeatureScore):
+    """
+    Compute the Flesch Reading Ease score for a dialogue.
+
+    The Flesch Reading Ease score rates text on a 100-point scale. Higher scores indicate
+    text that is easier to read. Scores typically range from 0 (very difficult) to 100 (very easy).
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import FleschReadingEaseScore
+
+            scorer = FleschReadingEaseScore()
+            print(scorer(dialog))  # Outputs Flesch Reading Ease score as float
+
+    :param name: Optional score name (defaults to "flesch-reading-ease").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Flesch Reading Ease scorer."""
+        super().__init__(feature="flesch-reading-ease", name=name, speaker=speaker)
+
+
+class ToolSequenceValidator(BaseDialogScore):
+    """
+    Validate that an agent used specific tools in the correct sequence during a dialogue.
+
+    This validator checks whether the agent called the specified tools in the expected order
+    based on the dialogue's event history. It returns 1 if the sequence is valid, 0 otherwise.
+
+    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called 
+    before subsequent tools in the list. This allows for flexible validation of tool usage patterns.
+
+    Example 1: Basic sequence validation
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator
+
+            # Validate that tools were called in exact order
+            validator = ToolSequenceValidator(["search_flights", "book_flight", "confirm_booking"])
+
+            score = validator(dialog)
+            print(score)  # 1 if sequence correct, 0 otherwise
+
+    Example 2: Using negative constraints
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator
+
+            # Ensure send_receipt is NOT called before charging payment
+            # (don't send receipt before actually charging the customer)
+            # But send_receipt may be called after charge_payment, or not at all
+            validator = ToolSequenceValidator([
+                "not:send_receipt",
+                "charge_payment",
+                "update_inventory"
+            ])
+
+            score = validator(dialog)
+
+    Example 3: With evaluators
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator, FrequencyEvaluator
+
+            validator = ToolSequenceValidator(["authenticate", "fetch_data", "logout"])
+            freq_eval = FrequencyEvaluator(validator)
+            
+            # Get percentage of dialogues with correct tool sequence
+            percentage = freq_eval(dialogs)
+            print(f"{percentage * 100:.1f}% of dialogues follow correct sequence")
+
+    :param tool_names: List of tool names defining the expected sequence. Each tool name can be:
+                       - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
+                       - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be 
+                         called before the next required tool in the sequence, though it may be called 
+                         after or omitted entirely.
+    :type tool_names: List[str]
+    :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
+    :type name: str
+
+    .. note::
+        - Tools must appear in the specified order within the dialogue's event history.
+        - The first tool in the sequence must come after at least one user utterance.
+        - If a required tool (without ``"not:"`` prefix) is missing, the score is 0.
+        - Tools with ``"not:"`` prefix that don't appear in the dialogue are ignored.
+    """
+    def __init__(self, tool_names: List[str], name: str = "tool-sequence-validator"):
+        """
+        Initialize the tool sequence validator.
+
+        :param tool_names: List of tool names in expected order (may include "not:" prefixes).
+        :type tool_names: List[str]
+        :param name: Score name for reporting.
+        :type name: str
+        """
         super().__init__(name=name)
         self.tool_names = tool_names
 
     def score(self, dialog: Dialog) -> int:
+        """
+        Compute the validation score for the dialogue's tool usage sequence.
+
+        Extracts tool calls from the dialogue's event history and validates that:
+        1. All required tools (without ``"not:"`` prefix) are present.
+        2. Tools appear in the specified order.
+        3. Tools with ``"not:"`` prefix do not appear before subsequent tools.
+        4. The first tool call comes after at least one user utterance.
+
+        :param dialog: Dialogue instance to validate.
+        :type dialog: Dialog
+        :return: 1 if the tool sequence is valid, 0 otherwise.
+        :rtype: int
+
+        .. note::
+            Returns 0 if:
+            - The dialogue has no events or tool_names is empty.
+            - A required tool is missing from the event history.
+            - Tools appear in incorrect order.
+            - A ``"not:"`` prefixed tool appears before subsequent tools.
+        """
         # Check if all tools were used in that order from the event list.
         if not dialog.events or not self.tool_names:
             return 0
@@ -314,7 +501,7 @@ class ToolSequenceValidator(BaseDialogScore):
                             return 0  # Tool was called before the previous one
                         indices.append(tool_index)
                     except ValueError:
-                        # Tool not found - this is OK for ~ prefixed tools
+                        # Tool not found - this is OK for "not:" prefixed tools
                         # Use a placeholder that won't break ordering (previous index or -1)
                         indices.append(indices[-1] if indices else -1)
                 else:
