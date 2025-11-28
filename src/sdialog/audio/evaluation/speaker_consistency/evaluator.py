@@ -16,6 +16,7 @@ from sklearn.metrics import roc_curve
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.evaluation.base import BaseAudioDialogScore, Result
 import os
+import json
 
 
 class SpeakerConsistency(BaseAudioDialogScore):

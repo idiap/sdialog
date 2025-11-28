@@ -7,7 +7,7 @@ Base and abstract audio evaluation components.
 
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
-from sdialog.audio.dialog import AudioDialog
+from sdialog.audio.dialog import AudioDialog, RoomAcousticsConfig
 
 
 class Result:
@@ -24,11 +24,37 @@ class Result:
         self,
         metrics: Dict[str, Any],
         data: Dict[str, Any],
-        plots: Optional[list] = None
+        plots: Optional[list] = None,
+        dialog_id: Optional[str] = None,
+        evaluator_name: Optional[str] = None,
+        room_name: Optional[str] = None,
+        room_config: Optional[RoomAcousticsConfig] = None,
     ):
         self.metrics = metrics
         self.data = data
         self.plots = plots
+        self.dialog_id = dialog_id
+        self.evaluator_name = evaluator_name
+        self.room_name = room_name
+        self.room_config = room_config
+
+    def to_dict(self):
+        """Converts the Result object to a dictionary."""
+        plot_paths = []
+        if self.plots:
+            for plot in self.plots:
+                if isinstance(plot, str):
+                    plot_paths.append(plot)
+
+        return {
+            "metrics": self.metrics,
+            "data": self.data,
+            "dialog_id": self.dialog_id,
+            "evaluator_name": self.evaluator_name,
+            "room_name": self.room_name,
+            "room_config": self.room_config.model_dump(exclude_none=True) if self.room_config else None,
+            "plots": plot_paths,
+        }
 
     def display(self, mode: str = "raw", show_plots: bool = True):
         """
