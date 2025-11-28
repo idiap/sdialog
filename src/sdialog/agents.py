@@ -456,8 +456,8 @@ class Agent:
                                             action="tool",
                                             actionLabel="output",
                                             content={"name": tool_msg.name,
-                                                    "output": tool_msg.content,
-                                                    "call_id": tool_msg.tool_call_id},
+                                                     "output": tool_msg.content,
+                                                     "call_id": tool_msg.tool_call_id},
                                             timestamp=int(time())))
                 else:
                     logger.warning(f"Tool '{tool_call['name']}' not found among bound tools.")

@@ -16,30 +16,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import warnings
 
-# Configure matplotlib for publication-quality figures
-mpl.rcParams['figure.dpi'] = 300
-mpl.rcParams['savefig.dpi'] = 300
-mpl.rcParams['font.family'] = 'serif'
-mpl.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif']
-mpl.rcParams['font.size'] = 10
-mpl.rcParams['axes.labelsize'] = 11
-mpl.rcParams['axes.titlesize'] = 12
-mpl.rcParams['xtick.labelsize'] = 9
-mpl.rcParams['ytick.labelsize'] = 9
-mpl.rcParams['legend.fontsize'] = 9
-mpl.rcParams['figure.titlesize'] = 12
-mpl.rcParams['axes.linewidth'] = 0.8
-mpl.rcParams['grid.linewidth'] = 0.5
-mpl.rcParams['lines.linewidth'] = 1.5
-mpl.rcParams['patch.linewidth'] = 0.8
-mpl.rcParams['xtick.major.width'] = 0.8
-mpl.rcParams['ytick.major.width'] = 0.8
-mpl.rcParams['xtick.minor.width'] = 0.6
-mpl.rcParams['ytick.minor.width'] = 0.6
-mpl.rcParams['text.usetex'] = False  # Set to True if LaTeX is available
-mpl.rcParams['pdf.fonttype'] = 42  # TrueType fonts for better PDF compatibility
-mpl.rcParams['ps.fonttype'] = 42
-
 from tqdm.auto import tqdm
 from math import exp, log, sqrt
 from pydantic import Field, create_model
@@ -63,6 +39,30 @@ from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEm
 from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
 
 logger = logging.getLogger(__name__)
+
+# Configure matplotlib for publication-quality figures
+mpl.rcParams['figure.dpi'] = 300
+mpl.rcParams['savefig.dpi'] = 300
+mpl.rcParams['font.family'] = 'serif'
+mpl.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif']
+mpl.rcParams['font.size'] = 14
+mpl.rcParams['axes.labelsize'] = 16
+mpl.rcParams['axes.titlesize'] = 18
+mpl.rcParams['xtick.labelsize'] = 13
+mpl.rcParams['ytick.labelsize'] = 13
+mpl.rcParams['legend.fontsize'] = 13
+mpl.rcParams['figure.titlesize'] = 18
+mpl.rcParams['axes.linewidth'] = 1.2
+mpl.rcParams['grid.linewidth'] = 0.6
+mpl.rcParams['lines.linewidth'] = 2.0
+mpl.rcParams['patch.linewidth'] = 1.2
+mpl.rcParams['xtick.major.width'] = 1.2
+mpl.rcParams['ytick.major.width'] = 1.2
+mpl.rcParams['xtick.minor.width'] = 0.8
+mpl.rcParams['ytick.minor.width'] = 0.8
+mpl.rcParams['text.usetex'] = False  # Set to True if LaTeX is available
+mpl.rcParams['pdf.fonttype'] = 42  # TrueType fonts for better PDF compatibility
+mpl.rcParams['ps.fonttype'] = 42
 
 
 def _cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -381,7 +381,7 @@ class ToolSequenceValidator(BaseDialogScore):
     This validator checks whether the agent called the specified tools in the expected order
     based on the dialogue's event history. It returns 1 if the sequence is valid, 0 otherwise.
 
-    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called 
+    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called
     before subsequent tools in the list. This allows for flexible validation of tool usage patterns.
 
     Example 1: Basic sequence validation
@@ -421,15 +421,15 @@ class ToolSequenceValidator(BaseDialogScore):
 
             validator = ToolSequenceValidator(["authenticate", "fetch_data", "logout"])
             freq_eval = FrequencyEvaluator(validator)
-            
+
             # Get percentage of dialogues with correct tool sequence
             percentage = freq_eval(dialogs)
             print(f"{percentage * 100:.1f}% of dialogues follow correct sequence")
 
     :param tool_names: List of tool names defining the expected sequence. Each tool name can be:
                        - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
-                       - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be 
-                         called before the next required tool in the sequence, though it may be called 
+                       - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be
+                         called before the next required tool in the sequence, though it may be called
                          after or omitted entirely.
     :type tool_names: List[str]
     :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
@@ -508,7 +508,7 @@ class ToolSequenceValidator(BaseDialogScore):
                     # Tool must be called
                     tool_index = event_name_list.index(tool)
                     indices.append(tool_index)
-            
+
             # Check tools are in correct order and first tool comes after utterance
             return 1 if indices == sorted(indices) and (not indices or indices[0] > 0 or indices[0] == -1) else 0
         except ValueError:
@@ -1336,7 +1336,9 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
 
         plt.xlabel(self.plot_xlabel if self.plot_xlabel else "t-SNE Component 1")
         plt.ylabel(self.plot_ylabel if self.plot_ylabel else "t-SNE Component 2")
-        plt.title(self.plot_title if self.plot_title else f"Dialog Embeddings with Centroids\n({self.dialog_embedder.name})")
+        plt.title(self.plot_title
+                  if self.plot_title
+                  else f"Dialog Embeddings with Centroids\n({self.dialog_embedder.name})")
         plt.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0)
         plt.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
         plt.tight_layout(pad=0.5)
@@ -1444,16 +1446,21 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
         :return: None
         :rtype: None
         """
-        # Professional color palette for publications
-        colors = ['#000000'] + ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        colors = ['#000000', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
         color_idx = 0
-        
+
         if "reference" not in dialog_scores and self.reference_scores is not None:
-            pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=2, color=colors[0], linestyle='-')
+            pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw,
+                                                                        lw=2,
+                                                                        color=colors[0],
+                                                                        linestyle='-')
             color_idx = 1
         for dataset_name, scores in dialog_scores.items():
             try:
-                pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw, lw=1.8, color=colors[color_idx % len(colors)])
+                pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw,
+                                                              lw=1.8,
+                                                              color=colors[color_idx % len(colors)])
                 color_idx += 1
             except ValueError as e:
                 logger.error(f"Error plotting KDE for {dataset_name}: {e}")
@@ -1553,18 +1560,19 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
         :return: None
         :rtype: None
         """
-        # Professional color palette
-        colors = ['#000000'] + ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        colors = ['#000000', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
         color_idx = 0
-        
+
         if "reference" not in dialog_scores and self.reference_norm_dist is not None:
             x = np.linspace(self.reference_norm_dist.ppf(0.001), self.reference_norm_dist.ppf(0.999), 100)
             plot.plot(x, self.reference_norm_dist.pdf(x), color=colors[0], lw=2, label="Reference", linestyle='-')
             color_idx = 1
         for dataset_name, scores in dialog_scores.items():
             x = np.linspace(np.min(scores), np.max(scores), 100)
-            plot.plot(x, norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)), 
-                     label=dataset_name, lw=1.8, color=colors[color_idx % len(colors)])
+            plot.plot(x,
+                      norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)),
+                      label=dataset_name, lw=1.8, color=colors[color_idx % len(colors)])
             color_idx += 1
         plot.xlabel(self.plot_xlabel if self.plot_xlabel else self.dialog_score.name)
         plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Probability Density")
@@ -1741,32 +1749,33 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         unique_labels = np.unique(all_labels).tolist()
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']
         markers = ['o', 's', '^', 'v', 'D', 'P', '*', 'X', 'p']
-        
+
         for i, label in enumerate(unique_labels):
             idx = all_labels == label
             if label == "reference":
                 plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
-                           label="Reference",
-                           alpha=0.3,
-                           color="#808080",
-                           s=20,
-                           marker='o',
-                           edgecolors='none')
+                            label="Reference",
+                            alpha=0.3,
+                            color="#808080",
+                            s=20,
+                            marker='o',
+                            edgecolors='none')
             else:
                 plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
-                           label=label,
-                           alpha=0.6,
-                           color=colors[i % len(colors)],
-                           s=30,
-                           marker=markers[i % len(markers)],
-                           edgecolors='black',
-                           linewidths=0.5)
+                            label=label,
+                            alpha=0.6,
+                            color=colors[i % len(colors)],
+                            s=30,
+                            marker=markers[i % len(markers)],
+                            edgecolors='black',
+                            linewidths=0.5)
 
         plt.xlabel("t-SNE Component 1")
         plt.ylabel("t-SNE Component 2")
         plt.title(f"Sentence-Pair Embeddings\n({self.name})")
-        plt.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0, 
-                  ncol=1 if len(unique_labels) <= 4 else 2)
+        plt.legend(loc='best', frameon=True, fancybox=False,
+                   edgecolor='black', framealpha=1.0,
+                   ncol=1 if len(unique_labels) <= 4 else 2)
         plt.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
         plt.tight_layout(pad=0.5)
 
@@ -2025,19 +2034,19 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         name = metric or self.name or self.stat
         title = name or f"{self.dialog_score.name} scores"
 
-        # Professional color palette
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']
-        
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+                  '#e377c2', '#bcbd22', '#17becf']
+
         bp = plot.boxplot(list(dialog_scores.values()),
-                         labels=list(dialog_scores.keys()),
-                         patch_artist=True,
-                         widths=0.6,
-                         medianprops=dict(color='red', linewidth=1.5),
-                         boxprops=dict(facecolor='lightblue', edgecolor='black', linewidth=0.8, alpha=0.7),
-                         whiskerprops=dict(color='black', linewidth=0.8),
-                         capprops=dict(color='black', linewidth=0.8),
-                         flierprops=dict(marker='o', markerfacecolor='gray', markersize=4, 
-                                        linestyle='none', markeredgecolor='black', alpha=0.5))
+                          labels=list(dialog_scores.keys()),
+                          patch_artist=True,
+                          widths=0.6,
+                          medianprops=dict(color='red', linewidth=1.5),
+                          boxprops=dict(facecolor='lightblue', edgecolor='black', linewidth=0.8, alpha=0.7),
+                          whiskerprops=dict(color='black', linewidth=0.8),
+                          capprops=dict(color='black', linewidth=0.8),
+                          flierprops=dict(marker='o', markerfacecolor='gray', markersize=4,
+                                          linestyle='none', markeredgecolor='black', alpha=0.5))
 
         # Color each box differently
         for patch, color in zip(bp['boxes'], colors):
@@ -2138,23 +2147,23 @@ class MeanEvaluator(StatsEvaluator):
         title = name or f"{self.dialog_score.name} scores"
         means = {k: np.mean(v) for k, v in dialog_scores.items()}
 
-        # Professional color palette
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+                  '#e377c2', '#bcbd22', '#17becf']
         bar_colors = [colors[i % len(colors)] for i in range(len(means))]
 
         bars = plot.bar(means.keys(), means.values(), color=bar_colors,
-                       alpha=0.85, edgecolor='black', linewidth=0.8)
+                        alpha=0.85, edgecolor='black', linewidth=0.8)
         # Add value labels on top of each bar
         for bar in bars:
             height = bar.get_height()
-            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.2f}", 
-                     ha='center', va='bottom', fontsize=8)
+            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.2f}",
+                      ha='center', va='bottom', fontsize=8)
         plt.xticks(rotation=45, ha='right')
         plot.xlabel(self.plot_xlabel if self.plot_xlabel else "Datasets")
         plot.ylabel(self.plot_ylabel if self.plot_ylabel else (name or self.dialog_score.name))
         plot.title(self.plot_title if self.plot_title else f"Mean {title}")
         plot.grid(True, alpha=0.2, linestyle='-', linewidth=0.5, axis='y')
-        
+
         # Automatically adjust y-axis to highlight differences
         ax = plt.gca() if plot == plt else plot
         values = list(means.values())
@@ -2223,18 +2232,18 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         """
         # Bar plot for frequency/percentage
         percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
-        
-        # Professional color palette
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']
+
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                  '#8c564b', '#e377c2', '#bcbd22', '#17becf']
         bar_colors = [colors[i % len(colors)] for i in range(len(percentages))]
-        
-        bars = plot.bar(percentages.keys(), percentages.values(), color=bar_colors,
-                       alpha=0.85, edgecolor='black', linewidth=0.8)
+
+        bars = plot.bar(percentages.keys(), percentages.values(),
+                        color=bar_colors, alpha=0.85, edgecolor='black', linewidth=0.8)
         # Add value labels on top of each bar
         for bar in bars:
             height = bar.get_height()
-            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%", 
-                     ha='center', va='bottom', fontsize=8)
+            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%",
+                      ha='center', va='bottom', fontsize=8)
         plt.xticks(rotation=45, ha='right')
         plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Percentage (%)")
         plot.xlabel(self.plot_xlabel if self.plot_xlabel else "Datasets")
@@ -2382,3 +2391,7 @@ class DatasetComparator:
                 evaluator.plot(show=show,
                                save_path=os.path.join(save_folder_path,
                                                       f"{evaluator.name}.png") if save_folder_path else None)
+
+
+# Alias for backward compatibility and simplicity
+Comparator = DatasetComparator

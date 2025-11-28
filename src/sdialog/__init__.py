@@ -647,7 +647,7 @@ class Dialog(BaseModel):
         """
         if not os.path.isdir(path):
             raise ValueError(f"Path '{path}' is not a directory. Use Dialog.from_file() to load individual files.")
-        
+
         return Dialog.from_file(
             path=path,
             type=type,
