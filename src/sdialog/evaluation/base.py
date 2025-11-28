@@ -454,7 +454,10 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                  dialog_score: BaseDialogScore,
                  name: str = None,
                  enable_plotting: bool = True,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None):
         """Initialize the score evaluator."""
         self.dialog_score = dialog_score
         if not name:
@@ -466,6 +469,9 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         self.datasets_scores = {}
         self.enable_plotting = enable_plotting
         self.verbose = verbose
+        self.plot_title = plot_title
+        self.plot_xlabel = plot_xlabel
+        self.plot_ylabel = plot_ylabel
 
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],
@@ -641,7 +647,10 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
                  dialog_embedder: BaseDialogEmbedder,
                  name: str = None,
                  enable_plotting: bool = True,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None):
         """Initialize the embedding evaluator."""
         self.dialog_embedder = dialog_embedder
         if not name:
@@ -651,6 +660,9 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
         self.datasets_embs = {}
         self.enable_plotting = enable_plotting
         self.verbose = verbose
+        self.plot_title = plot_title
+        self.plot_xlabel = plot_xlabel
+        self.plot_ylabel = plot_ylabel
 
     def __call__(self,
                  dialogues: Union[str, List[Dialog]],

@@ -13,6 +13,7 @@ import syllables
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import warnings
 
 from tqdm.auto import tqdm
@@ -38,6 +39,30 @@ from .base import BaseDatasetEvaluator, BaseDatasetScoreEvaluator, BaseDatasetEm
 from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialogScore, BaseDialogFlowScore
 
 logger = logging.getLogger(__name__)
+
+# Configure matplotlib for publication-quality figures
+mpl.rcParams['figure.dpi'] = 300
+mpl.rcParams['savefig.dpi'] = 300
+mpl.rcParams['font.family'] = 'serif'
+mpl.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif']
+mpl.rcParams['font.size'] = 14
+mpl.rcParams['axes.labelsize'] = 16
+mpl.rcParams['axes.titlesize'] = 18
+mpl.rcParams['xtick.labelsize'] = 13
+mpl.rcParams['ytick.labelsize'] = 13
+mpl.rcParams['legend.fontsize'] = 13
+mpl.rcParams['figure.titlesize'] = 18
+mpl.rcParams['axes.linewidth'] = 1.2
+mpl.rcParams['grid.linewidth'] = 0.6
+mpl.rcParams['lines.linewidth'] = 2.0
+mpl.rcParams['patch.linewidth'] = 1.2
+mpl.rcParams['xtick.major.width'] = 1.2
+mpl.rcParams['ytick.major.width'] = 1.2
+mpl.rcParams['xtick.minor.width'] = 0.8
+mpl.rcParams['ytick.minor.width'] = 0.8
+mpl.rcParams['text.usetex'] = False  # Set to True if LaTeX is available
+mpl.rcParams['pdf.fonttype'] = 42  # TrueType fonts for better PDF compatibility
+mpl.rcParams['ps.fonttype'] = 42
 
 
 def _cs_divergence(p1, p2, resolution=100, bw_method=1):
@@ -233,7 +258,7 @@ class LinguisticFeatureScore(BaseDialogScore):
                  to numeric value.
         :rtype: Union[float, dict]
         """
-        if self.speaker:
+        if self.speaker and len(dialog) > 0:
             dialog = dialog.filter(speaker=self.speaker)
 
         results = {}
@@ -249,6 +274,246 @@ class LinguisticFeatureScore(BaseDialogScore):
             results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
 
         return results if len(results) > 1 else list(results.values())[0]
+
+
+class MeanTurnLengthScore(LinguisticFeatureScore):
+    """
+    Compute the mean turn length (average number of words per turn) for a dialogue.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import MeanTurnLengthScore
+
+            scorer = MeanTurnLengthScore()
+            print(scorer(dialog))  # Outputs mean turn length as float
+
+    :param name: Optional score name (defaults to "mean-turn-length").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize mean turn length scorer."""
+        super().__init__(feature="mean-turn-length", name=name, speaker=speaker)
+
+
+class HesitationRateScore(LinguisticFeatureScore):
+    """
+    Compute the hesitation rate (percentage of hesitation tokens over total words) for a dialogue.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import HesitationRateScore
+
+            scorer = HesitationRateScore()
+            print(scorer(dialog))  # Outputs hesitation rate as percentage (float)
+
+    :param name: Optional score name (defaults to "hesitation-rate").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize hesitation rate scorer."""
+        super().__init__(feature="hesitation-rate", name=name, speaker=speaker)
+
+
+class GunningFogScore(LinguisticFeatureScore):
+    """
+    Compute the Gunning Fog readability index for a dialogue.
+
+    The Gunning Fog index estimates the years of formal education needed to understand
+    the text on a first reading. Higher values indicate more complex text.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import GunningFogScore
+
+            scorer = GunningFogScore()
+            print(scorer(dialog))  # Outputs Gunning Fog index as float
+
+    :param name: Optional score name (defaults to "gunning-fog").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Gunning Fog index scorer."""
+        super().__init__(feature="gunning-fog", name=name, speaker=speaker)
+
+
+class FleschReadingEaseScore(LinguisticFeatureScore):
+    """
+    Compute the Flesch Reading Ease score for a dialogue.
+
+    The Flesch Reading Ease score rates text on a 100-point scale. Higher scores indicate
+    text that is easier to read. Scores typically range from 0 (very difficult) to 100 (very easy).
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import FleschReadingEaseScore
+
+            scorer = FleschReadingEaseScore()
+            print(scorer(dialog))  # Outputs Flesch Reading Ease score as float
+
+    :param name: Optional score name (defaults to "flesch-reading-ease").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Flesch Reading Ease scorer."""
+        super().__init__(feature="flesch-reading-ease", name=name, speaker=speaker)
+
+
+class ToolSequenceValidator(BaseDialogScore):
+    """
+    Validate that an agent used specific tools in the correct sequence during a dialogue.
+
+    This validator checks whether the agent called the specified tools in the expected order
+    based on the dialogue's event history. It returns 1 if the sequence is valid, 0 otherwise.
+
+    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called
+    before subsequent tools in the list. This allows for flexible validation of tool usage patterns.
+
+    Example 1: Basic sequence validation
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator
+
+            # Validate that tools were called in exact order
+            validator = ToolSequenceValidator(["search_flights", "book_flight", "confirm_booking"])
+
+            score = validator(dialog)
+            print(score)  # 1 if sequence correct, 0 otherwise
+
+    Example 2: Using negative constraints
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator
+
+            # Ensure send_receipt is NOT called before charging payment
+            # (don't send receipt before actually charging the customer)
+            # But send_receipt may be called after charge_payment, or not at all
+            validator = ToolSequenceValidator([
+                "not:send_receipt",
+                "charge_payment",
+                "update_inventory"
+            ])
+
+            score = validator(dialog)
+
+    Example 3: With evaluators
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator, FrequencyEvaluator
+
+            validator = ToolSequenceValidator(["authenticate", "fetch_data", "logout"])
+            freq_eval = FrequencyEvaluator(validator)
+
+            # Get percentage of dialogues with correct tool sequence
+            percentage = freq_eval(dialogs)
+            print(f"{percentage * 100:.1f}% of dialogues follow correct sequence")
+
+    :param tool_names: List of tool names defining the expected sequence. Each tool name can be:
+                       - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
+                       - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be
+                         called before the next required tool in the sequence, though it may be called
+                         after or omitted entirely.
+    :type tool_names: List[str]
+    :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
+    :type name: str
+
+    .. note::
+        - Tools must appear in the specified order within the dialogue's event history.
+        - The first tool in the sequence must come after at least one user utterance.
+        - If a required tool (without ``"not:"`` prefix) is missing, the score is 0.
+        - Tools with ``"not:"`` prefix that don't appear in the dialogue are ignored.
+    """
+    def __init__(self, tool_names: List[str], name: str = "tool-sequence-validator"):
+        """
+        Initialize the tool sequence validator.
+
+        :param tool_names: List of tool names in expected order (may include "not:" prefixes).
+        :type tool_names: List[str]
+        :param name: Score name for reporting.
+        :type name: str
+        """
+        super().__init__(name=name)
+        self.tool_names = tool_names
+
+    def score(self, dialog: Dialog) -> int:
+        """
+        Compute the validation score for the dialogue's tool usage sequence.
+
+        Extracts tool calls from the dialogue's event history and validates that:
+        1. All required tools (without ``"not:"`` prefix) are present.
+        2. Tools appear in the specified order.
+        3. Tools with ``"not:"`` prefix do not appear before subsequent tools.
+        4. The first tool call comes after at least one user utterance.
+
+        :param dialog: Dialogue instance to validate.
+        :type dialog: Dialog
+        :return: 1 if the tool sequence is valid, 0 otherwise.
+        :rtype: int
+
+        .. note::
+            Returns 0 if:
+            - The dialogue has no events or tool_names is empty.
+            - A required tool is missing from the event history.
+            - Tools appear in incorrect order.
+            - A ``"not:"`` prefixed tool appears before subsequent tools.
+        """
+        # Check if all tools were used in that order from the event list.
+        if not dialog.events or not self.tool_names:
+            return 0
+
+        # Extract tool calls from events in order
+        event_name_list = []
+        for event in dialog.events:
+            if event.action == "tool" and event.actionLabel == "call" and isinstance(event.content, dict):
+                event_name_list.append(event.content["name"])
+            else:
+                event_name_list.append(event.action)
+
+        # Process tool names and check ordering constraints
+        try:
+            indices = []
+            for i, tool in enumerate(self.tool_names):
+                if tool.startswith("not:"):
+                    # Tool must NOT be called before subsequent tools
+                    actual_tool_name = tool.split(":", 1)[1]
+                    try:
+                        tool_index = event_name_list.index(actual_tool_name)
+                        # If this tool exists, check it comes after the previous tool (if any)
+                        if indices and tool_index <= indices[-1]:
+                            return 0  # Tool was called before the previous one
+                        indices.append(tool_index)
+                    except ValueError:
+                        # Tool not found - this is OK for "not:" prefixed tools
+                        # Use a placeholder that won't break ordering (previous index or -1)
+                        indices.append(indices[-1] if indices else -1)
+                else:
+                    # Tool must be called
+                    tool_index = event_name_list.index(tool)
+                    indices.append(tool_index)
+
+            # Check tools are in correct order and first tool comes after utterance
+            return 1 if indices == sorted(indices) and (not indices or indices[0] > 0 or indices[0] == -1) else 0
+        except ValueError:
+            # One or more required tools not found
+            return 0
 
 
 class DialogFlowPPL(BaseDialogFlowScore):
@@ -1004,11 +1269,15 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                  reference_dialogues: Union[str, List[Dialog]],
                  name: str = None,
                  enable_plotting: bool = True,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None):
         """Initialize centroid similarity evaluator."""
         # Compute reference centroid
         name = name or f"centroid-similarity-{dialog_embedder.name}"
-        super().__init__(dialog_embedder, name=name, enable_plotting=enable_plotting, verbose=verbose)
+        super().__init__(dialog_embedder, name=name, enable_plotting=enable_plotting, verbose=verbose,
+                         plot_title=plot_title, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
 
         if isinstance(reference_dialogues, str):
             reference_dialogues = Dialog.from_file(reference_dialogues)
@@ -1065,10 +1334,14 @@ class ReferenceCentroidEmbeddingEvaluator(BaseDatasetEmbeddingEvaluator):
                         s=100,
                         marker="x")
 
-        plt.xlabel("t-SNE 1")
-        plt.ylabel("t-SNE 2")
-        plt.title(f"Dialog embeddings ({self.dialog_embedder.name}) with centroids")
-        plt.legend()
+        plt.xlabel(self.plot_xlabel if self.plot_xlabel else "t-SNE Component 1")
+        plt.ylabel(self.plot_ylabel if self.plot_ylabel else "t-SNE Component 2")
+        plt.title(self.plot_title
+                  if self.plot_title
+                  else f"Dialog Embeddings with Centroids\n({self.dialog_embedder.name})")
+        plt.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0)
+        plt.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
+        plt.tight_layout(pad=0.5)
 
     def __eval__(self, dialog_embs: List[np.ndarray]) -> float:
         """
@@ -1135,9 +1408,13 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None,
                  **evaluator_kwargs):
         """Initialize KDE-based divergence evaluator."""
-        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose,
+                         plot_title=plot_title, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel, **evaluator_kwargs)
 
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
@@ -1169,16 +1446,30 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
         :return: None
         :rtype: None
         """
+        colors = ['#000000', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        color_idx = 0
+
         if "reference" not in dialog_scores and self.reference_scores is not None:
-            pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw, lw=3, color="grey")
+            pd.Series(self.reference_scores, name="Reference").plot.kde(bw_method=self.kde_bw,
+                                                                        lw=2,
+                                                                        color=colors[0],
+                                                                        linestyle='-')
+            color_idx = 1
         for dataset_name, scores in dialog_scores.items():
             try:
-                pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw)
+                pd.Series(scores, name=dataset_name).plot.kde(bw_method=self.kde_bw,
+                                                              lw=1.8,
+                                                              color=colors[color_idx % len(colors)])
+                color_idx += 1
             except ValueError as e:
                 logger.error(f"Error plotting KDE for {dataset_name}: {e}")
-        plot.xlabel(self.dialog_score.name)
-        plot.legend()
-        plot.title(f"KDE of {self.dialog_score.name} distributions")
+        plot.xlabel(self.plot_xlabel if self.plot_xlabel else self.dialog_score.name)
+        plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Density")
+        plot.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0)
+        plot.title(self.plot_title if self.plot_title else f"Kernel Density Estimation: {self.dialog_score.name}")
+        plot.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
+        plt.tight_layout(pad=0.5)
 
     def __eval__(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         """
@@ -1237,9 +1528,13 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
                  name: str = None,
                  enable_plotting: bool = True,
                  verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None,
                  **evaluator_kwargs):
         """Evaluate Frechet distance between Gaussian fits of reference and candidate score distributions."""
-        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose, **evaluator_kwargs)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose,
+                         plot_title=plot_title, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel, **evaluator_kwargs)
 
         if reference_dialogues is None:
             if hasattr(dialog_score, "reference_dialogues"):
@@ -1265,15 +1560,26 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
         :return: None
         :rtype: None
         """
+        colors = ['#000000', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        color_idx = 0
+
         if "reference" not in dialog_scores and self.reference_norm_dist is not None:
             x = np.linspace(self.reference_norm_dist.ppf(0.001), self.reference_norm_dist.ppf(0.999), 100)
-            plot.plot(x, self.reference_norm_dist.pdf(x), color="grey", lw=3, label="Reference")
+            plot.plot(x, self.reference_norm_dist.pdf(x), color=colors[0], lw=2, label="Reference", linestyle='-')
+            color_idx = 1
         for dataset_name, scores in dialog_scores.items():
             x = np.linspace(np.min(scores), np.max(scores), 100)
-            plot.plot(x, norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)), label=dataset_name)
-        plot.xlabel(self.dialog_score.name)
-        plot.legend()
-        plot.title(f"Normal Distributions of {self.dialog_score.name}")
+            plot.plot(x,
+                      norm.pdf(x, loc=np.mean(scores), scale=np.std(scores)),
+                      label=dataset_name, lw=1.8, color=colors[color_idx % len(colors)])
+            color_idx += 1
+        plot.xlabel(self.plot_xlabel if self.plot_xlabel else self.dialog_score.name)
+        plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Probability Density")
+        plot.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0)
+        plot.title(self.plot_title if self.plot_title else f"Gaussian Distributions: {self.dialog_score.name}")
+        plot.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
+        plt.tight_layout(pad=0.5)
 
     def __eval__(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         """
@@ -1423,7 +1729,8 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         """
         if not self.enable_plotting or not self.datasets_embs:
             return
-        plt.figure(figsize=(8, 5))
+        # Publication-ready figure size (single column: 3.5", double column: 7")
+        plt.figure(figsize=(7, 5))
         # Concatenate all embeddings and keep track of dataset labels
         all_embs = [self.reference_embs]
         all_labels = ["reference"] * len(self.reference_embs)
@@ -1438,23 +1745,46 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         tsne = TSNE(n_components=2, random_state=42, init="pca", perplexity=30, metric="cosine")
         tsne_embs = tsne.fit_transform(all_embs)
 
-        # Plot
+        # Plot with professional color scheme
         unique_labels = np.unique(all_labels).tolist()
-        colors = plt.cm.tab10.colors if len(unique_labels) <= 10 else plt.cm.tab20.colors
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']
+        markers = ['o', 's', '^', 'v', 'D', 'P', '*', 'X', 'p']
+
         for i, label in enumerate(unique_labels):
             idx = all_labels == label
-            plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
-                        label=label if label != "reference" else "Reference",
-                        alpha=0.15 if label == "reference" else 0.7,
-                        color="black" if label == "reference" else colors[i % len(colors)])
+            if label == "reference":
+                plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                            label="Reference",
+                            alpha=0.3,
+                            color="#808080",
+                            s=20,
+                            marker='o',
+                            edgecolors='none')
+            else:
+                plt.scatter(tsne_embs[idx, 0], tsne_embs[idx, 1],
+                            label=label,
+                            alpha=0.6,
+                            color=colors[i % len(colors)],
+                            s=30,
+                            marker=markers[i % len(markers)],
+                            edgecolors='black',
+                            linewidths=0.5)
 
-        plt.xlabel("t-SNE 1")
-        plt.ylabel("t-SNE 2")
-        plt.title(f"Sentence-pair embeddings for {self.name}")
-        plt.legend()
+        plt.xlabel("t-SNE Component 1")
+        plt.ylabel("t-SNE Component 2")
+        plt.title(f"Sentence-Pair Embeddings\n({self.name})")
+        plt.legend(loc='best', frameon=True, fancybox=False,
+                   edgecolor='black', framealpha=1.0,
+                   ncol=1 if len(unique_labels) <= 4 else 2)
+        plt.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
+        plt.tight_layout(pad=0.5)
 
         if save_path:
-            plt.savefig(save_path, dpi=300)
+            # Save in multiple formats for publication
+            base_path = os.path.splitext(save_path)[0]
+            plt.savefig(f"{base_path}.pdf", dpi=300, bbox_inches='tight', format='pdf')
+            plt.savefig(f"{base_path}.png", dpi=300, bbox_inches='tight', format='png')
+            logger.info(f"Saved publication-quality plots: {base_path}.pdf and {base_path}.png")
         if show:
             plt.show()
 
@@ -1669,7 +1999,10 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
                  metric: Optional[Literal["mean", "std", "min", "max", "median"]] = None,
                  name: str = None,
                  enable_plotting: bool = True,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None):
         """Initialize statistics evaluator (mean/std/min/max/median).
         If `stat` is provided, only that value is returned. `metric` is deprecated and kept for backward compatibility.
         """
@@ -1680,12 +2013,13 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
             warnings.warn("`metric` is deprecated; use `stat` instead.", DeprecationWarning)
             if stat is None:
                 stat = metric
-        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose,
+                         plot_title=plot_title, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
         self.stat = stat
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
         """
-        Plot boxplots for score distributions.
+        Plot boxplots showing score distributions.
 
         :param dialog_scores: Mapping dataset -> score array.
         :type dialog_scores: Dict[str, np.ndarray]
@@ -1696,15 +2030,38 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         :return: None
         :rtype: None
         """
-        # Plot box plots for each dataset
+        # Plot boxplots for score distributions
         name = metric or self.name or self.stat
         title = name or f"{self.dialog_score.name} scores"
-        plot.title(f"Boxplot of {title}")
-        plot.boxplot(list(dialog_scores.values()),
-                     labels=list(dialog_scores.keys()))
+
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+                  '#e377c2', '#bcbd22', '#17becf']
+
+        bp = plot.boxplot(list(dialog_scores.values()),
+                          labels=list(dialog_scores.keys()),
+                          patch_artist=True,
+                          widths=0.6,
+                          medianprops=dict(color='red', linewidth=1.5),
+                          boxprops=dict(facecolor='lightblue', edgecolor='black', linewidth=0.8, alpha=0.7),
+                          whiskerprops=dict(color='black', linewidth=0.8),
+                          capprops=dict(color='black', linewidth=0.8),
+                          flierprops=dict(marker='o', markerfacecolor='gray', markersize=4,
+                                          linestyle='none', markeredgecolor='black', alpha=0.5))
+
+        # Color each box differently
+        for patch, color in zip(bp['boxes'], colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.6)
+
         plt.xticks(rotation=45, ha='right')
-        plot.xlabel("datasets")
-        plot.ylabel(name or self.dialog_score.name)
+        plot.xlabel(self.plot_xlabel if self.plot_xlabel else "Datasets")
+        plot.ylabel(self.plot_ylabel if self.plot_ylabel else (name or self.dialog_score.name))
+        plot.title(self.plot_title if self.plot_title else f"Distribution of {title}")
+        plot.grid(True, alpha=0.2, linestyle='-', linewidth=0.5, axis='y')
+        ax = plt.gca() if plot == plt else plot
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout(pad=0.5)
 
     def __eval__(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         """
@@ -1758,13 +2115,69 @@ class MeanEvaluator(StatsEvaluator):
                  dialog_score: BaseDialogScore,
                  name: str = None,
                  enable_plotting: bool = True,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None):
         """Initialize mean-only evaluator using parent `stat` mechanism."""
         super().__init__(dialog_score,
                          stat="mean",
                          name=name,
                          enable_plotting=enable_plotting,
-                         verbose=verbose)
+                         verbose=verbose,
+                         plot_title=plot_title,
+                         plot_xlabel=plot_xlabel,
+                         plot_ylabel=plot_ylabel)
+
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
+        """
+        Plot bar chart of mean scores.
+
+        :param dialog_scores: Mapping dataset -> score array.
+        :type dialog_scores: Dict[str, np.ndarray]
+        :param plot: Matplotlib Axes or pyplot module.
+        :type plot: Optional[plt.Axes]
+        :param metric: Optional metric name override.
+        :type metric: Optional[str]
+        :return: None
+        :rtype: None
+        """
+        # Plot bar chart with mean values for each dataset
+        name = metric or self.name or self.stat
+        title = name or f"{self.dialog_score.name} scores"
+        means = {k: np.mean(v) for k, v in dialog_scores.items()}
+
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
+                  '#e377c2', '#bcbd22', '#17becf']
+        bar_colors = [colors[i % len(colors)] for i in range(len(means))]
+
+        bars = plot.bar(means.keys(), means.values(), color=bar_colors,
+                        alpha=0.85, edgecolor='black', linewidth=0.8)
+        # Add value labels on top of each bar
+        for bar in bars:
+            height = bar.get_height()
+            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.2f}",
+                      ha='center', va='bottom', fontsize=8)
+        plt.xticks(rotation=45, ha='right')
+        plot.xlabel(self.plot_xlabel if self.plot_xlabel else "Datasets")
+        plot.ylabel(self.plot_ylabel if self.plot_ylabel else (name or self.dialog_score.name))
+        plot.title(self.plot_title if self.plot_title else f"Mean {title}")
+        plot.grid(True, alpha=0.2, linestyle='-', linewidth=0.5, axis='y')
+
+        # Automatically adjust y-axis to highlight differences
+        ax = plt.gca() if plot == plt else plot
+        values = list(means.values())
+        if values:
+            y_min, y_max = min(values), max(values)
+            y_range = y_max - y_min
+            # Add padding (10% below min, 15% above max for labels)
+            padding_bottom = max(y_range * 0.1, 0.01) if y_range > 0 else y_max * 0.1
+            padding_top = max(y_range * 0.15, 0.01) if y_range > 0 else y_max * 0.15
+            ax.set_ylim([y_min - padding_bottom, y_max + padding_top])
+        ax = plt.gca() if plot == plt else plot
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout(pad=0.5)
 
 
 class FrequencyEvaluator(BaseDatasetScoreEvaluator):
@@ -1796,9 +2209,13 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
                  dialog_score: BaseDialogScore,
                  name: str = None,
                  enable_plotting: bool = True,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 plot_title: str = None,
+                 plot_xlabel: str = None,
+                 plot_ylabel: str = None):
         """Initialize frequency evaluator."""
-        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose)
+        super().__init__(dialog_score, name=name, enable_plotting=enable_plotting, verbose=verbose,
+                         plot_title=plot_title, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, metric: str = None):
         """
@@ -1815,15 +2232,28 @@ class FrequencyEvaluator(BaseDatasetScoreEvaluator):
         """
         # Bar plot for frequency/percentage
         percentages = {k: np.mean(v) * 100 for k, v in dialog_scores.items()}
-        bars = plot.bar(percentages.keys(), percentages.values(), color=plt.cm.tab10.colors[:len(percentages)])
+
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                  '#8c564b', '#e377c2', '#bcbd22', '#17becf']
+        bar_colors = [colors[i % len(colors)] for i in range(len(percentages))]
+
+        bars = plot.bar(percentages.keys(), percentages.values(),
+                        color=bar_colors, alpha=0.85, edgecolor='black', linewidth=0.8)
         # Add value labels on top of each bar
         for bar in bars:
             height = bar.get_height()
-            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%", ha='center', va='bottom')
-        plot.xticks(rotation=45, ha='right')
-        plot.ylabel(f"Percentage of {metric or self.dialog_score.name} (%)")
-        plot.xlabel("datasets")
-        plot.title(f"Percentage of {metric or self.dialog_score.name} per dataset")
+            plot.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.1f}%",
+                      ha='center', va='bottom', fontsize=8)
+        plt.xticks(rotation=45, ha='right')
+        plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Percentage (%)")
+        plot.xlabel(self.plot_xlabel if self.plot_xlabel else "Datasets")
+        plot.title(self.plot_title if self.plot_title else f"{metric or self.dialog_score.name} Frequency")
+        plot.grid(True, alpha=0.2, linestyle='-', linewidth=0.5, axis='y')
+        ax = plt.gca() if plot == plt else plot
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.set_ylim([0, min(105, max(percentages.values()) * 1.15)])  # Set y-axis limit with some headroom
+        plt.tight_layout(pad=0.5)
 
     def __eval__(self, dialog_scores: List[Union[float, int]]) -> Union[dict, float]:
         """
@@ -1961,3 +2391,7 @@ class DatasetComparator:
                 evaluator.plot(show=show,
                                save_path=os.path.join(save_folder_path,
                                                       f"{evaluator.name}.png") if save_folder_path else None)
+
+
+# Alias for backward compatibility and simplicity
+Comparator = DatasetComparator
