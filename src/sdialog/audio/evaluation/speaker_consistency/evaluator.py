@@ -5,6 +5,7 @@ This module provides an audio evaluation metric for speaker consistency.
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
 
+import os
 import torch
 import logging
 import numpy as np
@@ -15,8 +16,6 @@ from scipy.spatial.distance import cdist
 from sklearn.metrics import roc_curve
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.evaluation.base import BaseAudioDialogScore, Result
-import os
-import json
 
 
 class SpeakerConsistency(BaseAudioDialogScore):

@@ -35,7 +35,8 @@ class IndexTTS(BaseTTS):
             self,
             model_dir="model",
             cfg_path="model/config.yaml",
-            device="cuda" if torch.cuda.is_available() else "cpu"):
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            version="2"):
         """
         Initializes the IndexTTS engine with the specified model configuration.
 
@@ -56,13 +57,10 @@ class IndexTTS(BaseTTS):
         :raises ImportError: If the indextts package is not installed.
         """
 
-        try:
+        if version == "2":
+            from indextts.infer_v2 import IndexTTS2 as IndexTTS
+        else:
             from indextts.infer import IndexTTS
-        except ImportError:
-            raise ImportError(
-                "The 'indextts' library is required to use IndexTTS. "
-                "Please install following the instructions here: https://github.com/index-tts/index-tts"
-            )
 
         # Initialize the IndexTTS model
         self.pipeline = IndexTTS(model_dir=model_dir, cfg_path=cfg_path, device=device)

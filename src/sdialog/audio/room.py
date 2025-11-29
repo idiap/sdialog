@@ -1046,7 +1046,9 @@ class Room(BaseModel):
         show_furnitures: bool = True,
         show_microphones: bool = True,
         show_anchors: bool = True,
-        show_walls: bool = True
+        show_walls: bool = True,
+        width: int = 512,
+        height: int = 512,
     ):
         """
         Create a room plan (pillow image) based on the "dimensions"
@@ -1054,14 +1056,14 @@ class Room(BaseModel):
         from PIL import Image, ImageDraw, ImageFont
 
         # Create a 512x512 image with white background
-        img = Image.new('RGB', (512, 512), 'white')
+        img = Image.new('RGB', (width, height), 'white')
         draw = ImageDraw.Draw(img)
 
         # Calculate scaling factors to fit the room in the image
         # Leave some margin (50 pixels on each side)
         margin = 50
-        available_width = 512 - 2 * margin
-        available_height = 512 - 2 * margin
+        available_width = width - 2 * margin
+        available_height = height - 2 * margin
 
         # Calculate scale factors for width (x-axis) and length (y-axis)
         scale_x = available_width / self.dimensions.width
@@ -1075,8 +1077,8 @@ class Room(BaseModel):
         room_length_px = int(self.dimensions.length * scale)
 
         # Center the room in the image
-        start_x = (512 - room_width_px) // 2
-        start_y = (512 - room_length_px) // 2
+        start_x = (width - room_width_px) // 2
+        start_y = (height - room_length_px) // 2
 
         if show_walls:
             # Draw the room walls (rectangle)
@@ -1123,8 +1125,8 @@ class Room(BaseModel):
             text_height = bbox[3] - bbox[1]
 
             # Position text at the bottom of the image
-            text_x = (512 - text_width) // 2
-            text_y = 512 - text_height - 10
+            text_x = (width - text_width) // 2
+            text_y = height - text_height - 10
 
             draw.text((text_x, text_y), dim_text, fill='black', font=font)
 
@@ -1137,7 +1139,7 @@ class Room(BaseModel):
                 text_height = bbox[3] - bbox[1]
 
                 # Position text at the top of the image
-                text_x = (512 - text_width) // 2
+                text_x = (width - text_width) // 2
                 text_y = 10
 
                 draw.text((text_x, text_y), name_text, fill='black', font=font)
@@ -1197,12 +1199,12 @@ class Room(BaseModel):
                     # Make sure text doesn't go outside the image bounds
                     if text_x < 0:
                         text_x = 5
-                    elif text_x + text_width > 512:
-                        text_x = 512 - text_width - 5
+                    elif text_x + text_width > width:
+                        text_x = width - text_width - 5
                     if text_y < 0:
                         text_y = 5
-                    elif text_y + text_height > 512:
-                        text_y = 512 - text_height - 5
+                    elif text_y + text_height > height:
+                        text_y = height - text_height - 5
 
                     draw.text((text_x, text_y), furniture_name, fill=furniture.color.value, font=font)
 
@@ -1243,12 +1245,12 @@ class Room(BaseModel):
                 # Make sure text doesn't go outside the image bounds
                 if text_x < 0:
                     text_x = 5
-                elif text_x + text_width > 512:
-                    text_x = 512 - text_width - 5
+                elif text_x + text_width > width:
+                    text_x = width - text_width - 5
                 if text_y < 0:
                     text_y = 5
-                elif text_y + text_height > 512:
-                    text_y = 512 - text_height - 5
+                elif text_y + text_height > height:
+                    text_y = height - text_height - 5
 
                 draw.text((text_x, text_y), mic_label, fill='red', font=font)
 
@@ -1321,8 +1323,8 @@ class Room(BaseModel):
                         text_y = y_px - text_height - 8  # Above
 
                     # Make sure text doesn't go outside the image bounds
-                    text_x = max(5, min(text_x, 512 - text_width - 5))
-                    text_y = max(5, min(text_y, 512 - text_height - 5))
+                    text_x = max(5, min(text_x, width - text_width - 5))
+                    text_y = max(5, min(text_y, height - text_height - 5))
 
                     draw.text((text_x, text_y), label, fill='blue', font=font)
 
@@ -1370,12 +1372,12 @@ class Room(BaseModel):
                     # Make sure text doesn't go outside the image bounds
                     if text_x < 0:
                         text_x = 5
-                    elif text_x + text_width > 512:
-                        text_x = 512 - text_width - 5
+                    elif text_x + text_width > width:
+                        text_x = width - text_width - 5
                     if text_y < 0:
                         text_y = 5
-                    elif text_y + text_height > 512:
-                        text_y = 512 - text_height - 5
+                    elif text_y + text_height > height:
+                        text_y = height - text_height - 5
 
                     draw.text((text_x, text_y), speaker_name, fill=speaker_color, font=font)
 
