@@ -11,6 +11,7 @@ from .base import BaseAudioDialogScore, Result
 from .speech_signal import SpeechSignalEvaluator
 from .audio_quality import AudioQualityEvaluator
 from .speaker_consistency import SpeakerConsistency
+from .speech_analytics import SpeechAnalyticsEvaluator
 import os
 import json
 import uuid
@@ -38,6 +39,7 @@ __all__ = [
     "SpeakerConsistency",
     "SpeechSignalEvaluator",
     "AudioQualityEvaluator",
+    "SpeechAnalyticsEvaluator",
 ]
 
 
