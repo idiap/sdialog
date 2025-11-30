@@ -129,172 +129,7 @@ class ExtendedPersona(BasePersona):
     religious_beliefs: str = Field("", description="Religious stance (e.g., religious, agnostic, atheist).")
 
 
-class Patient(BasePersona):
-    """
-    Patient persona with essential / minimal plus behavioral and demographic attributes for dialogue generation.
-
-    :param name: Patient name.
-    :type name: str
-    :param age: Patient age (numeric or descriptive).
-    :type age: Union[int, str]
-    :param race: Race / ethnicity.
-    :type race: str
-    :param gender: Gender identity.
-    :type gender: str
-    :param language: Preferred communication language.
-    :type language: str
-    :param forgetfulness: Forgetfulness tendency (qualitative or numeric).
-    :type forgetfulness: Union[str, float]
-    :param formality: Formality of speech (qualitative or numeric scale).
-    :type formality: Union[str, float]
-    :param hurriedness: Degree of impatience / hurriedness.
-    :type hurriedness: Union[str, float]
-    :param openness: Openness to share information.
-    :type openness: Union[str, float]
-    :param height: Height (numeric with unit or descriptive).
-    :type height: Union[str, int, float]
-    :param weight: Weight (numeric with unit or descriptive).
-    :type weight: Union[str, int, float]
-    :param occupation: Occupation or employment status.
-    :type occupation: str
-    :param marital_status: Marital status.
-    :type marital_status: str
-    :param insurance: Insurance provider / status.
-    :type insurance: str
-    :param reason_for_visit: Chief complaint / presenting problem.
-    :type reason_for_visit: str
-    :param symptoms: Reported symptoms.
-    :type symptoms: Union[str, List[str]]
-    :param medical_history: Past medical history (string or list of conditions).
-    :type medical_history: Union[str, List[str]]
-    :param medical_conditions: Known diagnosed conditions (string or list).
-    :type medical_conditions: Union[str, List[str]]
-    :param medications: Current medications (string or list).
-    :type medications: Union[str, List[str]]
-    :param allergies: Known allergies (string or list).
-    :type allergies: Union[str, List[str]]
-    :param family_history: Family medical history (string or list).
-    :type family_history: Union[str, List[str]]
-    """
-
-    name: str = Field("", description="Patient name.")
-    age: Union[int, str] = Field(None, description="Patient age (numeric or descriptive).")
-    race: str = Field("", description="Race or ethnicity.")
-    gender: str = Field("", description="Gender identity.")
-    language: str = Field("English", description="Preferred communication language.")
-    forgetfulness: Union[str, float] = Field("", description="Forgetfulness tendency (qualitative or numeric).")
-    formality: Union[str, float] = Field("", description="Formality of speech.")
-    hurriedness: Union[str, float] = Field("", description="Degree of impatience or hurriedness.")
-    openness: Union[str, float] = Field("", description="Openness to share information.")
-    height: Union[str, int, float] = Field("", description="Height (value with unit or descriptive).")
-    weight: Union[str, int, float] = Field("", description="Weight (value with unit or descriptive).")
-    occupation: str = Field("", description="Occupation or employment status.")
-    marital_status: str = Field("", description="Marital status.")
-    insurance: str = Field("", description="Insurance provider or status.")
-    reason_for_visit: str = Field("", description="Chief complaint or presenting problem.")
-    symptoms: Union[str, List[str]] = Field("", description="Reported symptoms.")
-    medical_history: Union[str, List[str]] = Field("", description="Past medical history.")
-    medical_conditions: Union[str, List[str]] = Field("", description="Known diagnosed conditions.")
-    medications: Union[str, List[str]] = Field("", description="Current medications.")
-    allergies: Union[str, List[str]] = Field("", description="Known allergies.")
-    family_history: Union[str, List[str]] = Field("", description="Family medical history.")
-
-
-class ExtendedPatient(ExtendedPersona):
-    """
-    ExtendedPatient persona with additional health-related attributes.
-    Inherits all attributes from ExtendedPersona plus medical context fields.
-
-    :param reason_for_visit: Chief complaint or reason for consultation.
-    :type reason_for_visit: str
-    :param symptoms: Reported symptoms (free text or summarized list).
-    :type symptoms: Union[str, List[str]]
-    :param vital_signs: Vital signs summary (e.g., "BP 120/80, HR 72").
-    :type vital_signs: str
-    :param health_literacy: Health literacy level descriptor.
-    :type health_literacy: str
-    :param medical_conditions: Known or chronic conditions (free text summary).
-    :type medical_conditions: Union[str, List[str]]
-    :param medications: Current medications summary.
-    :type medications: Union[str, List[str]]
-    :param allergies: Allergy list / summary.
-    :type allergies: Union[str, List[str]]
-    :param family_history: Family medical history summary.
-    :type family_history: Union[str, List[str]]
-    """
-
-    reason_for_visit: str = Field("", description="Chief complaint or reason for consultation.")
-    symptoms: Union[str, List[str]] = Field("", description="Reported symptoms.")
-    vital_signs: str = Field("", description="Vital signs summary (e.g., 'BP 120/80, HR 72').")
-    health_literacy: str = Field("", description="Health literacy level.")
-    medical_conditions: Union[str, List[str]] = Field("", description="Known or chronic conditions summary.")
-    medications: Union[str, List[str]] = Field("", description="Current medications summary.")
-    allergies: Union[str, List[str]] = Field("", description="Allergy list or summary.")
-    family_history: Union[str, List[str]] = Field("", description="Family medical history summary.")
-
-
-class Doctor(BasePersona):
-    """
-    Doctor persona with essential professional and behavioral attributes.
-
-    :param name: Doctor's name.
-    :type name: str
-    :param age: Doctor's age (numeric or descriptive).
-    :type age: Union[int, str]
-    :param race: Race / ethnicity.
-    :type race: str
-    :param gender: Gender identity.
-    :type gender: str
-    :param language: Working language.
-    :type language: str
-    :param years_of_experience: Years (or range) of medical practice.
-    :type years_of_experience: Union[int, str]
-    :param specialty: Medical specialty (as spelled in this class).
-    :type specialty: str
-    :param forgetfulness: Forgetfulness tendency.
-    :type forgetfulness: str
-    :param formality: Formality level in communication.
-    :type formality: str
-    :param hurriedness: Degree of time pressure / haste.
-    :type hurriedness: str
-    :param openness: Openness / approachability.
-    :type openness: str
-    """
-
-    name: str = Field("", description="Doctor's name.")
-    age: Union[int, str] = Field("", description="Doctor's age (numeric or descriptive).")
-    race: str = Field("", description="Race or ethnicity.")
-    gender: str = Field("", description="Gender identity.")
-    language: str = Field("English", description="Working language.")
-    years_of_experience: Union[int, str] = Field("", description="Years or range of medical practice.")
-    specialty: str = Field("", description="Medical specialty.")
-    forgetfulness: str = Field("", description="Forgetfulness tendency.")
-    formality: str = Field("", description="Formality level in communication.")
-    hurriedness: str = Field("", description="Degree of time pressure or haste.")
-    openness: str = Field("", description="Openness or approachability.")
-
-
-class ExtendedDoctor(ExtendedPersona):
-    """
-    ExtendedDoctor persona adding professional credentials.
-    Inherits all attributes from ExtendedPersona plus, the following ones.
-
-    :param specialty: Medical specialty / domain focus.
-    :type specialty: str
-    :param years_of_experience: Years (or range) of clinical experience.
-    :type years_of_experience: Union[int, str]
-    :param certifications: Professional certifications / board statuses.
-    :type certifications: str
-    :param work_experience: Summary of prior practice settings / roles.
-    :type work_experience: str
-    """
-
-    specialty: str = Field("", description="Medical specialty or domain focus.")
-    years_of_experience: Union[int, str] = Field("", description="Years (or range) of clinical experience.")
-    certifications: str = Field("", description="Professional certifications / board statuses.")
-    work_experience: str = Field("", description="Summary of prior practice settings / roles.")
-
-
+# -------------------- Customer Service Domain --------------------
 class Customer(BasePersona):
     """
     Persona for a customer in a customer service interaction.
@@ -463,3 +298,889 @@ class SupportAgent(BasePersona):
     stress_tolerance: str = Field("", description="Stress handling capability descriptor.")
     performance_notes: str = Field("", description="Performance KPIs or evaluation notes.")
     rules: str = Field("", description="Internal rules or compliance reminders.")
+
+
+# -------------------- Healthcare Domain --------------------
+
+class Patient(BasePersona):
+    """
+    Patient persona with essential / minimal plus behavioral and demographic attributes for dialogue generation.
+
+    :param name: Patient name.
+    :type name: str
+    :param age: Patient age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param race: Race / ethnicity.
+    :type race: str
+    :param gender: Gender identity.
+    :type gender: str
+    :param language: Preferred communication language.
+    :type language: str
+    :param forgetfulness: Forgetfulness tendency (qualitative or numeric).
+    :type forgetfulness: Union[str, float]
+    :param formality: Formality of speech (qualitative or numeric scale).
+    :type formality: Union[str, float]
+    :param hurriedness: Degree of impatience / hurriedness.
+    :type hurriedness: Union[str, float]
+    :param openness: Openness to share information.
+    :type openness: Union[str, float]
+    :param height: Height (numeric with unit or descriptive).
+    :type height: Union[str, int, float]
+    :param weight: Weight (numeric with unit or descriptive).
+    :type weight: Union[str, int, float]
+    :param occupation: Occupation or employment status.
+    :type occupation: str
+    :param marital_status: Marital status.
+    :type marital_status: str
+    :param insurance: Insurance provider / status.
+    :type insurance: str
+    :param reason_for_visit: Chief complaint / presenting problem.
+    :type reason_for_visit: str
+    :param symptoms: Reported symptoms.
+    :type symptoms: Union[str, List[str]]
+    :param medical_history: Past medical history (string or list of conditions).
+    :type medical_history: Union[str, List[str]]
+    :param medical_conditions: Known diagnosed conditions (string or list).
+    :type medical_conditions: Union[str, List[str]]
+    :param medications: Current medications (string or list).
+    :type medications: Union[str, List[str]]
+    :param allergies: Known allergies (string or list).
+    :type allergies: Union[str, List[str]]
+    :param family_history: Family medical history (string or list).
+    :type family_history: Union[str, List[str]]
+    """
+
+    name: str = Field("", description="Patient name.")
+    age: Union[int, str] = Field(None, description="Patient age (numeric or descriptive).")
+    race: str = Field("", description="Race or ethnicity.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Preferred communication language.")
+    forgetfulness: Union[str, float] = Field("", description="Forgetfulness tendency (qualitative or numeric).")
+    formality: Union[str, float] = Field("", description="Formality of speech.")
+    hurriedness: Union[str, float] = Field("", description="Degree of impatience or hurriedness.")
+    openness: Union[str, float] = Field("", description="Openness to share information.")
+    height: Union[str, int, float] = Field("", description="Height (value with unit or descriptive).")
+    weight: Union[str, int, float] = Field("", description="Weight (value with unit or descriptive).")
+    occupation: str = Field("", description="Occupation or employment status.")
+    marital_status: str = Field("", description="Marital status.")
+    insurance: str = Field("", description="Insurance provider or status.")
+    reason_for_visit: str = Field("", description="Chief complaint or presenting problem.")
+    symptoms: Union[str, List[str]] = Field("", description="Reported symptoms.")
+    medical_history: Union[str, List[str]] = Field("", description="Past medical history.")
+    medical_conditions: Union[str, List[str]] = Field("", description="Known diagnosed conditions.")
+    medications: Union[str, List[str]] = Field("", description="Current medications.")
+    allergies: Union[str, List[str]] = Field("", description="Known allergies.")
+    family_history: Union[str, List[str]] = Field("", description="Family medical history.")
+
+
+class ExtendedPatient(ExtendedPersona):
+    """
+    ExtendedPatient persona with additional health-related attributes.
+    Inherits all attributes from ExtendedPersona plus medical context fields.
+
+    :param reason_for_visit: Chief complaint or reason for consultation.
+    :type reason_for_visit: str
+    :param symptoms: Reported symptoms (free text or summarized list).
+    :type symptoms: Union[str, List[str]]
+    :param vital_signs: Vital signs summary (e.g., "BP 120/80, HR 72").
+    :type vital_signs: str
+    :param health_literacy: Health literacy level descriptor.
+    :type health_literacy: str
+    :param medical_conditions: Known or chronic conditions (free text summary).
+    :type medical_conditions: Union[str, List[str]]
+    :param medications: Current medications summary.
+    :type medications: Union[str, List[str]]
+    :param allergies: Allergy list / summary.
+    :type allergies: Union[str, List[str]]
+    :param family_history: Family medical history summary.
+    :type family_history: Union[str, List[str]]
+    """
+
+    reason_for_visit: str = Field("", description="Chief complaint or reason for consultation.")
+    symptoms: Union[str, List[str]] = Field("", description="Reported symptoms.")
+    vital_signs: str = Field("", description="Vital signs summary (e.g., 'BP 120/80, HR 72').")
+    health_literacy: str = Field("", description="Health literacy level.")
+    medical_conditions: Union[str, List[str]] = Field("", description="Known or chronic conditions summary.")
+    medications: Union[str, List[str]] = Field("", description="Current medications summary.")
+    allergies: Union[str, List[str]] = Field("", description="Allergy list or summary.")
+    family_history: Union[str, List[str]] = Field("", description="Family medical history summary.")
+
+
+class Doctor(BasePersona):
+    """
+    Doctor persona with essential professional and behavioral attributes.
+
+    :param name: Doctor's name.
+    :type name: str
+    :param age: Doctor's age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param race: Race / ethnicity.
+    :type race: str
+    :param gender: Gender identity.
+    :type gender: str
+    :param language: Working language.
+    :type language: str
+    :param years_of_experience: Years (or range) of medical practice.
+    :type years_of_experience: Union[int, str]
+    :param specialty: Medical specialty (as spelled in this class).
+    :type specialty: str
+    :param forgetfulness: Forgetfulness tendency.
+    :type forgetfulness: str
+    :param formality: Formality level in communication.
+    :type formality: str
+    :param hurriedness: Degree of time pressure / haste.
+    :type hurriedness: str
+    :param openness: Openness / approachability.
+    :type openness: str
+    """
+
+    name: str = Field("", description="Doctor's name.")
+    age: Union[int, str] = Field("", description="Doctor's age (numeric or descriptive).")
+    race: str = Field("", description="Race or ethnicity.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Working language.")
+    years_of_experience: Union[int, str] = Field("", description="Years or range of medical practice.")
+    specialty: str = Field("", description="Medical specialty.")
+    forgetfulness: str = Field("", description="Forgetfulness tendency.")
+    formality: str = Field("", description="Formality level in communication.")
+    hurriedness: str = Field("", description="Degree of time pressure or haste.")
+    openness: str = Field("", description="Openness or approachability.")
+
+
+class ExtendedDoctor(ExtendedPersona):
+    """
+    ExtendedDoctor persona adding professional credentials.
+    Inherits all attributes from ExtendedPersona plus, the following ones.
+
+    :param specialty: Medical specialty / domain focus.
+    :type specialty: str
+    :param years_of_experience: Years (or range) of clinical experience.
+    :type years_of_experience: Union[int, str]
+    :param certifications: Professional certifications / board statuses.
+    :type certifications: str
+    :param work_experience: Summary of prior practice settings / roles.
+    :type work_experience: str
+    """
+
+    specialty: str = Field("", description="Medical specialty or domain focus.")
+    years_of_experience: Union[int, str] = Field("", description="Years (or range) of clinical experience.")
+    certifications: str = Field("", description="Professional certifications / board statuses.")
+    work_experience: str = Field("", description="Summary of prior practice settings / roles.")
+
+
+class Nurse(BasePersona):
+    """
+    Nurse persona for healthcare dialogues.
+
+    :param name: Nurse name.
+    :type name: str
+    :param age: Nurse age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param language: Working language.
+    :type language: str
+    :param years_of_experience: Years of nursing experience.
+    :type years_of_experience: Union[int, str]
+    :param specialty: Nursing specialty.
+    :type specialty: str
+    :param shift: Typical work shift.
+    :type shift: str
+    :param empathy_level: Empathy descriptor.
+    :type empathy_level: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    :param attentiveness: Attentiveness descriptor.
+    :type attentiveness: str
+    :param stress_tolerance: Stress handling capability.
+    :type stress_tolerance: str
+    """
+    name: str = Field("", description="Nurse name.")
+    age: Union[int, str] = Field("", description="Nurse age.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Working language.")
+    years_of_experience: Union[int, str] = Field("", description="Years of nursing experience.")
+    specialty: str = Field("", description="Nursing specialty.")
+    shift: str = Field("", description="Typical work shift.")
+    empathy_level: str = Field("", description="Empathy descriptor.")
+    politeness: str = Field("", description="Politeness style.")
+    attentiveness: str = Field("", description="Attentiveness descriptor.")
+    stress_tolerance: str = Field("", description="Stress handling capability.")
+
+
+class Pharmacist(BasePersona):
+    """
+    Pharmacist persona for healthcare dialogues.
+
+    :param name: Pharmacist name.
+    :type name: str
+    :param age: Pharmacist age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param language: Working language.
+    :type language: str
+    :param years_of_experience: Years of pharmacy experience.
+    :type years_of_experience: Union[int, str]
+    :param workplace: Pharmacy or hospital name.
+    :type workplace: str
+    :param expertise: Pharmaceutical expertise.
+    :type expertise: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    :param communication_style: Communication style.
+    :type communication_style: str
+    """
+    name: str = Field("", description="Pharmacist name.")
+    age: Union[int, str] = Field("", description="Pharmacist age.")
+    gender: str = Field("", description="Gender identity.")
+    language: str = Field("English", description="Working language.")
+    years_of_experience: Union[int, str] = Field("", description="Years of pharmacy experience.")
+    workplace: str = Field("", description="Pharmacy or hospital name.")
+    expertise: str = Field("", description="Pharmaceutical expertise.")
+    politeness: str = Field("", description="Politeness style.")
+    communication_style: str = Field("", description="Communication style.")
+
+
+class Caregiver(BasePersona):
+    """
+    Caregiver persona for healthcare dialogues.
+
+    :param name: Caregiver name.
+    :type name: str
+    :param age: Caregiver age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param relationship: Relationship to care recipient.
+    :type relationship: str
+    :param experience_years: Years of caregiving experience.
+    :type experience_years: Union[int, str]
+    :param empathy_level: Empathy descriptor.
+    :type empathy_level: str
+    :param attentiveness: Attentiveness descriptor.
+    :type attentiveness: str
+    """
+    name: str = Field("", description="Caregiver name.")
+    age: Union[int, str] = Field("", description="Caregiver age.")
+    gender: str = Field("", description="Gender identity.")
+    relationship: str = Field("", description="Relationship to care recipient.")
+    experience_years: Union[int, str] = Field("", description="Years of caregiving experience.")
+    empathy_level: str = Field("", description="Empathy descriptor.")
+    attentiveness: str = Field("", description="Attentiveness descriptor.")
+
+
+# -------------------- Education Domain --------------------
+
+class Teacher(BasePersona):
+    """
+    Teacher persona for education dialogues.
+
+    :param name: Teacher name.
+    :type name: str
+    :param age: Teacher age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param subject: Teaching subject.
+    :type subject: str
+    :param years_of_experience: Years of teaching experience.
+    :type years_of_experience: Union[int, str]
+    :param education_level: Highest degree.
+    :type education_level: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    :param communication_style: Communication style.
+    :type communication_style: str
+    """
+    name: str = Field("", description="Teacher name.")
+    age: Union[int, str] = Field("", description="Teacher age.")
+    gender: str = Field("", description="Gender identity.")
+    subject: str = Field("", description="Teaching subject.")
+    years_of_experience: Union[int, str] = Field("", description="Years of teaching experience.")
+    education_level: str = Field("", description="Highest degree.")
+    politeness: str = Field("", description="Politeness style.")
+    communication_style: str = Field("", description="Communication style.")
+
+
+class Student(BasePersona):
+    """
+    Student persona for education dialogues.
+
+    :param name: Student name.
+    :type name: str
+    :param age: Student age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param grade_level: Grade or year.
+    :type grade_level: str
+    :param major: Major or focus area.
+    :type major: str
+    :param interests: Interests.
+    :type interests: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Student name.")
+    age: Union[int, str] = Field("", description="Student age.")
+    gender: str = Field("", description="Gender identity.")
+    grade_level: str = Field("", description="Grade or year.")
+    major: str = Field("", description="Major or focus area.")
+    interests: str = Field("", description="Interests.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class AcademicAdvisor(BasePersona):
+    """
+    AcademicAdvisor persona for education dialogues.
+
+    :param name: Advisor name.
+    :type name: str
+    :param age: Advisor age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param years_of_experience: Years of advising experience.
+    :type years_of_experience: Union[int, str]
+    :param specialty: Advising specialty.
+    :type specialty: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Advisor name.")
+    age: Union[int, str] = Field("", description="Advisor age.")
+    gender: str = Field("", description="Gender identity.")
+    years_of_experience: Union[int, str] = Field("", description="Years of advising experience.")
+    specialty: str = Field("", description="Advising specialty.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Finance Domain --------------------
+
+class FinancialAdvisor(BasePersona):
+    """
+    FinancialAdvisor persona for finance dialogues.
+
+    :param name: Advisor name.
+    :type name: str
+    :param age: Advisor age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param years_of_experience: Years of financial advising experience.
+    :type years_of_experience: Union[int, str]
+    :param certifications: Certifications.
+    :type certifications: str
+    :param specialty: Financial specialty.
+    :type specialty: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Advisor name.")
+    age: Union[int, str] = Field("", description="Advisor age.")
+    gender: str = Field("", description="Gender identity.")
+    years_of_experience: Union[int, str] = Field("", description="Years of financial advising experience.")
+    certifications: str = Field("", description="Certifications.")
+    specialty: str = Field("", description="Financial specialty.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class Banker(BasePersona):
+    """
+    Banker persona for finance dialogues.
+
+    :param name: Banker name.
+    :type name: str
+    :param age: Banker age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param branch: Bank branch.
+    :type branch: str
+    :param years_of_experience: Years of banking experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Banker name.")
+    age: Union[int, str] = Field("", description="Banker age.")
+    gender: str = Field("", description="Gender identity.")
+    branch: str = Field("", description="Bank branch.")
+    years_of_experience: Union[int, str] = Field("", description="Years of banking experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class InsuranceAgent(BasePersona):
+    """
+    InsuranceAgent persona for finance dialogues.
+
+    :param name: Agent name.
+    :type name: str
+    :param age: Agent age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param company: Insurance company.
+    :type company: str
+    :param years_of_experience: Years of insurance experience.
+    :type years_of_experience: Union[int, str]
+    :param specialty: Insurance specialty.
+    :type specialty: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Agent name.")
+    age: Union[int, str] = Field("", description="Agent age.")
+    gender: str = Field("", description="Gender identity.")
+    company: str = Field("", description="Insurance company.")
+    years_of_experience: Union[int, str] = Field("", description="Years of insurance experience.")
+    specialty: str = Field("", description="Insurance specialty.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Retail Domain --------------------
+
+class StoreManager(BasePersona):
+    """
+    StoreManager persona for retail dialogues.
+
+    :param name: Manager name.
+    :type name: str
+    :param age: Manager age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param store_name: Store name.
+    :type store_name: str
+    :param years_of_experience: Years of management experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Manager name.")
+    age: Union[int, str] = Field("", description="Manager age.")
+    gender: str = Field("", description="Gender identity.")
+    store_name: str = Field("", description="Store name.")
+    years_of_experience: Union[int, str] = Field("", description="Years of management experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class SalesAssociate(BasePersona):
+    """
+    SalesAssociate persona for retail dialogues.
+
+    :param name: Associate name.
+    :type name: str
+    :param age: Associate age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param store_name: Store name.
+    :type store_name: str
+    :param years_of_experience: Years of sales experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Associate name.")
+    age: Union[int, str] = Field("", description="Associate age.")
+    gender: str = Field("", description="Gender identity.")
+    store_name: str = Field("", description="Store name.")
+    years_of_experience: Union[int, str] = Field("", description="Years of sales experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class Shopper(BasePersona):
+    """
+    Shopper persona for retail dialogues.
+
+    :param name: Shopper name.
+    :type name: str
+    :param age: Shopper age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param shopping_goal: Shopping goal.
+    :type shopping_goal: str
+    :param loyalty_status: Loyalty descriptor.
+    :type loyalty_status: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Shopper name.")
+    age: Union[int, str] = Field("", description="Shopper age.")
+    gender: str = Field("", description="Gender identity.")
+    shopping_goal: str = Field("", description="Shopping goal.")
+    loyalty_status: str = Field("", description="Loyalty descriptor.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Travel/Hospitality Domain --------------------
+
+class HotelReceptionist(BasePersona):
+    """
+    HotelReceptionist persona for hospitality dialogues.
+
+    :param name: Receptionist name.
+    :type name: str
+    :param age: Receptionist age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param hotel_name: Hotel name.
+    :type hotel_name: str
+    :param years_of_experience: Years of hospitality experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Receptionist name.")
+    age: Union[int, str] = Field("", description="Receptionist age.")
+    gender: str = Field("", description="Gender identity.")
+    hotel_name: str = Field("", description="Hotel name.")
+    years_of_experience: Union[int, str] = Field("", description="Years of hospitality experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class TravelAgent(BasePersona):
+    """
+    TravelAgent persona for travel dialogues.
+
+    :param name: Agent name.
+    :type name: str
+    :param age: Agent age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param agency_name: Travel agency name.
+    :type agency_name: str
+    :param years_of_experience: Years of travel experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Agent name.")
+    age: Union[int, str] = Field("", description="Agent age.")
+    gender: str = Field("", description="Gender identity.")
+    agency_name: str = Field("", description="Travel agency name.")
+    years_of_experience: Union[int, str] = Field("", description="Years of travel experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class Tourist(BasePersona):
+    """
+    Tourist persona for travel dialogues.
+
+    :param name: Tourist name.
+    :type name: str
+    :param age: Tourist age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param travel_goal: Travel goal.
+    :type travel_goal: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Tourist name.")
+    age: Union[int, str] = Field("", description="Tourist age.")
+    gender: str = Field("", description="Gender identity.")
+    travel_goal: str = Field("", description="Travel goal.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Legal Domain --------------------
+
+class Lawyer(BasePersona):
+    """
+    Lawyer persona for legal dialogues.
+
+    :param name: Lawyer name.
+    :type name: str
+    :param age: Lawyer age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param specialty: Legal specialty.
+    :type specialty: str
+    :param years_of_experience: Years of legal experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Lawyer name.")
+    age: Union[int, str] = Field("", description="Lawyer age.")
+    gender: str = Field("", description="Gender identity.")
+    specialty: str = Field("", description="Legal specialty.")
+    years_of_experience: Union[int, str] = Field("", description="Years of legal experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class Paralegal(BasePersona):
+    """
+    Paralegal persona for legal dialogues.
+
+    :param name: Paralegal name.
+    :type name: str
+    :param age: Paralegal age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param years_of_experience: Years of paralegal experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Paralegal name.")
+    age: Union[int, str] = Field("", description="Paralegal age.")
+    gender: str = Field("", description="Gender identity.")
+    years_of_experience: Union[int, str] = Field("", description="Years of paralegal experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class LegalClient(BasePersona):
+    """
+    LegalClient persona for legal dialogues.
+
+    :param name: Client name.
+    :type name: str
+    :param age: Client age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param case_type: Type of legal case.
+    :type case_type: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Client name.")
+    age: Union[int, str] = Field("", description="Client age.")
+    gender: str = Field("", description="Gender identity.")
+    case_type: str = Field("", description="Type of legal case.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Technical Support Domain --------------------
+
+class ITSupportSpecialist(BasePersona):
+    """
+    ITSupportSpecialist persona for tech support dialogues.
+
+    :param name: Specialist name.
+    :type name: str
+    :param age: Specialist age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param years_of_experience: Years of IT support experience.
+    :type years_of_experience: Union[int, str]
+    :param expertise_area: Area of technical expertise.
+    :type expertise_area: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Specialist name.")
+    age: Union[int, str] = Field("", description="Specialist age.")
+    gender: str = Field("", description="Gender identity.")
+    years_of_experience: Union[int, str] = Field("", description="Years of IT support experience.")
+    expertise_area: str = Field("", description="Area of technical expertise.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class HelpdeskTechnician(BasePersona):
+    """
+    HelpdeskTechnician persona for tech support dialogues.
+
+    :param name: Technician name.
+    :type name: str
+    :param age: Technician age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param years_of_experience: Years of helpdesk experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Technician name.")
+    age: Union[int, str] = Field("", description="Technician age.")
+    gender: str = Field("", description="Gender identity.")
+    years_of_experience: Union[int, str] = Field("", description="Years of helpdesk experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class EndUser(BasePersona):
+    """
+    EndUser persona for tech support dialogues.
+
+    :param name: End user name.
+    :type name: str
+    :param age: End user age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param device_type: Type of device used.
+    :type device_type: str
+    :param issue_description: Description of technical issue.
+    :type issue_description: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="End user name.")
+    age: Union[int, str] = Field("", description="End user age.")
+    gender: str = Field("", description="Gender identity.")
+    device_type: str = Field("", description="Type of device used.")
+    issue_description: str = Field("", description="Description of technical issue.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Government/Public Service Domain --------------------
+
+class CivilServant(BasePersona):
+    """
+    CivilServant persona for government dialogues.
+
+    :param name: Civil servant name.
+    :type name: str
+    :param age: Civil servant age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param department: Government department.
+    :type department: str
+    :param years_of_experience: Years of public service.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Civil servant name.")
+    age: Union[int, str] = Field("", description="Civil servant age.")
+    gender: str = Field("", description="Gender identity.")
+    department: str = Field("", description="Government department.")
+    years_of_experience: Union[int, str] = Field("", description="Years of public service.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class SocialWorker(BasePersona):
+    """
+    SocialWorker persona for public service dialogues.
+
+    :param name: Social worker name.
+    :type name: str
+    :param age: Social worker age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param years_of_experience: Years of social work experience.
+    :type years_of_experience: Union[int, str]
+    :param specialty: Social work specialty.
+    :type specialty: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Social worker name.")
+    age: Union[int, str] = Field("", description="Social worker age.")
+    gender: str = Field("", description="Gender identity.")
+    years_of_experience: Union[int, str] = Field("", description="Years of social work experience.")
+    specialty: str = Field("", description="Social work specialty.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class Citizen(BasePersona):
+    """
+    Citizen persona for government dialogues.
+
+    :param name: Citizen name.
+    :type name: str
+    :param age: Citizen age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param inquiry_topic: Topic of inquiry.
+    :type inquiry_topic: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Citizen name.")
+    age: Union[int, str] = Field("", description="Citizen age.")
+    gender: str = Field("", description="Gender identity.")
+    inquiry_topic: str = Field("", description="Topic of inquiry.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+# -------------------- Food Service Domain --------------------
+
+class Chef(BasePersona):
+    """
+    Chef persona for food service dialogues.
+
+    :param name: Chef name.
+    :type name: str
+    :param age: Chef age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param restaurant_name: Restaurant name.
+    :type restaurant_name: str
+    :param years_of_experience: Years of culinary experience.
+    :type years_of_experience: Union[int, str]
+    :param cuisine_specialty: Cuisine specialty.
+    :type cuisine_specialty: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Chef name.")
+    age: Union[int, str] = Field("", description="Chef age.")
+    gender: str = Field("", description="Gender identity.")
+    restaurant_name: str = Field("", description="Restaurant name.")
+    years_of_experience: Union[int, str] = Field("", description="Years of culinary experience.")
+    cuisine_specialty: str = Field("", description="Cuisine specialty.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class Waiter(BasePersona):
+    """
+    Waiter persona for food service dialogues.
+
+    :param name: Waiter name.
+    :type name: str
+    :param age: Waiter age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param restaurant_name: Restaurant name.
+    :type restaurant_name: str
+    :param years_of_experience: Years of service experience.
+    :type years_of_experience: Union[int, str]
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Waiter name.")
+    age: Union[int, str] = Field("", description="Waiter age.")
+    gender: str = Field("", description="Gender identity.")
+    restaurant_name: str = Field("", description="Restaurant name.")
+    years_of_experience: Union[int, str] = Field("", description="Years of service experience.")
+    politeness: str = Field("", description="Politeness style.")
+
+
+class RestaurantCustomer(BasePersona):
+    """
+    RestaurantCustomer persona for food service dialogues.
+
+    :param name: Customer name.
+    :type name: str
+    :param age: Customer age (numeric or descriptive).
+    :type age: Union[int, str]
+    :param gender: Gender identity.
+    :type gender: str
+    :param dietary_preferences: Dietary preferences.
+    :type dietary_preferences: str
+    :param politeness: Politeness style.
+    :type politeness: str
+    """
+    name: str = Field("", description="Customer name.")
+    age: Union[int, str] = Field("", description="Customer age.")
+    gender: str = Field("", description="Gender identity.")
+    dietary_preferences: str = Field("", description="Dietary preferences.")
+    politeness: str = Field("", description="Politeness style.")

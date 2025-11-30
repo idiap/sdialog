@@ -23,7 +23,7 @@ scipy
 matplotlib
 accelerate
 transformers
-datasets
+datasets>=2.20.0
 huggingface_hub
 flake8
 wandb

@@ -128,27 +128,29 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
 
 
-class LinguisticFeatureScore(BaseDialogScore):
+class ConversationalFeatures(BaseDialogScore):
     """
-    Compute one or multiple simple linguistic features for a dialogue: mean turn length,
-    hesitation rate, Gunning Fog index, and Flesch Reading Ease score.
+    Compute conversational and dialogue-specific features.
+
+    These metrics measure dialogue structure, speech patterns, and interaction dynamics
+    rather than text readability.
 
     Example:
 
         .. code-block:: python
 
-            from sdialog.evaluation import LinguisticFeatureScore
+            from sdialog.evaluation import ConversationalFeatures
 
-            # All features as a dictionary
-            scorer_all = LinguisticFeatureScore()
+            # All conversational features
+            scorer_all = ConversationalFeatures()
             # Single feature
-            scorer_hes = LinguisticFeatureScore(feature="hesitation-rate")
-            # Subset of features
-            scorer_subset = LinguisticFeatureScore(feature=["mean-turn-length", "gunning-fog"])
+            scorer_hes = ConversationalFeatures(feature="hesitation-rate")
+            # Multiple features
+            scorer_multi = ConversationalFeatures(feature=["question-rate", "lexical-diversity"])
 
             print(scorer_all(dialog))      # dict with all feature values
             print(scorer_hes(dialog))      # single float (hesitation rate)
-            print(scorer_subset(dialog))   # dict with the two requested features
+            print(scorer_multi(dialog))    # dict with selected features
 
     :param feature: List of feature names to compute. If ``None`` (default) compute all.
                     If the resulting set has size 1, ``__call__`` / ``score`` returns a single float; otherwise a dict.
@@ -156,27 +158,36 @@ class LinguisticFeatureScore(BaseDialogScore):
 
                       - ``"mean-turn-length"``: average number of words per dialogue turn.
                       - ``"hesitation-rate"``: percentage of hesitation tokens over total words (%).
-                      - ``"gunning-fog"``: Gunning Fog readability index.
-                      - ``"flesch-reading-ease"``: Flesch Reading Ease score.
+                      - ``"turn-taking-ratio"``: distribution of turns between speakers
+                                                 (entropy-based, 0=monopolized, 1=balanced).
+                      - ``"question-rate"``: percentage of turns containing questions (%).
+                      - ``"lexical-diversity"``: type-token ratio measuring vocabulary richness (0-1).
+                      - ``"back-channel-rate"``: percentage of minimal response turns (%).
+                      - ``"filler-word-density"``: percentage of filler words over total words (%).
 
-    :type feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"]]]
-    :param name: Internal score name (defaults to ``"linguistic_features"`` or
+    :type feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "turn-taking-ratio",
+                                         "question-rate", "lexical-diversity", "back-channel-rate",
+                                         "filler-word-density"]]]
+    :param name: Internal score name (defaults to ``"conversational_features"`` or
                  the single feature name if only one provided).
     :type name: str
     :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
+                    Note: turn-taking-ratio ignores this parameter as it requires multiple speakers.
     :type speaker: Optional[str]
     """
     def __init__(self,
-                 feature: Optional[List[Literal["mean-turn-length", "hesitation-rate",
-                                                "gunning-fog", "flesch-reading-ease"]]] = None,
+                 feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "turn-taking-ratio",
+                                                "question-rate", "lexical-diversity", "back-channel-rate",
+                                                "filler-word-density"]]] = None,
                  name: str = None,
                  speaker: Optional[str] = None):
-        """Initialize scorer."""
+        """Initialize conversational features scorer."""
         if isinstance(feature, str):
             feature = [feature]
 
         # Check all features valid
-        valid_features = {"mean-turn-length", "hesitation-rate", "gunning-fog", "flesch-reading-ease"}
+        valid_features = {"mean-turn-length", "hesitation-rate", "turn-taking-ratio",
+                          "question-rate", "lexical-diversity", "back-channel-rate", "filler-word-density"}
         if feature and not all(f in valid_features for f in feature):
             raise ValueError(f"Invalid feature(s): {feature}. Must be one or more of: {valid_features}")
 
@@ -185,7 +196,7 @@ class LinguisticFeatureScore(BaseDialogScore):
             if feature and isinstance(feature, list) and len(feature) == 1:
                 name = feature[0]
 
-        super().__init__(name=name or "")
+        super().__init__(name=name or "conversational_features")
         self.feature = feature
         self.speaker = speaker
 
@@ -204,6 +215,195 @@ class LinguisticFeatureScore(BaseDialogScore):
             flags=re.IGNORECASE
         )
         return len(hesitation_patterns.findall(text))
+
+    @staticmethod
+    def count_filler_words(text):
+        """
+        Count filler words in the provided text (e.g., like, you know, I mean, basically).
+
+        :param text: Input text to search for filler words.
+        :type text: str
+        :return: Number of detected filler words in the provided text.
+        :rtype: int
+        """
+        filler_patterns = re.compile(
+            r'\b(?:like|you know|i mean|basically|actually|literally|sort of|kind of|'
+            r'stuff like that|or something|whatever|anyway)\b',
+            flags=re.IGNORECASE
+        )
+        return len(filler_patterns.findall(text))
+
+    @staticmethod
+    def is_back_channel(turn_text):
+        """
+        Check if a turn is a back-channel response (minimal acknowledgment).
+
+        :param turn_text: Text of a single turn.
+        :type turn_text: str
+        :return: True if the turn is a back-channel response.
+        :rtype: bool
+        """
+        text = turn_text.strip().lower()
+        back_channel_patterns = [
+            r'^(?:yeah|yes|yep|yup|uh-huh|mhm|mm-hmm|okay|ok|right|sure|i see|got it|alright)$',
+            r'^(?:oh|ah|hmm|huh)$',
+        ]
+        return any(re.match(pattern, text) for pattern in back_channel_patterns)
+
+    @staticmethod
+    def calculate_turn_taking_ratio(dialog):
+        """
+        Calculate turn-taking balance using normalized entropy.
+
+        Returns a value between 0 (monopolized conversation) and 1 (perfectly balanced).
+        Based on Shannon entropy normalized by maximum possible entropy.
+
+        :param dialog: Dialog object with turns from multiple speakers.
+        :type dialog: Dialog
+        :return: Turn-taking ratio (0-1).
+        :rtype: float
+        """
+        from collections import Counter
+        import math
+
+        if len(dialog) == 0:
+            return 0.0
+
+        speaker_turns = Counter(turn.speaker for turn in dialog if hasattr(turn, 'speaker'))
+
+        if len(speaker_turns) <= 1:
+            return 0.0
+
+        total_turns = sum(speaker_turns.values())
+
+        entropy = 0.0
+        for count in speaker_turns.values():
+            if count > 0:
+                p = count / total_turns
+                entropy -= p * math.log2(p)
+
+        max_entropy = math.log2(len(speaker_turns))
+
+        return entropy / max_entropy if max_entropy > 0 else 0.0
+
+    def score(self, dialog: Dialog) -> Union[float, dict]:
+        """Compute one or multiple conversational features for the dialogue.
+
+        :param dialog: Dialogue instance to evaluate.
+        :type dialog: Dialog
+        :return: If exactly one feature is requested, returns a single ``float``.
+                 Otherwise returns a ``dict`` mapping feature-name to numeric value.
+        :rtype: Union[float, dict]
+        """
+        original_dialog = dialog
+
+        if self.speaker and len(dialog) > 0:
+            dialog = dialog.filter(speaker=self.speaker)
+
+        results = {}
+        all_text = str(dialog)
+        turn_lengths = [len(turn) for turn in dialog]
+        total_words = sum(turn_lengths)
+
+        if not self.feature or "mean-turn-length" in self.feature:
+            results["mean-turn-length"] = float(np.mean(turn_lengths)) if turn_lengths else 0.0
+
+        if not self.feature or "hesitation-rate" in self.feature:
+            results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, total_words) * 100)
+
+        if not self.feature or "turn-taking-ratio" in self.feature:
+            results["turn_taking_ratio"] = self.calculate_turn_taking_ratio(original_dialog)
+
+        if not self.feature or "question-rate" in self.feature:
+            question_turns = sum(1 for turn in dialog if '?' in str(turn))
+            results["question_rate"] = (question_turns / max(1, len(dialog)) * 100)
+
+        if not self.feature or "lexical-diversity" in self.feature:
+            words = re.findall(r'\b[a-zA-Z]+\b', all_text.lower())
+            unique_words = len(set(words))
+            results["lexical_diversity"] = (unique_words / max(1, len(words))) if words else 0.0
+
+        if not self.feature or "back-channel-rate" in self.feature:
+            back_channel_turns = sum(1 for turn in dialog if self.is_back_channel(str(turn)))
+            results["back_channel_rate"] = (back_channel_turns / max(1, len(dialog)) * 100)
+
+        if not self.feature or "filler-word-density" in self.feature:
+            results["filler_word_density"] = (self.count_filler_words(all_text) / max(1, total_words) * 100)
+
+        return results if len(results) > 1 else list(results.values())[0]
+
+
+class ReadabilityScore(BaseDialogScore):
+    """
+    Compute one or multiple readability metrics for a dialogue text: Gunning Fog index,
+    Flesch Reading Ease score, Coleman-Liau Index, Linsear Write metric, and Dale-Chall
+    Readability Formula.
+
+    These metrics measure text complexity and reading difficulty, not dialogue structure.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ReadabilityScore
+
+            # All readability metrics
+            scorer_all = ReadabilityScore()
+            # Single metric
+            scorer_flesch = ReadabilityScore(feature="flesch-reading-ease")
+            # Subset of metrics
+            scorer_subset = ReadabilityScore(feature=["gunning-fog", "coleman-liau"])
+
+            print(scorer_all(dialog))      # dict with all metric values
+            print(scorer_flesch(dialog))   # single float (Flesch score)
+            print(scorer_subset(dialog))   # dict with the two requested metrics
+
+    :param feature: List of feature names to compute. If ``None`` (default) compute all.
+                    If the resulting set has size 1, ``__call__`` / ``score`` returns a
+                    single float; otherwise a dict.
+                    Available features:
+
+                      - ``"gunning-fog"``: Gunning Fog readability index.
+                      - ``"flesch-reading-ease"``: Flesch Reading Ease score.
+                      - ``"coleman-liau"``: Coleman-Liau Index.
+                      - ``"linsear-write"``: Linsear Write readability metric.
+                      - ``"dale-chall"``: Dale-Chall Readability Formula.
+
+    :type feature: Optional[List[Literal["gunning-fog", "flesch-reading-ease",
+                                         "coleman-liau", "linsear-write", "dale-chall"]]]
+    :param name: Internal score name (defaults to ``"readability_score"`` or
+                 the single feature name if only one provided).
+    :type name: str
+    :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self,
+                 feature: Optional[List[Literal["gunning-fog", "flesch-reading-ease",
+                                                "coleman-liau", "linsear-write", "dale-chall"]]] = None,
+                 name: str = None,
+                 speaker: Optional[str] = None):
+        """Initialize readability scorer."""
+        if isinstance(feature, str):
+            feature = [feature]
+
+        # Check all features valid
+        valid_features = {"gunning-fog", "flesch-reading-ease", "coleman-liau", "linsear-write", "dale-chall"}
+        if feature and not all(f in valid_features for f in feature):
+            raise ValueError(f"Invalid feature(s): {feature}. Must be one or more of: {valid_features}")
+
+        # If a single feature is requested, allow name override with that feature for clearer downstream tables
+        if name is None:
+            if feature and isinstance(feature, list) and len(feature) == 1:
+                name = feature[0]
+
+        # If a single feature is requested, allow name override with that feature for clearer downstream tables
+        if name is None:
+            if feature and isinstance(feature, list) and len(feature) == 1:
+                name = feature[0]
+
+        super().__init__(name=name or "readability_score")
+        self.feature = feature
+        self.speaker = speaker
 
     @staticmethod
     def calculate_gunning_fog(text):
@@ -247,15 +447,128 @@ class LinguisticFeatureScore(BaseDialogScore):
         avg_syllables_per_word = total_syllables / len(words)
         return 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
 
+    @staticmethod
+    def calculate_coleman_liau(text):
+        """
+        Compute the Coleman-Liau Index of the provided text.
+
+        The Coleman-Liau Index estimates the U.S. grade level needed to understand the text.
+        It uses character counts instead of syllable counts.
+
+        :param text: Input text.
+        :type text: str
+        :return: Coleman-Liau Index value (minimum 0).
+        :rtype: float
+        """
+        sentences = [s.strip() for s in re.split(r'[.!?\n]+', text) if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+        # Count letters (characters)
+        letters = sum(len(word) for word in words)
+        # Calculate averages per 100 words
+        L = (letters / len(words)) * 100  # average letters per 100 words
+        S = (len(sentences) / len(words)) * 100  # average sentences per 100 words
+        # Clamp to minimum of 0 (negative grade levels don't make sense)
+        return max(0, 0.0588 * L - 0.296 * S - 15.8)
+
+    @staticmethod
+    def calculate_linsear_write(text):
+        """
+        Compute the Linsear Write readability metric of the provided text.
+
+        The Linsear Write formula estimates the U.S. grade level needed to understand the text.
+        It focuses on easy vs. difficult words (based on syllable count).
+
+        :param text: Input text.
+        :type text: str
+        :return: Linsear Write score.
+        :rtype: float
+        """
+        sentences = [s.strip() for s in re.split(r'[.!?\n]+', text) if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words or len(words) < 1:
+            return 0
+
+        # Count easy (1-2 syllables) and difficult (3+ syllables) words
+        easy_words = 0
+        difficult_words = 0
+        for word in words:
+            syllable_count = syllables.estimate(word)
+            if syllable_count <= 2:
+                easy_words += 1
+            else:
+                difficult_words += 1
+
+        # Calculate per 100 words, then adjust
+        total_words = len(words)
+        score = ((easy_words * 1 + difficult_words * 3) / total_words) * 100 / len(sentences)
+
+        # Adjust score according to Linsear Write formula
+        if score > 20:
+            score = score / 2
+        else:
+            score = (score - 2) / 2
+
+        return max(0, score)
+
+    @staticmethod
+    def calculate_dale_chall(text):
+        """
+        Compute the Dale-Chall Readability Formula score of the provided text.
+
+        The Dale-Chall formula uses a list of 3000 familiar words that 80% of 4th-grade students
+        understand. Words not on this list are considered "difficult".
+
+        Note: This implementation uses a simplified approximation based on word length and
+        syllable count as a proxy for the Dale-Chall word list, since the full list is proprietary.
+
+        :param text: Input text.
+        :type text: str
+        :return: Dale-Chall score.
+        :rtype: float
+        """
+        sentences = [s.strip() for s in re.split(r'[.!?\n]+', text) if s.strip()]
+        if not sentences:
+            return 0
+        words = re.findall(r'\b[a-zA-Z]+\b', text)
+        if not words:
+            return 0
+
+        # Simplified approximation: consider words as "difficult" if they have 3+ syllables
+        # or are longer than 7 characters (proxy for Dale-Chall familiar word list)
+        difficult_words = 0
+        for word in words:
+            word_lower = word.lower()
+            if len(word_lower) > 7 or syllables.estimate(word) >= 3:
+                difficult_words += 1
+
+        # Calculate percentage of difficult words
+        percent_difficult = (difficult_words / len(words)) * 100
+
+        # Average sentence length
+        avg_sentence_length = len(words) / len(sentences)
+
+        # Dale-Chall formula
+        score = 0.1579 * percent_difficult + 0.0496 * avg_sentence_length
+
+        # Add constant if more than 5% difficult words
+        if percent_difficult > 5:
+            score += 3.6365
+
+        return score
+
     def score(self, dialog: Dialog) -> Union[float, dict]:
-        """Compute one or multiple linguistic features for the dialogue.
+        """Compute one or multiple readability metrics for the dialogue.
 
         :param dialog: Dialogue instance to evaluate.
         :type dialog: Dialog
-        :return: If exactly one feature is requested (either because ``feature`` was a singleton list
-                 or because a single feature key is computed), returns a single ``float``.
-                 Otherwise returns a ``dict`` mapping feature-name (canonical snake/dash variants preserved)
-                 to numeric value.
+        :return: If exactly one metric is requested, returns a single ``float``.
+                 Otherwise returns a ``dict`` mapping metric-name to numeric value.
         :rtype: Union[float, dict]
         """
         if self.speaker and len(dialog) > 0:
@@ -263,22 +576,25 @@ class LinguisticFeatureScore(BaseDialogScore):
 
         results = {}
         all_text = str(dialog)
-        turn_lengths = [len(turn) for turn in dialog]
-        if not self.feature or "mean-turn-length" in self.feature:
-            results["mean-turn-length"] = np.mean(turn_lengths)
-        if not self.feature or "hesitation-rate" in self.feature:
-            results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, sum(turn_lengths)) * 100)
         if not self.feature or "gunning-fog" in self.feature:
             results["gunning_fog"] = self.calculate_gunning_fog(all_text)
         if not self.feature or "flesch-reading-ease" in self.feature:
             results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
+        if not self.feature or "coleman-liau" in self.feature:
+            results["coleman_liau"] = self.calculate_coleman_liau(all_text)
+        if not self.feature or "linsear-write" in self.feature:
+            results["linsear_write"] = self.calculate_linsear_write(all_text)
+        if not self.feature or "dale-chall" in self.feature:
+            results["dale_chall"] = self.calculate_dale_chall(all_text)
 
         return results if len(results) > 1 else list(results.values())[0]
 
 
-class MeanTurnLengthScore(LinguisticFeatureScore):
+class MeanTurnLengthScore(ConversationalFeatures):
     """
     Compute the mean turn length (average number of words per turn) for a dialogue.
+
+    This is a conversational metric that measures dialogue structure, not text readability.
 
     Example:
 
@@ -299,9 +615,11 @@ class MeanTurnLengthScore(LinguisticFeatureScore):
         super().__init__(feature="mean-turn-length", name=name, speaker=speaker)
 
 
-class HesitationRateScore(LinguisticFeatureScore):
+class HesitationRateScore(ConversationalFeatures):
     """
-    Compute the hesitation rate (percentage of hesitation tokens over total words) for a dialogue.
+    Compute the hesitation rate (percentage of hesitation tokens) for a dialogue.
+
+    This is a conversational metric that measures speech disfluencies, not text readability.
 
     Example:
 
@@ -310,7 +628,7 @@ class HesitationRateScore(LinguisticFeatureScore):
             from sdialog.evaluation import HesitationRateScore
 
             scorer = HesitationRateScore()
-            print(scorer(dialog))  # Outputs hesitation rate as percentage (float)
+            print(scorer(dialog))  # Outputs hesitation rate as percentage
 
     :param name: Optional score name (defaults to "hesitation-rate").
     :type name: Optional[str]
@@ -322,7 +640,134 @@ class HesitationRateScore(LinguisticFeatureScore):
         super().__init__(feature="hesitation-rate", name=name, speaker=speaker)
 
 
-class GunningFogScore(LinguisticFeatureScore):
+class TurnTakingRatioScore(ConversationalFeatures):
+    """
+    Compute the turn-taking ratio (balance of conversation between speakers) for a dialogue.
+
+    Returns a value between 0 (monopolized) and 1 (perfectly balanced), based on normalized
+    Shannon entropy of turn distribution across speakers.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import TurnTakingRatioScore
+
+            scorer = TurnTakingRatioScore()
+            print(scorer(dialog))  # Outputs turn-taking ratio (0-1)
+
+    :param name: Optional score name (defaults to "turn-taking-ratio").
+    :type name: Optional[str]
+    """
+    def __init__(self, name: str = None):
+        """Initialize turn-taking ratio scorer."""
+        super().__init__(feature="turn-taking-ratio", name=name, speaker=None)
+
+
+class QuestionRateScore(ConversationalFeatures):
+    """
+    Compute the question rate (percentage of turns containing questions) for a dialogue.
+
+    This metric measures the interrogative nature of the conversation.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import QuestionRateScore
+
+            scorer = QuestionRateScore()
+            print(scorer(dialog))  # Outputs question rate as percentage
+
+    :param name: Optional score name (defaults to "question-rate").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize question rate scorer."""
+        super().__init__(feature="question-rate", name=name, speaker=speaker)
+
+
+class LexicalDiversityScore(ConversationalFeatures):
+    """
+    Compute the lexical diversity (type-token ratio) for a dialogue.
+
+    Measures vocabulary richness as the ratio of unique words to total words (0-1).
+    Higher values indicate more varied vocabulary.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import LexicalDiversityScore
+
+            scorer = LexicalDiversityScore()
+            print(scorer(dialog))  # Outputs lexical diversity (0-1)
+
+    :param name: Optional score name (defaults to "lexical-diversity").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize lexical diversity scorer."""
+        super().__init__(feature="lexical-diversity", name=name, speaker=speaker)
+
+
+class BackChannelRateScore(ConversationalFeatures):
+    """
+    Compute the back-channel rate (percentage of minimal response turns) for a dialogue.
+
+    Back-channels are brief responses like "yeah", "okay", "I see" that indicate active listening
+    without contributing substantial content.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import BackChannelRateScore
+
+            scorer = BackChannelRateScore()
+            print(scorer(dialog))  # Outputs back-channel rate as percentage
+
+    :param name: Optional score name (defaults to "back-channel-rate").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize back-channel rate scorer."""
+        super().__init__(feature="back-channel-rate", name=name, speaker=speaker)
+
+
+class FillerWordDensityScore(ConversationalFeatures):
+    """
+    Compute the filler word density (percentage of filler words) for a dialogue.
+
+    Filler words include "like", "you know", "I mean", "basically", etc.
+    These differ from hesitations and indicate informal speech patterns.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import FillerWordDensityScore
+
+            scorer = FillerWordDensityScore()
+            print(scorer(dialog))  # Outputs filler word density as percentage
+
+    :param name: Optional score name (defaults to "filler-word-density").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize filler word density scorer."""
+        super().__init__(feature="filler-word-density", name=name, speaker=speaker)
+
+
+class GunningFogScore(ReadabilityScore):
     """
     Compute the Gunning Fog readability index for a dialogue.
 
@@ -348,7 +793,7 @@ class GunningFogScore(LinguisticFeatureScore):
         super().__init__(feature="gunning-fog", name=name, speaker=speaker)
 
 
-class FleschReadingEaseScore(LinguisticFeatureScore):
+class FleschReadingEaseScore(ReadabilityScore):
     """
     Compute the Flesch Reading Ease score for a dialogue.
 
@@ -372,6 +817,87 @@ class FleschReadingEaseScore(LinguisticFeatureScore):
     def __init__(self, name: str = None, speaker: Optional[str] = None):
         """Initialize Flesch Reading Ease scorer."""
         super().__init__(feature="flesch-reading-ease", name=name, speaker=speaker)
+
+
+class ColemanLiauScore(ReadabilityScore):
+    """
+    Compute the Coleman-Liau Index for a dialogue.
+
+    The Coleman-Liau Index estimates the U.S. grade level needed to understand the text.
+    Unlike other readability formulas, it uses character counts instead of syllable counts,
+    making it more suitable for automated text analysis.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ColemanLiauScore
+
+            scorer = ColemanLiauScore()
+            print(scorer(dialog))  # Outputs Coleman-Liau Index as float
+
+    :param name: Optional score name (defaults to "coleman-liau").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Coleman-Liau Index scorer."""
+        super().__init__(feature="coleman-liau", name=name, speaker=speaker)
+
+
+class LinsearWriteScore(ReadabilityScore):
+    """
+    Compute the Linsear Write readability metric for a dialogue.
+
+    The Linsear Write formula estimates the U.S. grade level needed to understand the text.
+    It focuses on easy versus difficult words (based on syllable count) and is particularly
+    useful for technical writing assessment.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import LinsearWriteScore
+
+            scorer = LinsearWriteScore()
+            print(scorer(dialog))  # Outputs Linsear Write score as float
+
+    :param name: Optional score name (defaults to "linsear-write").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Linsear Write scorer."""
+        super().__init__(feature="linsear-write", name=name, speaker=speaker)
+
+
+class DaleChallScore(ReadabilityScore):
+    """
+    Compute the Dale-Chall Readability Formula score for a dialogue.
+
+    The Dale-Chall formula uses a list of familiar words that most 4th-grade students understand.
+    Words not on this list are considered "difficult". This implementation uses a simplified
+    approximation based on word length and syllable count as a proxy for the Dale-Chall word list.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import DaleChallScore
+
+            scorer = DaleChallScore()
+            print(scorer(dialog))  # Outputs Dale-Chall score as float
+
+    :param name: Optional score name (defaults to "dale-chall").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize Dale-Chall scorer."""
+        super().__init__(feature="dale-chall", name=name, speaker=speaker)
 
 
 class ToolSequenceValidator(BaseDialogScore):
@@ -1374,11 +1900,10 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
 
         .. code-block:: python
 
-            from sdialog.evaluation import KDEDistanceEvaluator, LinguisticFeatureScore
+            from sdialog.evaluation import KDEDistanceEvaluator, GunningFogScore
 
-            # Any dialog score can be used, let's use `LinguisticFeatureScore` as an example
-            gunning_fog = LinguisticFeatureScore(feature="gunning-fog")
-            kde_eval = KDEDistanceEvaluator(dialog_score=gunning_fog,
+            # Any dialog score can be used, let's use `GunningFogScore` as an example
+            kde_eval = KDEDistanceEvaluator(dialog_score=GunningFogScore(),
                                             reference_dialogues=reference_dialogs)
 
             print("KL divergence:", kde_eval(candidate_dialogs))
@@ -1500,10 +2025,10 @@ class FrechetDistanceEvaluator(BaseDatasetScoreEvaluator):
 
         .. code-block:: python
 
-            from sdialog.evaluation import FrechetDistanceEvaluator, LinguisticFeatureScore
+            from sdialog.evaluation import FrechetDistanceEvaluator, ConversationalFeatures
 
-            # Any dialog score can be used, let's use `LinguisticFeatureScore` as an example
-            turn_length = LinguisticFeatureScore(feature="mean-turn-length")
+            # Any dialog score can be used, let's use `ConversationalFeatures` as an example
+            turn_length = ConversationalFeatures(feature="mean-turn-length")
             fd_eval = FrechetDistanceEvaluator(dialog_score=turn_length,
                                                reference_dialogues=reference_dialogs)
 
@@ -1966,12 +2491,12 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
 
         .. code-block:: python
 
-            from sdialog.evaluation import StatsEvaluator, LinguisticFeatureScore
+            from sdialog.evaluation import StatsEvaluator, LexicalDiversityScore
 
-            # Any dialog score can be used, let's use `LinguisticFeatureScore` as an example
-            hesitation_rate = LinguisticFeatureScore(feature="hesitation-rate")
-            stats_eval = StatsEvaluator(hesitation_rate)
-            mean_eval = StatsEvaluator(hesitation_rate, stat="mean")
+            # Any dialog score can be used, let's use `LexicalDiversityScore` as an example
+            lexical_diversity = LexicalDiversityScore()
+            stats_eval = StatsEvaluator(lexical_diversity)
+            mean_eval = StatsEvaluator(lexical_diversity, stat="mean")
 
             stats = stats_eval(candidate_dialogs)
             mean = mean_eval(candidate_dialogs)
@@ -2094,9 +2619,9 @@ class MeanEvaluator(StatsEvaluator):
 
         .. code-block:: python
 
-            from sdialog.evaluation import MeanEvaluator, LinguisticFeatureScore
+            from sdialog.evaluation import MeanEvaluator, ReadabilityScore
 
-            flesch_score = LinguisticFeatureScore(feature="flesch-reading-ease")
+            flesch_score = ReadabilityScore(feature="flesch-reading-ease")
 
             mean_eval = MeanEvaluator(flesch_score)
 

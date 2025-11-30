@@ -19,6 +19,7 @@ from os import path
 from codecs import open
 from datetime import datetime
 from sphinx.ext import autodoc
+from unittest.mock import MagicMock
 
 
 class MockedClassDocumenter(autodoc.ClassDocumenter):
@@ -37,7 +38,7 @@ sys.path.insert(0, os.path.abspath('../src/'))
 # Mock imports for Sphinx documentation generation
 autodoc_mock_imports = [
     # Heavy / optional scientific stack
-    'numpy', 'pandas', 'scipy', 'torch', 'transformers', 'sklearn', 'matplotlib', 'networkx',
+    'numpy', 'pandas', 'scipy', 'torch', 'transformers', 'sklearn', 'networkx',
     # Embedding / NLP helper libs
     'sentence_transformers', 'simpleneighbors', 'syllables',
     # LangChain ecosystem
@@ -50,6 +51,22 @@ autodoc_mock_imports = [
     # Utility libs
     'tqdm', 'print_color', 'jinja2', 'graphviz', 'PIL', 'tenacity', 'joblib'
 ]
+
+
+# Custom mock for matplotlib to handle rcParams assignment
+class MockRcParams(dict):
+    """Mock rcParams that behaves like a dict and supports item assignment."""
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+
+
+class MockMatplotlib(MagicMock):
+    """Mock matplotlib with properly configured rcParams."""
+    rcParams = MockRcParams()
+
+
+sys.modules['matplotlib'] = MockMatplotlib()
+sys.modules['matplotlib.pyplot'] = MagicMock()
 
 # -- Project version ---------------------------------------------------------
 

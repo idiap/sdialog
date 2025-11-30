@@ -192,7 +192,7 @@ class BaseDialogScore(ABC):
 
 class BaseDialogFlowScore(BaseDialogScore):
     """
-    Base class for flow‑based dialog scores using a reference dialog graph.
+    Base class for flow-based dialog scores using a reference dialog graph.
 
     Builds (or reuses) a flow graph from reference dialogs, encodes turns,
     retrieves nearest nodes, and derives transition probabilities.
@@ -424,7 +424,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         .. code-block:: python
 
             import numpy as np
-            from sdialog.evaluation import LinguisticFeatureScore
+            from sdialog.evaluation import QuestionRateScore
             from sdialog.evaluation.base import BaseDatasetScoreEvaluator
 
             # Let's create our average score evaluator
@@ -437,9 +437,9 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                     return np.mean(dialog_scores)
 
             avg_evaluator = AverageEvaluator(
-                dialog_score=LinguisticFeatureScore(name="hesitation-rate")
+                dialog_score=QuestionRateScore(speaker="System")
             )
-            print(avg_evaluator(dialogs))  # Outputs average hesitation rate over the dialogs
+            print(avg_evaluator(dialogs))  # Outputs average system's question rate across dialogues
 
     :param dialog_score: Dialog-level scoring component.
     :type dialog_score: BaseDialogScore
