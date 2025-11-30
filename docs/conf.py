@@ -19,6 +19,7 @@ from os import path
 from codecs import open
 from datetime import datetime
 from sphinx.ext import autodoc
+from unittest.mock import MagicMock
 
 
 class MockedClassDocumenter(autodoc.ClassDocumenter):
@@ -51,18 +52,19 @@ autodoc_mock_imports = [
     'tqdm', 'print_color', 'jinja2', 'graphviz', 'PIL', 'tenacity', 'joblib'
 ]
 
-# Custom mock for matplotlib to handle rcParams assignment
-from unittest.mock import MagicMock
 
+# Custom mock for matplotlib to handle rcParams assignment
 class MockRcParams(dict):
     """Mock rcParams that behaves like a dict and supports item assignment."""
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
 
+
 class MockMatplotlib(MagicMock):
     """Mock matplotlib with properly configured rcParams."""
     rcParams = MockRcParams()
-    
+
+
 sys.modules['matplotlib'] = MockMatplotlib()
 sys.modules['matplotlib.pyplot'] = MagicMock()
 
