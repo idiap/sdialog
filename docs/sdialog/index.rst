@@ -395,41 +395,38 @@ Both generators derive from :class:`~sdialog.generators.base.BaseAttributeModelG
 
     Creates diverse character profiles with demographic, behavioral, and professional attributes. Ideal for generating varied participants in dialogue scenarios.
 
-    Let's see how we can create sophisticated mentor personas where attributes intelligently depend on each other. In this example, we'll make the communication style adapt based on years of teaching experience:
+    Let's see how we can create teacher personas using only attributes defined in personas.py. For example, we can generate teachers with different subjects and years of experience:
 
     .. code-block:: python
 
         import random
-        from sdialog.personas import Mentor
+        from sdialog.personas import Teacher
         from sdialog.generators import PersonaGenerator
 
-        # Let's define a custom function to sample teaching style values based on experience
-        def get_random_teaching_style(years_of_teaching=None, **kwargs):
-            if years_of_teaching < 3:
-                base_styles = ["enthusiastic", "supportive", "detailed"]
-            elif years_of_teaching < 10:
-                base_styles = ["confident", "professional", "clear"]
-            else:
-                base_styles = ["authoritative", "concise", "experienced"]
-            return random.choice(base_styles)
+        # Define a custom function to sample communication style based on years of experience
+        def get_communication_style(years_experience=None, **kwargs):
+            # Example: simple mapping for demonstration
+            if not years_experience:
+                return "clear"
+            return "enthusiastic" if years_experience < 10 else "authoritative"
 
-        # 1) Create a generator for mentor personas
-        mentor_gen = PersonaGenerator(Mentor)
+        # 1) Create a generator for teacher personas
+        teacher_gen = PersonaGenerator(Teacher)
 
         # 2) Setup generation with interdependent attributes
-        mentor_gen.set(
+        teacher_gen.set(
             subject=["mathematics", "history", "biology"],
-            years_of_teaching="{2-25}",
-            teaching_style=get_random_teaching_style,  # Depends on experience
-            patience=["low", "medium", "high"]
+            years_experience="{2-25}",
+            communication_style=get_communication_style,  # Depends on years_experience
+            politeness=["polite", "neutral", "strict"]
         )
 
-        # 3) Generate diverse mentors with contextually appropriate teaching styles
-        mentor1 = mentor_gen.generate()
-        mentor2 = mentor_gen.generate()
+        # 3) Generate diverse teachers with contextually appropriate communication styles
+        teacher1 = teacher_gen.generate()
+        teacher2 = teacher_gen.generate()
 
-        # 4) Let's generate 3 more mentors in one shot
-        mentors_batch = mentor_gen.generate(n=3)  # Returns list of 3 mentors
+        # 4) Let's generate 3 more teachers in one shot
+        teachers_batch = teacher_gen.generate(n=3)  # Returns list of 3 teachers
 
 **ContextGenerator** (:class:`~sdialog.generators.ContextGenerator`)
     Generates rich contextual frameworks that define the setting, environment, and situational constraints for dialogues. Essential for creating realistic and consistent conversation backgrounds.
@@ -489,18 +486,18 @@ Now let's move on to creating complete conversations! Dialogue generators create
 
     .. code-block:: python
 
-        from sdialog.personas import Mentor, Student
+        from sdialog.personas import Teacher, Student
         from sdialog.generators import PersonaDialogGenerator
 
-        mentor = Mentor(name="Ms. Lee", subject="mathematics")
-        student = Student(name="Alex", learning_goal="understand algebra")
+        teacher = Teacher(name="Ms. Lee", subject="mathematics")
+        student = Student(name="Alex", interests="algebra")
 
         # Generate persona-driven dialogue
         gen = PersonaDialogGenerator(
-            mentor, student,
+            teacher, student,
             dialogue_details="Discuss learning challenges and provide guidance"
         )
-        
+
         dialog = gen.generate()
         dialog.print()
 

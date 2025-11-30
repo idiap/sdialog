@@ -283,18 +283,19 @@ Let's dive into creating diverse characters and settings! We'll see how to use :
 
 .. code-block:: python
 
-    from sdialog.personas import Mentor, Student
+    from sdialog.personas import Teacher, Student
     from sdialog.generators import PersonaGenerator, ContextGenerator
     from sdialog import Context
 
-    mentor_gen = PersonaGenerator(Mentor(role="math tutor"))
-    student_gen = PersonaGenerator(Student(role="math student", interests="algebra"))
+    # Teacher and Student are real persona classes
+    teacher_gen = PersonaGenerator(Teacher(subject="mathematics"))
+    student_gen = PersonaGenerator(Student(interests="algebra"))
 
     # Apply simple attribute rules (random range & list choices)
-    mentor_gen.set(years_of_experience="{5-15}")
+    teacher_gen.set(years_experience="{5-15}", politeness=["polite", "neutral", "strict"])
     student_gen.set(age="{15-20}")
 
-    mentor = mentor_gen.generate()
+    teacher = teacher_gen.generate()
     student = student_gen.generate()
 
     ctx_base = Context(location="classroom")
@@ -303,7 +304,7 @@ Let's dive into creating diverse characters and settings! We'll see how to use :
                 goals="{llm:State one succinct learning goal}")
     context = ctx_gen.generate()
 
-    mentor.print(); student.print(); context.print()
+    teacher.print(); student.print(); context.print()
 
 Paraphrasing an Existing Dialog
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
