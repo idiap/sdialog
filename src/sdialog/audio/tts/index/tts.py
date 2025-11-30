@@ -6,6 +6,7 @@ import torch
 import numpy as np
 
 from ..base import BaseTTS
+from sdialog.audio.normalizers import TextNormalizer, normalize_text
 
 
 class IndexTTS(BaseTTS):
@@ -36,7 +37,8 @@ class IndexTTS(BaseTTS):
             model_dir="model",
             cfg_path="model/config.yaml",
             device="cuda" if torch.cuda.is_available() else "cpu",
-            version="2"):
+            version="2",
+            text_normalizers: list[TextNormalizer] = None):
         """
         Initializes the IndexTTS engine with the specified model configuration.
 
@@ -51,6 +53,8 @@ class IndexTTS(BaseTTS):
         :param device: Device for model inference - "cuda" for GPU or "cpu" for CPU
                       (default: automatically detects CUDA availability).
         :type device: str
+        :param text_normalizers: The list of text normalizers to apply.
+        :type text_normalizers: list[TextNormalizer]
         :raises ImportError: If the indextts package is not installed.
         :raises FileNotFoundError: If the model directory or config file is not found.
         :raises RuntimeError: If model initialization fails.
@@ -64,6 +68,7 @@ class IndexTTS(BaseTTS):
 
         # Initialize the IndexTTS model
         self.pipeline = IndexTTS(model_dir=model_dir, cfg_path=cfg_path, device=device)
+        self.text_normalizers = text_normalizers
 
     def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
@@ -84,6 +89,10 @@ class IndexTTS(BaseTTS):
         :raises ValueError: If the voice is not compatible with the detected language.
         :raises RuntimeError: If audio generation fails.
         """
+
+        # Normalize the text if text normalizers are provided.
+        if self.text_normalizers is not None and len(self.text_normalizers) > 0:
+            text = normalize_text(text, self.text_normalizers)
 
         # Generate audio using the IndexTTS model
         sampling_rate, wav_data = self.pipeline.infer(speaker_voice, text, output_path=None)
