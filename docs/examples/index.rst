@@ -283,27 +283,27 @@ Let's dive into creating diverse characters and settings! We'll see how to use :
 
 .. code-block:: python
 
-    from sdialog.personas import Doctor, Patient
+    from sdialog.personas import Mentor, Student
     from sdialog.generators import PersonaGenerator, ContextGenerator
     from sdialog import Context
 
-    doc_gen = PersonaGenerator(Doctor(specialty="Cardiology"))
-    pat_gen = PersonaGenerator(Patient(symptoms="chest pain"))
+    mentor_gen = PersonaGenerator(Mentor(role="math tutor"))
+    student_gen = PersonaGenerator(Student(role="math student", interests="algebra"))
 
     # Apply simple attribute rules (random range & list choices)
-    doc_gen.set(years_of_experience="{5-15}")
-    pat_gen.set(age="{35-70}")
+    mentor_gen.set(years_of_experience="{5-15}")
+    student_gen.set(age="{15-20}")
 
-    doctor = doc_gen.generate()
-    patient = pat_gen.generate()
+    mentor = mentor_gen.generate()
+    student = student_gen.generate()
 
-    ctx_base = Context(location="Emergency room")
+    ctx_base = Context(location="classroom")
     ctx_gen = ContextGenerator(ctx_base)
-    ctx_gen.set(topics=["triage", "diagnosis", "stabilization"],
-                goals="{llm:State one succinct medical goal}")
+    ctx_gen.set(topics=["algebra", "problem solving", "study tips"],
+                goals="{llm:State one succinct learning goal}")
     context = ctx_gen.generate()
 
-    doctor.print(); patient.print(); context.print()
+    mentor.print(); student.print(); context.print()
 
 Paraphrasing an Existing Dialog
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

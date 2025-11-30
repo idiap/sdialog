@@ -137,13 +137,24 @@ Now that we understand how to create dialogs, let's explore the powerful operati
 
 Personas & Context
 ------------------
+
 Personas are structured, typed attribute bundles that specify role, style, goals, background knowledge, and behavioral constraints used to condition LLM prompts for Agents in a reproducible, inspectable way. Context objects complement Personas with shared situational grounding so multiple agents can coordinate.
 
 SDialog formalizes this socio-cognitive conditioning through attribute models:
 
 - **Persona** / **ExtendedPersona** (:class:`~sdialog.personas.Persona`, :class:`~sdialog.personas.ExtendedPersona`): Baseline and expanded demographic + behavioral traits.
-- **Domain-specific Personas**: :class:`~sdialog.personas.Doctor`, :class:`~sdialog.personas.Patient`, :class:`~sdialog.personas.ExtendedDoctor`, :class:`~sdialog.personas.ExtendedPatient`, :class:`~sdialog.personas.Customer`, :class:`~sdialog.personas.SupportAgent`.
-- :class:`~sdialog.Context`: Shared situational grounding (location, environment, objects, goals, constraints, topics, style_guidelines, shared knowledge, circumstances).
+- **Domain-specific Personas**:
+
+    - **Customer Service**: :class:`~sdialog.personas.Customer`, :class:`~sdialog.personas.SupportAgent`
+    - **Healthcare**: :class:`~sdialog.personas.Patient`, :class:`~sdialog.personas.ExtendedPatient`, :class:`~sdialog.personas.Doctor`, :class:`~sdialog.personas.ExtendedDoctor`, :class:`~sdialog.personas.Nurse`, :class:`~sdialog.personas.Pharmacist`, :class:`~sdialog.personas.Caregiver`
+    - **Education**: :class:`~sdialog.personas.Teacher`, :class:`~sdialog.personas.Student`, :class:`~sdialog.personas.AcademicAdvisor`
+    - **Finance**: :class:`~sdialog.personas.FinancialAdvisor`, :class:`~sdialog.personas.Banker`, :class:`~sdialog.personas.InsuranceAgent`
+    - **Retail**: :class:`~sdialog.personas.StoreManager`, :class:`~sdialog.personas.SalesAssociate`, :class:`~sdialog.personas.Shopper`
+    - **Travel/Hospitality**: :class:`~sdialog.personas.HotelReceptionist`, :class:`~sdialog.personas.TravelAgent`, :class:`~sdialog.personas.Tourist`
+    - **Legal**: :class:`~sdialog.personas.Lawyer`, :class:`~sdialog.personas.Paralegal`, :class:`~sdialog.personas.LegalClient`
+    - **Technical Support**: :class:`~sdialog.personas.ITSupportSpecialist`, :class:`~sdialog.personas.HelpdeskTechnician`, :class:`~sdialog.personas.EndUser`
+    - **Government/Public Service**: :class:`~sdialog.personas.CivilServant`, :class:`~sdialog.personas.SocialWorker`, :class:`~sdialog.personas.Citizen`
+    - **Food Service**: :class:`~sdialog.personas.Chef`, :class:`~sdialog.personas.Waiter`, :class:`~sdialog.personas.RestaurantCustomer`
 
 All inherit :class:`~sdialog.base.BaseAttributeModel` and, as such, they support:
 
@@ -381,62 +392,60 @@ Let's dive into one of SDialog's most powerful features! Attribute generators co
 Both generators derive from :class:`~sdialog.generators.base.BaseAttributeModelGenerator` and support flexible attribute generation rules:
 
 **PersonaGenerator** (:class:`~sdialog.generators.PersonaGenerator`)
+
     Creates diverse character profiles with demographic, behavioral, and professional attributes. Ideal for generating varied participants in dialogue scenarios.
 
-    Let's see how we can create sophisticated doctor personas where attributes intelligently depend on each other. In this example, we'll make the communication style adapt based on years of experience:
+    Let's see how we can create sophisticated mentor personas where attributes intelligently depend on each other. In this example, we'll make the communication style adapt based on years of teaching experience:
 
     .. code-block:: python
 
         import random
-        from sdialog.personas import Doctor
+        from sdialog.personas import Mentor
         from sdialog.generators import PersonaGenerator
 
-        # Let's define a custom function to sample formality values based on experience
-        # Your function can take any of the persona attributes as keyword arguments
-        # In this case, we are interested in the years_of_experience attribute
-        def get_random_formality(years_of_experience=None, **kwargs):
-            # Base style on experience level
-            if years_of_experience < 3:
-                base_styles = ["enthusiastic", "eager to learn", "detailed"]
-            elif years_of_experience < 10:
+        # Let's define a custom function to sample teaching style values based on experience
+        def get_random_teaching_style(years_of_teaching=None, **kwargs):
+            if years_of_teaching < 3:
+                base_styles = ["enthusiastic", "supportive", "detailed"]
+            elif years_of_teaching < 10:
                 base_styles = ["confident", "professional", "clear"]
             else:
                 base_styles = ["authoritative", "concise", "experienced"]
             return random.choice(base_styles)
 
-        # 1) Create a generator for doctor personas
-        doctor_gen = PersonaGenerator(Doctor)
+        # 1) Create a generator for mentor personas
+        mentor_gen = PersonaGenerator(Mentor)
 
         # 2) Setup generation with interdependent attributes
-        doctor_gen.set(
-            specialty=["cardiology", "neurology", "oncology"],
-            years_of_experience="{2-25}",
-            formality=get_random_formality,  # Depends on experience
-            hurriedness=["low", "medium", "high"]
+        mentor_gen.set(
+            subject=["mathematics", "history", "biology"],
+            years_of_teaching="{2-25}",
+            teaching_style=get_random_teaching_style,  # Depends on experience
+            patience=["low", "medium", "high"]
         )
 
-        # 3) Generate diverse doctors with contextually appropriate communication styles
-        doctor1 = doctor_gen.generate()
-        doctor2 = doctor_gen.generate()
+        # 3) Generate diverse mentors with contextually appropriate teaching styles
+        mentor1 = mentor_gen.generate()
+        mentor2 = mentor_gen.generate()
 
-        # 4) Let's generate 3 more doctors in one shot
-        doctors_batch = doctor_gen.generate(n=3)  # Returns list of 3 doctors
+        # 4) Let's generate 3 more mentors in one shot
+        mentors_batch = mentor_gen.generate(n=3)  # Returns list of 3 mentors
 
 **ContextGenerator** (:class:`~sdialog.generators.ContextGenerator`)
     Generates rich contextual frameworks that define the setting, environment, and situational constraints for dialogues. Essential for creating realistic and consistent conversation backgrounds.
 
-    Now let's create varied hospital contexts to set the stage for our medical conversations:
+    Now let's create varied classroom contexts to set the stage for our educational conversations:
 
     .. code-block:: python
 
         from sdialog import Context
         from sdialog.generators import ContextGenerator
 
-        # Create varied hospital contexts
-        ctx_gen = ContextGenerator(Context(location="hospital ward"))
+        # Create varied classroom contexts
+        ctx_gen = ContextGenerator(Context(location="classroom"))
         ctx_gen.set(
-            environment="{llm:Describe a realistic medical environment}",
-            constraints=["time pressure", "privacy concerns", "urgent case"]
+            environment="{llm:Describe a realistic educational environment}",
+            constraints=["time pressure", "distraction", "group activity"]
         )
         context = ctx_gen.generate()
 
@@ -476,20 +485,20 @@ Now let's move on to creating complete conversations! Dialogue generators create
 **PersonaDialogGenerator** (:class:`~sdialog.generators.PersonaDialogGenerator`)
     Creates sophisticated dialogues by having two distinct personas or agents interact naturally. This generator produces more realistic and character-consistent conversations.
 
-    Here's how we can create a dialogue between a doctor and patient with their unique characteristics:
+    Here's how we can create a dialogue between a mentor and student with their unique characteristics:
 
     .. code-block:: python
 
-        from sdialog.personas import Doctor, Patient
+        from sdialog.personas import Mentor, Student
         from sdialog.generators import PersonaDialogGenerator
 
-        doctor = Doctor(name="Dr. Smith", specialty="cardiology")
-        patient = Patient(name="John", reason_for_visit="chest pain")
+        mentor = Mentor(name="Ms. Lee", subject="mathematics")
+        student = Student(name="Alex", learning_goal="understand algebra")
 
         # Generate persona-driven dialogue
         gen = PersonaDialogGenerator(
-            doctor, patient, 
-            dialogue_details="Discuss symptoms and initial diagnosis"
+            mentor, student,
+            dialogue_details="Discuss learning challenges and provide guidance"
         )
         
         dialog = gen.generate()
