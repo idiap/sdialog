@@ -11,6 +11,12 @@ import logging
 from typing import Any
 from sdialog import Dialog
 from sdialog.tasks import Task, TaskModality
+from sdialog.audio.normalizers import (
+    TextNormalizer,
+    WhisperNormalizer,
+    LowercaseNormalizer,
+    normalize_text
+)
 
 
 class AutomaticSpeechRecognitionTask(Task):
@@ -20,6 +26,13 @@ class AutomaticSpeechRecognitionTask(Task):
     The modality of the task is audio-to-text.
     This task is specific to the AudioDialog class.
     """
+
+    def __init__(self, text_normalizers: list[TextNormalizer] = None, normalize: bool = True):
+        super().__init__()
+        self.text_normalizers = text_normalizers
+        if self.text_normalizers is None or len(self.text_normalizers) == 0:
+            self.text_normalizers = [WhisperNormalizer(), LowercaseNormalizer()]
+        self.normalize = normalize
 
     def get_modality(self) -> list[TaskModality]:
         """
@@ -111,6 +124,7 @@ class AutomaticSpeechRecognitionTask(Task):
         import librosa
         import soundfile as sf
         from sdialog.audio.dialog import AudioDialog
+        from sdialog.audio.voice_database import Voice
 
         if not isinstance(dialog, AudioDialog):
             raise ValueError("Dialog must be an instance of AudioDialog")
@@ -150,8 +164,11 @@ class AutomaticSpeechRecognitionTask(Task):
             _start_time = turn.audio_start_time
             _end_time = turn.audio_start_time + turn.audio_duration
 
-            # Get the original text used to generate the audio of the turn.
-            _original_transcription = turn.text
+            # Get the normalized text used to generate the audio of the turn.
+            if self.normalize:
+                _transcription = normalize_text(turn.text, self.text_normalizers)
+            else:
+                _transcription = turn.text
 
             # Section of the audio file that contains the transcription
             _segment_data = _wav_file[int(_start_time * _sampling_rate):int(_end_time * _sampling_rate)]
@@ -165,6 +182,10 @@ class AutomaticSpeechRecognitionTask(Task):
 
             _persona = dialog.personas[turn.speaker]
 
+            _voice = _persona["voice"]
+            if isinstance(_voice, Voice):
+                _voice = _voice.identifier
+
             # Add the annotation to the spoken question answering task
             _annotations["data"].append({
                 "dialog_id": dialog.id,
@@ -172,9 +193,9 @@ class AutomaticSpeechRecognitionTask(Task):
                 "start_time": _start_time,
                 "end_time": _end_time,
                 "original_audio_path": _step_3_audio_path,
-                "transcription": _original_transcription,
+                "transcription": _transcription,
                 "segment_path": _segment_path,
-                "voice": _persona["voice"],
+                "voice": _voice,
                 "gender": _persona["gender"],
                 "age": _persona["age"],
                 "language": _persona["language"],
