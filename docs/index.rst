@@ -4,26 +4,27 @@
     :align: right
 
 
-SDialog: Synthetic Dialog Generation, Evaluation, and Interpretability
-=======================================================================
+
+SDialog: A Python Toolkit for End-to-End Dialogue Generation, Agent Building, Simulation, and Evaluation
+=======================================================================================================
 
 SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge **agent construction → dialog generation → evaluation → (optionally) interpretability** in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
 
-It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
+It standardizes a Dialog schema and offers persona-driven multi-agent simulation with LLMs, composable orchestration, built-in metrics, and mechanistic interpretability.
 
 ✨ Key Features
 ---------------
 
 - **Standard dialog schema** with JSON import/export *(aiming to standardize dialog dataset formats with your help 🙏)*
-- **Persona‑driven multi‑agent simulation** with contexts, tools, and thoughts
+- **Persona-driven multi-agent simulation** with contexts, tools, and thoughts
 - **Composable orchestration** for precise control over behavior and flow
-- **Built‑in evaluation** (metrics + LLM‑as‑judge) for comparison and iteration
+- **Built-in evaluation** (metrics + LLM-as-judge) for comparison and iteration
 - **Native mechanistic interpretability** (inspect and steer activations)
 - **Easy creation of user-defined components** by inheriting from base classes (personas, metrics, orchestrators, etc.)
 - **Interoperability** across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more
 - **Audio generation** for converting text dialogs to realistic audio conversations
 
-If you are building conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
+If you are building conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end-to-end workflow.
 
 Quick Links
 -----------
@@ -64,7 +65,7 @@ Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all depend
 🏁 Quickstart Tour
 ------------------
 
-Here's a short, hands‑on example: a support agent helps a customer disputing a double charge. We add a small refund rule and two simple tools, generate three dialogs for evaluation, then serve the agent on port 1333 for Open WebUI or any OpenAI‑compatible client.
+Here's a short, hands-on example: a support agent helps a customer disputing a double charge. We add a small refund rule and two simple tools, generate three dialogs for evaluation, then serve the agent on port 1333 for Open WebUI or any OpenAI-compatible client.
 
 .. code-block:: python
 
@@ -140,12 +141,12 @@ Core Capabilities
 Testing Remote Systems
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Probe OpenAI‑compatible deployed systems with controllable simulated users and capture dialogs for evaluation.
+Probe OpenAI-compatible deployed systems with controllable simulated users and capture dialogs for evaluation.
 
-You can use SDialog as a controllable test harness for any OpenAI‑compatible system such as **vLLM**-based ones by role‑playing realistic or adversarial users against your deployed system:
+You can use SDialog as a controllable test harness for any OpenAI-compatible system such as **vLLM**-based ones by role-playing realistic or adversarial users against your deployed system:
 
-- Black‑box functional checks (Does the system follow instructions? Handle edge cases?)
-- Persona / use‑case coverage (Different goals, emotions, domains)
+- Black-box functional checks (Does the system follow instructions? Handle edge cases?)
+- Persona / use-case coverage (Different goals, emotions, domains)
 - Regression testing (Run the same persona batch each release; diff dialogs)
 - Safety / robustness probing (Angry, confused, or noisy users)
 - Automated evaluation (Pipe generated dialogs directly into evaluators)
@@ -194,7 +195,7 @@ Import, export, and transform dialogs from JSON, text, CSV, or Hugging Face data
 Evaluation and Comparison
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Score dialogs with built‑in metrics and LLM judges, and compare datasets with aggregators and plots.
+Score dialogs with built-in metrics and LLM judges, and compare datasets with aggregators and plots.
 
 .. code-block:: python
 
@@ -223,7 +224,7 @@ Score dialogs with built‑in metrics and LLM judges, and compare datasets with 
 Mechanistic Interpretability
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Capture per‑token activations and steer models via Inspectors for analysis and interventions.
+Capture per-token activations and steer models via Inspectors for analysis and interventions.
 
 .. code-block:: python
 
