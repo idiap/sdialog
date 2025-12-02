@@ -48,10 +48,10 @@ freq_tool_seq_no_v = FrequencyEvaluator(tool_seq_no_v,
 comparator_v = Comparator(evaluators=[freq_judge_ask_v, freq_tool_seq_v])
 print("\nResults - Requires Verification")
 comparator_v({
-  "qwen3:0.6b": Dialog.from_folder("output/requires_verification/qwen3:0.6b/"),
-  "qwen3:1.7b": Dialog.from_folder("output/requires_verification/qwen3:1.7b/"),
-  "qwen3:8b": Dialog.from_folder("output/requires_verification/qwen3:8b/"),
-  "qwen3:14b": Dialog.from_folder("output/requires_verification/qwen3:14b/")
+    "qwen3:0.6b": Dialog.from_folder("output/requires_verification/qwen3:0.6b/"),
+    "qwen3:1.7b": Dialog.from_folder("output/requires_verification/qwen3:1.7b/"),
+    "qwen3:8b": Dialog.from_folder("output/requires_verification/qwen3:8b/"),
+    "qwen3:14b": Dialog.from_folder("output/requires_verification/qwen3:14b/")
 })
 comparator_v.plot(save_folder_path="output/requires_verification")
 
@@ -59,9 +59,9 @@ comparator_v.plot(save_folder_path="output/requires_verification")
 comparator_no_v = Comparator(evaluators=[freq_judge_ask_v, freq_tool_seq_no_v])
 print("\nResults - No Verification Required")
 comparator_no_v({
-  "qwen3:0.6b": Dialog.from_folder("output/no_verification/qwen3:0.6b/"),
-  "qwen3:1.7b": Dialog.from_folder("output/no_verification/qwen3:1.7b/"),
-  "qwen3:8b": Dialog.from_folder("output/no_verification/qwen3:8b/"),
-  "qwen3:14b": Dialog.from_folder("output/no_verification/qwen3:14b/")
+    "qwen3:0.6b": Dialog.from_folder("output/no_verification/qwen3:0.6b/"),
+    "qwen3:1.7b": Dialog.from_folder("output/no_verification/qwen3:1.7b/"),
+    "qwen3:8b": Dialog.from_folder("output/no_verification/qwen3:8b/"),
+    "qwen3:14b": Dialog.from_folder("output/no_verification/qwen3:14b/")
 })
 comparator_no_v.plot(save_folder_path="output/no_verification")
