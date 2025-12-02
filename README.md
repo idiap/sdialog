@@ -15,6 +15,10 @@ It standardizes a Dialog schema and offers persona‑driven multi‑agent simula
 
 Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/idiap/sdialog/master/docs/_static/sdialog-modules.png" alt="SDialog Logo" title="SDialog" height="500" />
+</p>
+
 ## ✨ Key features
 - Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#project-vision--community-call))_
 - Persona‑driven multi‑agent simulation with contexts, tools, and thoughts
