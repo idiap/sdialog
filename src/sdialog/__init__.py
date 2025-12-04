@@ -451,9 +451,9 @@ class Dialog(BaseModel):
 
     def prompt(self) -> str:
         """Generates a prompt string for the entire dialogue."""
-        return json.dumps(self.json()["turns"], indent=2)
+        return json.dumps(self.json()["turns"], indent=2, ensure_ascii=False)
 
-    def json(self, string: bool = False, indent: int = 2,ensure_ascii: bool = False):
+    def json(self, string: bool = False, indent: int = 2, ensure_ascii: bool = False):
         """
         Serializes the dialogue to JSON.
 
@@ -483,7 +483,9 @@ class Dialog(BaseModel):
         """
         _print_dialog(self, *a, **kw)
 
-    def to_file(self, path: str = None, type: str = "auto", makedir: bool = True, overwrite: bool = True, human_readable: bool = False):
+    def to_file(self, path: str = None, type: str = "auto",
+                makedir: bool = True, overwrite: bool = True,
+                ensure_ascii: bool = False):
         """
         Saves the dialogue to a file in JSON, CSV, or plain text format.
 
@@ -495,8 +497,8 @@ class Dialog(BaseModel):
         :type makedir: bool
         :param overwrite: If False and the file exists, raise FileExistsError instead of overwriting.
         :type overwrite: bool
-        :param human_readable: If True and type is "json", pretty-print the JSON output.
-        :type human_readable: bool
+        :param ensure_ascii: If True and type is "json", escape non-ASCII characters in the output.
+        :type ensure_ascii: bool
         """
         if not path:
             if self._path:
@@ -518,7 +520,7 @@ class Dialog(BaseModel):
 
         with open(path, "w", newline='', encoding='utf-8') as writer:
             if type == "json":
-                writer.write(self.json(string=True, ensure_ascii=not human_readable))
+                writer.write(self.json(string=True, ensure_ascii=ensure_ascii))
             elif type in ["csv", "tsv"]:
                 # set delimiter based on desired type
                 delimiter = {"csv": ",", "tsv": "\t"}[type]
