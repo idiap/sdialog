@@ -453,7 +453,7 @@ class Dialog(BaseModel):
         """Generates a prompt string for the entire dialogue."""
         return json.dumps(self.json()["turns"], indent=2)
 
-    def json(self, string: bool = False, indent: int = 2):
+    def json(self, string: bool = False, indent: int = 2,ensure_ascii: bool = False):
         """
         Serializes the dialogue to JSON.
 
@@ -466,7 +466,7 @@ class Dialog(BaseModel):
         """
         data = self.model_dump()
         make_serializable(data)
-        return json.dumps(data, indent=indent) if string else data
+        return json.dumps(data, indent=indent, ensure_ascii=ensure_ascii) if string else data
 
     def print(self, *a, **kw):
         """
@@ -483,7 +483,7 @@ class Dialog(BaseModel):
         """
         _print_dialog(self, *a, **kw)
 
-    def to_file(self, path: str = None, type: str = "auto", makedir: bool = True, overwrite: bool = True):
+    def to_file(self, path: str = None, type: str = "auto", makedir: bool = True, overwrite: bool = True, human_readable: bool = False):
         """
         Saves the dialogue to a file in JSON, CSV, or plain text format.
 
@@ -495,6 +495,8 @@ class Dialog(BaseModel):
         :type makedir: bool
         :param overwrite: If False and the file exists, raise FileExistsError instead of overwriting.
         :type overwrite: bool
+        :param human_readable: If True and type is "json", pretty-print the JSON output.
+        :type human_readable: bool
         """
         if not path:
             if self._path:
@@ -514,9 +516,9 @@ class Dialog(BaseModel):
         if not overwrite and os.path.exists(path):
             raise FileExistsError(f"File '{path}' already exists. Use 'overwrite=True' to overwrite it.")
 
-        with open(path, "w", newline='') as writer:
+        with open(path, "w", newline='', encoding='utf-8') as writer:
             if type == "json":
-                writer.write(self.json(string=True))
+                writer.write(self.json(string=True, ensure_ascii=not human_readable))
             elif type in ["csv", "tsv"]:
                 # set delimiter based on desired type
                 delimiter = {"csv": ",", "tsv": "\t"}[type]
