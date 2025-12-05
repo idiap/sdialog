@@ -89,7 +89,8 @@ def to_audio(
     recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
     impulse_response_database: Optional[ImpulseResponseDatabase] = None,
     override_tts_audio: Optional[bool] = True,
-    verbose: Optional[bool] = False
+    verbose: Optional[bool] = False,
+    voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]] = None
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -266,7 +267,8 @@ def to_audio(
             re_sampling_rate=re_sampling_rate,
             recording_devices=recording_devices,
             override_tts_audio=override_tts_audio,
-            verbose=verbose
+            verbose=verbose,
+            voices=voices
         )
 
     finally:
