@@ -217,7 +217,7 @@ def generate_dscaper_timeline(
                 label=["const", foreground_effect],
                 source_file=["choose", "[]"],
                 event_time=["const", "0"],
-                event_duration=["const", str(f"{total_duration:.1f}")],  # Force infinite loop
+                event_duration=["const", str(total_duration)],  # Force infinite loop
                 position=(
                     foreground_effect_position
                     if foreground_effect_position is not None
@@ -238,8 +238,8 @@ def generate_dscaper_timeline(
                 library=timeline_name,
                 label=["const", turn.speaker],
                 source_file=["const", os.path.basename(turn.audio_path)],
-                event_time=["const", str(f"{turn.audio_start_time:.1f}")],
-                event_duration=["const", str(f"{turn.audio_duration:.1f}")],
+                event_time=["const", str(turn.audio_start_time)],
+                event_duration=["const", str(turn.audio_duration)],
                 speaker=turn.speaker,
                 text=turn.text,
                 position=_speaker_role
