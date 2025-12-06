@@ -57,6 +57,23 @@ class LowercaseNormalizer(TextNormalizer):
         return text.lower()
 
 
+class ReplaceCommaWithDotNormalizer(TextNormalizer):
+    """
+    Normalizer for replace comma with dot.
+    """
+
+    def normalize(self, text: str) -> str:
+        """
+        Normalize the text to replace comma with dot.
+
+        :param text: The text to normalize.
+        :type text: str
+        :return: The normalized text.
+        :rtype: str
+        """
+        return text.replace(",", ".")
+
+
 class WhisperNormalizer(TextNormalizer):
     """
     Normalizer for whisper.
