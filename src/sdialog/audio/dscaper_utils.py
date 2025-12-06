@@ -197,39 +197,12 @@ def generate_dscaper_timeline(
         )
         dscaper.create_timeline(timeline_metadata)
 
-        # Add the events and utterances to the timeline
-        current_time = 0.0
-        for i, turn in enumerate(dialog.turns):
-
-            # The role is used here to identify the source of emission of the audio
-            # We consider that it is immutable and will not change over the dialog timeline
-            _speaker_role = dialog.speakers_roles[turn.speaker]
-
-            _current_duration = round(turn.audio_duration, 5)
-            _current_turn_time = round(turn.audio_start_time, 5)
-
-            _event_metadata = DscaperEvent(
-                library=timeline_name,
-                label=["const", turn.speaker],
-                source_file=["const", os.path.basename(turn.audio_path)],
-                event_time=["const", str(_current_turn_time)],
-                event_duration=["const", str(_current_duration)],
-                speaker=turn.speaker,
-                text=turn.text,
-                position=_speaker_role
-            )
-            dscaper.add_event(timeline_name, _event_metadata)
-            current_time += _current_duration
-
         # Add the background to the timeline
         background_metadata = DscaperBackground(
             library="background",
             label=[
                 "const",
-                background_effect
-                if background_effect is not None
-                and background_effect != ""
-                else "white_noise"
+                background_effect if background_effect is not None and background_effect != "" else "white_noise"
             ],
             source_file=["choose", "[]"]
         )
@@ -244,7 +217,7 @@ def generate_dscaper_timeline(
                 label=["const", foreground_effect],
                 source_file=["choose", "[]"],
                 event_time=["const", "0"],
-                event_duration=["const", str(current_time)],  # Force infinite loop
+                event_duration=["const", str(f"{total_duration:.1f}")],  # Force infinite loop
                 position=(
                     foreground_effect_position
                     if foreground_effect_position is not None
@@ -252,6 +225,27 @@ def generate_dscaper_timeline(
                 ),
             )
             dscaper.add_event(timeline_name, foreground_metadata)
+
+        # Add the events and utterances to the timeline
+        current_time = 0.0
+        for i, turn in enumerate(dialog.turns):
+
+            # The role is used here to identify the source of emission of the audio
+            # We consider that it is immutable and will not change over the dialog timeline
+            _speaker_role = dialog.speakers_roles[turn.speaker]
+
+            _event_metadata = DscaperEvent(
+                library=timeline_name,
+                label=["const", turn.speaker],
+                source_file=["const", os.path.basename(turn.audio_path)],
+                event_time=["const", str(f"{turn.audio_start_time:.1f}")],
+                event_duration=["const", str(f"{turn.audio_duration:.1f}")],
+                speaker=turn.speaker,
+                text=turn.text,
+                position=_speaker_role
+            )
+            dscaper.add_event(timeline_name, _event_metadata)
+            current_time += turn.audio_duration
 
         # Generate the timeline
         resp = dscaper.generate_timeline(
