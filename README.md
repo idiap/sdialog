@@ -3,9 +3,9 @@
 [![Documentation Status](https://app.readthedocs.org/projects/sdialog/badge/?version=latest)](https://sdialog.readthedocs.io)
 [![CI](https://img.shields.io/github/actions/workflow/status/idiap/sdialog/ci.yml?label=CI)](https://github.com/idiap/sdialog/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/idiap/sdialog/graph/badge.svg?token=2210USI8I0)](https://app.codecov.io/gh/idiap/sdialog?displayType=list)
+[![Demo](https://img.shields.io/badge/Demo%20video-YouTube-red?logo=youtube)](https://www.youtube.com/watch?v=oG_jJuU255I)
 [![PyPI version](https://badge.fury.io/py/sdialog.svg)](https://badge.fury.io/py/sdialog)
 [![Downloads](https://static.pepy.tech/badge/sdialog)](https://pepy.tech/project/sdialog)
-[![Demo video](https://img.shields.io/badge/Demo%20video-YouTube-red?logo=youtube)](https://www.youtube.com/watch?v=oG_jJuU255I)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/)
 
 Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [ArXiv paper](https://arxiv.org/abs/2512.09142) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
@@ -67,7 +67,7 @@ support_persona = SupportAgent(name="Ava", politeness="high", communication_styl
 customer_persona = Customer(name="Riley", issue="double charge", desired_outcome="refund")
 
 # (Optional) Let's define two mock tools (just plain Python functions) for our support agent
-def account_verification(user_id):
+def verify_account(user_id):
     """Verify user account by user id."""
     return {"user_id": user_id, "verified": True}
 def refund(amount):
@@ -84,7 +84,7 @@ react_refund = SimpleReflexOrchestrator(
 support_agent = Agent(
   persona=support_persona,
   think=True,  # Let's also enable thinking mode
-  tools=[account_verification, refund],
+  tools=[verify_account, refund],
   name="Support"
 )
 simulated_customer = Agent(
@@ -192,27 +192,29 @@ See [Dialog section](https://sdialog.readthedocs.io/en/latest/sdialog/index.html
 <summary>Score dialogs with built‑in metrics and LLM judges, and compare datasets with aggregators and plots.</summary>
 
 Dialogs can be evaluated using the different components available inside the `sdialog.evaluation` module.
-Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation) (readability, flow, linguistic features, LLM judges) or easily create new ones, then aggregate and compare datasets (sets of dialogs) via `DatasetComparator`.
+Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation)—conversational features, readability, embedding-based, LLM-as-judge, flow-based, functional correctness (30+ metrics across six categories)—or easily create new ones, then aggregate and compare datasets (sets of dialogs) via `Comparator`.
 
 ```python
-from sdialog.evaluation import LLMJudgeRealDialog, LinguisticFeatureScore
-from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator
-from sdialog.evaluation import DatasetComparator
+from sdialog import Dialog
+from sdialog.evaluation import LLMJudgeYesNo, ToolSequenceValidator
+from sdialog.evaluation import FrequencyEvaluator, Comparator
 
-reference = [...]   # list[Dialog]
-candidate = [...]   # list[Dialog]
+# Two quick checks: did the agent ask for verification, and did it call tools in order?
+judge_verify = LLMJudgeYesNo(
+  "Did the support agent try to verify the customer?",
+  reason=True,
+)
+tool_seq = ToolSequenceValidator(["verify_account", "refund"])
 
-judge  = LLMJudgeRealDialog()
-flesch = LinguisticFeatureScore(feature="flesch-reading-ease")
-
-comparator = DatasetComparator([
-  FrequencyEvaluator(judge, name="Realistic dialog rate"),
-  MeanEvaluator(flesch, name="Mean Flesch Reading Ease"),
+comparator = Comparator([
+  FrequencyEvaluator(judge_verify, name="Asked for verification"),
+  FrequencyEvaluator(tool_seq, name="Correct tool order"),
 ])
 
-results = comparator({"reference": reference, "candidate": candidate})
-
-# Plot results for each evaluator
+results = comparator({
+  "model-A": Dialog.from_folder("output/model-A"),
+  "model-B": Dialog.from_folder("output/model-B"),
+})
 comparator.plot()
 ```
 </details>
