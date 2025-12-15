@@ -3,12 +3,12 @@
 [![Documentation Status](https://app.readthedocs.org/projects/sdialog/badge/?version=latest)](https://sdialog.readthedocs.io)
 [![CI](https://img.shields.io/github/actions/workflow/status/idiap/sdialog/ci.yml?label=CI)](https://github.com/idiap/sdialog/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/idiap/sdialog/graph/badge.svg?token=2210USI8I0)](https://app.codecov.io/gh/idiap/sdialog?displayType=list)
-[![Demo](https://img.shields.io/badge/Demo%20video-YouTube-red?logo=youtube)](https://www.youtube.com/watch?v=oG_jJuU255I)
+[![Demo](https://img.shields.io/badge/Demo-YouTube-red?logo=youtube)](https://www.youtube.com/watch?v=oG_jJuU255I)
 [![PyPI version](https://badge.fury.io/py/sdialog.svg)](https://badge.fury.io/py/sdialog)
 [![Downloads](https://static.pepy.tech/badge/sdialog)](https://pepy.tech/project/sdialog)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/)
 
-Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [ArXiv paper](https://arxiv.org/abs/2512.09142) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [ArXiv paper](https://arxiv.org/abs/2506.10622) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ---
 SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge agent construction → user simulation → dialog generation → evaluation in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
@@ -312,7 +312,7 @@ print(audio_dialog.display())
 
 ## 📖 Documentation and tutorials
 
-- [ArXiv paper](https://arxiv.org/abs/2512.09142)
+- [ArXiv paper](https://arxiv.org/abs/2506.10622)
 - [Demo (video)](demo.md)
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
 - [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
@@ -382,17 +382,17 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 ## 📚 Citation
 
-If you use SDialog in academic work, please consider citing [our paper](https://arxiv.org/abs/2512.09142):
+If you use SDialog in academic work, please consider citing [our paper](https://arxiv.org/abs/2506.10622):
 
 ```bibtex
 @misc{burdisso2025sdialogpythontoolkitendtoend,
   title         = {SDialog: A Python Toolkit for End-to-End Agent Building, User Simulation, Dialog Generation, and Evaluation},
   author        = {Sergio Burdisso and Séverin Baroudi and Yanis Labrak and David Grunert and Pawel Cyrta and Yiyang Chen and Srikanth Madikeri and Esaú Villatoro-Tello and Thomas Schaaf and Ricard Marxer and Petr Motlicek},
   year          = {2025},
-  eprint        = {2512.09142},
+  eprint        = {2506.10622},
   archivePrefix = {arXiv},
   primaryClass  = {cs.AI},
-  url           = {https://arxiv.org/abs/2512.09142},
+  url           = {https://arxiv.org/abs/2506.10622},
 }
 ```
 
