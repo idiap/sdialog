@@ -48,3 +48,6 @@ tutorials/01_audio/dscaper_data_impulse_response/*
 *audio_dialog.json
 ./src/sdialog/sdialog
 tutorials/01_audio/*.png
+tutorials/01_audio/checkpoints/
+tutorials/01_audio/checkpoints-15/
+tutorials/02_tasks/outputs*
