@@ -456,9 +456,9 @@ The actual DOT for the current tasks are:
         :return: Tuple (system_agent, user_agent).
         :rtype: Tuple[Agent, Agent]
         """
-        user = Agent(STAR.get_user_persona_for_scenario(scenario), name="User", can_finish=True)
+        user = Agent(STAR.get_user_persona_for_scenario(scenario), name="User", model=model_name, can_finish=True)
 
-        system = Agent(STAR.get_system_persona_for_scenario(scenario), name="System")
+        system = Agent(STAR.get_system_persona_for_scenario(scenario), name="System", model=model_name)
 
         return system, user
 
