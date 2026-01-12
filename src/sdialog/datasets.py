@@ -435,12 +435,8 @@ where UPPERCASE words above are just example placeholders. You MUST fill in thos
         :return: System persona object.
         :rtype: Persona
         """
-        dialogue_details = f"""In the conversation, the AI assistant is instructed to follow specific action flowcharts to address the tasks. Flowcharts are defined as graph described using DOT.
-The actual DOT for the current tasks are:
-{STAR.get_flowchart_description_for_scenario(scenario)}
-"""  # noqa: E501
         return Persona(
-            role="AI assistant.\n" + dialogue_details,
+            role="AI assistant.",
             circumstances=scenario["WizardTask"],
         )
 
@@ -458,7 +454,13 @@ The actual DOT for the current tasks are:
         """
         user = Agent(STAR.get_user_persona_for_scenario(scenario), name="User", model=model_name, can_finish=True)
 
-        system = Agent(STAR.get_system_persona_for_scenario(scenario), name="System", model=model_name)
+        system = Agent(STAR.get_system_persona_for_scenario(scenario),
+                       name="System",
+                       dialogue_details=f"""In the conversation, the AI assistant is instructed to follow specific action flowcharts to address the tasks. Flowcharts are defined as graph described using DOT.
+The actual DOT for the current tasks are:
+{STAR.get_flowchart_description_for_scenario(scenario)}
+""",  # noqa: E501
+                       model=model_name)
 
         return system, user
 

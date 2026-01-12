@@ -45,7 +45,7 @@ class Persona(BasePersona):
     """
 
     name: str = Field("", description="Name of the persona.")
-    age: Union[int, str] = Field(None, description="Age (integer or descriptive string like 'middle-aged').")
+    age: Union[int, str] = Field("", description="Age (integer or descriptive string like 'middle-aged').")
     race: str = Field("", description="Race or ethnicity.")
     gender: str = Field("", description="Gender of the persona.")
     language: str = Field("English", description="Preferred language of communication.")
