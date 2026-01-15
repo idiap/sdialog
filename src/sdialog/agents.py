@@ -282,7 +282,7 @@ class Agent:
             pass
         return None
 
-    def __call__(self, utterance: Union[str, List[BaseMessage]] = "", return_events: bool = False) -> str:
+    def __call__(self, utterance: Union[str, List[BaseMessage]] = "", return_events: bool = False, current_dialog: Dialog = None) -> str:
         """
         Processes an input utterance and generates a response.
 
@@ -291,6 +291,8 @@ class Agent:
         :type utterance: Union[str, List[BaseMessage]]
         :param return_events: If True, returns a list of events instead of just the response string.
         :type return_events: bool
+        :param current_dialog: The current dialog state as a Dialog object for orchestrators.
+        :type current_dialog: Dialog
         :return: The agent's response or events, or None if finished.
         :rtype: Union[str, List[Event], None]
         """
@@ -312,7 +314,7 @@ class Agent:
             events = []
         if self._orchestrators:
             for orchestrator in self._orchestrators:
-                instruction = orchestrator()
+                instruction = orchestrator(current_dialog)
                 if instruction:
 
                     if type(instruction) is Instruction:
@@ -822,15 +824,30 @@ class Agent:
         self.reset(seed, context, example_dialogs)
         agent.reset(seed, context, example_dialogs)
 
-        dialog = []
-        events = []
+        context = context or self._context
+        dialog = Dialog(
+            id=id if id is not None else get_universal_id(),
+            parentId=parent_id,
+            complete=None,
+            model=self.model_info,
+            seed=seed,
+            personas={
+                self.get_name(): self.persona.json() if self.persona else {},
+                agent.get_name(default="Other"): agent.persona.json() if agent.persona else {}
+            },
+            context=context.json() if context and isinstance(context, Context) else context,
+            scenario=scenario,
+            notes=notes,
+            turns=[],
+            events=[]
+        )
 
         utter = None
         completion = False
         pbar = tqdm(total=max_turns, desc="Dialogue progress (max turns)",
                     bar_format="{desc}: {percentage:3.0f}%|{bar}| {n}/{total}", leave=keep_bar)
         while len(dialog) < max_turns:
-            utt_events = self(utter, return_events=True)
+            utt_events = self(utter, return_events=True, current_dialog=dialog)
 
             if utt_events and utt_events[-1].action == "utter":
                 utter = utt_events[-1].content
@@ -842,14 +859,14 @@ class Agent:
                 completion = True
                 break
 
-            dialog.append(Turn(
+            dialog.turns.append(Turn(
                 speaker=self.get_name(),
                 text=utt_events[-1].content
             ))
-            events.extend(utt_events)
+            dialog.events.extend(utt_events)
             pbar.update(1)
 
-            utt_events = agent(utter, return_events=True)
+            utt_events = agent(utter, return_events=True, current_dialog=dialog)
             if utt_events and utt_events[-1].action == "utter":
                 utter = utt_events[-1].content
                 utt_events[-1].content = utter.replace(self._STOP_WORD_TEXT, "").strip()
@@ -860,11 +877,11 @@ class Agent:
                 completion = True
                 break
 
-            dialog.append(Turn(
+            dialog.turns.append(Turn(
                 speaker=agent.get_name(default="Other"),
                 text=utt_events[-1].content
             ))
-            events.extend(utt_events)
+            dialog.events.extend(utt_events)
             pbar.update(1)
 
         # Force bar to 100% if conversation completed successfully
@@ -877,23 +894,8 @@ class Agent:
 
         pbar.close()
 
-        context = context or self._context
-        return Dialog(
-            id=id if id is not None else get_universal_id(),
-            parentId=parent_id,
-            complete=completion,  # incomplete if ran out of iterations (reached max_iteration number)
-            model=self.model_info,
-            seed=seed,
-            personas={
-                self.get_name(): self.persona.json() if self.persona else {},
-                agent.get_name(default="Other"): agent.persona.json() if agent.persona else {}
-            },
-            context=context.json() if context and isinstance(context, Context) else context,
-            scenario=scenario,
-            notes=notes,
-            turns=dialog,
-            events=events
-        )
+        dialog.complete = completion  # incomplete if ran out of iterations (reached max_iteration number)
+        return dialog
 
     def memory_dump(self, as_dict: bool = False) -> list:
         """

@@ -11,7 +11,7 @@
 Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [ArXiv paper](https://arxiv.org/abs/2506.10622) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ---
-SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge agent construction → user simulation → dialog generation → evaluation in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
+SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge **agent construction → user simulation → dialog generation → evaluation** in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
 
 It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
 

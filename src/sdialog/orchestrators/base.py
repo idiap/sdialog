@@ -70,18 +70,15 @@ class BaseOrchestrator(ABC):
         self._persistent = persistent
         self._event_label = event_label
 
-    def __call__(self):
+    def __call__(self, current_dialog):
         """
         Produce an instruction for the target agent given current dialog state.
-
-        Uses the agent memory to reconstruct a simplified dialog and calls instruct().
 
         :return: Instruction object/string or None if no instruction is produced.
         :rtype: Union[str, Instruction, None]
         """
-        dialog = self.__get_current_dialog()
-        return self.instruct(dialog, dialog[-1].text
-                             if dialog and dialog[-1].speaker != self._target.get_name()
+        return self.instruct(current_dialog, current_dialog[-1].text
+                             if current_dialog and current_dialog[-1].speaker != self._target.get_name()
                              else "")
 
     def __str__(self) -> str:
@@ -94,16 +91,6 @@ class BaseOrchestrator(ABC):
         data = self.json()
         attrs = " ".join(f"{key}={value}" for key, value in data["args"].items())
         return f"{data['name']}({attrs})"
-
-    def __get_current_dialog(self) -> List[Turn]:
-        """
-        Reconstruct current dialog from agent memory (excluding system messages).
-
-        :return: List of reconstructed turns.
-        :rtype: List[Turn]
-        """
-        return [Turn(speaker=self._target.get_name() if type(message) is AIMessage else None, text=message.content)
-                for message in self._target.memory if type(message) is not SystemMessage]
 
     def _set_target_agent(self, agent):  # agent: Agent):
         """
