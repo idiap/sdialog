@@ -282,7 +282,10 @@ class Agent:
             pass
         return None
 
-    def __call__(self, utterance: Union[str, List[BaseMessage]] = "", return_events: bool = False, current_dialog: Dialog = None) -> str:
+    def __call__(self,
+                 utterance: Union[str, List[BaseMessage]] = "",
+                 return_events: bool = False,
+                 current_dialog: Dialog = None) -> str:
         """
         Processes an input utterance and generates a response.
 

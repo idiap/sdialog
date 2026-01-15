@@ -9,7 +9,6 @@ import inspect
 
 from typing import List
 from abc import ABC, abstractmethod
-from langchain_core.messages import SystemMessage, AIMessage
 
 from .. import Turn
 from ..util import make_serializable
