@@ -373,8 +373,7 @@ Finally, the following should be considered regarding the conversation:
         :return: User persona object.
         :rtype: Persona
         """
-        dialogue_details = f"""
-The following should be considered regarding the conversation:
+        rules = f"""The following should be considered regarding the conversation:
    1. {
             "The conversation follows a 'happy path', meaning the conversations goes smoothly without any unexpected behavior"
             if scenario["Happy"]
@@ -392,9 +391,10 @@ The following should be considered regarding the conversation:
         }"""  # noqa: E501
 
         return Persona(
-            role="user calling a AI assistant that can perform multiple tasks in the following domains: "
-            f"{', '.join(scenario['Domains'])}.\n" + dialogue_details,
+            role="Your are role-playing as a USER calling a AI assistant that can perform multiple tasks in the following domains: "
+            f"{', '.join(scenario['Domains'])}.",
             circumstances=scenario["UserTask"],
+            rules=rules,
         )
 
     @staticmethod
@@ -437,7 +437,7 @@ where UPPERCASE words above are just example placeholders. You MUST fill in thos
         """
         return Persona(
             role="AI assistant.",
-            circumstances=scenario["WizardTask"],
+            rules=scenario["WizardTask"],
         )
 
     @staticmethod
@@ -452,7 +452,10 @@ where UPPERCASE words above are just example placeholders. You MUST fill in thos
         :return: Tuple (system_agent, user_agent).
         :rtype: Tuple[Agent, Agent]
         """
-        user = Agent(STAR.get_user_persona_for_scenario(scenario), name="User", model=model_name, can_finish=True)
+        user = Agent(STAR.get_user_persona_for_scenario(scenario),
+                     name="User",
+                     model=model_name,
+                     can_finish=True)
 
         system = Agent(STAR.get_system_persona_for_scenario(scenario),
                        name="System",
