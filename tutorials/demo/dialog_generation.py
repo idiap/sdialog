@@ -11,7 +11,7 @@ from agent import build_my_agent
 
 sdialog.config.llm("openai:gpt-4.1")
 
-LLMS = ["qwen3:0.6b", "qwen3:1.7b", "qwen3:8b", "qwen3:14b"]
+LLMS = ["qwen3:0.6b", "qwen3:1.7b", "qwen3:8b", "qwen3:14b", "qwen3:30b", "qwen3:32b"]
 NUM_CUSTOMERS = 10
 NUM_DIALOGS = 100
 
@@ -46,7 +46,7 @@ def generate_customers(base_customer, n, save_folder):
     return customers
 
 
-def generate_dialogs(llm_name, customer, n, save_folder):
+def generate_dialogs(llm_name, customer, n, save_folder, max_turns=10):
 
     agent = build_my_agent(llm_name)
 
@@ -54,7 +54,7 @@ def generate_dialogs(llm_name, customer, n, save_folder):
 
     for ix in tqdm(range(n), desc="Generating dialogs"):
         if not os.path.exists(os.path.join(save_folder, f"dialog_{ix}.json")):
-            dialog = agent.talk_with(customer)
+            dialog = agent.talk_with(customer, max_turns=max_turns)
             dialog.to_file(os.path.join(save_folder, f"dialog_{ix}.json"))
 
 

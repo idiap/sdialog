@@ -157,7 +157,7 @@ class Dialog(BaseModel):
     scenario: Optional[Union[dict, str]] = None
     turns: Optional[List[Turn]] = Field(default_factory=list)
     events: Optional[List[Event]] = None
-    notes: Optional[str] = None
+    notes: Optional[Any] = None
     _path: Optional[str] = None
 
     def to_audio(

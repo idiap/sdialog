@@ -387,7 +387,7 @@ If you use SDialog in academic work, please consider citing [our paper](https://
 ```bibtex
 @misc{burdisso2025sdialogpythontoolkitendtoend,
   title         = {SDialog: A Python Toolkit for End-to-End Agent Building, User Simulation, Dialog Generation, and Evaluation},
-  author        = {Sergio Burdisso and Séverin Baroudi and Yanis Labrak and David Grunert and Pawel Cyrta and Yiyang Chen and Srikanth Madikeri and Esaú Villatoro-Tello and Thomas Schaaf and Ricard Marxer and Petr Motlicek},
+  author        = {Sergio Burdisso and Séverin Baroudi and Yanis Labrak and David Grunert and Pawel Cyrta and Yiyang Chen and Srikanth Madikeri and Thomas Schaaf and Esaú Villatoro-Tello and Ahmed Hassoon and Ricard Marxer and Petr Motlicek},
   year          = {2025},
   eprint        = {2506.10622},
   archivePrefix = {arXiv},
