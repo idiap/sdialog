@@ -138,6 +138,7 @@ def plot_dendrogram(model, title, path, labels=None, **kwargs):
 def dialog2trajectories(
     input_dialogues: Union[str, List[Dialog]],
     system_speaker_name: str = None,
+    use_only_system_speaker: bool = False,
     output_path: str = None,
     embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     thresholds: Union[Union[float, int], List[Union[float, int]]] = .6,  # [system threshold, user threshold]
@@ -194,9 +195,13 @@ def dialog2trajectories(
     speaker2mame, name2speaker = {}, {}
     if isinstance(input_dialogues, list) and all(isinstance(d, Dialog) for d in input_dialogues):
         for dialog in input_dialogues:
-            dialogue = [{"tag": get_turn_tag(turn.speaker),
-                         "text": turn.text.strip(),
-                         "turn": None} for turn in dialog.turns]
+            dialogue = []
+            for turn in dialog.turns:
+                tag = get_turn_tag(turn.speaker)
+                if use_only_system_speaker and tag != DEFAULT_SYS_NAME:
+                    # Skip non-system speakers when only system turns are requested
+                    continue
+                dialogue.append({"tag": tag, "text": turn.text.strip(), "turn": None})
             dialogues[dialog.id] = {
                 "goal": {domain: {}},
                 "log": [
@@ -408,6 +413,7 @@ def dialog2trajectories(
 def dialog2graph(
     input_dialogues: Union[str, List[Dialog]],
     system_speaker_name: str = None,
+    use_only_system_speaker: bool = False,
     output_path: str = None,
     node_embedding_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
     node_thresholds: Union[Union[float, int], List[Union[float, int]]] = .55,  # [system threshold, user threshold]
@@ -427,6 +433,7 @@ def dialog2graph(
     path_trajectories = dialog2trajectories(
         input_dialogues=input_dialogues,
         system_speaker_name=system_speaker_name,
+        use_only_system_speaker=use_only_system_speaker,
         output_path=output_path,
         embedding_model=node_embedding_model,
         thresholds=node_thresholds,

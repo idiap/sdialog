@@ -86,8 +86,16 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     p1 = np.asarray(p1)
     p2 = np.asarray(p2)
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
-    p1_kernel = gaussian_kde(p1, bw_method=bw_method)
-    p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+
+    try:
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+    except Exception as e:
+        if np.array_equal(p1, p2):
+            return 0.0
+        logger.error(f"Error computing KDEs for KL divergence: {e}. Returning None")
+        return None
+
     p1_vals = p1_kernel(r)
     p2_vals = p2_kernel(r)
     numerator = np.sum(p1_vals * p2_vals)
@@ -115,9 +123,18 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     if len(p1) == 0 or len(p2) == 0:
         logger.error("Both input distributions must have at least one sample. Returning None")
         return None
+
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
-    p1_kernel = gaussian_kde(p1, bw_method=bw_method)
-    p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+
+    try:
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+    except Exception as e:
+        if np.array_equal(p1, p2):
+            return 0.0
+        logger.error(f"Error computing KDEs for KL divergence: {e}. Returning None")
+        return None
+
     p1_vals = p1_kernel(r)
     p2_vals = p2_kernel(r)
     # Avoid division by zero and log(0) by adding a small epsilon
@@ -1155,6 +1172,8 @@ class DialogFlowScore(BaseDialogFlowScore):
     :type k_neighbors: int
     :param use_softmax: Whether to weight neighbors via softmax.
     :type use_softmax: bool
+    :param use_only_ai_speaker: If True, only AI turns are used to build the graph and compute the scores.
+    :type use_only_ai_speaker: bool
     :param use_only_known_edges: If True, only known edges contribute.
     :type use_only_known_edges: bool
     :param name: Custom score name.
@@ -1173,6 +1192,7 @@ class DialogFlowScore(BaseDialogFlowScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_ai_speaker: bool = False,
                  use_only_known_edges: bool = False,
                  name: str = None,
                  verbose: bool = False,
@@ -1189,6 +1209,7 @@ class DialogFlowScore(BaseDialogFlowScore):
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
+            use_only_ai_speaker=use_only_ai_speaker,
             name=name,
             graph=graph,
             nodes=nodes,
@@ -2875,7 +2896,7 @@ class DatasetComparator:
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
-            for evaluator in self.evaluators:
+            for evaluator in tqdm(self.evaluators, desc="Running evaluators", leave=False):
                 score = evaluator(dataset, dataset_name=dataset_name)
                 if isinstance(score, dict):
                     for metric, value in score.items():

@@ -14,6 +14,7 @@ These abstractions standardize evaluation pipelines for synthetic dialog generat
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import os
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,7 +32,7 @@ from langchain_core.language_models.base import BaseLanguageModel
 
 from .. import Dialog
 from ..config import config
-from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START
+from .dialog2flow import dialog2graph, DEFAULT_TOKEN_START, DEFAULT_SYS_NAME
 from langchain_core.messages import HumanMessage, SystemMessage
 from ..util import CacheDialogScore, KNNModel, get_llm_model, upper_camel_to_dash, softmax
 
@@ -206,6 +207,7 @@ class BaseDialogFlowScore(BaseDialogScore):
     :param ai_speaker: If provided, only system/AI speaker turns are considered in scoring.
     :param k_neighbors: Number of neighbors for softmax aggregation.
     :param use_softmax: If True, weight neighbor probabilities via softmax, else pick top-1.
+    :param use_only_ai_speaker: If True, only AI turns are used to build the graph and compute the scores.
     :param graph: Optional precomputed graph object to reuse (bypasses construction).
     :param nodes: Optional precomputed node metadata dictionary.
     :param name: Optional score name override (auto if None).
@@ -218,6 +220,7 @@ class BaseDialogFlowScore(BaseDialogScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_ai_speaker: bool = False,
                  graph=None,
                  nodes=None,
                  name: str = None,
@@ -245,24 +248,28 @@ class BaseDialogFlowScore(BaseDialogScore):
         self.reference_dialogues = reference_dialogues
         self.use_softmax = use_softmax
         self.k_neighbors = k_neighbors
-        self.only_system = bool(ai_speaker)
+        self.only_system = use_only_ai_speaker
+        self.ai_speaker = ai_speaker if ai_speaker else DEFAULT_SYS_NAME
         if graph is not None and nodes is not None:
             # If graph and nodes are provided, use them directly
             self.graph, self.nodes = graph, nodes
         else:
             self.graph, self.nodes = dialog2graph(reference_dialogues,
                                                   system_speaker_name=ai_speaker,
+                                                  use_only_system_speaker=use_only_ai_speaker,
                                                   **self.d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
         self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {
-            "user": KNNModel([(node_id.lower(), info["centroid-embedding"])
-                              for node_id, info in self.nodes.items() if node_id[0].lower() == "u"],
-                             k=k_neighbors),
             "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
                                 for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
                                k=k_neighbors)
         }
+        if not self.only_system:
+            self.knn_models["user"] = KNNModel([(node_id.lower(), info["centroid-embedding"])
+                                                for node_id, info in self.nodes.items()
+                                                if node_id[0].lower() == "u"],
+                                               k=k_neighbors)
 
     def get_node_sequence(self, dialog: Dialog, probs: bool = False) -> List[str]:
         """
@@ -279,7 +286,11 @@ class BaseDialogFlowScore(BaseDialogScore):
         node_sequence = []
         prob_sequence = []
         prev_node = DEFAULT_TOKEN_START
-        for turn in dialog.turns:
+
+        if self.only_system:
+            dialog = [turn for turn in dialog if turn.speaker.lower() == self.ai_speaker.lower()]
+
+        for turn in dialog:
             speaker = turn.speaker.lower()
             if speaker in self.speakers:
                 speaker = self.speakers[speaker]
@@ -318,7 +329,9 @@ class BaseDialogFlowScore(BaseDialogScore):
         sum_log_p, sum_log_p_known = 0, 0
         n_turns, n_turns_known = 1, 1  # start with 1 to account for the first turn and avoid division by zero
         prev_node = DEFAULT_TOKEN_START
-        for turn in dialog.turns:
+        if self.only_system:
+            dialog = [turn for turn in dialog if turn.speaker.lower() == self.ai_speaker.lower()]
+        for turn in dialog:
             speaker = turn.speaker.lower()
             if speaker in self.speakers:
                 speaker = self.speakers[speaker]
@@ -331,15 +344,14 @@ class BaseDialogFlowScore(BaseDialogScore):
             prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
 
             prob_current_node = self.graph.get_edge_data(prev_node, current_node)
-            if (not self.only_system or speaker == "system"):
-                if prob_current_node is not None:
-                    log_p = log(prob_current_node["weight"] * prob_correct_node)
-                    sum_log_p += log_p
-                    sum_log_p_known += log_p
-                    n_turns_known += 1
-                else:
-                    sum_log_p += log(1 / len(self.graph.nodes))  # Uniform distribution if no edge exists
-                n_turns += 1
+            if prob_current_node is not None:
+                log_p = log(prob_current_node["weight"] * prob_correct_node)
+                sum_log_p += log_p
+                sum_log_p_known += log_p
+                n_turns_known += 1
+            else:
+                sum_log_p += log(1 / len(self.graph.nodes))  # Uniform distribution if no edge exists
+            n_turns += 1
             prev_node = current_node
 
         return sum_log_p_known, n_turns_known, sum_log_p, n_turns
@@ -583,6 +595,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                         metric_save_path = f"{base}-{metric}.{ext}"
                     else:
                         metric_save_path = f"{save_path}-{metric}"
+                    os.makedirs(os.path.dirname(metric_save_path), exist_ok=True)
                     plt.savefig(metric_save_path, dpi=300)
                 if show:
                     plt.show()
@@ -590,6 +603,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             plt.figure(figsize=(8, 5))
             self.__plot__(self.datasets_scores, plot=plt)
             if save_path:
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 plt.savefig(save_path, dpi=300)
             if show:
                 plt.show()
@@ -773,6 +787,7 @@ class BaseLLMJudge(ABC):
 
             from sdialog.evaluation.base import BaseLLMJudge
             from sdialog import Dialog, Turn
+import os
 
             class MagicJudge(BaseLLMJudge):
                 def judge(self, dialog):
