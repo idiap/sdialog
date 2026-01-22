@@ -2492,17 +2492,20 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
                            "This may lead to misleading results since unbalanced distributions bias "
                            "the clustering towards the larger dataset.")
 
-            precisions = []
-            recalls = []
-            for _ in range(self.num_runs):
-                reference_histogram, target_histogram = self._cluster_histograms(target_embs)
-                precision, recall = self._precision_recall_distance(reference_histogram, target_histogram)
-                precisions.append(precision)
-                recalls.append(recall)
-            precision = np.mean(precisions, axis=0).tolist()
-            recall = np.mean(recalls, axis=0).tolist()
-            return max([2 * p * r / (p + r) if (p + r) > 0 else 0
-                        for p, r in zip(precision, recall)])  # max F1 score
+        precisions = []
+        recalls = []
+        for _ in range(self.num_runs):
+            reference_histogram, target_histogram = self._cluster_histograms(target_embs)
+            precision, recall = self._precision_recall_distance(reference_histogram, target_histogram)
+            precisions.append(precision)
+            recalls.append(recall)
+        precision = np.mean(precisions, axis=0).tolist()
+        recall = np.mean(recalls, axis=0).tolist()
+
+        max_f1 = max([2 * p * r / (p + r) if (p + r) > 0 else 0
+                      for p, r in zip(precision, recall)])
+        # Convert F1 similarity score to distance metric (lower is better)
+        return 1 - max_f1
 
 
 class StatsEvaluator(BaseDatasetScoreEvaluator):
