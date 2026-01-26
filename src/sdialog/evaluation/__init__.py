@@ -1742,6 +1742,8 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
     :type model_name: str
     :param mean: If True average per-turn embeddings; else encode concatenated text.
     :type mean: bool
+    :param ai_speaker: If set, restrict embedding to AI/system turns only.
+    :type ai_speaker: Optional[str]
     :param name: Optional custom embedder name.
     :type name: Optional[str]
     :param verbose: Show progress bars for encoding.
@@ -1750,14 +1752,17 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
     def __init__(self,
                  model_name: str = "sentence-transformers/LaBSE",
                  mean: bool = True,
+                 ai_speaker: str = None,
                  name: str = None,
                  verbose: bool = False):
         """Initialize dialog embedder."""
+
         mode_str = "mean-" if mean else ""
-        super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}")
+        super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}" + ("-ai" if ai_speaker else ""))
         self.model = SentenceTransformer(model_name)
         self.mean = mean
         self.verbose = verbose
+        self.ai_speaker = ai_speaker
 
     def embed(self, dialog: Dialog) -> np.ndarray:
         """
@@ -1769,13 +1774,21 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
         :rtype: np.ndarray
         """
         if self.mean:
-            texts = [turn.text for turn in dialog.turns if hasattr(turn, "text")]
+            if self.ai_speaker:
+                texts = [turn.text for turn in dialog
+                         if hasattr(turn, "text") and turn.speaker.lower() == self.ai_speaker.lower()]
+            else:
+                texts = [turn.text for turn in dialog if hasattr(turn, "text")]
             if not texts:
                 return np.zeros(self.model.get_sentence_embedding_dimension())
             embs = self.model.encode(texts, show_progress_bar=self.verbose)
             return np.mean(embs, axis=0)
         else:
-            dialog_text = "\n".join([turn.text for turn in dialog.turns if hasattr(turn, "text")])
+            if self.ai_speaker:
+                dialog_text = "\n".join([turn.text for turn in dialog
+                                         if turn.speaker.lower() == self.ai_speaker.lower()])
+            else:
+                dialog_text = "\n".join([turn.text for turn in dialog])
             if not dialog_text:
                 return np.zeros(self.model.get_sentence_embedding_dimension())
             emb = self.model.encode([dialog_text], show_progress_bar=self.verbose)[0]
