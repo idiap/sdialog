@@ -65,6 +65,10 @@ mpl.rcParams['pdf.fonttype'] = 42  # TrueType fonts for better PDF compatibility
 mpl.rcParams['ps.fonttype'] = 42
 
 
+def _add_jitter(x, eps=1e-8):
+    return x + np.random.normal(0, eps, size=len(x))
+
+
 def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     """
     Calculate the Cauchy-Schwarz divergence between two 1D distributions via KDE.
@@ -93,8 +97,13 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     except Exception as e:
         if np.array_equal(p1, p2):
             return 0.0
-        logger.error(f"Error computing KDEs for KL divergence: {e}. Returning None")
-        return None
+        logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
+        if np.std(p1) == 0:
+            p1 = _add_jitter(p1)
+        if np.std(p2) == 0:
+            p2 = _add_jitter(p2)
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
 
     p1_vals = p1_kernel(r)
     p2_vals = p2_kernel(r)
@@ -132,8 +141,13 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     except Exception as e:
         if np.array_equal(p1, p2):
             return 0.0
-        logger.error(f"Error computing KDEs for KL divergence: {e}. Returning None")
-        return None
+        logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
+        if np.std(p1) == 0:
+            p1 = _add_jitter(p1)
+        if np.std(p2) == 0:
+            p2 = _add_jitter(p2)
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
 
     p1_vals = p1_kernel(r)
     p2_vals = p2_kernel(r)
