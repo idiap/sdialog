@@ -109,7 +109,8 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     p2_vals = p2_kernel(r)
     numerator = np.sum(p1_vals * p2_vals)
     denominator = sqrt(np.sum(p1_vals ** 2) * np.sum(p2_vals ** 2))
-    return -log(numerator / denominator)
+    # Avoid log(0) by ensuring numerator has minimum value
+    return -log(max(numerator, 1e-12) / denominator)
 
 
 def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
