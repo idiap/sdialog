@@ -49,6 +49,9 @@ from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room import AudioSource, Room, MicrophonePosition, RoomPosition
 from sdialog.audio.utils import logger, Role, SourceVolume
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+from sdialog.config import config
+from sdialog.util import get_llm_model, get_universal_id
+from langchain_core.messages import HumanMessage, SystemMessage
 
 
 class RoomAcousticsConfig(BaseModel):
@@ -105,6 +108,21 @@ class AudioDialog(Dialog):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def clone(self, new_id: int = None) -> "AudioDialog":
+        """
+        Creates a deep copy of the dialogue.
+
+        :param new_id: Optional ID to assign to the cloned dialog. If None, a new universal ID is generated.
+        :type new_id: int, optional
+        :return: A new AudioDialog object that is a deep copy of this one, with updated id and parentId.
+        :rtype: AudioDialog
+        """
+        cloned = AudioDialog.from_dict(self.json())
+        cloned.parentId = cloned.id
+        cloned.id = new_id if new_id is not None else get_universal_id()
+
+        return cloned
 
     def set_audio_sources(self, audio_sources: List[AudioSource]):
         """
@@ -491,3 +509,81 @@ class AudioDialog(Dialog):
                     _language,
                     keep_duplicate=keep_duplicate
                 )
+
+    def compute_overlapping_and_pausing_llm(self):
+        """
+        Compute the overlapping and pausing between turns using LLM.
+
+        This method computes the overlapping and pausing times between turns using LLM.
+        It will return a new AudioDialog object with the overlapping or pausing times for each turn.
+
+        :return: A new AudioDialog object with the overlapping or pausing times for each turn.
+        :rtype: AudioDialog
+        """
+        llm_params = config["llm"].copy()
+        model_name = llm_params.pop("model", None)
+
+        if not model_name:
+            raise ValueError("LLM model not configured. Please set sdialog.config.llm('provider:model').")
+
+        # Define schema for structured output
+        class GapDurations(BaseModel):
+            gaps: List[float] = Field(
+                description="List of time intervals (seconds) between turns. "
+                            "Positive for pause, negative for overlap."
+            )
+
+        # Prepare prompts
+        dialog_text = ""
+        for i, turn in enumerate(self.turns):
+            dialog_text += f"Turn {i+1} ({turn.speaker} - duration: {turn.audio_duration} seconds): {turn.text}\n"
+
+        system_prompt = (
+            "Analyze the dialogue and determine the natural timing gaps between turns. "
+            "For each transition between Turn N and Turn N+1, provide a time duration in seconds:\n"
+            "- Positive value (e.g., 0.5): A pause or silence.\n"
+            "- Negative value (e.g., -0.2): An overlap.\n"
+            "- 0.0: Immediate follow-up."
+        )
+
+        print(system_prompt)
+
+        human_prompt = (
+            f"Dialogue:\n{dialog_text}\n\n"
+            f"Provide a list of {len(self.turns) - 1} float values representing the gaps between consecutive turns."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        # Invoke LLM
+        try:
+            llm = get_llm_model(
+                model_name=model_name,
+                output_format=GapDurations,
+                **llm_params
+            )
+            raw_response = llm.invoke(messages)
+            structured_response = GapDurations.model_validate(raw_response)
+            gaps = structured_response.gaps
+        except Exception as e:
+            logger.error(f"Failed to compute gaps with LLM: {e}")
+            return self.clone()
+
+        # Validate length
+        expected_gaps = len(self.turns) - 1
+        if len(gaps) != expected_gaps:
+            logger.warning(f"LLM returned {len(gaps)} gaps, expected {expected_gaps}. "
+                           "Adjusting to match turn count.")
+            # Pad or truncate
+            if len(gaps) < expected_gaps:
+                gaps.extend([0.0] * (expected_gaps - len(gaps)))
+            else:
+                gaps = gaps[:expected_gaps]
+
+        # Apply gaps
+        for i in range(len(gaps)):
+            self.turns[i].gap_duration = gaps[i]
+            print(f"Turn {i} gap duration: {self.turns[i].gap_duration}")

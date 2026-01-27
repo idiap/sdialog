@@ -47,6 +47,7 @@ import os
 import dscaper
 import librosa
 import logging
+import torch
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
@@ -448,7 +449,8 @@ class AudioPipeline:
 
     def master_audio(
             self,
-            dialog: AudioDialog) -> np.ndarray:
+            dialog: AudioDialog,
+            overlap_pauses: bool = False) -> np.ndarray:
         """
         Combine multiple audio segments into a single master audio track.
 
@@ -458,10 +460,68 @@ class AudioPipeline:
 
         :param dialog: Audio dialogue containing turns with audio data.
         :type dialog: AudioDialog
+        :param overlap_pauses: If True, apply the overlapping and pausing times between turns to the audio data.
+        :type overlap_pauses: bool
         :return: Combined audio data as numpy array.
         :rtype: np.ndarray
         """
-        return np.concatenate([turn.get_audio() for turn in dialog.turns])
+
+        if not overlap_pauses:
+            return np.concatenate([turn.get_audio() for turn in dialog.turns])
+
+        # Get all audio segments
+        audios = [turn.get_audio() for turn in dialog.turns]
+
+        if not audios:
+            return np.array([])
+
+        # Calculate start times for each turn
+        start_samples = [0]
+        current_start_sample = 0
+
+        for i, turn in enumerate(dialog.turns[:-1]):
+
+            # Get the duration of the current turn in samples
+            duration_samples = len(audios[i])
+
+            # Get the gap duration in seconds
+            gap_duration = turn.gap_duration
+
+            # Convert the gap duration to samples
+            gap_samples = int(gap_duration * self.sampling_rate)
+
+            # Calculate the start sample of the next turn
+            next_start_sample = current_start_sample + duration_samples + gap_samples
+
+            # Ensure the next turn does not start before the beginning of the audio
+            if next_start_sample < 0:
+                next_start_sample = 0
+
+            start_samples.append(next_start_sample)
+            current_start_sample = next_start_sample
+
+        # Calculate the total length of the combined audio
+        total_length = 0
+        for i, audio in enumerate(audios):
+            end_pos = start_samples[i] + len(audio)
+            if end_pos > total_length:
+                total_length = end_pos
+
+        # Create the output buffer
+        shape = audios[0].shape
+
+        if len(shape) == 1:
+            output_buffer = torch.zeros(total_length, dtype=audios[0].dtype, device=audios[0].device)
+        else:
+            output_buffer = torch.zeros((total_length, shape[1]), dtype=audios[0].dtype, device=audios[0].device)
+
+        # Mix the audio segments into the output buffer
+        for i, audio in enumerate(audios):
+            start = start_samples[i]
+            end = start + len(audio)
+            output_buffer[start:end] += audio
+
+        return output_buffer.cpu().numpy()
 
     def inference(
         self,
@@ -479,7 +539,8 @@ class AudioPipeline:
         recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
         tts_pipeline_kwargs: Optional[dict] = {},
         override_tts_audio: Optional[bool] = True,
-        verbose: Optional[bool] = False
+        verbose: Optional[bool] = False,
+        overlap_pauses: Optional[bool] = False
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -519,6 +580,8 @@ class AudioPipeline:
         :type override_tts_audio: Optional[bool]
         :param verbose: Verbose mode for logging.
         :type verbose: Optional[bool]
+        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+        :type overlap_pauses: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -629,9 +692,17 @@ class AudioPipeline:
                     project_path=os.path.join(dialog.audio_dir_path, dialog_directory)
                 )
 
+                # Compute the overlapping and pausing between turns using LLM
+                if overlap_pauses:
+                    dialog.compute_overlapping_and_pausing_llm()
+                    print("--------------------------------")
+                    print("Overlapping and pausing times for each turn:")
+                    print([_t.gap_duration for _t in dialog.turns])
+                    print("--------------------------------")
+
                 # Combine the audio segments into a single master audio track as a baseline
                 dialog.set_combined_audio(
-                    self.master_audio(dialog)
+                    self.master_audio(dialog, overlap_pauses=overlap_pauses)
                 )
 
                 # Save the combined audio to exported_audios folder

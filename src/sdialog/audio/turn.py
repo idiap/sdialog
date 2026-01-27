@@ -67,6 +67,9 @@ class AudioTurn(Turn):
     :vartype microphone_position: str
     :ivar is_stored_in_dscaper: Flag indicating integration with dscaper tool.
     :vartype is_stored_in_dscaper: bool
+    :ivar gap_duration: Time interval between this turn and the next.
+                        Positive for pause, negative for overlap, 0 for contiguous turns.
+    :vartype gap_duration: float
     """
 
     _audio: np.ndarray = None
@@ -79,6 +82,7 @@ class AudioTurn(Turn):
     position: str = ""
     microphone_position: str = ""
     is_stored_in_dscaper: bool = False
+    gap_duration: float = 0.0
 
     def get_audio(self) -> np.ndarray:
         """
