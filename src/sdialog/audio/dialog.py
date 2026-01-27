@@ -417,8 +417,6 @@ class AudioDialog(Dialog):
         os.makedirs(f"{project_path}/exported_audios", exist_ok=True)
         os.makedirs(f"{project_path}/exported_audios/rooms", exist_ok=True)
 
-        current_time = 0.0
-
         for idx, turn in enumerate(self.turns):
 
             audio_data = turn.get_audio()
@@ -428,11 +426,21 @@ class AudioDialog(Dialog):
 
             # Calculate the duration of the audio
             turn.audio_duration = audio_data.shape[0] / sampling_rate
-            turn.audio_start_time = current_time
-            current_time += turn.audio_duration
 
             # Save the audio file
             sf.write(turn.audio_path, audio_data, sampling_rate)
+
+    def update_turn_timings(self):
+        """
+        Updates the start times of turns based on their duration and gap durations.
+        Useful after computing overlaps/pauses.
+        """
+        current_time = 0.0
+        for turn in self.turns:
+            turn.audio_start_time = current_time
+            current_time += turn.audio_duration + turn.gap_duration
+            if current_time < 0:
+                current_time = 0.0
 
     def persona_to_voice(
         self,
@@ -536,7 +544,8 @@ class AudioDialog(Dialog):
         # Prepare prompts
         dialog_text = ""
         for i, turn in enumerate(self.turns):
-            dialog_text += f"Turn {i+1} ({turn.speaker} - duration: {turn.audio_duration} seconds): {turn.text}\n"
+            # dialog_text += f"Turn {i+1} ({turn.speaker}): {turn.text}\n"
+            dialog_text += f"Turn {i+1} ({turn.speaker} / {turn.audio_duration} seconds): {turn.text}\n"
 
         system_prompt = (
             "Analyze the dialogue and determine the natural timing gaps between turns. "
@@ -546,12 +555,13 @@ class AudioDialog(Dialog):
             "- 0.0: Immediate follow-up."
         )
 
-        print(system_prompt)
+        # print(system_prompt)
 
         human_prompt = (
             f"Dialogue:\n{dialog_text}\n\n"
             f"Provide a list of {len(self.turns) - 1} float values representing the gaps between consecutive turns."
         )
+        # print(human_prompt)
 
         messages = [
             SystemMessage(content=system_prompt),
@@ -586,4 +596,3 @@ class AudioDialog(Dialog):
         # Apply gaps
         for i in range(len(gaps)):
             self.turns[i].gap_duration = gaps[i]
-            print(f"Turn {i} gap duration: {self.turns[i].gap_duration}")

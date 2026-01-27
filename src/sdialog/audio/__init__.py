@@ -78,7 +78,8 @@ def generate_utterances_audios(
     keep_duplicate: bool = True,
     seed: int = None,
     sampling_rate: int = 24_000,
-    tts_pipeline_kwargs: dict = {}
+    tts_pipeline_kwargs: dict = {},
+    remove_silences: bool = False
 ) -> AudioDialog:
     """
     Generates audio for each utterance in an AudioDialog object using the specified TTS engine.
@@ -109,6 +110,8 @@ def generate_utterances_audios(
     :type seed: int
     :param sampling_rate: Sampling rate for the audio generation.
     :type sampling_rate: int
+    :param remove_silences: If True, remove the silences at the beginning and the end of the audio.
+    :type remove_silences: bool
     :return: The AudioDialog object with generated audio for each turn.
     :rtype: AudioDialog
     """
@@ -148,8 +151,15 @@ def generate_utterances_audios(
                 target_sr=sampling_rate,
             )
 
+        # Remove the silences at the beginning and the end of the audio
+        if remove_silences:
+            utterance_audio, _ = librosa.effects.trim(utterance_audio, top_db=60)
+
         # Set the utterance audio to the turn
         turn.set_audio(utterance_audio, sampling_rate)
+
+        # Set the audio duration of the turn
+        turn.audio_duration = utterance_audio.shape[0] / sampling_rate
 
     return dialog
 

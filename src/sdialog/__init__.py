@@ -239,6 +239,8 @@ class Dialog(BaseModel):
         :type override_tts_audio: Optional[bool]
         :param verbose: Verbose mode for logging.
         :type verbose: Optional[bool]
+        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+        :type overlap_pauses: Optional[bool]
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.

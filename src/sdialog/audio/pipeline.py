@@ -91,7 +91,8 @@ def to_audio(
     impulse_response_database: Optional[ImpulseResponseDatabase] = None,
     override_tts_audio: Optional[bool] = True,
     verbose: Optional[bool] = False,
-    voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]] = None
+    voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]] = None,
+    overlap_pauses: Optional[bool] = False
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -150,6 +151,8 @@ def to_audio(
     :type override_tts_audio: Optional[bool]
     :param verbose: Verbose mode for logging.
     :type verbose: Optional[bool]
+    :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+    :type overlap_pauses: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -269,7 +272,8 @@ def to_audio(
             recording_devices=recording_devices,
             override_tts_audio=override_tts_audio,
             verbose=verbose,
-            voices=voices
+            voices=voices,
+            overlap_pauses=overlap_pauses
         )
 
     finally:
@@ -476,29 +480,7 @@ class AudioPipeline:
             return np.array([])
 
         # Calculate start times for each turn
-        start_samples = [0]
-        current_start_sample = 0
-
-        for i, turn in enumerate(dialog.turns[:-1]):
-
-            # Get the duration of the current turn in samples
-            duration_samples = len(audios[i])
-
-            # Get the gap duration in seconds
-            gap_duration = turn.gap_duration
-
-            # Convert the gap duration to samples
-            gap_samples = int(gap_duration * self.sampling_rate)
-
-            # Calculate the start sample of the next turn
-            next_start_sample = current_start_sample + duration_samples + gap_samples
-
-            # Ensure the next turn does not start before the beginning of the audio
-            if next_start_sample < 0:
-                next_start_sample = 0
-
-            start_samples.append(next_start_sample)
-            current_start_sample = next_start_sample
+        start_samples = [int(turn.audio_start_time * self.sampling_rate) for turn in dialog.turns]
 
         # Calculate the total length of the combined audio
         total_length = 0
@@ -684,7 +666,20 @@ class AudioPipeline:
                     seed=seed,
                     sampling_rate=self.sampling_rate,
                     tts_pipeline_kwargs=tts_pipeline_kwargs,
+                    remove_silences=overlap_pauses
                 )
+
+                # Compute the overlapping and pausing between turns using LLM
+                if overlap_pauses:
+                    dialog.compute_overlapping_and_pausing_llm()
+                    # print("--------------------------------")
+                    # print("Overlapping and pausing times for each turn:")
+                    # print([_t.gap_duration for _t in dialog.turns])
+                    # print("--------------------------------")
+
+                # Ensure that the turn timings are updated after the overlapping
+                # and pausing between turns are computed
+                dialog.update_turn_timings()
 
                 # Save the utterances audios to the project path
                 dialog.save_utterances_audios(
@@ -692,17 +687,12 @@ class AudioPipeline:
                     project_path=os.path.join(dialog.audio_dir_path, dialog_directory)
                 )
 
-                # Compute the overlapping and pausing between turns using LLM
-                if overlap_pauses:
-                    dialog.compute_overlapping_and_pausing_llm()
-                    print("--------------------------------")
-                    print("Overlapping and pausing times for each turn:")
-                    print([_t.gap_duration for _t in dialog.turns])
-                    print("--------------------------------")
-
                 # Combine the audio segments into a single master audio track as a baseline
                 dialog.set_combined_audio(
-                    self.master_audio(dialog, overlap_pauses=overlap_pauses)
+                    self.master_audio(
+                        dialog,
+                        overlap_pauses=overlap_pauses
+                    )
                 )
 
                 # Save the combined audio to exported_audios folder
