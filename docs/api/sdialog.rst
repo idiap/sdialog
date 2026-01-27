@@ -112,7 +112,6 @@ sdialog.evaluation.base
    :members:
    :show-inheritance:
 
-
 ----
 
 sdialog.datasets
@@ -270,3 +269,19 @@ sdialog.audio.processing
    :member-order: bysource
    :members:
    :show-inheritance:
+
+----
+
+sdialog.tasks
+-------------
+
+.. automodule:: sdialog.tasks
+   :members: dialog2tasks, dialogs2tasks
+
+.. autosummary::
+   :toctree: tasks
+   :recursive:
+
+   base
+   nlp
+   audio

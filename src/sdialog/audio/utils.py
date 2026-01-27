@@ -41,135 +41,10 @@ Example:
 import re
 import logging
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # Create a logger for the audio module
 logger = logging.getLogger("sdialog.audio")
-
-
-class RGBAColor(Enum):
-    """
-    RGBA color enumeration for visual representations in room simulation.
-
-    This enum provides predefined RGBA color values for furniture and objects
-    in room acoustics simulation. Each color is represented as a tuple of
-    (red, green, blue, alpha) values, where alpha controls transparency.
-
-    Color values are in the range 0-255 for RGB components and 0-100 for alpha.
-    The alpha value of 50 provides semi-transparency for visual overlays.
-
-    :ivar RED: Red color (255, 0, 0, 50).
-    :vartype RED: tuple[int, int, int, int]
-    :ivar GREEN: Green color (0, 255, 0, 50).
-    :vartype GREEN: tuple[int, int, int, int]
-    :ivar BLUE: Blue color (0, 0, 255, 50).
-    :vartype BLUE: tuple[int, int, int, int]
-    :ivar YELLOW: Yellow color (255, 255, 0, 50).
-    :vartype YELLOW: tuple[int, int, int, int]
-    :ivar PURPLE: Purple color (128, 0, 128, 50).
-    :vartype PURPLE: tuple[int, int, int, int]
-    :ivar ORANGE: Orange color (255, 165, 0, 50).
-    :vartype ORANGE: tuple[int, int, int, int]
-    :ivar PINK: Pink color (255, 192, 203, 50).
-    :vartype PINK: tuple[int, int, int, int]
-    :ivar BROWN: Brown color (165, 42, 42, 50).
-    :vartype BROWN: tuple[int, int, int, int]
-    :ivar GRAY: Gray color (128, 128, 128, 50).
-    :vartype GRAY: tuple[int, int, int, int]
-    :ivar BLACK: Black color (0, 0, 0, 50).
-    :vartype BLACK: tuple[int, int, int, int]
-    :ivar WHITE: White color (255, 255, 255, 50).
-    :vartype WHITE: tuple[int, int, int, int]
-    """
-    RED = (255, 0, 0, 50)
-    GREEN = (0, 255, 0, 50)
-    BLUE = (0, 0, 255, 50)
-    YELLOW = (255, 255, 0, 50)
-    PURPLE = (128, 0, 128, 50)
-    ORANGE = (255, 165, 0, 50)
-    PINK = (255, 192, 203, 50)
-    BROWN = (165, 42, 42, 50)
-    GRAY = (128, 128, 128, 50)
-    BLACK = (0, 0, 0, 50)
-    WHITE = (255, 255, 255, 50)
-
-
-class Furniture(BaseModel):
-    """
-    3D furniture model for room acoustics simulation.
-
-    This class represents a piece of furniture in a 3D room environment,
-    providing spatial positioning, dimensions, and visual properties.
-    Furniture objects are used in room acoustics simulation to model
-    acoustic obstacles and reflections.
-
-    Key Features:
-
-      - 3D spatial positioning (x, y, z coordinates)
-      - 3D dimensions (width, height, depth)
-      - Visual color representation
-      - Acoustic modeling support
-
-    :ivar name: Name identifier for the furniture piece.
-    :vartype name: str
-    :ivar x: X-axis position in meters (horizontal).
-    :vartype x: float
-    :ivar y: Y-axis position in meters (depth).
-    :vartype y: float
-    :ivar z: Z-axis position in meters (height, default: 0.0).
-    :vartype z: float
-    :ivar width: Width of the furniture in meters (x-axis dimension).
-    :vartype width: float
-    :ivar height: Height of the furniture in meters (z-axis dimension).
-    :vartype height: float
-    :ivar depth: Depth of the furniture in meters (y-axis dimension).
-    :vartype depth: float
-    :ivar color: RGBA color for visual representation (default: RED).
-    :vartype color: RGBAColor
-    """
-
-    name: str
-
-    x: float  # x-axis in meters
-    y: float  # y-axis in meters
-    z: float = 0.0  # z-axis in meters
-
-    width: float  # width in meters
-    height: float  # height in meters
-    depth: float  # depth in meters
-
-    color: RGBAColor = RGBAColor.RED
-
-    def get_top_z(self) -> float:
-        """
-        Calculates the top Z-coordinate of the furniture.
-
-        This method returns the highest Z-coordinate of the furniture,
-        which is useful for collision detection and spatial calculations
-        in room acoustics simulation.
-
-        :return: The top Z-coordinate (z + height).
-        :rtype: float
-        """
-        return self.z + self.height
-
-
-class BodyPosture(Enum):
-    """
-    Body posture height enumeration for speaker positioning in room simulation.
-
-    This enum provides standard height values for different body postures,
-    which are used to position speakers at realistic heights in room
-    acoustics simulation. These values represent the approximate height
-    of a person's mouth/head in different postures.
-
-    :ivar SITTING: Sitting posture height in meters (0.5m).
-    :vartype SITTING: float
-    :ivar STANDING: Standing posture height in meters (1.7m).
-    :vartype STANDING: float
-    """
-    SITTING = 0.5
-    STANDING = 1.7
 
 
 class WallMaterial(str, Enum):
@@ -283,6 +158,141 @@ class CeilingMaterial(str, Enum):
     PERFORATED_GYPSUM_BOARD = "ceiling_perforated_gypsum_board"
     MELAMINE_FOAM = "ceiling_melamine_foam"
     METAL_PANEL = "ceiling_metal_panel"
+
+
+class RGBAColor(Enum):
+    """
+    RGBA color enumeration for visual representations in room simulation.
+
+    This enum provides predefined RGBA color values for furniture and objects
+    in room acoustics simulation. Each color is represented as a tuple of
+    (red, green, blue, alpha) values, where alpha controls transparency.
+
+    Color values are in the range 0-255 for RGB components and 0-100 for alpha.
+    The alpha value of 50 provides semi-transparency for visual overlays.
+
+    :ivar RED: Red color (255, 0, 0, 50).
+    :vartype RED: tuple[int, int, int, int]
+    :ivar GREEN: Green color (0, 255, 0, 50).
+    :vartype GREEN: tuple[int, int, int, int]
+    :ivar BLUE: Blue color (0, 0, 255, 50).
+    :vartype BLUE: tuple[int, int, int, int]
+    :ivar YELLOW: Yellow color (255, 255, 0, 50).
+    :vartype YELLOW: tuple[int, int, int, int]
+    :ivar PURPLE: Purple color (128, 0, 128, 50).
+    :vartype PURPLE: tuple[int, int, int, int]
+    :ivar ORANGE: Orange color (255, 165, 0, 50).
+    :vartype ORANGE: tuple[int, int, int, int]
+    :ivar PINK: Pink color (255, 192, 203, 50).
+    :vartype PINK: tuple[int, int, int, int]
+    :ivar BROWN: Brown color (165, 42, 42, 50).
+    :vartype BROWN: tuple[int, int, int, int]
+    :ivar GRAY: Gray color (128, 128, 128, 50).
+    :vartype GRAY: tuple[int, int, int, int]
+    :ivar BLACK: Black color (0, 0, 0, 50).
+    :vartype BLACK: tuple[int, int, int, int]
+    :ivar WHITE: White color (255, 255, 255, 50).
+    :vartype WHITE: tuple[int, int, int, int]
+    """
+    RED = (255, 0, 0, 50)
+    GREEN = (0, 255, 0, 50)
+    BLUE = (0, 0, 255, 50)
+    YELLOW = (255, 255, 0, 50)
+    PURPLE = (128, 0, 128, 50)
+    ORANGE = (255, 165, 0, 50)
+    PINK = (255, 192, 203, 50)
+    BROWN = (165, 42, 42, 50)
+    GRAY = (128, 128, 128, 50)
+    BLACK = (0, 0, 0, 50)
+    WHITE = (255, 255, 255, 50)
+
+
+class Furniture(BaseModel):
+    """
+    3D furniture model for room acoustics simulation.
+
+    This class represents a piece of furniture in a 3D room environment,
+    providing spatial positioning, dimensions, and visual properties.
+    Furniture objects are used in room acoustics simulation to model
+    acoustic obstacles and reflections.
+
+    Key Features:
+
+      - 3D spatial positioning (x, y, z coordinates)
+      - 3D dimensions (width, height, depth)
+      - Visual color representation
+      - Acoustic modeling support
+
+    :ivar name: Name identifier for the furniture piece.
+    :vartype name: str
+    :ivar x: X-axis position in meters (horizontal).
+    :vartype x: float
+    :ivar y: Y-axis position in meters (depth).
+    :vartype y: float
+    :ivar z: Z-axis position in meters (height, default: 0.0).
+    :vartype z: float
+    :ivar width: Width of the furniture in meters (x-axis dimension).
+    :vartype width: float
+    :ivar height: Height of the furniture in meters (z-axis dimension).
+    :vartype height: float
+    :ivar depth: Depth of the furniture in meters (y-axis dimension).
+    :vartype depth: float
+    :ivar color: RGBA color for visual representation (default: RED).
+    :vartype color: RGBAColor
+    :ivar material: Material of the furniture (default: WOODEN_LINING).
+    :vartype material: WallMaterial
+    """
+
+    name: str
+
+    x: float  # x-axis in meters
+    y: float  # y-axis in meters
+    z: float = 0.0  # z-axis in meters
+
+    width: float  # width in meters
+    height: float  # height in meters
+    depth: float  # depth in meters
+
+    color: RGBAColor = RGBAColor.RED
+
+    material: WallMaterial = WallMaterial.WOODEN_LINING
+
+    @field_validator("color", mode="before")
+    def _validate_color(cls, v):
+        if isinstance(v, list):
+            return tuple(v)
+        return v
+
+    def get_top_z(self) -> float:
+        """
+        Calculates the top Z-coordinate of the furniture.
+
+        This method returns the highest Z-coordinate of the furniture,
+        which is useful for collision detection and spatial calculations
+        in room acoustics simulation.
+
+        :return: The top Z-coordinate (z + height).
+        :rtype: float
+        """
+        return self.z + self.height
+
+
+class BodyPosture(Enum):
+    """
+    Body posture height enumeration for speaker positioning in room simulation.
+
+    This enum provides standard height values for different body postures,
+    which are used to position speakers at realistic heights in room
+    acoustics simulation. These values represent the approximate height
+    of a person's mouth/head in different postures.
+
+    :ivar SITTING: Sitting posture height in meters (0.5m).
+    :vartype SITTING: float
+    :ivar STANDING: Standing posture height in meters (1.7m).
+    :vartype STANDING: float
+    """
+    SITTING = 0.5
+    STANDING = 1.7
 
 
 class SourceType(str, Enum):

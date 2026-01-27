@@ -47,6 +47,7 @@ import os
 import dscaper
 import librosa
 import logging
+import torch
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
@@ -89,7 +90,9 @@ def to_audio(
     recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
     impulse_response_database: Optional[ImpulseResponseDatabase] = None,
     override_tts_audio: Optional[bool] = True,
-    verbose: Optional[bool] = False
+    verbose: Optional[bool] = False,
+    voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]] = None,
+    overlap_pauses: Optional[bool] = False
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -148,6 +151,8 @@ def to_audio(
     :type override_tts_audio: Optional[bool]
     :param verbose: Verbose mode for logging.
     :type verbose: Optional[bool]
+    :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+    :type overlap_pauses: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -266,7 +271,9 @@ def to_audio(
             re_sampling_rate=re_sampling_rate,
             recording_devices=recording_devices,
             override_tts_audio=override_tts_audio,
-            verbose=verbose
+            verbose=verbose,
+            voices=voices,
+            overlap_pauses=overlap_pauses
         )
 
     finally:
@@ -446,7 +453,8 @@ class AudioPipeline:
 
     def master_audio(
             self,
-            dialog: AudioDialog) -> np.ndarray:
+            dialog: AudioDialog,
+            overlap_pauses: bool = False) -> np.ndarray:
         """
         Combine multiple audio segments into a single master audio track.
 
@@ -456,10 +464,46 @@ class AudioPipeline:
 
         :param dialog: Audio dialogue containing turns with audio data.
         :type dialog: AudioDialog
+        :param overlap_pauses: If True, apply the overlapping and pausing times between turns to the audio data.
+        :type overlap_pauses: bool
         :return: Combined audio data as numpy array.
         :rtype: np.ndarray
         """
-        return np.concatenate([turn.get_audio() for turn in dialog.turns])
+
+        if not overlap_pauses:
+            return np.concatenate([turn.get_audio() for turn in dialog.turns])
+
+        # Get all audio segments
+        audios = [turn.get_audio() for turn in dialog.turns]
+
+        if not audios:
+            return np.array([])
+
+        # Calculate start times for each turn
+        start_samples = [int(turn.audio_start_time * self.sampling_rate) for turn in dialog.turns]
+
+        # Calculate the total length of the combined audio
+        total_length = 0
+        for i, audio in enumerate(audios):
+            end_pos = start_samples[i] + len(audio)
+            if end_pos > total_length:
+                total_length = end_pos
+
+        # Create the output buffer
+        shape = audios[0].shape
+
+        if len(shape) == 1:
+            output_buffer = torch.zeros(total_length, dtype=audios[0].dtype, device=audios[0].device)
+        else:
+            output_buffer = torch.zeros((total_length, shape[1]), dtype=audios[0].dtype, device=audios[0].device)
+
+        # Mix the audio segments into the output buffer
+        for i, audio in enumerate(audios):
+            start = start_samples[i]
+            end = start + len(audio)
+            output_buffer[start:end] += audio
+
+        return output_buffer.cpu().numpy()
 
     def inference(
         self,
@@ -477,7 +521,8 @@ class AudioPipeline:
         recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
         tts_pipeline_kwargs: Optional[dict] = {},
         override_tts_audio: Optional[bool] = True,
-        verbose: Optional[bool] = False
+        verbose: Optional[bool] = False,
+        overlap_pauses: Optional[bool] = False
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -517,6 +562,8 @@ class AudioPipeline:
         :type override_tts_audio: Optional[bool]
         :param verbose: Verbose mode for logging.
         :type verbose: Optional[bool]
+        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+        :type overlap_pauses: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -619,7 +666,20 @@ class AudioPipeline:
                     seed=seed,
                     sampling_rate=self.sampling_rate,
                     tts_pipeline_kwargs=tts_pipeline_kwargs,
+                    remove_silences=overlap_pauses
                 )
+
+                # Compute the overlapping and pausing between turns using LLM
+                if overlap_pauses:
+                    dialog.compute_overlapping_and_pausing_llm()
+                    # print("--------------------------------")
+                    # print("Overlapping and pausing times for each turn:")
+                    # print([_t.gap_duration for _t in dialog.turns])
+                    # print("--------------------------------")
+
+                # Ensure that the turn timings are updated after the overlapping
+                # and pausing between turns are computed
+                dialog.update_turn_timings()
 
                 # Save the utterances audios to the project path
                 dialog.save_utterances_audios(
@@ -629,7 +689,10 @@ class AudioPipeline:
 
                 # Combine the audio segments into a single master audio track as a baseline
                 dialog.set_combined_audio(
-                    self.master_audio(dialog)
+                    self.master_audio(
+                        dialog,
+                        overlap_pauses=overlap_pauses
+                    )
                 )
 
                 # Save the combined audio to exported_audios folder
@@ -780,7 +843,7 @@ class AudioPipeline:
                 if re_sampling_rate is not None:
 
                     for config_name, config_data in dialog.audio_step_3_filepaths.items():
-                        audio_path = config_data["audio_path"]
+                        audio_path = config_data.audio_path
                         if os.path.exists(audio_path):
                             logger.info(f"[Step 3] Re-sampling audio for '{config_name}' to {re_sampling_rate} Hz...")
 
@@ -829,20 +892,20 @@ class AudioPipeline:
                     if room_name is not None and room_name != _room_name:
                         continue
 
-                    input_audio_path = room_data["audio_path"]
+                    input_audio_path = room_data.audio_path
 
                     # Check if the input audio (step 3) path exists
                     if not os.path.exists(input_audio_path):
                         raise ValueError(f"[Post-Processing] Input audio path not found: {input_audio_path}")
 
                     # If the audio paths post processing are not in the room data, create a new dictionary
-                    if "audio_paths_post_processing" not in room_data:
-                        room_data["audio_paths_post_processing"] = {}
+                    if room_data.audio_paths_post_processing is None:
+                        room_data.audio_paths_post_processing = {}
 
                     # For each recording device, apply the microphone effect
                     for recording_device in recording_devices:
 
-                        if str(recording_device) in room_data["audio_paths_post_processing"]:
+                        if str(recording_device) in room_data.audio_paths_post_processing:
                             logger.warning(
                                 f"[Post-Processing] Microphone effect already applied for device: {recording_device} "
                                 f" and room configuration: {_room_name}. Skipping..."
@@ -874,7 +937,7 @@ class AudioPipeline:
                             impulse_response_database=self.impulse_response_database
                         )
 
-                        room_data["audio_paths_post_processing"][str(recording_device)] = output_audio_path
+                        room_data.audio_paths_post_processing[str(recording_device)] = output_audio_path
 
                         logger.info(
                             f"[Post-Processing] Microphone effect applied for device: {recording_device}. "
