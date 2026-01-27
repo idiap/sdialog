@@ -557,8 +557,8 @@ class Inspector:
     :param steering_function: Initial steering function or list of functions (optional).
                               Applied to token activations during generation. Defaults to None.
     :type steering_function: Optional[Union[Callable, List[Callable]]]
-    :param steering_interval: (min_token, max_token) steering window (optional). Defaults to (0, -1),
-                              where -1 means no upper bound.
+    :param steering_interval: (min_token, max_token) steering window (optional). Defaults to ("*", "*"),
+                              where "*" means no lower or/and upper bound.
     :type steering_interval: Optional[Tuple[int, int]]
     :param top_k: Number of top token predictions to store for each token. If None, logits are not captured.
                  If -1, all tokens in the vocabulary are returned with their logits. Defaults to None.
@@ -566,8 +566,8 @@ class Inspector:
     :param lm_head_layer: Name of the language model head layer (e.g., "lm_head"). Defaults to "lm_head".
                           If the specified layer is not found, the code will attempt to auto-detect it.
     :type lm_head_layer: Optional[str]
-    :param inspect_input: If True, captures activations before the layer processes them (input activations).
-                         If False (default), captures activations after the layer processes them (output activations).
+    :param inspect_input: If True (default), captures activations before the layer processes them (input activations).
+                         If False, captures activations after the layer processes them (output activations).
                          Defaults to False.
     :type inspect_input: bool
     """
@@ -575,10 +575,10 @@ class Inspector:
                  target: Union[Dict, List[str], str] = None,
                  agent: Optional[Any] = None,
                  steering_function: Optional[Callable] = None,
-                 steering_interval: Optional[Tuple[int, int]] = (0, -1),
+                 steering_interval: Optional[Tuple[int, int]] = ("*", "*"),
                  top_k: Optional[int] = None,
                  lm_head_layer: Optional[str] = "lm_head",
-                 inspect_input: bool = False):
+                 inspect_input: bool = True):
         """
         Initializes the Inspector with optional target layers, agent, and steering functions.
         """

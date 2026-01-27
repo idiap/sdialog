@@ -65,6 +65,10 @@ mpl.rcParams['pdf.fonttype'] = 42  # TrueType fonts for better PDF compatibility
 mpl.rcParams['ps.fonttype'] = 42
 
 
+def _add_jitter(x, eps=1e-8):
+    return x + np.random.normal(0, eps, size=len(x))
+
+
 def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     """
     Calculate the Cauchy-Schwarz divergence between two 1D distributions via KDE.
@@ -86,13 +90,27 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     p1 = np.asarray(p1)
     p2 = np.asarray(p2)
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
-    p1_kernel = gaussian_kde(p1, bw_method=bw_method)
-    p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+
+    try:
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+    except Exception as e:
+        if np.array_equal(p1, p2):
+            return 0.0
+        logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
+        if np.std(p1) == 0:
+            p1 = _add_jitter(p1)
+        if np.std(p2) == 0:
+            p2 = _add_jitter(p2)
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+
     p1_vals = p1_kernel(r)
     p2_vals = p2_kernel(r)
     numerator = np.sum(p1_vals * p2_vals)
     denominator = sqrt(np.sum(p1_vals ** 2) * np.sum(p2_vals ** 2))
-    return -log(numerator / denominator)
+    # Avoid log(0) by ensuring numerator has minimum value
+    return -log(max(numerator, 1e-12) / denominator)
 
 
 def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
@@ -115,9 +133,23 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     if len(p1) == 0 or len(p2) == 0:
         logger.error("Both input distributions must have at least one sample. Returning None")
         return None
+
     r = np.linspace(min(p1.min(), p2.min()), max(p1.max(), p2.max()), resolution)
-    p1_kernel = gaussian_kde(p1, bw_method=bw_method)
-    p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+
+    try:
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+    except Exception as e:
+        if np.array_equal(p1, p2):
+            return 0.0
+        logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
+        if np.std(p1) == 0:
+            p1 = _add_jitter(p1)
+        if np.std(p2) == 0:
+            p2 = _add_jitter(p2)
+        p1_kernel = gaussian_kde(p1, bw_method=bw_method)
+        p2_kernel = gaussian_kde(p2, bw_method=bw_method)
+
     p1_vals = p1_kernel(r)
     p2_vals = p2_kernel(r)
     # Avoid division by zero and log(0) by adding a small epsilon
@@ -1155,6 +1187,8 @@ class DialogFlowScore(BaseDialogFlowScore):
     :type k_neighbors: int
     :param use_softmax: Whether to weight neighbors via softmax.
     :type use_softmax: bool
+    :param use_only_ai_speaker: If True, only AI turns are used to build the graph and compute the scores.
+    :type use_only_ai_speaker: bool
     :param use_only_known_edges: If True, only known edges contribute.
     :type use_only_known_edges: bool
     :param name: Custom score name.
@@ -1173,6 +1207,7 @@ class DialogFlowScore(BaseDialogFlowScore):
                  ai_speaker: str = None,
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
+                 use_only_ai_speaker: bool = False,
                  use_only_known_edges: bool = False,
                  name: str = None,
                  verbose: bool = False,
@@ -1189,6 +1224,7 @@ class DialogFlowScore(BaseDialogFlowScore):
             ai_speaker=ai_speaker,
             k_neighbors=k_neighbors,
             use_softmax=use_softmax,
+            use_only_ai_speaker=use_only_ai_speaker,
             name=name,
             graph=graph,
             nodes=nodes,
@@ -1721,6 +1757,8 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
     :type model_name: str
     :param mean: If True average per-turn embeddings; else encode concatenated text.
     :type mean: bool
+    :param ai_speaker: If set, restrict embedding to AI/system turns only.
+    :type ai_speaker: Optional[str]
     :param name: Optional custom embedder name.
     :type name: Optional[str]
     :param verbose: Show progress bars for encoding.
@@ -1729,14 +1767,17 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
     def __init__(self,
                  model_name: str = "sentence-transformers/LaBSE",
                  mean: bool = True,
+                 ai_speaker: str = None,
                  name: str = None,
                  verbose: bool = False):
         """Initialize dialog embedder."""
+
         mode_str = "mean-" if mean else ""
-        super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}")
+        super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}" + ("-ai" if ai_speaker else ""))
         self.model = SentenceTransformer(model_name)
         self.mean = mean
         self.verbose = verbose
+        self.ai_speaker = ai_speaker
 
     def embed(self, dialog: Dialog) -> np.ndarray:
         """
@@ -1748,13 +1789,21 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
         :rtype: np.ndarray
         """
         if self.mean:
-            texts = [turn.text for turn in dialog.turns if hasattr(turn, "text")]
+            if self.ai_speaker:
+                texts = [turn.text for turn in dialog
+                         if hasattr(turn, "text") and turn.speaker.lower() == self.ai_speaker.lower()]
+            else:
+                texts = [turn.text for turn in dialog if hasattr(turn, "text")]
             if not texts:
                 return np.zeros(self.model.get_sentence_embedding_dimension())
             embs = self.model.encode(texts, show_progress_bar=self.verbose)
             return np.mean(embs, axis=0)
         else:
-            dialog_text = "\n".join([turn.text for turn in dialog.turns if hasattr(turn, "text")])
+            if self.ai_speaker:
+                dialog_text = "\n".join([turn.text for turn in dialog
+                                         if turn.speaker.lower() == self.ai_speaker.lower()])
+            else:
+                dialog_text = "\n".join([turn.text for turn in dialog])
             if not dialog_text:
                 return np.zeros(self.model.get_sentence_embedding_dimension())
             emb = self.model.encode([dialog_text], show_progress_bar=self.verbose)[0]
@@ -2471,17 +2520,20 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
                            "This may lead to misleading results since unbalanced distributions bias "
                            "the clustering towards the larger dataset.")
 
-            precisions = []
-            recalls = []
-            for _ in range(self.num_runs):
-                reference_histogram, target_histogram = self._cluster_histograms(target_embs)
-                precision, recall = self._precision_recall_distance(reference_histogram, target_histogram)
-                precisions.append(precision)
-                recalls.append(recall)
-            precision = np.mean(precisions, axis=0).tolist()
-            recall = np.mean(recalls, axis=0).tolist()
-            return max([2 * p * r / (p + r) if (p + r) > 0 else 0
-                        for p, r in zip(precision, recall)])  # max F1 score
+        precisions = []
+        recalls = []
+        for _ in range(self.num_runs):
+            reference_histogram, target_histogram = self._cluster_histograms(target_embs)
+            precision, recall = self._precision_recall_distance(reference_histogram, target_histogram)
+            precisions.append(precision)
+            recalls.append(recall)
+        precision = np.mean(precisions, axis=0).tolist()
+        recall = np.mean(recalls, axis=0).tolist()
+
+        max_f1 = max([2 * p * r / (p + r) if (p + r) > 0 else 0
+                      for p, r in zip(precision, recall)])
+        # Convert F1 similarity score to distance metric (lower is better)
+        return 1 - max_f1
 
 
 class StatsEvaluator(BaseDatasetScoreEvaluator):
@@ -2875,7 +2927,7 @@ class DatasetComparator:
             if isinstance(dataset_name, int):
                 dataset_name += 1
             results[dataset_name] = {}
-            for evaluator in self.evaluators:
+            for evaluator in tqdm(self.evaluators, desc="Running evaluators", leave=False):
                 score = evaluator(dataset, dataset_name=dataset_name)
                 if isinstance(score, dict):
                     for metric, value in score.items():

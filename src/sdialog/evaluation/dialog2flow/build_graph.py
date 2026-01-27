@@ -144,11 +144,13 @@ def create_graph(trajectories: Dict,
     nodes_are_labels = False
     if clusters_info_folder and os.path.exists(clusters_info_folder):
         for speaker in [DEFAULT_SYS_NAME, DEFAULT_USER_NAME]:
-            with open(os.path.join(clusters_info_folder, f"top-utterances.{speaker}.json")) as reader:
-                node_info[speaker] = json.load(reader)
-            cluster_centroids[speaker] = np.load(os.path.join(clusters_info_folder,
-                                                              f"centroid-embeddings.{speaker}.npy"))
-        nodes_are_labels = node_info[speaker][0]["name"]
+            path_clusters_info = os.path.join(clusters_info_folder, f"top-utterances.{speaker}.json")
+            if os.path.exists(path_clusters_info):
+                with open(path_clusters_info) as reader:
+                    node_info[speaker] = json.load(reader)
+                cluster_centroids[speaker] = np.load(os.path.join(clusters_info_folder,
+                                                                  f"centroid-embeddings.{speaker}.npy"))
+        nodes_are_labels = node_info[DEFAULT_SYS_NAME][0]["name"]
     with open(os.path.join(clusters_info_folder, "metadata.json")) as reader:
         metadata = json.load(reader)
 
@@ -240,11 +242,25 @@ def create_graph(trajectories: Dict,
 
     # Widest path ("Happy path")
     G2 = G.copy()
-    edges_to_remove = []
-    for s, t in G2.edges():
-        if (s.startswith("user:") and t.startswith("user:")) or (s.startswith("system:") and t.startswith("system:")):
-            edges_to_remove.append((s, t))
-    G2.remove_edges_from(edges_to_remove)
+
+    # Check if graph contains only one speaker type
+    speakers_in_graph = set()
+    for node in G2.nodes():
+        if node not in [DEFAULT_TOKEN_START, DEFAULT_TOKEN_END]:
+            speaker = get_speaker(node)
+            speakers_in_graph.add(speaker)
+
+    # Only remove same-speaker edges if there are multiple speakers in the graph
+    if len(speakers_in_graph) > 1:
+        edges_to_remove = []
+        for s, t in G2.edges():
+            if (
+                (s.startswith("user:") and t.startswith("user:"))
+                or (s.startswith("system:") and t.startswith("system:"))
+            ):
+                edges_to_remove.append((s, t))
+        G2.remove_edges_from(edges_to_remove)
+
     widest_path = nx.shortest_path(G2, DEFAULT_TOKEN_START, DEFAULT_TOKEN_END, weight=WidestWeight.nx_weight())
     with open(os.path.join(output_folder, "widest_path.txt"), "w") as writer:
         happy_path = [node2turn(n) for n in widest_path[1:-1]]

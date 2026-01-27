@@ -3,15 +3,15 @@
 [![Documentation Status](https://app.readthedocs.org/projects/sdialog/badge/?version=latest)](https://sdialog.readthedocs.io)
 [![CI](https://img.shields.io/github/actions/workflow/status/idiap/sdialog/ci.yml?label=CI)](https://github.com/idiap/sdialog/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/idiap/sdialog/graph/badge.svg?token=2210USI8I0)](https://app.codecov.io/gh/idiap/sdialog?displayType=list)
+[![Demo](https://img.shields.io/badge/Demo-YouTube-red?logo=youtube)](https://www.youtube.com/watch?v=oG_jJuU255I)
 [![PyPI version](https://badge.fury.io/py/sdialog.svg)](https://badge.fury.io/py/sdialog)
 [![Downloads](https://static.pepy.tech/badge/sdialog)](https://pepy.tech/project/sdialog)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/)
 
-Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Demo (Colab)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [ArXiv paper](https://arxiv.org/abs/2506.10622) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ---
-SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge agent construction → user simulation → dialog generation → evaluation in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
+SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge **agent construction → user simulation → dialog generation → evaluation** in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
 
 It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
 
@@ -67,7 +67,7 @@ support_persona = SupportAgent(name="Ava", politeness="high", communication_styl
 customer_persona = Customer(name="Riley", issue="double charge", desired_outcome="refund")
 
 # (Optional) Let's define two mock tools (just plain Python functions) for our support agent
-def account_verification(user_id):
+def verify_account(user_id):
     """Verify user account by user id."""
     return {"user_id": user_id, "verified": True}
 def refund(amount):
@@ -84,7 +84,7 @@ react_refund = SimpleReflexOrchestrator(
 support_agent = Agent(
   persona=support_persona,
   think=True,  # Let's also enable thinking mode
-  tools=[account_verification, refund],
+  tools=[verify_account, refund],
   name="Support"
 )
 simulated_customer = Agent(
@@ -192,27 +192,29 @@ See [Dialog section](https://sdialog.readthedocs.io/en/latest/sdialog/index.html
 <summary>Score dialogs with built‑in metrics and LLM judges, and compare datasets with aggregators and plots.</summary>
 
 Dialogs can be evaluated using the different components available inside the `sdialog.evaluation` module.
-Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation) (readability, flow, linguistic features, LLM judges) or easily create new ones, then aggregate and compare datasets (sets of dialogs) via `DatasetComparator`.
+Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation)—conversational features, readability, embedding-based, LLM-as-judge, flow-based, functional correctness (30+ metrics across six categories)—or easily create new ones, then aggregate and compare datasets (sets of dialogs) via `Comparator`.
 
 ```python
-from sdialog.evaluation import LLMJudgeRealDialog, LinguisticFeatureScore
-from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator
-from sdialog.evaluation import DatasetComparator
+from sdialog import Dialog
+from sdialog.evaluation import LLMJudgeYesNo, ToolSequenceValidator
+from sdialog.evaluation import FrequencyEvaluator, Comparator
 
-reference = [...]   # list[Dialog]
-candidate = [...]   # list[Dialog]
+# Two quick checks: did the agent ask for verification, and did it call tools in order?
+judge_verify = LLMJudgeYesNo(
+  "Did the support agent try to verify the customer?",
+  reason=True,
+)
+tool_seq = ToolSequenceValidator(["verify_account", "refund"])
 
-judge  = LLMJudgeRealDialog()
-flesch = LinguisticFeatureScore(feature="flesch-reading-ease")
-
-comparator = DatasetComparator([
-  FrequencyEvaluator(judge, name="Realistic dialog rate"),
-  MeanEvaluator(flesch, name="Mean Flesch Reading Ease"),
+comparator = Comparator([
+  FrequencyEvaluator(judge_verify, name="Asked for verification"),
+  FrequencyEvaluator(tool_seq, name="Correct tool order"),
 ])
 
-results = comparator({"reference": reference, "candidate": candidate})
-
-# Plot results for each evaluator
+results = comparator({
+  "model-A": Dialog.from_folder("output/model-A"),
+  "model-B": Dialog.from_folder("output/model-B"),
+})
 comparator.plot()
 ```
 </details>
@@ -310,7 +312,8 @@ print(audio_dialog.display())
 
 ## 📖 Documentation and tutorials
 
-- [Demo notebook](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb)
+- [ArXiv paper](https://arxiv.org/abs/2506.10622)
+- [Demo (video)](demo.md)
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
 - [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
 - [Documentation](https://sdialog.readthedocs.io)
@@ -377,22 +380,28 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
-<!-- ## 📚 Citation
+## 📚 Citation
 
-If you use SDialog in academic work, please cite:
+If you use SDialog in academic work, please consider citing [our paper](https://arxiv.org/abs/2506.10622):
+
 ```bibtex
-@misc{sdialog2025,
-  title  = {SDialog: A Toolkit for Synthetic Dialog Generation, Evaluation, and Interpretability},
-  author = {Contributors of the SDialog Project},
-  year   = {2025},
-  url    = {https://github.com/idiap/sdialog}
+@misc{burdisso2025sdialogpythontoolkitendtoend,
+  title         = {SDialog: A Python Toolkit for End-to-End Agent Building, User Simulation, Dialog Generation, and Evaluation},
+  author        = {Sergio Burdisso and Séverin Baroudi and Yanis Labrak and David Grunert and Pawel Cyrta and Yiyang Chen and Srikanth Madikeri and Thomas Schaaf and Esaú Villatoro-Tello and Ahmed Hassoon and Ricard Marxer and Petr Motlicek},
+  year          = {2025},
+  eprint        = {2506.10622},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI},
+  url           = {https://arxiv.org/abs/2506.10622},
 }
-``` -->
+```
+
+_(A system demonstration version of the paper has been submitted to EACL 2026 and is under review; we will update this BibTeX if accepted)_
 
 
 ## 🙏 Acknowledgments
 
-This work was supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) and received a significant development boost during the **Johns Hopkins University** [JSALT 2025 workshop](https://jsalt2025.fit.vut.cz/), as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part). We thank all contributors and the open-source community for their valuable feedback and contributions.
+This work was mainly supported by the European Union Horizon 2020 project [ELOQUENCE](https://eloquenceai.eu/about/) and received a significant development boost during the **Johns Hopkins University** [JSALT 2025 workshop](https://jsalt2025.fit.vut.cz/), as part of the ["Play your Part" research group](https://jsalt2025.fit.vut.cz/play-your-part). We thank all contributors and the open-source community for their valuable feedback and contributions.
 
 ## 📝 License
 

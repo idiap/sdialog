@@ -16,23 +16,12 @@ If you are building controlled conversational simulations, benchmarking dialog m
 
 Architecture at a Glance
 ------------------------
-::
 
-    +-----------+             +-------------------+
-    | Personas  |----+------->|      Agents       |----+
-    | Context   |    |        |  (LLM core +      |    |
-    +-----------+    |        |  Orchestrators /  |    v
-          |          |        |  Inspectors /     | +------------------+
-          |          |        |  Tools / Thinking)| |  Dialog Objects  |---->
-          |          |        +-------------------+ +------------------+
-          |          |                   ^                    |
-          |          |                   |                    v
-          |    +-------------------+     |          +--------------------+
-          +--->|  Generation Layer |-----+          |  Evaluation Stack  |
-               | (Attr & Dialog    |                | (consumes Dialogs  |
-               |  Generators)      |                |  + optional        |
-               +-------------------+                |  persona/context)  |
-                                                    +--------------------+
+SDialog is divided into many submodules, each depicted as a circle in the below diagram describing the overall architecture:
+
+.. image:: ../_static/sdialog-modules.png
+    :height: 650px
+    :align: center
 
 Note: Attribute & Dialog generators may produce Personas / Contexts / prototype Dialogs that seed Agents; Agents then produce the canonical Dialog objects evaluated downstream.
 

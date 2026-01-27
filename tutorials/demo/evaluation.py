@@ -12,8 +12,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 sdialog.config.llm("openai:gpt-4.1")
 sdialog.config.cache(True)
 
-LLMS = ["qwen3:0.6b", "qwen3:1.7b", "qwen3:8b", "qwen3:14b"]
-
 # --- Dialog Metrics ----
 # 1) Did the agent ask for verification?
 judge_ask_v = LLMJudgeYesNo("Did the support agent tried verifying the customer's "
@@ -51,17 +49,8 @@ comparator_v({
     "qwen3:0.6b": Dialog.from_folder("output/requires_verification/qwen3:0.6b/"),
     "qwen3:1.7b": Dialog.from_folder("output/requires_verification/qwen3:1.7b/"),
     "qwen3:8b": Dialog.from_folder("output/requires_verification/qwen3:8b/"),
-    "qwen3:14b": Dialog.from_folder("output/requires_verification/qwen3:14b/")
+    "qwen3:14b": Dialog.from_folder("output/requires_verification/qwen3:14b/"),
+    "qwen3:30b": Dialog.from_folder("output/requires_verification/qwen3:30b/"),
+    "qwen3:32b": Dialog.from_folder("output/requires_verification/qwen3:32b/")
 })
 comparator_v.plot(save_folder_path="output/requires_verification")
-
-# Case B: not requiring verification
-comparator_no_v = Comparator(evaluators=[freq_judge_ask_v, freq_tool_seq_no_v])
-print("\nResults - No Verification Required")
-comparator_no_v({
-    "qwen3:0.6b": Dialog.from_folder("output/no_verification/qwen3:0.6b/"),
-    "qwen3:1.7b": Dialog.from_folder("output/no_verification/qwen3:1.7b/"),
-    "qwen3:8b": Dialog.from_folder("output/no_verification/qwen3:8b/"),
-    "qwen3:14b": Dialog.from_folder("output/no_verification/qwen3:14b/")
-})
-comparator_no_v.plot(save_folder_path="output/no_verification")
