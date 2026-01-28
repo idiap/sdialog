@@ -307,13 +307,14 @@ def create_graph(trajectories: Dict,
     # g.render(output_file, view=False, format="dot")
     if png_visualization:
         logger.log(log_level, f"  Saving graph PNG visualization in '{output_file}.png'")
-        g.render(output_file, view=False, format="png")
         try:
+            g.render(output_file, view=False, format="png")
+
             from PIL import Image
             image = Image.open(f"{output_file}.png")
             image.show()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"  ** Error while trying to save graph PNG visualization: {e}")
 
     if interactive_visualization:
         output_folder = os.path.join(output_folder, "visualization")
