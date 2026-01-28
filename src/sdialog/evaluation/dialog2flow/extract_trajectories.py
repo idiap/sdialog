@@ -9,6 +9,7 @@ MIT License
 
 @author: Sergio Burdisso (sergio.burdisso@idiap.ch)
 """
+import re
 import os
 import json
 import torch
@@ -368,7 +369,7 @@ def dialog2trajectories(
                     cluster_name = cluster_topk_utts[tid]["utterances"][0]
                 else:
                     cluster_name = cluster_topk_utts[tid]["name"]
-                normalized_turn_names[speaker][tid] = {"name": f"{tid}_" + cluster_name,
+                normalized_turn_names[speaker][tid] = {"name": f"{tid}_" + re.sub(r"\s+", " ", cluster_name).strip(),
                                                        "info": cluster_topk_utts[tid],
                                                        "id": f"{speaker[0].lower()}{tid}"}
 
