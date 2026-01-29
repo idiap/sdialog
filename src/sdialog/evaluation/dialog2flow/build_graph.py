@@ -152,9 +152,11 @@ def create_graph(trajectories: Dict,
                 cluster_centroids[speaker] = np.load(os.path.join(clusters_info_folder,
                                                                   f"centroid-embeddings.{speaker}.npy"))
                 if os.path.exists(os.path.join(clusters_info_folder, f"closest-embeddings.{speaker}.npy")):
-                    logger.info(f"Loading closest utterance embeddings to the centroid embeddings for {speaker} clusters.")
+                    logger.info(
+                        "Loading closest utterance embeddings to the centroid embeddings for {speaker} clusters."
+                    )
                     closest_embeddings[speaker] = np.load(os.path.join(clusters_info_folder,
-                                                                    f"closest-embeddings.{speaker}.npy"))
+                                                                       f"closest-embeddings.{speaker}.npy"))
         nodes_are_labels = node_info[DEFAULT_SYS_NAME][0]["name"]
     with open(os.path.join(clusters_info_folder, "metadata.json")) as reader:
         metadata = json.load(reader)

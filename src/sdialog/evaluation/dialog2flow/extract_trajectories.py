@@ -360,8 +360,11 @@ def dialog2trajectories(
             with open(os.path.join(output_path_clusters, f"centroid-embeddings.{speaker.lower()}.npy"), "wb") as writer:
                 np.save(writer, centroids)
             if use_closest_as_centroid_emb:
-                with open(os.path.join(output_path_clusters, f"closest-embeddings.{speaker.lower()}.npy"), "wb") as writer:
-                    logger.info(f"Saving closest utterance embeddings to the centroid embeddings for {speaker} clusters.")
+                path_embeddings = os.path.join(output_path_clusters, f"closest-embeddings.{speaker.lower()}.npy")
+                with open(path_embeddings, "wb") as writer:
+                    logger.info(
+                        f"Saving closest utterance embeddings to the centroid embeddings for {speaker} clusters."
+                    )
                     closest_embeddings = sentence_encoder.encode([cluster_topk_utts[ix]["utterances"][0]
                                                                   for ix in range(len(cluster_topk_utts))],
                                                                  show_progress_bar=True,
