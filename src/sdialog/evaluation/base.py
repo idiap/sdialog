@@ -569,7 +569,8 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
 
     def plot(self,
              show: bool = True,
-             save_path: str = None):
+             save_path: str = None,
+             **kwargs):
         """
         Generate plots for stored dataset scores.
 
@@ -577,6 +578,8 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :type show: bool
         :param save_path: If provided, save figure(s) to this path (metric name appended when multi-metric).
         :type save_path: Optional[str]
+        :param kwargs: Additional keyword arguments for plotting.
+        :type kwargs: dict
         :return: None
         :rtype: None
         """
@@ -587,7 +590,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         if self.datasets_scores and isinstance(next(iter(self.datasets_scores.values())), dict):
             for metric in self.datasets_scores:
                 plt.figure(figsize=(8, 5))
-                self.__plot__(self.datasets_scores[metric], plot=plt, metric=metric)
+                self.__plot__(self.datasets_scores[metric], plot=plt, metric=metric, **kwargs)
                 if save_path:
                     # Append metric name to filename before saving
                     if "." in save_path.split("/")[-1]:
@@ -601,7 +604,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                     plt.show()
         else:
             plt.figure(figsize=(8, 5))
-            self.__plot__(self.datasets_scores, plot=plt)
+            self.__plot__(self.datasets_scores, plot=plt, **kwargs)
             if save_path:
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 plt.savefig(save_path, dpi=300)

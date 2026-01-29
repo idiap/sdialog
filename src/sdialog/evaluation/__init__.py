@@ -117,7 +117,7 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     """
     Estimate KL divergence KL(p1 || p2) between two 1D distributions via KDE.
 
-    KL(p1||p2) is non‑symmetric and >= 0 (0 means identical).
+    KL(p1||p2) is non-symmetric and >= 0 (0 means identical).
 
     :param p1: First sample (treat as true distribution).
     :type p1: array-like
@@ -2009,7 +2009,7 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                                                       leave=verbose)]
         self.reference_scores = np.array([s for s in self.reference_scores if s is not None])
 
-    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, zoom: bool = False):
         """
         Plot KDE curves of reference and candidate score distributions.
 
@@ -2038,6 +2038,21 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                 color_idx += 1
             except ValueError as e:
                 logger.error(f"Error plotting KDE for {dataset_name}: {e}")
+
+        if zoom:
+            # Percentile-based zoom
+            all_scores = []
+            if self.reference_scores is not None:
+                all_scores.append(self.reference_scores)
+            for scores in dialog_scores.values():
+                all_scores.append(scores)
+
+            if all_scores:
+                all_scores = np.concatenate(all_scores)
+                low, high = np.percentile(all_scores, [2, 98])  # tweak if needed
+                pad = 0.05 * (high - low)
+                plt.gca().set_xlim(low - pad, high + pad)
+
         plot.xlabel(self.plot_xlabel if self.plot_xlabel else self.dialog_score.name)
         plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Density")
         plot.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0)
