@@ -109,8 +109,8 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     p2_vals = p2_kernel(r)
     numerator = np.sum(p1_vals * p2_vals)
     denominator = sqrt(np.sum(p1_vals ** 2) * np.sum(p2_vals ** 2))
-    # Avoid log(0) by ensuring numerator has minimum value
-    return -log(max(numerator, 1e-12) / denominator)
+    # Avoid log(0) and division by zero by ensuring minimum values
+    return -log(max(numerator, 1e-12) / max(denominator, 1e-12))
 
 
 def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
@@ -157,7 +157,11 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     p1_vals = np.clip(p1_vals, eps, None)
     p2_vals = np.clip(p2_vals, eps, None)
 
-    return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
+    sum_p1_vals = np.sum(p1_vals)
+    # Protect against division by zero
+    if sum_p1_vals == 0:
+        return 0.0
+    return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / sum_p1_vals)
 
 
 class ConversationalFeatures(BaseDialogScore):
