@@ -391,7 +391,9 @@ Finally, the following should be considered regarding the conversation:
             + "), nothing else"
         }"""  # noqa: E501
 
-        domains = scenario['Domains'] if scenario['Domains'] else tasks
+        domains = [d for d in scenario['Domains'] if d]
+        if not domains:
+            domains = tasks
 
         return Persona(
             role="Your are role-playing as a USER calling a AI assistant that can perform multiple tasks in the following domains: "
