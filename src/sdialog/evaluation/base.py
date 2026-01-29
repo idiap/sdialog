@@ -208,6 +208,7 @@ class BaseDialogFlowScore(BaseDialogScore):
     :param k_neighbors: Number of neighbors for softmax aggregation.
     :param use_softmax: If True, weight neighbor probabilities via softmax, else pick top-1.
     :param use_only_ai_speaker: If True, only AI turns are used to build the graph and compute the scores.
+    :param use_closest_as_centroid_emb: If True, use closest utterance embeddings as cluster centroids.
     :param graph: Optional precomputed graph object to reuse (bypasses construction).
     :param nodes: Optional precomputed node metadata dictionary.
     :param name: Optional score name override (auto if None).
@@ -221,6 +222,7 @@ class BaseDialogFlowScore(BaseDialogScore):
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
                  use_only_ai_speaker: bool = False,
+                 use_closest_as_centroid_emb: bool = False,
                  graph=None,
                  nodes=None,
                  name: str = None,
@@ -245,6 +247,11 @@ class BaseDialogFlowScore(BaseDialogScore):
         self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
         self.d2f_kwargs = d2f_kwargs  # for the key cache
 
+        embedding_type = "centroid-embedding"
+        if use_closest_as_centroid_emb:
+            embedding_type = "closest-embedding"
+            logger.info("Using closest utterance embeddings as cluster centroids for flow graph scores.")
+
         self.reference_dialogues = reference_dialogues
         self.use_softmax = use_softmax
         self.k_neighbors = k_neighbors
@@ -257,16 +264,17 @@ class BaseDialogFlowScore(BaseDialogScore):
             self.graph, self.nodes = dialog2graph(reference_dialogues,
                                                   system_speaker_name=ai_speaker,
                                                   use_only_system_speaker=use_only_ai_speaker,
+                                                  use_closest_as_centroid_emb=use_closest_as_centroid_emb,
                                                   **self.d2f_kwargs)
         self.speakers = self.nodes["_metadata"]["speakers"]
         self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {
-            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+            "system": KNNModel([(node_id.lower(), info[embedding_type])
                                 for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
                                k=k_neighbors)
         }
         if not self.only_system:
-            self.knn_models["user"] = KNNModel([(node_id.lower(), info["centroid-embedding"])
+            self.knn_models["user"] = KNNModel([(node_id.lower(), info[embedding_type])
                                                 for node_id, info in self.nodes.items()
                                                 if node_id[0].lower() == "u"],
                                                k=k_neighbors)

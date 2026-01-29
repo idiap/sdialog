@@ -148,6 +148,8 @@ def dialog2trajectories(
     labels_top_k: int = 5,
     dendrogram: bool = True,
     target_domains: List[str] = None,
+    batch_size: int = 128,
+    use_closest_as_centroid_emb: bool = False,
     verbose: bool = True,
 ) -> str:
     global speaker2mame, name2speaker
@@ -271,7 +273,7 @@ def dialog2trajectories(
 
         domains[domain]["emb"] = sentence_encoder.encode(domains[domain]["text"],
                                                          show_progress_bar=True,  # show_progress_bar=verbose,
-                                                         batch_size=128, device=device)
+                                                         batch_size=batch_size, device=device)
         # GloVe can return some Zero vectors, which invalidate the use of cosine distance, seting
         # one coordinate to 1 as a quick work around to prevent division by zero error:
         domains[domain]["emb"][np.where(~np.any(domains[domain]["emb"], axis=1))[0], 0] = 1
@@ -357,6 +359,14 @@ def dialog2trajectories(
             os.makedirs(output_path_clusters, exist_ok=True)
             with open(os.path.join(output_path_clusters, f"centroid-embeddings.{speaker.lower()}.npy"), "wb") as writer:
                 np.save(writer, centroids)
+            if use_closest_as_centroid_emb:
+                with open(os.path.join(output_path_clusters, f"closest-embeddings.{speaker.lower()}.npy"), "wb") as writer:
+                    logger.info(f"Saving closest utterance embeddings to the centroid embeddings for {speaker} clusters.")
+                    closest_embeddings = sentence_encoder.encode([cluster_topk_utts[ix]["utterances"][0]
+                                                                  for ix in range(len(cluster_topk_utts))],
+                                                                 show_progress_bar=True,
+                                                                 batch_size=batch_size, device=device)
+                    np.save(writer, closest_embeddings)
             with open(os.path.join(output_path_clusters, f"top-utterances.{speaker.lower()}.json"), "w") as writer:
                 json.dump(cluster_topk_utts, writer)
 
@@ -428,6 +438,8 @@ def dialog2graph(
     out_png: bool = True,
     out_interactive: bool = False,
     target_domains: List[str] = None,
+    batch_size: int = 128,
+    use_closest_as_centroid_emb: bool = False,
     verbose: bool = True
 ) -> Tuple[DiGraph, Dict[str, Dict]]:
 
@@ -443,6 +455,8 @@ def dialog2graph(
         labels_top_k=node_llm_labels_top_k,
         dendrogram=False,
         target_domains=target_domains,
+        batch_size=batch_size,
+        use_closest_as_centroid_emb=use_closest_as_centroid_emb,
         verbose=verbose
     )
 
