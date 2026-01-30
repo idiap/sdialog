@@ -523,6 +523,11 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         try:
             scores = [self.dialog_score(dialogue)
                       for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)]
+            # Flatten scores if elements are iterables (but not strings or dicts)
+            if scores and hasattr(scores[0], '__iter__') and not isinstance(scores[0], (str, dict)):
+                scores = [item
+                          for sublist in scores
+                          for item in (sublist if isinstance(sublist, (list, tuple)) else [sublist])]
         except KeyboardInterrupt:
             logger.warning(
                 f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "

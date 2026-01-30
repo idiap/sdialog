@@ -651,6 +651,52 @@ class MeanTurnLengthScore(ConversationalFeatures):
         super().__init__(feature="mean-turn-length", name=name, speaker=speaker)
 
 
+class TurnLength(BaseDialogScore):
+    """
+    Compute individual turn lengths (number of words per turn) for a dialogue.
+
+    Returns a list of word counts for each turn in the dialogue. This is a granular metric
+    that captures turn length distribution, often used as raw input for downstream aggregations
+    (e.g., computing mean or median turn length).
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import TurnLength
+
+            scorer = TurnLength()
+            lengths = scorer(dialog)  # Returns list of integers
+            print(lengths)  # [5, 12, 3, 18, ...] words per turn
+
+            # Filter by speaker
+            scorer_system = TurnLength(speaker="System")
+            system_lengths = scorer_system(dialog)
+
+    :param name: Optional score name (defaults to "turn-length").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize turn length scorer."""
+        super().__init__(name=name or "turn-length", ai_speaker=speaker)
+
+    def score(self, dialog: Dialog) -> List[int]:
+        """
+        Compute word count for each turn in the dialogue.
+
+        :param dialog: Dialogue instance to evaluate.
+        :type dialog: Dialog
+        :return: List of integers representing word count per turn.
+        :rtype: List[int]
+        """
+        if self.ai_speaker is None:
+            return [len(turn) for turn in dialog]
+        else:
+            return [len(turn) for turn in dialog if turn.speaker.lower() == self.ai_speaker.lower()]
+
+
 class HesitationRateScore(ConversationalFeatures):
     """
     Compute the hesitation rate (percentage of hesitation tokens) for a dialogue.
