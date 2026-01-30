@@ -260,14 +260,18 @@ class BaseDialogFlowScore(BaseDialogScore):
         if graph is not None and nodes is not None:
             # If graph and nodes are provided, use them directly
             self.graph, self.nodes = graph, nodes
+            self.encoder = self.nodes["_metadata"]["encoder"]
         else:
             self.graph, self.nodes = dialog2graph(reference_dialogues,
                                                   system_speaker_name=ai_speaker,
                                                   use_only_system_speaker=use_only_ai_speaker,
                                                   use_closest_as_centroid_emb=use_closest_as_centroid_emb,
                                                   **self.d2f_kwargs)
+            self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+            # Store encoder for later reuse to avoid OOM when multiple scores are used
+            self.nodes["_metadata"]["encoder"] = self.encoder
+
         self.speakers = self.nodes["_metadata"]["speakers"]
-        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {
             "system": KNNModel([(node_id.lower(), info[embedding_type])
                                 for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
