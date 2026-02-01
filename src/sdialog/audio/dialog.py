@@ -118,6 +118,8 @@ class AudioDialog(Dialog):
         :return: A new AudioDialog object that is a deep copy of this one, with updated id and parentId.
         :rtype: AudioDialog
         """
+        print("#"*20)
+        print(self.audio_step_3_filepaths)
         cloned = AudioDialog.from_dict(self.json())
         cloned.parentId = cloned.id
         cloned.id = new_id if new_id is not None else get_universal_id()
@@ -517,6 +519,46 @@ class AudioDialog(Dialog):
                     _language,
                     keep_duplicate=keep_duplicate
                 )
+
+    def add_sound_effects(self):
+        """
+        Add sound effects (such as door opening, footsteps, etc.) to the audio.
+        """
+
+        # Add sound effects tags into the text of the turns using LLM based on the given prompt
+        # The prompt will be based on the sound effects database and the context of the dialogue
+        # Sound effects database will be a dictionary of sound effects with their tag, description, duration, etc.
+        # The tags can be used as many times as needed in the text of the turns
+        # The tags will be added to the text of the turns in the form of [sound_effect_tag]
+        # They can either be used with the overlap=False or overlap=True setup
+        # The LLM will return new dialog text with the sound effects tags added in the inner text of the turns
+        # We will then store the new turns' texts with the sound effects tags into a dialog.sound_effects_turn attribute
+        # The sound effects cannot be looped for a duration longer than the effect duration mentioned in the database
+
+        # For each turn check if there is a sound effect tag in the text
+
+        # If there is a sound effect tag, compute the force alignment between the sound effect position and the audio
+
+        # If the sound effect is setup as a overlap=False, we need to :
+        # - adapt timeline of the turn audio into the sound effect duration + current audio duration
+        # by adding a blank segment of the duration of the sound effect where the force alignment position is estimated
+
+        # If the sound effect is setup as a overlap=True, we need to :
+        # - keep the turn audios as is and add the sound effect as a separate audio file
+        # -- In dry mode, by adding it on top of the turn audio
+        # -- In wet mode, by adding it as a separate audio file and mix it with the turn audio using dScaper timeline
+
+        # If the sound effect is for example at the end of the dialogue,
+        # we need to extends the timeline of the dialogue to prevent cutting the sound effect
+        # While also updating the turn.audio_start_time and duration
+
+        # If the sound effect is for example at the beginning of the dialogue,
+        # we will also need to extend the timeline of the dialogue to prevent cutting the audio that will be pushed
+        # While also updating the turn.audio_start_time and duration
+
+        # Every time we extract a sound effect, we need to verify that its part of the database and if not, skip it
+        # You need to verify that before computing the force alignment and the timeline adaptation to avoid overload
+        pass
 
     def compute_overlapping_and_pausing_llm(self):
         """
