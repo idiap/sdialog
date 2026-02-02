@@ -40,6 +40,8 @@ from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialog
 
 logger = logging.getLogger(__name__)
 
+_STD_EPSILON = 1e-10  # Threshold for treating std as effectively zero
+
 # Configure matplotlib for publication-quality figures
 mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['savefig.dpi'] = 300
@@ -98,9 +100,11 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
         if np.array_equal(p1, p2):
             return 0.0
         logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
-        if np.std(p1) == 0:
+        if np.std(p1) < _STD_EPSILON:
+            logger.info("Adding jitter to p1 since has no variance.")
             p1 = _add_jitter(p1)
-        if np.std(p2) == 0:
+        if np.std(p2) < _STD_EPSILON:
+            logger.info("Adding jitter to p2 since has no variance.")
             p2 = _add_jitter(p2)
         p1_kernel = gaussian_kde(p1, bw_method=bw_method)
         p2_kernel = gaussian_kde(p2, bw_method=bw_method)
@@ -143,9 +147,11 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
         if np.array_equal(p1, p2):
             return 0.0
         logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
-        if np.std(p1) == 0:
+        if np.std(p1) < _STD_EPSILON:
+            logger.info("Adding jitter to p1 since has no variance.")
             p1 = _add_jitter(p1)
-        if np.std(p2) == 0:
+        if np.std(p2) < _STD_EPSILON:
+            logger.info("Adding jitter to p2 since has no variance.")
             p2 = _add_jitter(p2)
         p1_kernel = gaussian_kde(p1, bw_method=bw_method)
         p2_kernel = gaussian_kde(p2, bw_method=bw_method)
