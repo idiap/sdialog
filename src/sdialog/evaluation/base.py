@@ -362,7 +362,7 @@ class BaseDialogFlowScore(BaseDialogScore):
                 sum_log_p_known += log_p
                 n_turns_known += 1
             else:
-                sum_log_p += log(1 / len(self.graph.nodes))  # Uniform distribution if no edge exists
+                sum_log_p += log(1e-12)  # fallback for unknown edges
             n_turns += 1
             prev_node = current_node
 
