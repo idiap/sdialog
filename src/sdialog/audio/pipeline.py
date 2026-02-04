@@ -411,7 +411,7 @@ class AudioPipeline:
             ):
 
                 filename = data["audio"]["path"].split("/")[-1]
-                label_str = dataset.features["label"].names[data["label"]]
+                label_str = data["label"]
 
                 # WARNING: Create a name for the "library" based
                 # on the dataset name minus the organization name
