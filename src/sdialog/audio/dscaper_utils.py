@@ -394,7 +394,8 @@ def generate_dscaper_timeline(
                         source_file=["choose", "[]"],
                         event_time=["const", str(f"{sfx_start_time:.1f}")],
                         # event_duration=["const", str(f"{sfx['duration']:.1f}")],
-                        position=sfx_position
+                        position=sfx_position,
+                        snr=["const", "-15.0"]
                     )
                     dscaper.add_event(timeline_name, _sfx_event_metadata)
 
