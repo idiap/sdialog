@@ -229,8 +229,6 @@ class Dialog(BaseModel):
         :type audio_file_format: str
         :param seed: Seed for random number generator.
         :type seed: int
-        :param re_sampling_rate: Re-sampling rate for the output audio.
-        :type re_sampling_rate: Optional[int]
         :param recording_devices: The identifiers of the recording devices to simulate.
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :param impulse_response_database: The database for impulse responses.

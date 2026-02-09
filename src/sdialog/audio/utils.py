@@ -427,3 +427,10 @@ def default_dscaper_datasets() -> list[str]:
     Default dSCAPER datasets
     """
     return ["sdialog/background", "sdialog/foreground"]
+
+
+def default_sound_effects_datasets() -> list[str]:
+    """
+    Default sound effects datasets
+    """
+    return ["sdialog/sound_events"]

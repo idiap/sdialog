@@ -11,6 +11,7 @@ for room acoustics simulation and audio processing workflows.
 # SPDX-License-Identifier: MIT
 import numpy as np
 import soundfile as sf
+from typing import List, Dict, Any
 
 from sdialog import Turn
 
@@ -83,6 +84,8 @@ class AudioTurn(Turn):
     microphone_position: str = ""
     is_stored_in_dscaper: bool = False
     gap_duration: float = 0.0
+    text_with_tags: str = ""
+    sound_effects: List[Dict[str, Any]] = []
 
     def get_audio(self) -> np.ndarray:
         """
