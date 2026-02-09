@@ -373,6 +373,7 @@ Finally, the following should be considered regarding the conversation:
         :return: User persona object.
         :rtype: Persona
         """
+        tasks = [task["Task"] for task in scenario["WizardCapabilities"]]
         rules = f"""The following should be considered regarding the conversation:
    1. {
             "The conversation follows a 'happy path', meaning the conversations goes smoothly without any unexpected behavior"
@@ -382,7 +383,7 @@ Finally, the following should be considered regarding the conversation:
         }.
    2. {
             "The conversation involves multiple tasks, that is, you want the assistant to perform multiple tasks ("
-            + ", ".join(task["Task"] for task in scenario["WizardCapabilities"])
+            + ", ".join(tasks)
             + "), not just one."
             if scenario["MultiTask"]
             else "The conversation involves only one task you were instructed to ("
@@ -390,9 +391,13 @@ Finally, the following should be considered regarding the conversation:
             + "), nothing else"
         }"""  # noqa: E501
 
+        domains = [d for d in scenario['Domains'] if d]
+        if not domains:
+            domains = tasks
+
         return Persona(
             role="Your are role-playing as a USER calling a AI assistant that can perform multiple tasks in the following domains: "
-            f"{', '.join(scenario['Domains'])}.",
+            f"{', '.join(domains)}.",
             circumstances=scenario["UserTask"],
             rules=rules,
         )

@@ -208,6 +208,7 @@ class BaseDialogFlowScore(BaseDialogScore):
     :param k_neighbors: Number of neighbors for softmax aggregation.
     :param use_softmax: If True, weight neighbor probabilities via softmax, else pick top-1.
     :param use_only_ai_speaker: If True, only AI turns are used to build the graph and compute the scores.
+    :param use_closest_as_centroid_emb: If True, use closest utterance embeddings as cluster centroids.
     :param graph: Optional precomputed graph object to reuse (bypasses construction).
     :param nodes: Optional precomputed node metadata dictionary.
     :param name: Optional score name override (auto if None).
@@ -221,6 +222,7 @@ class BaseDialogFlowScore(BaseDialogScore):
                  k_neighbors: int = 64,
                  use_softmax: bool = True,
                  use_only_ai_speaker: bool = False,
+                 use_closest_as_centroid_emb: bool = False,
                  graph=None,
                  nodes=None,
                  name: str = None,
@@ -245,6 +247,11 @@ class BaseDialogFlowScore(BaseDialogScore):
         self.reference_dialogues_ids = [d.id for d in reference_dialogues]  # for the key cache
         self.d2f_kwargs = d2f_kwargs  # for the key cache
 
+        embedding_type = "centroid-embedding"
+        if use_closest_as_centroid_emb:
+            embedding_type = "closest-embedding"
+            logger.info("Using closest utterance embeddings as cluster centroids for flow graph scores.")
+
         self.reference_dialogues = reference_dialogues
         self.use_softmax = use_softmax
         self.k_neighbors = k_neighbors
@@ -253,20 +260,25 @@ class BaseDialogFlowScore(BaseDialogScore):
         if graph is not None and nodes is not None:
             # If graph and nodes are provided, use them directly
             self.graph, self.nodes = graph, nodes
+            self.encoder = self.nodes["_metadata"]["encoder"]
         else:
             self.graph, self.nodes = dialog2graph(reference_dialogues,
                                                   system_speaker_name=ai_speaker,
                                                   use_only_system_speaker=use_only_ai_speaker,
+                                                  use_closest_as_centroid_emb=use_closest_as_centroid_emb,
                                                   **self.d2f_kwargs)
+            self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+            # Store encoder for later reuse to avoid OOM when multiple scores are used
+            self.nodes["_metadata"]["encoder"] = self.encoder
+
         self.speakers = self.nodes["_metadata"]["speakers"]
-        self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
         self.knn_models = {
-            "system": KNNModel([(node_id.lower(), info["centroid-embedding"])
+            "system": KNNModel([(node_id.lower(), info[embedding_type])
                                 for node_id, info in self.nodes.items() if node_id[0].lower() == "s"],
                                k=k_neighbors)
         }
         if not self.only_system:
-            self.knn_models["user"] = KNNModel([(node_id.lower(), info["centroid-embedding"])
+            self.knn_models["user"] = KNNModel([(node_id.lower(), info[embedding_type])
                                                 for node_id, info in self.nodes.items()
                                                 if node_id[0].lower() == "u"],
                                                k=k_neighbors)
@@ -350,7 +362,7 @@ class BaseDialogFlowScore(BaseDialogScore):
                 sum_log_p_known += log_p
                 n_turns_known += 1
             else:
-                sum_log_p += log(1 / len(self.graph.nodes))  # Uniform distribution if no edge exists
+                sum_log_p += log(1e-12)  # fallback for unknown edges
             n_turns += 1
             prev_node = current_node
 
@@ -511,6 +523,11 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         try:
             scores = [self.dialog_score(dialogue)
                       for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)]
+            # Flatten scores if elements are iterables (but not strings or dicts)
+            if scores and hasattr(scores[0], '__iter__') and not isinstance(scores[0], (str, dict)):
+                scores = [item
+                          for sublist in scores
+                          for item in (sublist if isinstance(sublist, (list, tuple)) else [sublist])]
         except KeyboardInterrupt:
             logger.warning(
                 f"Evaluation interrupted by user. Partial results for dataset '{dataset_name}' "
@@ -569,7 +586,8 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
 
     def plot(self,
              show: bool = True,
-             save_path: str = None):
+             save_path: str = None,
+             **kwargs):
         """
         Generate plots for stored dataset scores.
 
@@ -577,6 +595,8 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :type show: bool
         :param save_path: If provided, save figure(s) to this path (metric name appended when multi-metric).
         :type save_path: Optional[str]
+        :param kwargs: Additional keyword arguments for plotting.
+        :type kwargs: dict
         :return: None
         :rtype: None
         """
@@ -587,7 +607,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         if self.datasets_scores and isinstance(next(iter(self.datasets_scores.values())), dict):
             for metric in self.datasets_scores:
                 plt.figure(figsize=(8, 5))
-                self.__plot__(self.datasets_scores[metric], plot=plt, metric=metric)
+                self.__plot__(self.datasets_scores[metric], plot=plt, metric=metric, **kwargs)
                 if save_path:
                     # Append metric name to filename before saving
                     if "." in save_path.split("/")[-1]:
@@ -601,7 +621,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
                     plt.show()
         else:
             plt.figure(figsize=(8, 5))
-            self.__plot__(self.datasets_scores, plot=plt)
+            self.__plot__(self.datasets_scores, plot=plt, **kwargs)
             if save_path:
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 plt.savefig(save_path, dpi=300)

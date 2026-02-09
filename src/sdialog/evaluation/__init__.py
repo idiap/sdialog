@@ -40,6 +40,8 @@ from .base import CacheDialogScore, BaseLLMJudge, BaseDialogEmbedder, BaseDialog
 
 logger = logging.getLogger(__name__)
 
+_STD_EPSILON = 1e-10  # Threshold for treating std as effectively zero
+
 # Configure matplotlib for publication-quality figures
 mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['savefig.dpi'] = 300
@@ -98,9 +100,11 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
         if np.array_equal(p1, p2):
             return 0.0
         logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
-        if np.std(p1) == 0:
+        if np.std(p1) < _STD_EPSILON:
+            logger.info("Adding jitter to p1 since has no variance.")
             p1 = _add_jitter(p1)
-        if np.std(p2) == 0:
+        if np.std(p2) < _STD_EPSILON:
+            logger.info("Adding jitter to p2 since has no variance.")
             p2 = _add_jitter(p2)
         p1_kernel = gaussian_kde(p1, bw_method=bw_method)
         p2_kernel = gaussian_kde(p2, bw_method=bw_method)
@@ -109,15 +113,15 @@ def _cs_divergence(p1, p2, resolution=100, bw_method=1):
     p2_vals = p2_kernel(r)
     numerator = np.sum(p1_vals * p2_vals)
     denominator = sqrt(np.sum(p1_vals ** 2) * np.sum(p2_vals ** 2))
-    # Avoid log(0) by ensuring numerator has minimum value
-    return -log(max(numerator, 1e-12) / denominator)
+    # Avoid log(0) and division by zero by ensuring minimum values
+    return -log(max(numerator, 1e-12) / max(denominator, 1e-12))
 
 
 def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     """
     Estimate KL divergence KL(p1 || p2) between two 1D distributions via KDE.
 
-    KL(p1||p2) is non‑symmetric and >= 0 (0 means identical).
+    KL(p1||p2) is non-symmetric and >= 0 (0 means identical).
 
     :param p1: First sample (treat as true distribution).
     :type p1: array-like
@@ -143,9 +147,11 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
         if np.array_equal(p1, p2):
             return 0.0
         logger.error(f"Error computing KDEs for KL divergence: {e}. Trying with jitter...")
-        if np.std(p1) == 0:
+        if np.std(p1) < _STD_EPSILON:
+            logger.info("Adding jitter to p1 since has no variance.")
             p1 = _add_jitter(p1)
-        if np.std(p2) == 0:
+        if np.std(p2) < _STD_EPSILON:
+            logger.info("Adding jitter to p2 since has no variance.")
             p2 = _add_jitter(p2)
         p1_kernel = gaussian_kde(p1, bw_method=bw_method)
         p2_kernel = gaussian_kde(p2, bw_method=bw_method)
@@ -157,7 +163,11 @@ def _kl_divergence(p1, p2, resolution=100, bw_method=1e-1):
     p1_vals = np.clip(p1_vals, eps, None)
     p2_vals = np.clip(p2_vals, eps, None)
 
-    return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / np.sum(p1_vals))
+    sum_p1_vals = np.sum(p1_vals)
+    # Protect against division by zero
+    if sum_p1_vals == 0:
+        return 0.0
+    return float(np.sum(p1_vals * np.log(p1_vals / p2_vals)) / sum_p1_vals)
 
 
 class ConversationalFeatures(BaseDialogScore):
@@ -645,6 +655,52 @@ class MeanTurnLengthScore(ConversationalFeatures):
     def __init__(self, name: str = None, speaker: Optional[str] = None):
         """Initialize mean turn length scorer."""
         super().__init__(feature="mean-turn-length", name=name, speaker=speaker)
+
+
+class TurnLength(BaseDialogScore):
+    """
+    Compute individual turn lengths (number of words per turn) for a dialogue.
+
+    Returns a list of word counts for each turn in the dialogue. This is a granular metric
+    that captures turn length distribution, often used as raw input for downstream aggregations
+    (e.g., computing mean or median turn length).
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import TurnLength
+
+            scorer = TurnLength()
+            lengths = scorer(dialog)  # Returns list of integers
+            print(lengths)  # [5, 12, 3, 18, ...] words per turn
+
+            # Filter by speaker
+            scorer_system = TurnLength(speaker="System")
+            system_lengths = scorer_system(dialog)
+
+    :param name: Optional score name (defaults to "turn-length").
+    :type name: Optional[str]
+    :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
+    :type speaker: Optional[str]
+    """
+    def __init__(self, name: str = None, speaker: Optional[str] = None):
+        """Initialize turn length scorer."""
+        super().__init__(name=name or "turn-length", ai_speaker=speaker)
+
+    def score(self, dialog: Dialog) -> List[int]:
+        """
+        Compute word count for each turn in the dialogue.
+
+        :param dialog: Dialogue instance to evaluate.
+        :type dialog: Dialog
+        :return: List of integers representing word count per turn.
+        :rtype: List[int]
+        """
+        if self.ai_speaker is None:
+            return [len(turn) for turn in dialog]
+        else:
+            return [len(turn) for turn in dialog if turn.speaker.lower() == self.ai_speaker.lower()]
 
 
 class HesitationRateScore(ConversationalFeatures):
@@ -2009,7 +2065,7 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                                                       leave=verbose)]
         self.reference_scores = np.array([s for s in self.reference_scores if s is not None])
 
-    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None):
+    def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, zoom: bool = False):
         """
         Plot KDE curves of reference and candidate score distributions.
 
@@ -2038,6 +2094,21 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                 color_idx += 1
             except ValueError as e:
                 logger.error(f"Error plotting KDE for {dataset_name}: {e}")
+
+        if zoom:
+            # Percentile-based zoom
+            all_scores = []
+            if self.reference_scores is not None:
+                all_scores.append(self.reference_scores)
+            for scores in dialog_scores.values():
+                all_scores.append(scores)
+
+            if all_scores:
+                all_scores = np.concatenate(all_scores)
+                low, high = np.percentile(all_scores, [2, 98])  # tweak if needed
+                pad = 0.05 * (high - low)
+                plt.gca().set_xlim(low - pad, high + pad)
+
         plot.xlabel(self.plot_xlabel if self.plot_xlabel else self.dialog_score.name)
         plot.ylabel(self.plot_ylabel if self.plot_ylabel else "Density")
         plot.legend(loc='best', frameon=True, fancybox=False, edgecolor='black', framealpha=1.0)

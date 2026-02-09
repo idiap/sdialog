@@ -141,6 +141,7 @@ def create_graph(trajectories: Dict,
 
     node_info = {}
     cluster_centroids = {}
+    closest_embeddings = {}
     nodes_are_labels = False
     if clusters_info_folder and os.path.exists(clusters_info_folder):
         for speaker in [DEFAULT_SYS_NAME, DEFAULT_USER_NAME]:
@@ -150,6 +151,12 @@ def create_graph(trajectories: Dict,
                     node_info[speaker] = json.load(reader)
                 cluster_centroids[speaker] = np.load(os.path.join(clusters_info_folder,
                                                                   f"centroid-embeddings.{speaker}.npy"))
+                if os.path.exists(os.path.join(clusters_info_folder, f"closest-embeddings.{speaker}.npy")):
+                    logger.info(
+                        "Loading closest utterance embeddings to the centroid embeddings for {speaker} clusters."
+                    )
+                    closest_embeddings[speaker] = np.load(os.path.join(clusters_info_folder,
+                                                                       f"closest-embeddings.{speaker}.npy"))
         nodes_are_labels = node_info[DEFAULT_SYS_NAME][0]["name"]
     with open(os.path.join(clusters_info_folder, "metadata.json")) as reader:
         metadata = json.load(reader)
@@ -307,13 +314,14 @@ def create_graph(trajectories: Dict,
     # g.render(output_file, view=False, format="dot")
     if png_visualization:
         logger.log(log_level, f"  Saving graph PNG visualization in '{output_file}.png'")
-        g.render(output_file, view=False, format="png")
         try:
+            g.render(output_file, view=False, format="png")
+
             from PIL import Image
             image = Image.open(f"{output_file}.png")
             image.show()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"  ** Error while trying to save graph PNG visualization: {e}")
 
     if interactive_visualization:
         output_folder = os.path.join(output_folder, "visualization")
@@ -382,6 +390,8 @@ def create_graph(trajectories: Dict,
     for speaker in node_info:
         for ix, info in enumerate(node_info[speaker]):
             info["centroid-embedding"] = cluster_centroids[speaker][ix]
+            if closest_embeddings and speaker in closest_embeddings:
+                info["closest-embedding"] = closest_embeddings[speaker][ix]
 
     node2id_mapping = {}
     for node in G.nodes():
