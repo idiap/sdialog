@@ -127,9 +127,9 @@ class Voice(BaseModel):
     :ivar language_code: Language code for TTS engines (default: "a").
     :vartype language_code: str
     """
-    gender: str
-    age: int
-    identifier: str
+    gender: str = ""
+    age: int = 0
+    identifier: str = ""
     voice: str  # Can be a path or the voice string
     language: str = "english"
     language_code: str = "a"
@@ -524,7 +524,7 @@ class BaseVoiceDatabase:
             gender: str,
             age: int,
             lang: str = "english",
-            keep_duplicate: bool = True,
+            keep_duplicate: bool = False,
             seed: int = None) -> Voice:
         """
         Retrieves a voice based on speaker characteristics with intelligent matching.
@@ -563,7 +563,8 @@ class BaseVoiceDatabase:
             lang = lang.lower()
 
         if lang not in self._data:
-            raise ValueError(f"Language {lang} not found in the database")
+            logger.error(f"Language \"{lang}\" not found in the database, setting to \"english\" by default")
+            lang = "english"
 
         gender = gender.lower()
 
@@ -573,6 +574,14 @@ class BaseVoiceDatabase:
             # Get the list of ages for this gender
             _ages = [_age for (_gender, _age) in self._data[lang].keys() if _gender == gender]
 
+            if not _ages:
+                logger.error(f"No voices found in the database for language \"{lang}\" and gender \"{gender}\". "
+                               "** Switching gender to try to find available voices as fallback! **")
+                gender = "female" if gender == "male" else "male"
+                _ages = [_age for (_gender, _age) in self._data[lang].keys() if _gender == gender]
+                if not _ages:
+                    raise ValueError(f"No voices found in the database for language \"{lang}\" and required gender.")
+
             # Get the voices for the closest age for this gender
             age = min(_ages, key=lambda x: abs(x - age))
 
@@ -581,7 +590,6 @@ class BaseVoiceDatabase:
 
         # Filter the voices to keep only the ones that are not in the used voices
         if not keep_duplicate:
-
             if lang not in self._used_voices:
                 self._used_voices[lang] = []
 
