@@ -32,7 +32,7 @@ class Qwen3TTS(BaseTTS):
             # attn_implementation="flash_attention_2",
         )
 
-    def generate(self, text: str, speaker_voice: str=None, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
+    def generate(self, text: str, speaker_voice: str = None, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
         wavs, sr = self.model.generate_custom_voice(
@@ -70,8 +70,10 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             # attn_implementation="flash_attention_2",
         )
 
-
-    def generate(self, text: str, speaker_voice: str | object | None = None, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
+    def generate(self,
+                 text: str,
+                 speaker_voice: str | object = None,
+                 tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
         Generates audio from text using the Hugging Face TTS pipeline.
 
@@ -81,7 +83,8 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         :param text: The text to be converted to speech.
         :type text: str
         :param speaker_voice: Either a string path to a reference audio file for voice cloning,
-                             or a voice clone prompt object created by create_voice_clone_prompt(), or None to use default voice.
+                              or a voice clone prompt object created by create_voice_clone_prompt(),
+                              or None to use default voice.
         :type speaker_voice: str | object | None
         :param tts_pipeline_kwargs: Additional keyword arguments to be passed to the TTS pipeline.
                                     Should contain 'voice_clone_prompt' key if voice cloning is desired.
@@ -99,7 +102,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             tts_pipeline_kwargs["voice_clone_prompt"] = speaker_voice
 
         wavs, sr = self.model.generate_voice_clone(
-            text=text,            
+            text=text,
             **tts_pipeline_kwargs
         )
         audio = wavs[0].cpu().numpy() if hasattr(wavs[0], "cpu") else np.asarray(wavs[0])

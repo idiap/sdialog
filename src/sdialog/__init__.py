@@ -168,6 +168,7 @@ class Dialog(BaseModel):
         Convert the dialogue to an audio dialogue.
         This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
         All keyword arguments are passed to it.
+
         :param dir_audio: Directory path for storing audio outputs.
         :type dir_audio: str
         :param dialog_dir_name: Custom name for the dialogue directory.
