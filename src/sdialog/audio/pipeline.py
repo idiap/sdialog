@@ -101,7 +101,8 @@ def to_audio(
     voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]] = None,
     overlap_pauses: Optional[bool] = False,
     add_sound_effects: Optional[bool] = False,
-    sound_effects_datasets: Optional[List[str]] = None
+    sound_effects_datasets: Optional[List[str]] = None,
+    sound_effects_dropout: Optional[float] = 0.0
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -164,6 +165,8 @@ def to_audio(
     :type add_sound_effects: Optional[bool]
     :param sound_effects_datasets: List of Hugging Face datasets for sound effects.
     :type sound_effects_datasets: Optional[List[str]]
+    :param sound_effects_dropout: Dropout rate for sound effects.
+    :type sound_effects_dropout: Optional[float]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -291,7 +294,8 @@ def to_audio(
             verbose=verbose,
             voices=voices,
             overlap_pauses=overlap_pauses,
-            add_sound_effects=add_sound_effects
+            add_sound_effects=add_sound_effects,
+            sound_effects_dropout=sound_effects_dropout
         )
 
     finally:
@@ -499,7 +503,8 @@ class AudioPipeline:
         override_tts_audio: Optional[bool] = True,
         verbose: Optional[bool] = False,
         overlap_pauses: Optional[bool] = False,
-        add_sound_effects: Optional[bool] = False
+        add_sound_effects: Optional[bool] = False,
+        sound_effects_dropout: Optional[float] = 0.0
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -541,6 +546,8 @@ class AudioPipeline:
         :type overlap_pauses: Optional[bool]
         :param add_sound_effects: Add sound effects (such as door opening, footsteps, etc.) to the audio.
         :type add_sound_effects: Optional[bool]
+        :param sound_effects_dropout: Dropout rate for sound effects.
+        :type sound_effects_dropout: Optional[float]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -665,7 +672,8 @@ class AudioPipeline:
                     dialog.add_sound_effects(
                         room=room,
                         dscaper_manager=self._dscaper,
-                        available_sound_effects=_available_sound_effects
+                        available_sound_effects=_available_sound_effects,
+                        dropout=sound_effects_dropout
                     )
 
                 # Ensure that the turn timings are updated after the overlapping

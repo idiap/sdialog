@@ -564,7 +564,8 @@ class AudioDialog(Dialog):
         room: Any = None,
         dscaper_manager: dscaper.Dscaper = None,
         available_sound_effects: dict[str, dict] = None,
-        model_name_alignment: str = "Qwen/Qwen3-ForcedAligner-0.6B"
+        model_name_alignment: str = "Qwen/Qwen3-ForcedAligner-0.6B",
+        dropout: float = 0.0
     ) -> None:
         """
         Add sound effects (such as door opening, footsteps, etc.) to the audio.
@@ -575,6 +576,10 @@ class AudioDialog(Dialog):
         :type dscaper_manager: dscaper.Dscaper
         :param available_sound_effects: The dictionary of available sound effects.
         :type available_sound_effects: dict[str, dict]
+        :param model_name_alignment: The name of the model to use for forced alignment.
+        :type model_name_alignment: str
+        :param dropout: The dropout rate for sound effects.
+        :type dropout: float
         """
 
         # Annotate the turns with sound effect tags using LLM
@@ -583,7 +588,19 @@ class AudioDialog(Dialog):
             room=room
         )
 
+        # If the dropout rate is greater than 0.0, we will drop some of the sound effects tags
+        if dropout > 0.0:
+            for turn in decorated_turns:
+                # Use a callback to drop tags individually with probability `dropout`
+                turn.text = re.sub(
+                    r"\[(.*?)\]",
+                    lambda m: "" if random.random() < dropout else m.group(0),
+                    turn.text
+                )
+                turn.text = turn.text.strip()
+
         if not decorated_turns:
+            logger.warning("No sound effects tags found. Skipping sound effects.")
             return
 
         # Load aligner model
@@ -747,7 +764,6 @@ class AudioDialog(Dialog):
         :type dscaper_manager: dscaper.Dscaper
         """
 
-        print("-------------------------------- new_text: --------------------------------")
         print(new_text)
 
         # Check for tags

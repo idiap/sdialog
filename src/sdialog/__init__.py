@@ -239,6 +239,10 @@ class Dialog(BaseModel):
         :type verbose: Optional[bool]
         :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
         :type overlap_pauses: Optional[bool]
+        :param add_sound_effects: Add sound effects (such as door opening, footsteps, etc.) to the audio.
+        :type add_sound_effects: Optional[bool]
+        :param sound_effects_dropout: Dropout rate for sound effects.
+        :type sound_effects_dropout: Optional[float]
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.

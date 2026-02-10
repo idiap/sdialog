@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
 # SPDX-License-Identifier: MIT
+import re
 import logging
 from abc import abstractmethod
 
@@ -55,6 +56,26 @@ class LowercaseNormalizer(TextNormalizer):
         :rtype: str
         """
         return text.lower()
+
+
+class StageNormalizer(TextNormalizer):
+    """
+    Normalizer for stage directions.
+    This normalizer will remove the <stage>...</stage> tags from the text.
+    """
+
+    def normalize(self, text: str) -> str:
+        """
+        Normalize the text to remove the <stage>...</stage> tags from the text.
+
+        :param text: The text to normalize.
+        :type text: str
+        :return: The normalized text.
+        :rtype: str
+        """
+        text = re.sub(r"<stage>.*?</stage>", "", text).strip()
+        text = re.sub(r"<STAGE>.*?</STAGE>", "", text).strip()
+        return text
 
 
 class ReplaceCommaWithDotNormalizer(TextNormalizer):
