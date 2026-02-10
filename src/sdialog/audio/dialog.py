@@ -47,6 +47,7 @@ from sdialog import Dialog
 from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room import AudioSource
 from sdialog.audio.utils import logger, Role
+from sdialog.audio.tts.base import BaseTTS, BaseVoiceCloneTTS
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
 
 
@@ -169,6 +170,7 @@ class AudioDialog(Dialog):
         # Convert regular turns to audio turns
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
 
+        # TODO: why like this? we have the speakers in the personas!
         # Identify speakers from the first two turns
         speaker_1 = audio_dialog.turns[0].speaker
         speaker_2 = audio_dialog.turns[1].speaker
@@ -256,7 +258,30 @@ class AudioDialog(Dialog):
             raise FileExistsError(f"File '{path}' already exists. Use 'overwrite=True' to overwrite it.")
 
         with open(path, "w", newline='') as writer:
-            writer.write(self.model_dump_json(indent=2))
+            writer.write(self.model_dump_json_safe(indent=2))
+
+    def model_dump_json_safe(self, **kwargs) -> str:
+        """
+        Safely dumps the AudioDialog object to a JSON string.
+
+        This method overrides the default model_dump_json to ensure that all
+        audio-specific attributes are included in the JSON output. It also
+        handles any special cases for serializing audio data or file paths.
+
+        :param kwargs: Additional keyword arguments passed to the base model_dump_json method.
+        :return: A JSON string representation of the AudioDialog object.
+        :rtype: str
+        """
+        try:
+            return self.model_dump_json(**kwargs)
+        except Exception:
+            # Set all turn.voice to "voice sample (non serializable)" to avoid serialization issues
+            for turn in self.turns:
+                turn.voice = "voice sample (non serializable)"
+            for speaker in self.personas:
+                if "voice" in self.personas[speaker]:
+                    self.personas[speaker]["voice"] = "voice sample (non serializable)"
+            return self.model_dump_json(**kwargs)
 
     @staticmethod
     def from_file(path: str) -> Union["AudioDialog", List["AudioDialog"]]:
@@ -281,7 +306,7 @@ class AudioDialog(Dialog):
             return dialog
 
     def to_string(self):
-        return self.model_dump_json(indent=4)
+        return self.model_dump_json_safe(indent=4)
 
     def display(self):
         """
@@ -387,7 +412,8 @@ class AudioDialog(Dialog):
         self,
         voice_database: BaseVoiceDatabase,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-        keep_duplicate: bool = True,
+        keep_duplicate: bool = False,
+        tts_engine: BaseTTS | BaseVoiceCloneTTS = None,
         seed: int = None
     ) -> None:
         """
@@ -430,6 +456,7 @@ class AudioDialog(Dialog):
                     f"Language not found in the persona {speaker}, english has been considered by default"
                 )
 
+            # TODO: Why do we need roles Spekaer 1 or 2?? if we have the speaker name in personas??
             # Get the role of the speaker (speaker_1 or speaker_2)
             role: Role = self.speakers_roles[speaker]
 
@@ -438,13 +465,14 @@ class AudioDialog(Dialog):
 
             # If no voices are provided, get a voice from the voice database based on the gender, age and language
             if voices is None or voices == {}:
-                persona["voice"] = voice_database.get_voice(
-                    gender=persona["gender"],
-                    age=persona["age"],
-                    lang=persona["language"],
-                    keep_duplicate=keep_duplicate,
-                    seed=seed
-                )
+                if voice_database is not None:
+                    persona["voice"] = voice_database.get_voice(
+                        gender=persona["gender"],
+                        age=persona["age"],
+                        lang=persona["language"],
+                        keep_duplicate=keep_duplicate,
+                        seed=seed
+                    )
 
             # If the voice of the speaker is provided as a Voice object
             elif isinstance(voices[role], Voice):
@@ -458,3 +486,8 @@ class AudioDialog(Dialog):
                     _language,
                     keep_duplicate=keep_duplicate
                 )
+            elif isinstance(voices[role], str):
+                persona["voice"] = Voice(voice=voices[role])
+            else:
+                # Fallback, forward the provided value directly to the TTS engine
+                persona["voice"] = voices[role]

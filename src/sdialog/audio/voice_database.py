@@ -576,7 +576,7 @@ class BaseVoiceDatabase:
 
             if not _ages:
                 logger.error(f"No voices found in the database for language \"{lang}\" and gender \"{gender}\". "
-                               "** Switching gender to try to find available voices as fallback! **")
+                             "** Switching gender to try to find available voices as fallback! **")
                 gender = "female" if gender == "male" else "male"
                 _ages = [_age for (_gender, _age) in self._data[lang].keys() if _gender == gender]
                 if not _ages:

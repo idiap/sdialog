@@ -41,15 +41,16 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
 import dscaper
 import librosa
 import logging
 import numpy as np
-from tqdm import tqdm
 import soundfile as sf
+
+from tqdm import tqdm
 from datasets import load_dataset
 from typing import List, Optional, Union
 
@@ -57,10 +58,10 @@ from sdialog import Dialog
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
-from sdialog.audio.tts import BaseTTS, HuggingFaceTTS
+from sdialog.audio.tts import BaseTTS, Qwen3TTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
-from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
+from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
 from sdialog.audio import generate_utterances_audios, generate_audio_room_accoustic
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide, default_dscaper_datasets
@@ -74,6 +75,7 @@ def to_audio(
     room_name: Optional[str] = None,
     perform_room_acoustics: Optional[bool] = False,
     tts_engine: Optional[BaseTTS] = None,
+    voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
     voice_database: Optional[BaseVoiceDatabase] = None,
     dscaper_datasets: Optional[List[str]] = None,
     room: Optional[Room] = None,
@@ -116,6 +118,8 @@ def to_audio(
     :type perform_room_acoustics: bool
     :param tts_engine: Text-to-speech engine for audio generation.
     :type tts_engine: BaseTTS
+    :param voices: Optional dictionary mapping speaker roles to voice configurations.
+    :type voices: dict[Role, Union[Voice, tuple[str, str]]]
     :param voice_database: Voice database for speaker selection.
     :type voice_database: BaseVoiceDatabase
     :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
@@ -206,16 +210,8 @@ def to_audio(
 
         # Initialize the audio pipeline
         _audio_pipeline = AudioPipeline(
-            voice_database=(
-                voice_database
-                if voice_database is not None
-                else HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-            ),
-            tts_engine=(
-                tts_engine
-                if tts_engine is not None
-                else HuggingFaceTTS("facebook/mms-tts-eng")
-            ),
+            voice_database=voice_database,
+            tts_engine=tts_engine,
             dscaper_data_path=dscaper_data_path,
             dir_audio=dir_audio,
             impulse_response_database=impulse_response_database
@@ -258,6 +254,7 @@ def to_audio(
         _dialog: AudioDialog = _audio_pipeline.inference(
             _dialog,
             environment=_environment,
+            voices=voices,
             perform_room_acoustics=perform_room_acoustics,
             dialog_dir_name=dialog_dir_name,
             room_name=room_name,
@@ -346,16 +343,21 @@ class AudioPipeline:
 
         self.tts_engine = tts_engine
         if self.tts_engine is None:
-
-            logger.warning((
-                "No TTS provided, using the default Hugging Face TTS model: "
-                "HuggingFaceTTS(\"facebook/mms-tts-eng\")"
-            ))
-            self.tts_engine = HuggingFaceTTS("facebook/mms-tts-eng")
+            logger.warning("No TTS provided, using Qwen3-TTS as the default TTS model: Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+            self.tts_engine = Qwen3TTS()
 
         self.voice_database = voice_database
-        if self.voice_database is None:
-            self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+        if self.voice_database is None and isinstance(self.tts_engine, BaseTTS):
+            logger.warning("No voice database provided, make sure the TTS engine supports voice design or voice "
+                           "cloning if you want to use the voice assignment features of the audio pipeline.")
+            from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
+            # TODO: default voice databased SHOULD be part of the TTS engine!
+            #       since each engine supports a predefined voice database
+            if isinstance(self.tts_engine, BaseTTS):
+                if isinstance(self.tts_engine, Qwen3TTS):
+                    self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-qwen3-tts")
+                else:
+                    self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
 
         self.dscaper_data_path = (
             dscaper_data_path
@@ -470,7 +472,7 @@ class AudioPipeline:
         dialog_dir_name: Optional[str] = None,
         room_name: Optional[str] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-        keep_duplicate: bool = True,
+        keep_duplicate: bool = False,
         audio_file_format: str = "wav",
         seed: int = None,
         re_sampling_rate: Optional[int] = None,

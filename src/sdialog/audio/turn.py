@@ -11,6 +11,7 @@ for room acoustics simulation and audio processing workflows.
 # SPDX-License-Identifier: MIT
 import numpy as np
 
+from typing import Any
 from sdialog import Turn
 
 
@@ -74,7 +75,7 @@ class AudioTurn(Turn):
     audio_duration: float = -1.0
     audio_start_time: float = -1.0
     snr: float = -1.0
-    voice: str = ""
+    voice: str | Any = ""
     position: str = ""
     microphone_position: str = ""
     is_stored_in_dscaper: bool = False

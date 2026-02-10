@@ -75,7 +75,7 @@ def generate_utterances_audios(
     voice_database: BaseVoiceDatabase,
     tts_pipeline: BaseTTS,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-    keep_duplicate: bool = True,
+    keep_duplicate: bool = False,
     seed: int = None,
     sampling_rate: int = 24_000,
     tts_pipeline_kwargs: dict = {}
@@ -118,13 +118,17 @@ def generate_utterances_audios(
         voice_database=voice_database,
         voices=voices,
         keep_duplicate=keep_duplicate,
+        tts_engine=tts_pipeline,
         seed=seed
     )
 
     for turn in tqdm(dialog.turns, desc="Generating utterances audios"):
 
         # Get the voice of the turn
-        turn.voice = dialog.personas[turn.speaker]["voice"].voice
+        if isinstance(dialog.personas[turn.speaker]["voice"], Voice):
+            turn.voice = dialog.personas[turn.speaker]["voice"].voice
+        else:
+            turn.voice = dialog.personas[turn.speaker]["voice"]
 
         # Generate the utterance audio
         utterance_audio, utterance_sampling_rate = generate_utterance(
@@ -136,7 +140,6 @@ def generate_utterances_audios(
 
         # If the sampling rate of the audio is not the same as the sampling rate of the project, resample the audio
         if utterance_sampling_rate != sampling_rate:
-
             logger.info(
                 f"[Step 1] Resampling the audio ({utterance_sampling_rate} Hz) to the sampling "
                 f"rate of the project ({sampling_rate} Hz)..."
