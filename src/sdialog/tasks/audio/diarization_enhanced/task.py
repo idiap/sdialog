@@ -102,6 +102,7 @@ class DiarizationEnhancedTask(Task):
         # Load aligner model
         aligner = None
         model_name_alignment = args.get("model_name_alignment", "Qwen/Qwen3-ForcedAligner-0.6B")
+        merge_threshold = args.get("merge_threshold", 0.1)
 
         try:
             import torch
@@ -167,7 +168,7 @@ class DiarizationEnhancedTask(Task):
                                 current_segment_end = alignment[0].end_time
 
                                 for word in alignment[1:]:
-                                    if word.start_time - current_segment_end < 0.5:  # 0.5s tolerance
+                                    if word.start_time - current_segment_end < merge_threshold:
                                         current_segment_end = word.end_time
                                     else:
                                         segments.append((current_segment_start, current_segment_end))
