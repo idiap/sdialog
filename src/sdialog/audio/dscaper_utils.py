@@ -178,11 +178,6 @@ def get_sound_effects_db(
                 "description": _first_audio_description,
             }
 
-    print("-"*100)
-    print("## metadata")
-    print("-"*100)
-    print(metadata)
-
     return metadata
 
 
@@ -207,8 +202,6 @@ def _resolve_sound_effect_position(
     """
 
     sfx_position = sfx_position.replace("sfx|", "")
-    print("-------------------------------- sfx_position cleaned: --------------------------------")
-    print(sfx_position)
 
     if sfx_position == "human":
         return default_role
@@ -356,7 +349,6 @@ def generate_dscaper_timeline(
             dscaper.add_event(timeline_name, foreground_metadata)
 
         # Add the events and utterances to the timeline
-        # current_time = 0.0
         for i, turn in enumerate(dialog.turns):
 
             # The role is used here to identify the source of emission of the audio
@@ -395,11 +387,9 @@ def generate_dscaper_timeline(
                         event_time=["const", str(f"{sfx_start_time:.1f}")],
                         # event_duration=["const", str(f"{sfx['duration']:.1f}")],
                         position=sfx_position,
-                        snr=["const", "-15.0"]
+                        snr=["const", "-10.0"]
                     )
                     dscaper.add_event(timeline_name, _sfx_event_metadata)
-
-            # current_time += turn.audio_duration
 
         # Generate the timeline
         resp = dscaper.generate_timeline(
@@ -424,17 +414,6 @@ def generate_dscaper_timeline(
         resp.content["id"],
         "soundscape_positions"
     )
-
-    # # Build the path to the audio output
-    # audio_output_path = os.path.join(
-    #     dscaper.get_dscaper_base_path(),
-    #     "timelines",
-    #     timeline_name,
-    #     "generate",
-    #     resp.content["id"],
-    #     "soundscape.wav"
-    # )
-    # _audio_2_audio, _audio_2_sr = sf.read(audio_output_path)
 
     # Create the dry audio by taking the isolated soundscape positions
     # for speakers 1/2 and for SFX and stack them together (they are aligned)

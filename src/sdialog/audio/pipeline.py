@@ -659,7 +659,7 @@ class AudioPipeline:
 
                 # Compute the overlapping and pausing between turns using LLM
                 if overlap_pauses:
-                    dialog.compute_overlapping_and_pausing_llm()
+                    dialog.compute_overlapping_and_pausing_llm(verbose=verbose)
 
                 if add_sound_effects:
 

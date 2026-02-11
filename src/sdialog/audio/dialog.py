@@ -120,8 +120,6 @@ class AudioDialog(Dialog):
         :return: A new AudioDialog object that is a deep copy of this one, with updated id and parentId.
         :rtype: AudioDialog
         """
-        print("#"*20)
-        print(self.audio_step_3_filepaths)
         cloned = AudioDialog.from_dict(self.json())
         cloned.parentId = cloned.id
         cloned.id = new_id if new_id is not None else get_universal_id()
@@ -191,29 +189,6 @@ class AudioDialog(Dialog):
             # load the combined audio from the audio_step_1_filepath
             self._combined_audio = sf.read(self.audio_step_1_filepath)[0]
         return self._combined_audio
-
-    # def get_timeline_duration(self) -> float:
-    #     """
-    #     Computes the duration of the timeline for the dialogue by considering for each turn
-    #     duration_utt + gap + [duration(e) for e in events if e.overlap==False].
-
-    #     :return: Duration of the timeline in seconds.
-    #     :rtype: float
-    #     """
-    #     _total_duration = 0.0
-
-    #     for turn in self.turns:
-
-    #         _total_duration += (turn.audio_duration + turn.gap_duration)
-
-    #         if turn.sound_effects and len(turn.sound_effects) > 0:
-
-    #             for sfx in turn.sound_effects:
-
-    #                 if not sfx["overlap"]:
-    #                     _total_duration += sfx["duration"]
-
-    #     return _total_duration
 
     @staticmethod
     def from_dialog(dialog: Dialog):
@@ -869,13 +844,15 @@ class AudioDialog(Dialog):
                 "position": position,
             })
 
-    def compute_overlapping_and_pausing_llm(self):
+    def compute_overlapping_and_pausing_llm(self, verbose: bool = False):
         """
         Compute the overlapping and pausing between turns using LLM.
 
         This method computes the overlapping and pausing times between turns using LLM.
         It will return a new AudioDialog object with the overlapping or pausing times for each turn.
 
+        :param verbose: Verbose mode for logging.
+        :type verbose: bool
         :return: A new AudioDialog object with the overlapping or pausing times for each turn.
         :rtype: AudioDialog
         """
@@ -943,6 +920,12 @@ class AudioDialog(Dialog):
                 gaps.extend([0.0] * (expected_gaps - len(gaps)))
             else:
                 gaps = gaps[:expected_gaps]
+
+        gaps[2] = -0.75
+
+        if verbose:
+            logger.info("-------------------------------- gaps --------------------------------")
+            logger.info(gaps)
 
         # Apply gaps
         for i in range(len(gaps)):
