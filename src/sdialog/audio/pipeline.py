@@ -543,6 +543,10 @@ class AudioPipeline:
         if not verbose:
             logger.setLevel(logging.ERROR)
 
+        if voices is not None:
+            voices = {dialog.speakers_roles[key] if key in dialog.speakers_roles else key: value
+                      for key, value in voices.items()}
+
         # Reset the logger level to the original level after the function is executed
         try:
 

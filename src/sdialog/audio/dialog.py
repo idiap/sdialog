@@ -46,9 +46,9 @@ from typing import List, Union
 from sdialog import Dialog
 from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room import AudioSource
-from sdialog.audio.utils import logger, generate_reference_voices, Role
 from sdialog.audio.tts.base import BaseTTS, BaseVoiceCloneTTS
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+from sdialog.audio.utils import Role, CaseInsensitiveDict, logger, generate_reference_voices
 
 
 class AudioDialog(Dialog):
@@ -68,8 +68,8 @@ class AudioDialog(Dialog):
     audio_step_2_filepath: str = ""
     audio_step_3_filepaths: dict[str, dict] = {}
 
-    speakers_names: dict[str, str] = {}
-    speakers_roles: dict[str, str] = {}
+    speakers_names: dict[str, str] = {}  # role2name mapping
+    speakers_roles: dict[str, str] = CaseInsensitiveDict()  # name2role mapping (case insensitive)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -177,16 +177,14 @@ class AudioDialog(Dialog):
                 speakers.append(turn.speaker)
                 if len(speakers) == 2:
                     break
-        speaker_1 = speakers[0]
-        speaker_2 = speakers[1]
 
         # Create role mappings for speaker identification
-        audio_dialog.speakers_names[Role.SPEAKER_1] = speaker_1
-        audio_dialog.speakers_names[Role.SPEAKER_2] = speaker_2
+        audio_dialog.speakers_names[Role.SPEAKER_1] = speakers[0]
+        audio_dialog.speakers_names[Role.SPEAKER_2] = speakers[1]
 
         # Create reverse mappings for role lookup
-        audio_dialog.speakers_roles[speaker_1] = Role.SPEAKER_1
-        audio_dialog.speakers_roles[speaker_2] = Role.SPEAKER_2
+        audio_dialog.speakers_roles[speakers[0]] = Role.SPEAKER_1
+        audio_dialog.speakers_roles[speakers[1]] = Role.SPEAKER_2
 
         return audio_dialog
 
@@ -478,8 +476,8 @@ class AudioDialog(Dialog):
             # Get the role of the speaker (speaker_1 or speaker_2)
             role: Role = self.speakers_roles[speaker]
 
-            if voices is not None and voices != {} and role not in voices:
-                raise ValueError(f"Voice for role {str(role)} not found in the voices dictionary")
+            if voices and role not in voices and speaker not in voices:
+                raise ValueError(f"Voice for {str(role)} not found in the voices dictionary")
 
             # If no voices are provided, get a voice from the voice database based on the gender, age and language
             if voices is None or voices == {}:

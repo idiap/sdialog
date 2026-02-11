@@ -424,6 +424,30 @@ class Role(str, Enum):
         return self.value
 
 
+class CaseInsensitiveDict(dict):
+    def __setitem__(self, key, value):
+        super().__setitem__(key.lower(), value)
+
+    def __getitem__(self, key):
+        return super().__getitem__(key.lower())
+
+    def __delitem__(self, key):
+        super().__delitem__(key.lower())
+
+    def __contains__(self, key):
+        return super().__contains__(key.lower())
+
+    def get(self, key, default=None):
+        return super().get(key.lower(), default)
+
+    def update(self, other=None, **kwargs):
+        if other:
+            for k, v in dict(other).items():
+                self[k] = v
+        for k, v in kwargs.items():
+            self[k] = v
+
+
 def default_dscaper_datasets() -> list[str]:
     """
     Default dSCAPER datasets

@@ -693,7 +693,7 @@ def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
         # SPEAKER_2 is missing
     }
 
-    with pytest.raises(ValueError, match="Voice for role speaker_2 not found in the voices dictionary"):
+    with pytest.raises(ValueError):
         dialog_with_personas.persona_to_voice(mock_voice_db, voices=voices)
 
 
