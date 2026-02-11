@@ -106,7 +106,7 @@ class BaseVoiceCloneTTS(ABC):
     def generate(
             self,
             text: str,
-            speaker_voice: str | Any = None,
+            speaker_voice: Any = None,
             tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
         Generates audio from text using voice cloning.
@@ -117,7 +117,7 @@ class BaseVoiceCloneTTS(ABC):
         :param text: The text to be converted to speech.
         :type text: str
         :param speaker_voice: Reference audio path, prompt object, or None.
-        :type speaker_voice: str | Any
+        :type speaker_voice: Any
         :param tts_pipeline_kwargs: Additional keyword arguments passed to the TTS pipeline.
         :type tts_pipeline_kwargs: dict
         :return: A tuple containing the audio data as a numpy array and the sampling rate.

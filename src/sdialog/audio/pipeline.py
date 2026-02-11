@@ -58,9 +58,9 @@ from sdialog import Dialog
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
-from sdialog.audio.tts import BaseTTS, Qwen3TTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
+from sdialog.audio.tts import BaseTTS, Qwen3TTS, Qwen3TTSVoiceClone
 from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, HuggingfaceVoiceDatabase
 from sdialog.audio import generate_utterances_audios, generate_audio_room_accoustic
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
@@ -359,13 +359,12 @@ class AudioPipeline:
 
         self.tts_engine = tts_engine
         if self.tts_engine is None:
-            logger.warning("No TTS provided, using Qwen3-TTS as the default TTS model: Qwen/Qwen3-TTS-12Hz-1.7B-Base")
-            self.tts_engine = Qwen3TTS()
+            logger.warning("No TTS provided, using voice cloning Qwen3-TTS as the default TTS model (Qwen3-TTS-12Hz-1.7B-Base)")
+            self.tts_engine = Qwen3TTSVoiceClone()
 
         self.voice_database = voice_database
         if self.voice_database is None and isinstance(self.tts_engine, BaseTTS):
-            logger.warning("No voice database provided, make sure the TTS engine supports voice design or voice "
-                           "cloning if you want to use the voice assignment features of the audio pipeline.")
+            logger.warning("No voice database provided, using default voice database for the TTS engine.")
             # TODO: default voice databased SHOULD be part of the TTS engine!
             #       since each engine supports a predefined voice database we should get the defalt as:
             #       self.voice_database = self.tts_engine.voice_database
