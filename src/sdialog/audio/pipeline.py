@@ -67,22 +67,6 @@ from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, Rec
 from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide, default_dscaper_datasets
 
 
-# Template for generating voice descriptions from persona attributes
-VOICE_DESCRIPTION_TEMPLATE = "{gender}, {age} years old, speaking style: {style}."
-
-
-def turn2voice_description(dialog, turn_index):
-    """Generate a voice description prompt from persona attributes for TTS voice design."""
-    turn = dialog.turns[turn_index]
-    speaker = turn.speaker
-    target_persona = dialog.personas.get(speaker, {})
-    voice_desc = VOICE_DESCRIPTION_TEMPLATE.format(gender=target_persona.get("gender", "male"),
-                                                   age=target_persona.get("age", "40"),
-                                                   accent=target_persona.get("race", "american"),
-                                                   style=target_persona.get("hurriedness", "neutral"))
-    return voice_desc.title(), turn.text
-
-
 def to_audio(
     dialog: Dialog,
     dir_audio: Optional[str] = "./outputs_to_audio",
@@ -91,6 +75,7 @@ def to_audio(
     room_name: Optional[str] = None,
     perform_room_acoustics: Optional[bool] = False,
     tts_engine: Optional[BaseTTS] = None,
+    persona_to_voice_desc: Optional[Union[str, callable]] = None,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
     voice_database: Optional[BaseVoiceDatabase] = None,
     dscaper_datasets: Optional[List[str]] = None,
@@ -134,6 +119,10 @@ def to_audio(
     :type perform_room_acoustics: bool
     :param tts_engine: Text-to-speech engine for audio generation.
     :type tts_engine: BaseTTS
+    :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                  and returns its voice descriptions. Defaults to a template with
+                                  gender and age only.
+    :type persona_to_voice_desc: Union[str, callable]
     :param voices: Optional dictionary mapping speaker roles to voice configurations.
     :type voices: dict[Role, Union[Voice, tuple[str, str]]]
     :param voice_database: Voice database for speaker selection.
@@ -271,6 +260,7 @@ def to_audio(
             _dialog,
             environment=_environment,
             voices=voices,
+            persona_to_voice_desc=persona_to_voice_desc,
             perform_room_acoustics=perform_room_acoustics,
             dialog_dir_name=dialog_dir_name,
             room_name=room_name,
@@ -487,6 +477,7 @@ class AudioPipeline:
         perform_room_acoustics: Optional[bool] = False,
         dialog_dir_name: Optional[str] = None,
         room_name: Optional[str] = None,
+        persona_to_voice_desc: Optional[Union[str, callable]] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
         keep_duplicate: bool = False,
         audio_file_format: str = "wav",
@@ -517,6 +508,10 @@ class AudioPipeline:
         :type dialog_dir_name: Optional[str]
         :param room_name: Custom name for the room configuration.
         :type room_name: Optional[str]
+        :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                      and returns its voice descriptions. Defaults to a template with
+                                      gender and age only.
+        :type persona_to_voice_desc: Optional[Union[str, callable]]
         :param voices: Voice assignments for different speaker roles.
         :type voices: dict[Role, Union[Voice, tuple[str, str]]]
         :param keep_duplicate: Allow duplicate voice assignments.
@@ -632,6 +627,7 @@ class AudioPipeline:
                     dialog,
                     voice_database=self.voice_database,
                     tts_pipeline=self.tts_engine,
+                    persona_to_voice_desc=persona_to_voice_desc,
                     voices=voices,
                     keep_duplicate=keep_duplicate,
                     seed=seed,

@@ -74,6 +74,7 @@ def generate_utterances_audios(
     dialog: AudioDialog,
     voice_database: BaseVoiceDatabase,
     tts_pipeline: BaseTTS,
+    persona_to_voice_desc: Union[str, callable] = None,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
     keep_duplicate: bool = False,
     seed: int = None,
@@ -99,6 +100,9 @@ def generate_utterances_audios(
     :type voice_database: BaseVoiceDatabase
     :param tts_pipeline: Text-to-speech engine for audio generation.
     :type tts_pipeline: BaseTTS
+    :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                  and returns its voice descriptions. Defaults to a template with gender and age only.
+    :type persona_to_voice_desc: Union[str, callable]
     :param voices: Optional dictionary mapping speaker roles to specific voices.
                   If None, voices are automatically selected based on persona characteristics.
     :type voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]]
@@ -119,6 +123,7 @@ def generate_utterances_audios(
         voices=voices,
         keep_duplicate=keep_duplicate,
         tts_engine=tts_pipeline,
+        persona_to_voice_desc=persona_to_voice_desc,
         seed=seed
     )
 

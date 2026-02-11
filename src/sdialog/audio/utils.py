@@ -42,14 +42,21 @@ import re
 import logging
 
 from enum import Enum
+from jinja2 import Template
 from pydantic import BaseModel
 from qwen_tts import Qwen3TTSModel
 
 # Create a logger for the audio module
-logger = logging.getLogger("sdialog.audio")
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
-VOICE_DESCRIPTION_TEMPLATE = "{gender}, {age} years old, speaking style: {style}."
 voice_reference_model = None
+
+DEFAULT_VOICE_DESCRIPTION_TEMPLATE = "{{ gender }}, {{ age }} years old."
 
 
 class RGBAColor(Enum):
@@ -424,24 +431,12 @@ def default_dscaper_datasets() -> list[str]:
     return ["sdialog/background", "sdialog/foreground"]
 
 
-# TODO: instead of turn 2 voice, we need persona 2 voice and allow the user
-# to pass the function as argument
-def turn2voice_description(dialog, turn_index):
-    """Generate a voice description prompt from persona attributes for TTS voice design."""
-    turn = dialog.turns[turn_index]
-    speaker = turn.speaker
-    target_persona = dialog.personas.get(speaker, {})
-    voice_desc = VOICE_DESCRIPTION_TEMPLATE.format(gender=target_persona.get("gender", "male"),
-                                                   age=target_persona.get("age", "40"),
-                                                   accent=target_persona.get("race", "american"),
-                                                   style=target_persona.get("hurriedness", "neutral"))
-
-    return voice_desc.title(), turn.text
-
-
-def generate_reference_voices(dialog, voice_clone_model):
+def generate_reference_voices(dialog, voice_clone_model, persona_to_voice_desc=DEFAULT_VOICE_DESCRIPTION_TEMPLATE):
     """Generate voice clone prompts for each speaker using their first turn and persona attributes."""
     global voice_reference_model
+
+    if persona_to_voice_desc is None:
+        persona_to_voice_desc = DEFAULT_VOICE_DESCRIPTION_TEMPLATE
 
     if voice_reference_model is None:
         voice_reference_model = Qwen3TTSModel.from_pretrained(
@@ -464,18 +459,27 @@ def generate_reference_voices(dialog, voice_clone_model):
     reference_prompts = {}
     for speaker in speakers:
         if speaker in speaker_first_turns:
-            turn_index = speaker_first_turns[speaker]
-            instruct, text = turn2voice_description(dialog, turn_index)
-            print(f"Generating voice reference for speaker '{speaker}' with description: {instruct}")
+            turn = dialog.turns[speaker_first_turns[speaker]]
+            speaker = turn.speaker
+            target_persona = dialog.personas.get(speaker, {})
+
+            if callable(persona_to_voice_desc):
+                voice_desc = persona_to_voice_desc(target_persona)
+            elif isinstance(persona_to_voice_desc, str):
+                voice_desc = Template(persona_to_voice_desc).render(**target_persona)
+            else:
+                raise ValueError("persona_to_voice_desc must be a callable or a string jinja2 template")
+
+            logger.info(f"Generating voice reference for speaker '{speaker}' with description: {voice_desc}")
 
             wavs, sr = voice_reference_model.generate_voice_design(
-                text=text,
+                text=turn.text,
                 language="English",
-                instruct=instruct,
+                instruct=voice_desc,
             )
             reference_prompts[speaker] = voice_clone_model.model.create_voice_clone_prompt(
                 ref_audio=(wavs[0], sr),
-                ref_text=text,
+                ref_text=turn.text,
             )
 
     return reference_prompts

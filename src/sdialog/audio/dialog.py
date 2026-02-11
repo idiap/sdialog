@@ -416,6 +416,7 @@ class AudioDialog(Dialog):
     def persona_to_voice(
         self,
         voice_database: BaseVoiceDatabase,
+        persona_to_voice_desc: Union[str, callable] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
         keep_duplicate: bool = False,
         tts_engine: BaseTTS | BaseVoiceCloneTTS = None,
@@ -436,6 +437,10 @@ class AudioDialog(Dialog):
 
         :param voice_database: Database containing available voices with metadata.
         :type voice_database: BaseVoiceDatabase
+        :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                      and returns its voice descriptions. Defaults to a template with
+                                      gender and age only.
+        :type persona_to_voice_desc: Union[str, callable]
         :param voices: Optional dictionary mapping speaker roles to specific voices.
                     Keys are Role enums, values can be Voice objects or (identifier, language) tuples.
         :type voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]]
@@ -447,7 +452,9 @@ class AudioDialog(Dialog):
         if voices is None and voice_database is None:
             logger.info("No voices provided, generating them dynamically "
                         "based on the persona definition of each speaker.")
-            reference_prompts = generate_reference_voices(dialog=self, voice_clone_model=tts_engine)
+            reference_prompts = generate_reference_voices(dialog=self,
+                                                          voice_clone_model=tts_engine,
+                                                          persona_to_voice_desc=persona_to_voice_desc)
             voices = {role: reference_prompts.get(speaker) for speaker, role in self.speakers_roles.items()}
 
         for speaker, persona in self.personas.items():
