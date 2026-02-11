@@ -921,8 +921,6 @@ class AudioDialog(Dialog):
             else:
                 gaps = gaps[:expected_gaps]
 
-        gaps[2] = -0.75
-
         if verbose:
             logger.info("-------------------------------- gaps --------------------------------")
             logger.info(gaps)
