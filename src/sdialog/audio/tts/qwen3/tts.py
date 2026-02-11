@@ -24,6 +24,8 @@ class Qwen3TTS(BaseTTS):
         if device_map is None:
             device_map = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+        self.dtype = dtype
+        self.device_map = device_map
         self.model = Qwen3TTSModel.from_pretrained(
             model,
             device_map=device_map,
@@ -62,6 +64,8 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         if device_map is None:
             device_map = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+        self.dtype = dtype
+        self.device_map = device_map
         self.model = Qwen3TTSModel.from_pretrained(
             model,
             device_map=device_map,

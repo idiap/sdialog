@@ -61,10 +61,26 @@ from sdialog.audio.processing import AudioProcessor
 from sdialog.audio.tts import BaseTTS, Qwen3TTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
-from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, HuggingfaceVoiceDatabase
 from sdialog.audio import generate_utterances_audios, generate_audio_room_accoustic
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio.utils import Role, SourceType, SourceVolume, SpeakerSide, default_dscaper_datasets
+
+
+# Template for generating voice descriptions from persona attributes
+VOICE_DESCRIPTION_TEMPLATE = "{gender}, {age} years old, speaking style: {style}."
+
+
+def turn2voice_description(dialog, turn_index):
+    """Generate a voice description prompt from persona attributes for TTS voice design."""
+    turn = dialog.turns[turn_index]
+    speaker = turn.speaker
+    target_persona = dialog.personas.get(speaker, {})
+    voice_desc = VOICE_DESCRIPTION_TEMPLATE.format(gender=target_persona.get("gender", "male"),
+                                                   age=target_persona.get("age", "40"),
+                                                   accent=target_persona.get("race", "american"),
+                                                   style=target_persona.get("hurriedness", "neutral"))
+    return voice_desc.title(), turn.text
 
 
 def to_audio(
@@ -350,9 +366,9 @@ class AudioPipeline:
         if self.voice_database is None and isinstance(self.tts_engine, BaseTTS):
             logger.warning("No voice database provided, make sure the TTS engine supports voice design or voice "
                            "cloning if you want to use the voice assignment features of the audio pipeline.")
-            from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
             # TODO: default voice databased SHOULD be part of the TTS engine!
-            #       since each engine supports a predefined voice database
+            #       since each engine supports a predefined voice database we should get the defalt as:
+            #       self.voice_database = self.tts_engine.voice_database
             if isinstance(self.tts_engine, BaseTTS):
                 if isinstance(self.tts_engine, Qwen3TTS):
                     self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-qwen3-tts")

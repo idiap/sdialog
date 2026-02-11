@@ -34,7 +34,7 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
 import json
@@ -46,7 +46,7 @@ from typing import List, Union
 from sdialog import Dialog
 from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room import AudioSource
-from sdialog.audio.utils import logger, Role
+from sdialog.audio.utils import logger, generate_reference_voices, Role
 from sdialog.audio.tts.base import BaseTTS, BaseVoiceCloneTTS
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
 
@@ -439,6 +439,10 @@ class AudioDialog(Dialog):
         :param seed: Seed for random number generator.
         :type seed: int
         """
+        if voices is None and voice_database is None:
+            reference_prompts = generate_reference_voices(dialog=self, voice_clone_model=tts_engine)
+            voices = {role: reference_prompts.get(speaker) for speaker, role in self.speakers_roles.items()}
+
         for speaker, persona in self.personas.items():
 
             # Check if the information about the voice is already in the persona, else add a random information

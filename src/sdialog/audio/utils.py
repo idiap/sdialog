@@ -36,15 +36,20 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import re
 import logging
+
 from enum import Enum
 from pydantic import BaseModel
+from qwen_tts import Qwen3TTSModel
 
 # Create a logger for the audio module
 logger = logging.getLogger("sdialog.audio")
+
+VOICE_DESCRIPTION_TEMPLATE = "{gender}, {age} years old, speaking style: {style}."
+voice_reference_model = None
 
 
 class RGBAColor(Enum):
@@ -417,3 +422,60 @@ def default_dscaper_datasets() -> list[str]:
     Default dSCAPER datasets
     """
     return ["sdialog/background", "sdialog/foreground"]
+
+
+# TODO: instead of turn 2 voice, we need persona 2 voice and allow the user
+# to pass the function as argument
+def turn2voice_description(dialog, turn_index):
+    """Generate a voice description prompt from persona attributes for TTS voice design."""
+    turn = dialog.turns[turn_index]
+    speaker = turn.speaker
+    target_persona = dialog.personas.get(speaker, {})
+    voice_desc = VOICE_DESCRIPTION_TEMPLATE.format(gender=target_persona.get("gender", "male"),
+                                                   age=target_persona.get("age", "40"),
+                                                   accent=target_persona.get("race", "american"),
+                                                   style=target_persona.get("hurriedness", "neutral"))
+
+    return voice_desc.title(), turn.text
+
+
+def generate_reference_voices(dialog, voice_clone_model):
+    """Generate voice clone prompts for each speaker using their first turn and persona attributes."""
+    global voice_reference_model
+
+    if voice_reference_model is None:
+        voice_reference_model = Qwen3TTSModel.from_pretrained(
+            "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            device_map=voice_clone_model.device_map,
+            dtype=voice_clone_model.dtype,
+            # attn_implementation="flash_attention_2",
+        )
+
+    # Get speakers from dialog.personas.keys()
+    speakers = dialog.personas.keys()
+
+    # Find the first turn for each speaker
+    speaker_first_turns = {}
+    for turn_index, turn in enumerate(dialog.turns):
+        if turn.speaker not in speaker_first_turns:
+            speaker_first_turns[turn.speaker] = turn_index
+
+    # Generate reference voices for each speaker
+    reference_prompts = {}
+    for speaker in speakers:
+        if speaker in speaker_first_turns:
+            turn_index = speaker_first_turns[speaker]
+            instruct, text = turn2voice_description(dialog, turn_index)
+            print(f"Generating voice reference for speaker '{speaker}' with description: {instruct}")
+
+            wavs, sr = voice_reference_model.generate_voice_design(
+                text=text,
+                language="English",
+                instruct=instruct,
+            )
+            reference_prompts[speaker] = voice_clone_model.model.create_voice_clone_prompt(
+                ref_audio=(wavs[0], sr),
+                ref_text=text,
+            )
+
+    return reference_prompts
