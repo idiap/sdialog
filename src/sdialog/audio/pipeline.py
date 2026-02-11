@@ -359,7 +359,8 @@ class AudioPipeline:
 
         self.tts_engine = tts_engine
         if self.tts_engine is None:
-            logger.warning("No TTS provided, using voice cloning Qwen3-TTS as the default TTS model (Qwen3-TTS-12Hz-1.7B-Base)")
+            logger.warning("No TTS provided, using voice cloning Qwen3-TTS as "
+                           "the default TTS model (Qwen3-TTS-12Hz-1.7B-Base)")
             self.tts_engine = Qwen3TTSVoiceClone()
 
         self.voice_database = voice_database
@@ -592,7 +593,7 @@ class AudioPipeline:
                 ))
 
             # Override the dialog directory name if provided otherwise use the dialog id as the directory name
-            dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
+            dialog_directory = dialog_dir_name or ""
             dialog.audio_dir_path = self.dir_audio
 
             dialog.audio_step_1_filepath = os.path.join(

@@ -440,7 +440,8 @@ class AudioDialog(Dialog):
         :type seed: int
         """
         if voices is None and voice_database is None:
-            logger.info("No voices provided, generating them dynamically based on the persona definition of each speaker.")
+            logger.info("No voices provided, generating them dynamically "
+                        "based on the persona definition of each speaker.")
             reference_prompts = generate_reference_voices(dialog=self, voice_clone_model=tts_engine)
             voices = {role: reference_prompts.get(speaker) for speaker, role in self.speakers_roles.items()}
 
