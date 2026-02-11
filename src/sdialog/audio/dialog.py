@@ -170,10 +170,15 @@ class AudioDialog(Dialog):
         # Convert regular turns to audio turns
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
 
-        # TODO: why like this? we have the speakers in the personas!
-        # Identify speakers from the first two turns
-        speaker_1 = audio_dialog.turns[0].speaker
-        speaker_2 = audio_dialog.turns[1].speaker
+        # Map speakers to roles based on the first two speakers in the dialog
+        speakers = []
+        for turn in dialog.turns:
+            if turn.speaker not in speakers:
+                speakers.append(turn.speaker)
+                if len(speakers) == 2:
+                    break
+        speaker_1 = speakers[0]
+        speaker_2 = speakers[1]
 
         # Create role mappings for speaker identification
         audio_dialog.speakers_names[Role.SPEAKER_1] = speaker_1
