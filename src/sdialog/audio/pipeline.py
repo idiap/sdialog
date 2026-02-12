@@ -626,7 +626,7 @@ class AudioPipeline:
                 ))
 
             # Override the dialog directory name if provided otherwise use the dialog id as the directory name
-            dialog_directory = dialog_dir_name or ""
+            dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
             dialog.audio_dir_path = self.dir_audio
 
             dialog.audio_step_1_filepath = os.path.join(

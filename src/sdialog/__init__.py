@@ -491,7 +491,6 @@ class Dialog(BaseModel):
 
     def to_audio(
         self,
-        path: str,
         **kwargs: dict
     ):
         """
@@ -558,8 +557,6 @@ class Dialog(BaseModel):
             from sdialog.audio.pipeline import to_audio
         except Exception:
             raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
-
-        kwargs["dir_audio"] = path
 
         return to_audio(
             self,

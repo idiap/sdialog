@@ -4,7 +4,6 @@
 import torch
 import numpy as np
 
-from qwen_tts import Qwen3TTSModel
 from ..base import BaseTTS, BaseVoiceCloneTTS
 
 
@@ -21,6 +20,12 @@ class Qwen3TTS(BaseTTS):
         :param model: The model identifier from the Hugging Face Hub.
         :type model: str
         """
+
+        try:
+            from qwen_tts import Qwen3TTSModel
+        except ImportError:
+            raise ImportError("qwen_tts is not installed. Please install it with `pip install qwen-tts`.")
+
         if device_map is None:
             device_map = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -61,6 +66,12 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         :param model: The model identifier from the Hugging Face Hub.
         :type model: str
         """
+
+        try:
+            from qwen_tts import Qwen3TTSModel
+        except ImportError:
+            raise ImportError("qwen_tts is not installed. Please install it with `pip install qwen-tts`.")
+
         if device_map is None:
             device_map = "cuda:0" if torch.cuda.is_available() else "cpu"
 

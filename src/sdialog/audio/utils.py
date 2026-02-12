@@ -43,7 +43,6 @@ import logging
 
 from enum import Enum
 from jinja2 import Template
-from qwen_tts import Qwen3TTSModel
 from pydantic import BaseModel, field_validator
 
 # Create a logger for the audio module
@@ -480,6 +479,12 @@ def generate_reference_voices(
     """
     Generate voice clone prompts for each speaker using their first turn and persona attributes.
     """
+
+    try:
+        from qwen_tts import Qwen3TTSModel
+    except ImportError:
+        raise ImportError("qwen_tts is not installed. Please install it with `pip install qwen-tts`.")
+
     global voice_reference_model
 
     if persona_to_voice_desc is None:
