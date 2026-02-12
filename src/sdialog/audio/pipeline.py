@@ -45,11 +45,9 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import json
-import torch
 import dscaper
 import librosa
 import logging
-import numpy as np
 from tqdm import tqdm
 import soundfile as sf
 from datasets import load_dataset
