@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 voice_reference_model = None
 
-DEFAULT_VOICE_DESCRIPTION_TEMPLATE = "{{ gender }}, {{ age }} years old."
+DEFAULT_VOICE_DESCRIPTION_TEMPLATE = "{{ gender }}, {{ age }} years old, speaking naturally."
 
 
 class RGBAColor(Enum):
