@@ -466,7 +466,7 @@ class Dialog(BaseModel):
 
     def to_audio(
         self,
-        path: str,
+        path: str = None,
         **kwargs: dict
     ):
         """
@@ -530,7 +530,8 @@ class Dialog(BaseModel):
         except Exception:
             raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
 
-        kwargs["dir_audio"] = path
+        if path is not None:
+            kwargs["dir_audio"] = path
 
         return to_audio(
             self,
