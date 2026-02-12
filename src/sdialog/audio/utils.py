@@ -480,7 +480,7 @@ def generate_reference_voices(dialog, voice_clone_model, persona_to_voice_desc=D
             speaker_first_turns[turn.speaker] = turn_index
 
     # Generate reference voices for each speaker
-    reference_prompts = {}
+    reference_prompts = CaseInsensitiveDict()
     for speaker in speakers:
         if speaker in speaker_first_turns:
             turn = dialog.turns[speaker_first_turns[speaker]]
