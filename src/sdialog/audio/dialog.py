@@ -74,6 +74,28 @@ class AudioDialog(Dialog):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def _update_speakers_roles(self):
+        """Compute the mapping between speaker names and roles needed for audio inference pipeline."""
+        # Get the unique speakers in the dialog in the order of appearance
+        speakers = []
+        for turn in self.turns:
+            if turn.speaker not in speakers:
+                speakers.append(turn.speaker)
+                if len(speakers) == 2:
+                    break
+
+        # In case dialog was loaded from a file or json
+        if not isinstance(self.speakers_roles, CaseInsensitiveDict):
+            self.speakers_roles = CaseInsensitiveDict()
+
+        # Create role mappings for speaker identification
+        self.speakers_names[Role.SPEAKER_1] = speakers[0]
+        self.speakers_names[Role.SPEAKER_2] = speakers[1]
+
+        # Create reverse mappings for role lookup
+        self.speakers_roles[speakers[0]] = Role.SPEAKER_1
+        self.speakers_roles[speakers[1]] = Role.SPEAKER_2
+
     def set_audio_sources(self, audio_sources: List[AudioSource]):
         """
         Sets the audio sources for room acoustics simulation.
@@ -169,22 +191,7 @@ class AudioDialog(Dialog):
 
         # Convert regular turns to audio turns
         audio_dialog.turns = [AudioTurn.from_turn(turn) for turn in dialog.turns]
-
-        # Map speakers to roles based on the first two speakers in the dialog
-        speakers = []
-        for turn in dialog.turns:
-            if turn.speaker not in speakers:
-                speakers.append(turn.speaker)
-                if len(speakers) == 2:
-                    break
-
-        # Create role mappings for speaker identification
-        audio_dialog.speakers_names[Role.SPEAKER_1] = speakers[0]
-        audio_dialog.speakers_names[Role.SPEAKER_2] = speakers[1]
-
-        # Create reverse mappings for role lookup
-        audio_dialog.speakers_roles[speakers[0]] = Role.SPEAKER_1
-        audio_dialog.speakers_roles[speakers[1]] = Role.SPEAKER_2
+        audio_dialog._update_speakers_roles()
 
         return audio_dialog
 
@@ -203,7 +210,9 @@ class AudioDialog(Dialog):
         :rtype: AudioDialog
         :raises ValidationError: If the dictionary data is invalid or incomplete.
         """
-        return AudioDialog.model_validate(data)
+        audio_dialog = AudioDialog.model_validate(data)
+        audio_dialog._update_speakers_roles()
+        return audio_dialog
 
     @staticmethod
     def from_json(json_str: str):
@@ -221,6 +230,28 @@ class AudioDialog(Dialog):
         :raises ValidationError: If the parsed data is invalid or incomplete.
         """
         return AudioDialog.from_dict(json.loads(json_str))
+
+    @staticmethod
+    def from_file(path: str) -> Union["AudioDialog", List["AudioDialog"]]:
+        """
+        Loads an audio dialog from a JSON file or a directory of JSON files.
+
+        :param path: Path to the dialogue file or directory. In case of a directory, all dialogues in the directory
+                     will be loaded and returned as a list of Dialog objects.
+        :type path: str
+        :return: The loaded dialogue object or a list of dialogue objects.
+        :rtype: Union[Dialog, List[Dialog]]
+        """
+        if os.path.isdir(path):
+            dialogs = [AudioDialog.from_file(os.path.join(path, filename))
+                       for filename in sorted(os.listdir(path))
+                       if filename.endswith(".json")]
+            return dialogs
+
+        with open(path) as reader:
+            dialog = AudioDialog.from_dict(json.load(reader))
+            dialog._path = path  # Store the path for later use
+            return dialog
 
     def to_file(self, path: str = None, makedir: bool = True, overwrite: bool = True):
         """
@@ -263,6 +294,9 @@ class AudioDialog(Dialog):
         with open(path, "w", newline='') as writer:
             writer.write(self.model_dump_json_safe(indent=2))
 
+    def to_string(self):
+        return self.model_dump_json_safe(indent=4)
+
     def model_dump_json_safe(self, **kwargs) -> str:
         """
         Safely dumps the AudioDialog object to a JSON string.
@@ -285,31 +319,6 @@ class AudioDialog(Dialog):
                 if "voice" in self.personas[speaker]:
                     self.personas[speaker]["voice"] = "voice sample (non serializable)"
             return self.model_dump_json(**kwargs)
-
-    @staticmethod
-    def from_file(path: str) -> Union["AudioDialog", List["AudioDialog"]]:
-        """
-        Loads an audio dialog from a JSON file or a directory of JSON files.
-
-        :param path: Path to the dialogue file or directory. In case of a directory, all dialogues in the directory
-                     will be loaded and returned as a list of Dialog objects.
-        :type path: str
-        :return: The loaded dialogue object or a list of dialogue objects.
-        :rtype: Union[Dialog, List[Dialog]]
-        """
-        if os.path.isdir(path):
-            dialogs = [AudioDialog.from_file(os.path.join(path, filename))
-                       for filename in sorted(os.listdir(path))
-                       if filename.endswith(".json")]
-            return dialogs
-
-        with open(path) as reader:
-            dialog = AudioDialog.from_dict(json.load(reader))
-            dialog._path = path  # Store the path for later use
-            return dialog
-
-    def to_string(self):
-        return self.model_dump_json_safe(indent=4)
 
     def display(self):
         """
@@ -411,6 +420,8 @@ class AudioDialog(Dialog):
             # Save the audio file
             sf.write(turn.audio_path, audio_data, sampling_rate)
 
+    # TODO: this method should be rename since does not return anything, maybe more like
+    #       "update_voices_from_personas" or "assign_voices_to_personas", and perhaps should be a private method
     def persona_to_voice(
         self,
         voice_database: BaseVoiceDatabase,
