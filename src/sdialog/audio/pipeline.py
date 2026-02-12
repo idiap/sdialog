@@ -565,6 +565,8 @@ class AudioPipeline:
             Microphone simulation via `recording_devices` requires the `impulse_response_database`
             to be set on the `AudioPipeline` instance.
         """
+        if isinstance(dialog, Dialog):
+            dialog = AudioDialog.from_dialog(dialog)
 
         # Save the original logger level
         original_level = logger.level
@@ -659,6 +661,9 @@ class AudioPipeline:
             # Step 1: Generate the utterances audios using the TTS
             #########################################################
 
+            # Make sure the speaker to name mapping is computed before inference, independently if dialog is loaded
+            # from file or is the original dialog object passed to this inference function
+            dialog._update_speakers_roles()
             if (not os.path.exists(dialog.audio_step_1_filepath) or override_tts_audio) and perform_tts:
 
                 logger.info(f"[Step 1] Generating audio recordings from the utterances of the dialogue: {dialog.id}")

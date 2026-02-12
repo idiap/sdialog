@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 voice_reference_model = None
 
-DEFAULT_VOICE_DESCRIPTION_TEMPLATE = "{{ gender }}, {{ age }} years old."
+DEFAULT_VOICE_DESCRIPTION_TEMPLATE = "{{ gender }}, {{ age }} years old, speaking naturally."
 
 
 class WallMaterial(str, Enum):
@@ -503,7 +503,7 @@ def generate_reference_voices(
             speaker_first_turns[turn.speaker] = turn_index
 
     # Generate reference voices for each speaker
-    reference_prompts = {}
+    reference_prompts = CaseInsensitiveDict()
     for speaker in speakers:
         if speaker in speaker_first_turns:
             turn = dialog.turns[speaker_first_turns[speaker]]
