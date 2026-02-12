@@ -48,7 +48,6 @@ import shutil
 import dscaper
 import logging
 import soundfile as sf
-from typing import Optional
 
 from sdialog.audio.utils import logger, Role
 from sdialog.audio.dialog import AudioDialog

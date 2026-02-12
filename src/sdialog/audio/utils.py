@@ -36,15 +36,27 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import re
 import logging
+
 from enum import Enum
+from jinja2 import Template
+from qwen_tts import Qwen3TTSModel
 from pydantic import BaseModel, field_validator
 
 # Create a logger for the audio module
-logger = logging.getLogger("sdialog.audio")
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+voice_reference_model = None
+
+DEFAULT_VOICE_DESCRIPTION_TEMPLATE = "{{ gender }}, {{ age }} years old."
 
 
 class WallMaterial(str, Enum):
@@ -422,6 +434,30 @@ class Role(str, Enum):
         return self.value
 
 
+class CaseInsensitiveDict(dict):
+    def __setitem__(self, key, value):
+        super().__setitem__(key.lower(), value)
+
+    def __getitem__(self, key):
+        return super().__getitem__(key.lower())
+
+    def __delitem__(self, key):
+        super().__delitem__(key.lower())
+
+    def __contains__(self, key):
+        return super().__contains__(key.lower())
+
+    def get(self, key, default=None):
+        return super().get(key.lower(), default)
+
+    def update(self, other=None, **kwargs):
+        if other:
+            for k, v in dict(other).items():
+                self[k] = v
+        for k, v in kwargs.items():
+            self[k] = v
+
+
 def default_dscaper_datasets() -> list[str]:
     """
     Default dSCAPER datasets
@@ -434,3 +470,63 @@ def default_sound_effects_datasets() -> list[str]:
     Default sound effects datasets
     """
     return ["sdialog/sound_events"]
+
+
+def generate_reference_voices(
+    dialog,
+    voice_clone_model,
+    persona_to_voice_desc=DEFAULT_VOICE_DESCRIPTION_TEMPLATE
+):
+    """
+    Generate voice clone prompts for each speaker using their first turn and persona attributes.
+    """
+    global voice_reference_model
+
+    if persona_to_voice_desc is None:
+        persona_to_voice_desc = DEFAULT_VOICE_DESCRIPTION_TEMPLATE
+
+    if voice_reference_model is None:
+        voice_reference_model = Qwen3TTSModel.from_pretrained(
+            "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            device_map=voice_clone_model.device_map,
+            dtype=voice_clone_model.dtype,
+            # attn_implementation="flash_attention_2",
+        )
+
+    # Get speakers from dialog.personas.keys()
+    speakers = dialog.personas.keys()
+
+    # Find the first turn for each speaker
+    speaker_first_turns = {}
+    for turn_index, turn in enumerate(dialog.turns):
+        if turn.speaker not in speaker_first_turns:
+            speaker_first_turns[turn.speaker] = turn_index
+
+    # Generate reference voices for each speaker
+    reference_prompts = {}
+    for speaker in speakers:
+        if speaker in speaker_first_turns:
+            turn = dialog.turns[speaker_first_turns[speaker]]
+            speaker = turn.speaker
+            target_persona = dialog.personas.get(speaker, {})
+
+            if callable(persona_to_voice_desc):
+                voice_desc = persona_to_voice_desc(target_persona)
+            elif isinstance(persona_to_voice_desc, str):
+                voice_desc = Template(persona_to_voice_desc).render(**target_persona)
+            else:
+                raise ValueError("persona_to_voice_desc must be a callable or a string jinja2 template")
+
+            logger.info(f"Generating voice reference for speaker '{speaker}' with description: {voice_desc}")
+
+            wavs, sr = voice_reference_model.generate_voice_design(
+                text=turn.text,
+                language="English",
+                instruct=voice_desc,
+            )
+            reference_prompts[speaker] = voice_clone_model.model.create_voice_clone_prompt(
+                ref_audio=(wavs[0], sr),
+                ref_text=turn.text,
+            )
+
+    return reference_prompts

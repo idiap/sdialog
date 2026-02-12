@@ -145,7 +145,7 @@ class DiarizationEnhancedTask(Task):
                         audio_data = audio_data.numpy()
 
                     if audio_data is not None and len(audio_data) > 0:
-                        
+
                         # Clean text
                         clean_text = re.sub(r"\[(.*?)\]", "", turn.text)
                         clean_text = re.sub(r"\s+", " ", clean_text).strip()
@@ -189,7 +189,10 @@ class DiarizationEnhancedTask(Task):
                 abs_end = abs_start + abs_duration
 
                 # RTTM format: type, file_id, channel, start, duration, <NA>, <NA>, speaker_id, <NA>, <NA>
-                rttm_line = f"SPEAKER {file_id} 1 {abs_start:.3f} {abs_duration:.3f} <NA> <NA> {generic_speaker_id} <NA> <NA>"
+                rttm_line = (
+                    f"SPEAKER {file_id} 1 {abs_start:.3f} "
+                    f"{abs_duration:.3f} <NA> <NA> {generic_speaker_id} <NA> <NA>"
+                )
                 rttm_lines.append(rttm_line)
 
                 annotations_data.append({

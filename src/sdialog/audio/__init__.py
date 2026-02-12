@@ -50,7 +50,7 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
 import torch
@@ -74,8 +74,9 @@ def generate_utterances_audios(
     dialog: AudioDialog,
     voice_database: BaseVoiceDatabase,
     tts_pipeline: BaseTTS,
+    persona_to_voice_desc: Union[str, callable] = None,
     voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-    keep_duplicate: bool = True,
+    keep_duplicate: bool = False,
     seed: int = None,
     sampling_rate: int = 24_000,
     tts_pipeline_kwargs: dict = {},
@@ -100,6 +101,9 @@ def generate_utterances_audios(
     :type voice_database: BaseVoiceDatabase
     :param tts_pipeline: Text-to-speech engine for audio generation.
     :type tts_pipeline: BaseTTS
+    :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                  and returns its voice descriptions. Defaults to a template with gender and age only.
+    :type persona_to_voice_desc: Union[str, callable]
     :param voices: Optional dictionary mapping speaker roles to specific voices.
                   If None, voices are automatically selected based on persona characteristics.
     :type voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]]
@@ -121,13 +125,18 @@ def generate_utterances_audios(
         voice_database=voice_database,
         voices=voices,
         keep_duplicate=keep_duplicate,
+        tts_engine=tts_pipeline,
+        persona_to_voice_desc=persona_to_voice_desc,
         seed=seed
     )
 
     for turn in tqdm(dialog.turns, desc="Generating utterances audios"):
 
         # Get the voice of the turn
-        turn.voice = dialog.personas[turn.speaker]["voice"].voice
+        if isinstance(dialog.personas[turn.speaker]["voice"], Voice):
+            turn.voice = dialog.personas[turn.speaker]["voice"].voice
+        else:
+            turn.voice = dialog.personas[turn.speaker]["voice"]
 
         # Generate the utterance audio
         utterance_audio, utterance_sampling_rate = generate_utterance(
@@ -139,7 +148,6 @@ def generate_utterances_audios(
 
         # If the sampling rate of the audio is not the same as the sampling rate of the project, resample the audio
         if utterance_sampling_rate != sampling_rate:
-
             logger.info(
                 f"[Step 1] Resampling the audio ({utterance_sampling_rate} Hz) to the sampling "
                 f"rate of the project ({sampling_rate} Hz)..."

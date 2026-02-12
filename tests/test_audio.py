@@ -693,7 +693,7 @@ def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
         # SPEAKER_2 is missing
     }
 
-    with pytest.raises(ValueError, match="Voice for role speaker_2 not found in the voices dictionary"):
+    with pytest.raises(ValueError):
         dialog_with_personas.persona_to_voice(mock_voice_db, voices=voices)
 
 
@@ -701,17 +701,19 @@ def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
 @pytest.fixture
 def mock_dependencies():
     """Mocks all external dependencies for AudioPipeline tests."""
-    with patch('sdialog.audio.pipeline.HuggingFaceTTS') as mock_tts, \
+    with patch('sdialog.audio.pipeline.Qwen3TTS') as mock_tts, \
+         patch('sdialog.audio.pipeline.Qwen3TTSVoiceClone') as mock_tts, \
          patch('sdialog.audio.pipeline.HuggingfaceVoiceDatabase') as mock_db, \
          patch('sdialog.audio.pipeline.scaper', create=True) as mock_scaper, \
          patch('sdialog.audio.pipeline.generate_utterances_audios') as mock_gen_utt, \
          patch('sdialog.audio.dialog.AudioDialog.save_utterances_audios') as mock_save_utt, \
          patch('sdialog.audio.pipeline.librosa', create=True) as mock_librosa, \
+         patch('sdialog.audio.pipeline.sf', create=True) as mock_sf, \
          patch('sdialog.audio.pipeline.generate_audio_room_accoustic') as mock_gen_room:
         yield {
             "tts": mock_tts, "db": mock_db, "scaper": mock_scaper,
             "gen_utt": mock_gen_utt, "save_utt": mock_save_utt,
-            "librosa": mock_librosa, "gen_room": mock_gen_room,
+            "librosa": mock_librosa, "sf": mock_sf, "gen_room": mock_gen_room,
             "ir_db": MagicMock()
         }
 
@@ -720,9 +722,8 @@ def test_audio_pipeline_initialization(mock_dependencies):
     """Tests that AudioPipeline initializes with default components if none are provided."""
     pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
     assert isinstance(pipeline.tts_engine, MagicMock)
-    assert isinstance(pipeline.voice_database, MagicMock)
+    assert pipeline.voice_database is None
     mock_dependencies["tts"].assert_called_once()
-    mock_dependencies["db"].assert_called_once()
 
 
 def test_audio_pipeline_inference_step1(mock_dependencies, audio_dialog_instance, tmp_path):

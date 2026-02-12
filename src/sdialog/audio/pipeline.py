@@ -41,7 +41,7 @@ Example:
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
 import json
@@ -57,10 +57,10 @@ from sdialog import Dialog
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
-from sdialog.audio.tts import BaseTTS, HuggingFaceTTS
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
-from sdialog.audio.voice_database import BaseVoiceDatabase, HuggingfaceVoiceDatabase, Voice
+from sdialog.audio.tts import BaseTTS, Qwen3TTS, Qwen3TTSVoiceClone
+from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, HuggingfaceVoiceDatabase
 from sdialog.audio import generate_utterances_audios, generate_audio_room_accoustic
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio.utils import (
@@ -81,6 +81,8 @@ def to_audio(
     room_name: Optional[str] = None,
     perform_room_acoustics: Optional[bool] = False,
     tts_engine: Optional[BaseTTS] = None,
+    persona_to_voice_desc: Optional[Union[str, callable]] = None,
+    voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
     voice_database: Optional[BaseVoiceDatabase] = None,
     dscaper_datasets: Optional[List[str]] = None,
     room: Optional[Room] = None,
@@ -96,7 +98,6 @@ def to_audio(
     impulse_response_database: Optional[ImpulseResponseDatabase] = None,
     override_tts_audio: Optional[bool] = True,
     verbose: Optional[bool] = False,
-    voices: Optional[dict[Role, Union[Voice, tuple[str, str]]]] = None,
     overlap_pauses: Optional[bool] = False,
     add_sound_effects: Optional[bool] = False,
     sound_effects_datasets: Optional[List[str]] = None,
@@ -127,6 +128,12 @@ def to_audio(
     :type perform_room_acoustics: bool
     :param tts_engine: Text-to-speech engine for audio generation.
     :type tts_engine: BaseTTS
+    :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                  and returns its voice descriptions. Defaults to a template with
+                                  gender and age only.
+    :type persona_to_voice_desc: Union[str, callable]
+    :param voices: Optional dictionary mapping speaker roles to voice configurations.
+    :type voices: dict[Role, Union[Voice, tuple[str, str]]]
     :param voice_database: Voice database for speaker selection.
     :type voice_database: BaseVoiceDatabase
     :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
@@ -223,16 +230,8 @@ def to_audio(
 
         # Initialize the audio pipeline
         _audio_pipeline = AudioPipeline(
-            voice_database=(
-                voice_database
-                if voice_database is not None
-                else HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
-            ),
-            tts_engine=(
-                tts_engine
-                if tts_engine is not None
-                else HuggingFaceTTS("facebook/mms-tts-eng")
-            ),
+            voice_database=voice_database,
+            tts_engine=tts_engine,
             dscaper_data_path=dscaper_data_path,
             dir_audio=dir_audio,
             impulse_response_database=impulse_response_database
@@ -282,6 +281,8 @@ def to_audio(
         _dialog: AudioDialog = _audio_pipeline.inference(
             _dialog,
             environment=_environment,
+            voices=voices,
+            persona_to_voice_desc=persona_to_voice_desc,
             perform_room_acoustics=perform_room_acoustics,
             dialog_dir_name=dialog_dir_name,
             room_name=room_name,
@@ -290,7 +291,6 @@ def to_audio(
             recording_devices=recording_devices,
             override_tts_audio=override_tts_audio,
             verbose=verbose,
-            voices=voices,
             overlap_pauses=overlap_pauses,
             add_sound_effects=add_sound_effects,
             sound_effects_dropout=sound_effects_dropout
@@ -373,16 +373,23 @@ class AudioPipeline:
 
         self.tts_engine = tts_engine
         if self.tts_engine is None:
-
-            logger.warning((
-                "No TTS provided, using the default Hugging Face TTS model: "
-                "HuggingFaceTTS(\"facebook/mms-tts-eng\")"
-            ))
-            self.tts_engine = HuggingFaceTTS("facebook/mms-tts-eng")
+            logger.warning(
+                "No TTS provided, using voice cloning Qwen3-TTS as "
+                "the default TTS model (Qwen3-TTS-12Hz-1.7B-Base)"
+            )
+            self.tts_engine = Qwen3TTSVoiceClone()
 
         self.voice_database = voice_database
-        if self.voice_database is None:
-            self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
+        if self.voice_database is None and isinstance(self.tts_engine, BaseTTS):
+            logger.warning("No voice database provided, using default voice database for the TTS engine.")
+            # TODO: default voice databased SHOULD be part of the TTS engine!
+            #       since each engine supports a predefined voice database we should get the defalt as:
+            #       self.voice_database = self.tts_engine.voice_database
+            if isinstance(self.tts_engine, BaseTTS):
+                if isinstance(self.tts_engine, Qwen3TTS):
+                    self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-qwen3-tts")
+                else:
+                    self.voice_database = HuggingfaceVoiceDatabase("sdialog/voices-kokoro")
 
         self.dscaper_data_path = (
             dscaper_data_path
@@ -492,8 +499,9 @@ class AudioPipeline:
         perform_room_acoustics: Optional[bool] = False,
         dialog_dir_name: Optional[str] = None,
         room_name: Optional[str] = None,
+        persona_to_voice_desc: Optional[Union[str, callable]] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
-        keep_duplicate: bool = True,
+        keep_duplicate: bool = False,
         audio_file_format: str = "wav",
         seed: int = None,
         recording_devices: Optional[List[Union[RecordingDevice, str]]] = None,
@@ -524,6 +532,10 @@ class AudioPipeline:
         :type dialog_dir_name: Optional[str]
         :param room_name: Custom name for the room configuration.
         :type room_name: Optional[str]
+        :param persona_to_voice_desc: Jinja2 template string or function that takes persona dictionary
+                                      and returns its voice descriptions. Defaults to a template with
+                                      gender and age only.
+        :type persona_to_voice_desc: Optional[Union[str, callable]]
         :param voices: Voice assignments for different speaker roles.
         :type voices: dict[Role, Union[Voice, tuple[str, str]]]
         :param keep_duplicate: Allow duplicate voice assignments.
@@ -558,6 +570,14 @@ class AudioPipeline:
         original_level = logger.level
         if not verbose:
             logger.setLevel(logging.ERROR)
+
+        if voices is not None:
+            voices = {
+                dialog.speakers_roles[key]
+                if key in dialog.speakers_roles
+                else key: value
+                for key, value in voices.items()
+            }
 
         # Reset the logger level to the original level after the function is executed
         try:
@@ -604,7 +624,7 @@ class AudioPipeline:
                 ))
 
             # Override the dialog directory name if provided otherwise use the dialog id as the directory name
-            dialog_directory = dialog_dir_name if dialog_dir_name is not None else f"dialog_{dialog.id}"
+            dialog_directory = dialog_dir_name or ""
             dialog.audio_dir_path = self.dir_audio
 
             dialog.audio_step_1_filepath = os.path.join(
@@ -647,6 +667,7 @@ class AudioPipeline:
                     dialog,
                     voice_database=self.voice_database,
                     tts_pipeline=self.tts_engine,
+                    persona_to_voice_desc=persona_to_voice_desc,
                     voices=voices,
                     keep_duplicate=keep_duplicate,
                     seed=seed,

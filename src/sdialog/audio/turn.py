@@ -7,13 +7,12 @@ for room acoustics simulation and audio processing workflows.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import numpy as np
 import soundfile as sf
-from typing import List, Dict, Any
-
 from sdialog import Turn
+from typing import List, Dict, Any
 
 
 class AudioTurn(Turn):
@@ -79,7 +78,7 @@ class AudioTurn(Turn):
     audio_duration: float = -1.0
     audio_start_time: float = -1.0
     snr: float = -1.0
-    voice: str = ""
+    voice: Any = ""
     position: str = ""
     microphone_position: str = ""
     is_stored_in_dscaper: bool = False

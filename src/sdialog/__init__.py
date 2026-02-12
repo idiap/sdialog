@@ -185,79 +185,6 @@ class Dialog(BaseModel):
         """
         self._annotations[task_name] = annotations
 
-    def to_audio(
-        self,
-        **kwargs: dict
-    ):
-        """
-        Convert the dialogue to an audio dialogue.
-        This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
-        All keyword arguments are passed to it.
-        :param dir_audio: Directory path for storing audio outputs.
-        :type dir_audio: str
-        :param dialog_dir_name: Custom name for the dialogue directory.
-        :type dialog_dir_name: str
-        :param dscaper_data_path: Path to dSCAPER data directory.
-        :type dscaper_data_path: Optional[str]
-        :param room_name: Custom name for the room configuration.
-        :type room_name: Optional[str]
-        :param perform_tts: Convert the dialog into audio using the text-to-speech engine.
-        :type perform_tts: Optional[bool]
-        :param perform_room_acoustics: Enable room acoustics simulation and dSCAPER timeline generation.
-        :type perform_room_acoustics: Optional[bool]
-        :param tts_engine: Text-to-speech engine for audio generation.
-        :type tts_engine: BaseTTS
-        :param voice_database: Voice database for speaker selection.
-        :type voice_database: BaseVoiceDatabase
-        :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
-        :type dscaper_datasets: List[str]
-        :param room: Room configuration for acoustics simulation.
-        :type room: Room
-        :param speaker_positions: Speaker positioning configuration.
-        :type speaker_positions: dict[Role, dict]
-        :param background_effect: Background audio effect type.
-        :type background_effect: str
-        :param foreground_effect: Foreground audio effect type.
-        :type foreground_effect: str
-        :param foreground_effect_position: Position for foreground effects.
-        :type foreground_effect_position: RoomPosition
-        :param kwargs_pyroom: PyRoomAcoustics configuration parameters.
-        :type kwargs_pyroom: dict
-        :param source_volumes: Volume levels for different audio sources.
-        :type source_volumes: dict[SourceType, SourceVolume]
-        :param audio_file_format: Audio file format (wav, mp3, flac).
-        :type audio_file_format: str
-        :param seed: Seed for random number generator.
-        :type seed: int
-        :param recording_devices: The identifiers of the recording devices to simulate.
-        :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
-        :param impulse_response_database: The database for impulse responses.
-        :type impulse_response_database: Optional[ImpulseResponseDatabase]
-        :param override_tts_audio: Override the TTS audio if it already exists.
-        :type override_tts_audio: Optional[bool]
-        :param verbose: Verbose mode for logging.
-        :type verbose: Optional[bool]
-        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
-        :type overlap_pauses: Optional[bool]
-        :param add_sound_effects: Add sound effects (such as door opening, footsteps, etc.) to the audio.
-        :type add_sound_effects: Optional[bool]
-        :param sound_effects_dropout: Dropout rate for sound effects.
-        :type sound_effects_dropout: Optional[float]
-        :return: Audio dialogue with processed audio data.
-        :rtype: "sdialog.audio.dialog.AudioDialog"
-        :raises Exception: If the audio module is not installed.
-        """
-
-        try:
-            from sdialog.audio.pipeline import to_audio
-        except Exception:
-            raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
-
-        return to_audio(
-            self,
-            **kwargs
-        )
-
     def __len__(self):
         """
         Returns the number of turns in the dialogue.
@@ -561,6 +488,83 @@ class Dialog(BaseModel):
                     csv_writer.writerow([turn.speaker, turn.text])
             else:
                 writer.write(self.description())
+
+    def to_audio(
+        self,
+        path: str,
+        **kwargs: dict
+    ):
+        """
+        Convert the dialogue to an audio dialogue.
+        This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
+        All keyword arguments are passed to it.
+
+        :param dir_audio: Directory path for storing audio outputs.
+        :type dir_audio: str
+        :param dialog_dir_name: Custom name for the dialogue directory.
+        :type dialog_dir_name: str
+        :param dscaper_data_path: Path to dSCAPER data directory.
+        :type dscaper_data_path: Optional[str]
+        :param room_name: Custom name for the room configuration.
+        :type room_name: Optional[str]
+        :param perform_tts: Convert the dialog into audio using the text-to-speech engine.
+        :type perform_tts: Optional[bool]
+        :param perform_room_acoustics: Enable room acoustics simulation and dSCAPER timeline generation.
+        :type perform_room_acoustics: Optional[bool]
+        :param tts_engine: Text-to-speech engine for audio generation.
+        :type tts_engine: BaseTTS
+        :param voice_database: Voice database for speaker selection.
+        :type voice_database: BaseVoiceDatabase
+        :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
+        :type dscaper_datasets: List[str]
+        :param room: Room configuration for acoustics simulation.
+        :type room: Room
+        :param speaker_positions: Speaker positioning configuration.
+        :type speaker_positions: dict[Role, dict]
+        :param background_effect: Background audio effect type.
+        :type background_effect: str
+        :param foreground_effect: Foreground audio effect type.
+        :type foreground_effect: str
+        :param foreground_effect_position: Position for foreground effects.
+        :type foreground_effect_position: RoomPosition
+        :param kwargs_pyroom: PyRoomAcoustics configuration parameters.
+        :type kwargs_pyroom: dict
+        :param source_volumes: Volume levels for different audio sources.
+        :type source_volumes: dict[SourceType, SourceVolume]
+        :param audio_file_format: Audio file format (wav, mp3, flac).
+        :type audio_file_format: str
+        :param seed: Seed for random number generator.
+        :type seed: int
+        :param recording_devices: The identifiers of the recording devices to simulate.
+        :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
+        :param impulse_response_database: The database for impulse responses.
+        :type impulse_response_database: Optional[ImpulseResponseDatabase]
+        :param override_tts_audio: Override the TTS audio if it already exists.
+        :type override_tts_audio: Optional[bool]
+        :param verbose: Verbose mode for logging.
+        :type verbose: Optional[bool]
+        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+        :type overlap_pauses: Optional[bool]
+        :param add_sound_effects: Add sound effects (such as door opening, footsteps, etc.) to the audio.
+        :type add_sound_effects: Optional[bool]
+        :param sound_effects_dropout: Dropout rate for sound effects.
+        :type sound_effects_dropout: Optional[float]
+        :return: Audio dialogue with processed audio data.
+        :rtype: "sdialog.audio.dialog.AudioDialog"
+        :raises Exception: If the audio module is not installed.
+        """
+
+        try:
+            from sdialog.audio.pipeline import to_audio
+        except Exception:
+            raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
+
+        kwargs["dir_audio"] = path
+
+        return to_audio(
+            self,
+            **kwargs
+        )
 
     @staticmethod
     def from_huggingface(repo_id: str,
