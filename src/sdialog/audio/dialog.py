@@ -608,7 +608,8 @@ class AudioDialog(Dialog):
         available_sound_effects: dict[str, dict] = None,
         model_name_alignment: str = "Qwen/Qwen3-ForcedAligner-0.6B",
         dropout: float = 0.0,
-        verbose: bool = False
+        verbose: bool = False,
+        skip_annotation: bool = False
     ) -> None:
         """
         Add sound effects (such as door opening, footsteps, etc.) to the audio.
@@ -625,13 +626,18 @@ class AudioDialog(Dialog):
         :type dropout: float
         :param verbose: Whether to print verbose output.
         :type verbose: bool
+        :param skip_annotation: Whether to skip the annotation of the sound effects.
+        :type skip_annotation: bool
         """
 
-        # Annotate the turns with sound effect tags using LLM
-        decorated_turns = self._annotate_sound_effects_from_turns(
-            sound_effects_db=available_sound_effects,
-            room=room
-        )
+        if not skip_annotation:
+            # Annotate the turns with sound effect tags using LLM
+            decorated_turns = self._annotate_sound_effects_from_turns(
+                sound_effects_db=available_sound_effects,
+                room=room
+            )
+        else:
+            decorated_turns = self.turns
 
         # If the dropout rate is greater than 0.0, we will drop some of the sound effects tags
         if dropout > 0.0:

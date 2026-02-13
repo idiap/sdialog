@@ -101,7 +101,8 @@ def to_audio(
     overlap_pauses: Optional[bool] = False,
     add_sound_effects: Optional[bool] = False,
     sound_effects_datasets: Optional[List[str]] = None,
-    sound_effects_dropout: Optional[float] = 0.0
+    sound_effects_dropout: Optional[float] = 0.0,
+    skip_annotation: Optional[bool] = False
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -172,6 +173,9 @@ def to_audio(
     :type sound_effects_datasets: Optional[List[str]]
     :param sound_effects_dropout: Dropout rate for sound effects.
     :type sound_effects_dropout: Optional[float]
+    :param skip_annotation: Whether to skip the annotation of the sound effects
+                            (if your dialogs are already annotated with sound effects tags, you can skip this step).
+    :type skip_annotation: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -293,7 +297,8 @@ def to_audio(
             verbose=verbose,
             overlap_pauses=overlap_pauses,
             add_sound_effects=add_sound_effects,
-            sound_effects_dropout=sound_effects_dropout
+            sound_effects_dropout=sound_effects_dropout,
+            skip_annotation=skip_annotation
         )
 
     finally:
@@ -510,7 +515,8 @@ class AudioPipeline:
         verbose: Optional[bool] = False,
         overlap_pauses: Optional[bool] = False,
         add_sound_effects: Optional[bool] = False,
-        sound_effects_dropout: Optional[float] = 0.0
+        sound_effects_dropout: Optional[float] = 0.0,
+        skip_annotation: Optional[bool] = False
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -558,6 +564,9 @@ class AudioPipeline:
         :type add_sound_effects: Optional[bool]
         :param sound_effects_dropout: Dropout rate for sound effects.
         :type sound_effects_dropout: Optional[float]
+        :param skip_annotation: Whether to skip the annotation of the sound effects
+                                (if your dialogs are already annotated with sound effects tags, you can skip this step).
+        :type skip_annotation: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -697,7 +706,8 @@ class AudioPipeline:
                         dscaper_manager=self._dscaper,
                         available_sound_effects=_available_sound_effects,
                         dropout=sound_effects_dropout,
-                        verbose=verbose
+                        verbose=verbose,
+                        skip_annotation=skip_annotation
                     )
 
                 # Ensure that the turn timings are updated after the overlapping
