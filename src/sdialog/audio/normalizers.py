@@ -78,6 +78,29 @@ class StageNormalizer(TextNormalizer):
         return text
 
 
+class DocumentFormatNormalizer(TextNormalizer):
+    """
+    Normalizer for whitespace.
+    This normalizer removes newlines, tabs, and multiple spaces.
+    """
+
+    def normalize(self, text: str) -> str:
+        """
+        Normalize the text to remove the newlines, tabs, and multiple spaces.
+
+        :param text: The text to normalize.
+        :type text: str
+        :return: The normalized text.
+        :rtype: str
+        """
+
+        text = text.replace("\n", "").replace("\t", "")
+
+        text = re.sub(r"\s+", " ", text).strip()
+
+        return text.strip()
+
+
 class ReplaceCommaWithDotNormalizer(TextNormalizer):
     """
     Normalizer for replace comma with dot.
