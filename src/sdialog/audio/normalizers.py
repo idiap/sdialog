@@ -123,7 +123,7 @@ class WhisperNormalizer(TextNormalizer):
             text = text_normalizer(text)
 
         except ImportError:
-            logger.warning(
+            raise ImportError(
                 "whisper_normalization is not installed, please install it with `pip install whisper-normalization`"
             )
         except Exception as e:

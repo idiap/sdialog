@@ -691,13 +691,13 @@ class AudioPipeline:
 
                     # Fetch the list of available sound effects from dscaper
                     _available_sound_effects = get_sound_effects_db(dscaper_manager=self._dscaper)
-                    print(_available_sound_effects)
 
                     dialog.add_sound_effects(
                         room=room,
                         dscaper_manager=self._dscaper,
                         available_sound_effects=_available_sound_effects,
-                        dropout=sound_effects_dropout
+                        dropout=sound_effects_dropout,
+                        verbose=verbose
                     )
 
                 # Ensure that the turn timings are updated after the overlapping

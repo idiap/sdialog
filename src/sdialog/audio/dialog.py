@@ -549,6 +549,10 @@ class AudioDialog(Dialog):
             # Get the role of the speaker (speaker_1 or speaker_2)
             role: Role = self.speakers_roles[speaker]
 
+            print(f"voices: {voices}")
+            print(f"role: {role}")
+            print(f"speaker: {speaker}")
+
             if voices and role not in voices and speaker not in voices:
                 raise ValueError(f"Voice for {str(role)} not found in the voices dictionary")
 
@@ -570,6 +574,11 @@ class AudioDialog(Dialog):
             # If the voice of the speaker is provided as an identifier (like "am_echo")
             elif isinstance(voices[role], tuple):
                 _identifier, _language = voices[role]
+                print("--------------------------------")
+                print(f"voices[role]: {voices[role]}")
+                print(f"_identifier: {_identifier}")
+                print(f"_language: {_language}")
+                print("--------------------------------")
                 persona["voice"] = voice_database.get_voice_by_identifier(
                     _identifier,
                     _language,
@@ -601,7 +610,8 @@ class AudioDialog(Dialog):
         dscaper_manager: dscaper.Dscaper = None,
         available_sound_effects: dict[str, dict] = None,
         model_name_alignment: str = "Qwen/Qwen3-ForcedAligner-0.6B",
-        dropout: float = 0.0
+        dropout: float = 0.0,
+        verbose: bool = False
     ) -> None:
         """
         Add sound effects (such as door opening, footsteps, etc.) to the audio.
@@ -616,6 +626,8 @@ class AudioDialog(Dialog):
         :type model_name_alignment: str
         :param dropout: The dropout rate for sound effects.
         :type dropout: float
+        :param verbose: Whether to print verbose output.
+        :type verbose: bool
         """
 
         # Annotate the turns with sound effect tags using LLM
@@ -651,9 +663,9 @@ class AudioDialog(Dialog):
                 device_map="cuda:0" if torch.cuda.is_available() else "cpu",
             )
         except ImportError:
-            logger.warning("`qwen-asr` package not found. Skipping forced alignment for sound effects.")
-            logger.warning("Please install it via: pip install qwen-asr")
-            return
+            logger.error("`qwen-asr` package not found. Skipping forced alignment for sound effects.")
+            logger.error("Please install it via: pip install qwen-asr")
+            raise ImportError("`qwen-asr` package not found. Please install it via: pip install qwen-asr")
         except Exception as e:
             logger.error(f"Failed to load {model_name_alignment}: {e}")
             return
@@ -669,7 +681,8 @@ class AudioDialog(Dialog):
                 new_text=new_text,
                 available_sound_effects=available_sound_effects,
                 aligner=aligner,
-                dscaper_manager=dscaper_manager
+                dscaper_manager=dscaper_manager,
+                verbose=verbose
             )
 
         self.update_turn_timings()
@@ -784,7 +797,8 @@ class AudioDialog(Dialog):
             new_text: str,
             available_sound_effects: dict[str, dict],
             aligner: Any,
-            dscaper_manager: dscaper.Dscaper) -> None:
+            dscaper_manager: dscaper.Dscaper,
+            verbose: bool = False) -> None:
         """
         Process a single turn to insert/mix sound effects based on tags and forced alignment.
 
@@ -798,9 +812,12 @@ class AudioDialog(Dialog):
         :type aligner: Any
         :param dscaper_manager: The dSCAPER manager to use for fetching audio files.
         :type dscaper_manager: dscaper.Dscaper
+        :param verbose: Whether to print verbose output.
+        :type verbose: bool
         """
 
-        print(new_text)
+        if verbose:
+            logger.info(new_text)
 
         # Check for tags
         tags = re.findall(r"\[(.*?)\]", new_text)

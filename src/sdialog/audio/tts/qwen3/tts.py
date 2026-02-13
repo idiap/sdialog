@@ -5,6 +5,7 @@ import torch
 import numpy as np
 
 from ..base import BaseTTS, BaseVoiceCloneTTS
+from sdialog.audio.normalizers import TextNormalizer, normalize_text
 
 
 class Qwen3TTS(BaseTTS):
@@ -13,6 +14,7 @@ class Qwen3TTS(BaseTTS):
             model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
             device_map: str = None,
             dtype: torch.dtype = torch.bfloat16,
+            text_normalizers: list[TextNormalizer] = None,
             **model_kwargs):
         """
         Initializes the Qwen3-TTS engine.
@@ -38,10 +40,16 @@ class Qwen3TTS(BaseTTS):
             **model_kwargs
             # attn_implementation="flash_attention_2",
         )
+        self.text_normalizers = text_normalizers
 
     def generate(self, text: str, speaker_voice: str = None, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
+
+        if self.text_normalizers is not None and len(self.text_normalizers) > 0:
+            text = normalize_text(text, self.text_normalizers)
+
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
+
         wavs, sr = self.model.generate_custom_voice(
             text=text,
             speaker=speaker_voice,
@@ -59,6 +67,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
             device_map: str = None,
             dtype: torch.dtype = torch.bfloat16,
+            text_normalizers: list[TextNormalizer] = None,
             **model_kwargs):
         """
         Initializes the Qwen3-TTS engine.
@@ -84,6 +93,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             **model_kwargs
             # attn_implementation="flash_attention_2",
         )
+        self.text_normalizers = text_normalizers
 
     def generate(self,
                  text: str,
@@ -107,6 +117,10 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         :return: A tuple containing the audio data as a numpy array and the sampling rate.
         :rtype: tuple[np.ndarray, int]
         """
+
+        if self.text_normalizers is not None and len(self.text_normalizers) > 0:
+            text = normalize_text(text, self.text_normalizers)
+
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
 
