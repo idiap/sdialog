@@ -51,8 +51,8 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import random
-from typing import List, Union
 from pydantic import BaseModel
+from typing import List, Union, Any
 from collections import defaultdict, Counter
 
 from sdialog.audio.utils import logger
@@ -130,7 +130,7 @@ class Voice(BaseModel):
     gender: str = ""
     age: int = 0
     identifier: str = ""
-    voice: str  # Can be a path or the voice string
+    voice: Any  # Can be a path, the voice string, or (array, sampling_rate) tuple
     language: str = "english"
     language_code: str = "a"
 
@@ -750,7 +750,13 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                 )
 
             if "audio" in d and d["audio"] is not None:
-                _voice = d["audio"]["path"]
+                if "array" in d["audio"] and "sampling_rate" in d["audio"]:
+                    _voice = (d["audio"]["array"], d["audio"]["sampling_rate"])
+                elif "path" in d["audio"] and d["audio"]["path"] is not None:
+                    _voice = d["audio"]["path"]
+                else:
+                    raise ValueError("Audio field found but does not contain valid audio data "
+                                     "(missing 'array'/'sampling_rate' or 'path')")
             elif "voice" in d and d["voice"] is not None:
                 _voice = d["voice"]
             else:

@@ -99,11 +99,12 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
 
-        if type(speaker_voice) is str:
-            tts_pipeline_kwargs["ref_audio"] = speaker_voice  # Path to reference audio
-            tts_pipeline_kwargs["ref_text"] = text  # TODO: should be the transcription of ref_audio
-        elif speaker_voice is not None:
-            tts_pipeline_kwargs["voice_clone_prompt"] = speaker_voice
+        if speaker_voice is not None:
+            tts_pipeline_kwargs["ref_audio"] = speaker_voice  # Path to reference audio or (array, sampling_rate) tuple
+            # tts_pipeline_kwargs["ref_text"] = ref_text  # TODO: should be the transcription of ref_audio
+            tts_pipeline_kwargs["x_vector_only_mode"] = True
+        else:
+            raise ValueError("speaker_voice must be provided for voice cloning in Qwen3TTSVoiceClone")
 
         wavs, sr = self.model.generate_voice_clone(
             text=text,

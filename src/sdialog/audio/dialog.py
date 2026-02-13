@@ -506,7 +506,9 @@ class AudioDialog(Dialog):
                 persona["voice"] = voices[role]
 
             # If the voice of the speaker is provided as an identifier (like "am_echo")
-            elif isinstance(voices[role], tuple):
+            # check if first item is str to avoid (array, sampling_rate) tuple cases
+            elif (isinstance(voices[role], tuple) and isinstance(voices[role][0], str)
+                  and voice_database is not None):
                 _identifier, _language = voices[role]
                 persona["voice"] = voice_database.get_voice_by_identifier(
                     _identifier,
