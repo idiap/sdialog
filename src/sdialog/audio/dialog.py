@@ -988,8 +988,12 @@ class AudioDialog(Dialog):
             structured_response = GapDurations.model_validate(raw_response)
             gaps = structured_response.gaps
         except Exception as e:
-            logger.error(f"Failed to compute gaps with LLM: {e}")
-            return self.clone()
+            logger.warning(f"Failed to compute gaps with LLM: {e}")
+            gaps = [
+                round(random.uniform(0.2, 0.7), 1)
+                for _idx in
+                range(len(self.turns) - 1)
+            ]
 
         # Validate length
         expected_gaps = len(self.turns) - 1
