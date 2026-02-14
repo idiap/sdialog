@@ -118,6 +118,10 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         :rtype: tuple[np.ndarray, int]
         """
 
+        # Normalize the text if text normalizers are provided.
+        if self.text_normalizers is not None and len(self.text_normalizers) > 0:
+            text = normalize_text(text, self.text_normalizers)
+
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
 
