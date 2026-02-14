@@ -455,6 +455,14 @@ class AudioPipeline:
 
                 # Get the filename
                 filename = data["audio"]["path"].split("/")[-1]
+                # If filename as no extension, add the extension
+
+                # If filename has no extension, add the extension in the new file saved by dScaper
+                # based on the audio file format from the original file header
+                if not filename.lower().endswith((".wav", ".mp3", ".flac", ".m4a", ".ogg", ".aiff", ".aif", ".aac")):
+                    _extension = sf.info(data["audio"]["path"]).format.lower()
+                    filename += f".{_extension}"
+
                 label_str = data["label"]
 
                 # WARNING: Create a name for the "library" based
