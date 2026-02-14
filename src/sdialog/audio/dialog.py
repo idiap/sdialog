@@ -671,7 +671,7 @@ class AudioDialog(Dialog):
             raise ImportError("`qwen-asr` package not found. Please install it via: pip install qwen-asr")
         except Exception as e:
             logger.error(f"Failed to load {model_name_alignment}: {e}")
-            return
+            raise Exception(f"Failed to load {model_name_alignment}: {e}")
 
         # Process each turn to add sound effects
         for i, turn in enumerate(self.turns):
@@ -845,7 +845,8 @@ class AudioDialog(Dialog):
             # Perform forced alignment
             try:
 
-                current_audio = current_audio.numpy()
+                if hasattr(current_audio, "numpy"):
+                    current_audio = current_audio.numpy()
 
                 audio_input = (current_audio.astype(np.float32), sr)
 
