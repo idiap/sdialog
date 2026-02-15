@@ -926,7 +926,11 @@ class AudioDialog(Dialog):
                 "position": position,
             })
 
-    def compute_overlapping_and_pausing_llm(self, verbose: bool = False):
+    def compute_overlapping_and_pausing_llm(
+        self,
+        verbose: bool = False,
+        seed: int = None
+    ):
         """
         Compute the overlapping and pausing between turns using LLM.
 
@@ -990,8 +994,9 @@ class AudioDialog(Dialog):
             gaps = structured_response.gaps
         except Exception as e:
             logger.warning(f"Failed to compute gaps with LLM: {e}")
+            rng = random.Random(seed) if seed is not None else random
             gaps = [
-                round(random.uniform(0.2, 0.7), 1)
+                round(rng.uniform(0.2, 0.7), 1)
                 for _idx in
                 range(len(self.turns) - 1)
             ]

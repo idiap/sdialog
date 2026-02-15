@@ -551,6 +551,8 @@ class Dialog(BaseModel):
         :param skip_annotation: Whether to skip the annotation of the sound effects
                                 (if your dialogs are already annotated with sound effects tags, you can skip this step).
         :type skip_annotation: Optional[bool]
+        :param remove_silences: Whether to remove silences from the audio.
+        :type remove_silences: Optional[bool]
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.

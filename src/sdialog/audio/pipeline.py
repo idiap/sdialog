@@ -45,6 +45,7 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import json
+import random
 import dscaper
 import librosa
 import logging
@@ -102,7 +103,8 @@ def to_audio(
     add_sound_effects: Optional[bool] = False,
     sound_effects_datasets: Optional[List[str]] = None,
     sound_effects_dropout: Optional[float] = 0.0,
-    skip_annotation: Optional[bool] = False
+    skip_annotation: Optional[bool] = False,
+    remove_silences: Optional[bool] = True
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -176,6 +178,8 @@ def to_audio(
     :param skip_annotation: Whether to skip the annotation of the sound effects
                             (if your dialogs are already annotated with sound effects tags, you can skip this step).
     :type skip_annotation: Optional[bool]
+    :param remove_silences: Whether to remove silences from the audio.
+    :type remove_silences: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -298,7 +302,8 @@ def to_audio(
             overlap_pauses=overlap_pauses,
             add_sound_effects=add_sound_effects,
             sound_effects_dropout=sound_effects_dropout,
-            skip_annotation=skip_annotation
+            skip_annotation=skip_annotation,
+            remove_silences=remove_silences
         )
 
     finally:
@@ -524,7 +529,8 @@ class AudioPipeline:
         overlap_pauses: Optional[bool] = False,
         add_sound_effects: Optional[bool] = False,
         sound_effects_dropout: Optional[float] = 0.0,
-        skip_annotation: Optional[bool] = False
+        skip_annotation: Optional[bool] = False,
+        remove_silences: Optional[bool] = True
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -575,6 +581,8 @@ class AudioPipeline:
         :param skip_annotation: Whether to skip the annotation of the sound effects
                                 (if your dialogs are already annotated with sound effects tags, you can skip this step).
         :type skip_annotation: Optional[bool]
+        :param remove_silences: Whether to remove silences from the audio.
+        :type remove_silences: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -695,12 +703,27 @@ class AudioPipeline:
                     seed=seed,
                     sampling_rate=self.sampling_rate,
                     tts_pipeline_kwargs=tts_pipeline_kwargs,
-                    remove_silences=overlap_pauses
+                    remove_silences=remove_silences
                 )
 
                 # Compute the overlapping and pausing between turns using LLM
                 if overlap_pauses:
-                    dialog.compute_overlapping_and_pausing_llm(verbose=verbose)
+                    dialog.compute_overlapping_and_pausing_llm(
+                        verbose=verbose,
+                        seed=seed
+                    )
+                else:
+                    rng = random.Random(seed) if seed is not None else random
+                    _gaps = [
+                        round(rng.uniform(0.2, 0.7), 1)
+                        for _idx in
+                        range(len(dialog.turns) - 1)
+                    ]
+
+                    for i in range(len(_gaps)):
+                        dialog.turns[i].gap_duration = _gaps[i]
+
+                dialog.update_turn_timings()
 
                 if add_sound_effects:
 
@@ -725,7 +748,8 @@ class AudioPipeline:
                 # Save the utterances audios to the project path
                 dialog.save_utterances_audios(
                     dir_audio=self.dir_audio,
-                    project_path=os.path.join(dialog.audio_dir_path, dialog_directory)
+                    project_path=os.path.join(dialog.audio_dir_path, dialog_directory),
+                    sampling_rate=self.sampling_rate
                 )
 
             #########################################################
