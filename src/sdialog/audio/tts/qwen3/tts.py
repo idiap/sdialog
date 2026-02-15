@@ -8,6 +8,13 @@ from ..base import BaseTTS, BaseVoiceCloneTTS
 from sdialog.audio.normalizers import TextNormalizer, normalize_text
 
 
+def _seed_torch(seed: int) -> None:
+    """Seed all torch RNGs for reproducible generation."""
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
 class Qwen3TTS(BaseTTS):
     def __init__(
             self,
@@ -15,12 +22,19 @@ class Qwen3TTS(BaseTTS):
             device_map: str = None,
             dtype: torch.dtype = torch.bfloat16,
             text_normalizers: list[TextNormalizer] = None,
+            deterministic: bool = False,
+            seed: int = 42,
             **model_kwargs):
         """
         Initializes the Qwen3-TTS engine.
 
         :param model: The model identifier from the Hugging Face Hub.
         :type model: str
+        :param deterministic: If True, disables sampling (greedy decoding) and seeds
+                              the torch RNG before every generation call, removing all randomness.
+        :type deterministic: bool
+        :param seed: Random seed used when ``deterministic=True``. Ignored otherwise.
+        :type seed: int
         """
 
         try:
@@ -33,6 +47,8 @@ class Qwen3TTS(BaseTTS):
 
         self.dtype = dtype
         self.device_map = device_map
+        self.deterministic = deterministic
+        self.seed = seed
         self.model = Qwen3TTSModel.from_pretrained(
             model,
             device_map=device_map,
@@ -50,10 +66,14 @@ class Qwen3TTS(BaseTTS):
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
 
+        if self.deterministic:
+            if "do_sample" not in tts_pipeline_kwargs:
+                tts_pipeline_kwargs["do_sample"] = False
+            _seed_torch(self.seed)
+
         wavs, sr = self.model.generate_custom_voice(
             text=text,
             speaker=speaker_voice,
-            # instruct="Very happy", # Omit if not needed.
             **tts_pipeline_kwargs
         )
 
@@ -68,12 +88,19 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             device_map: str = None,
             dtype: torch.dtype = torch.bfloat16,
             text_normalizers: list[TextNormalizer] = None,
+            deterministic: bool = False,
+            seed: int = 42,
             **model_kwargs):
         """
-        Initializes the Qwen3-TTS engine.
+        Initializes the Qwen3-TTS voice clone engine.
 
         :param model: The model identifier from the Hugging Face Hub.
         :type model: str
+        :param deterministic: If True, disables sampling (greedy decoding) and seeds
+                              the torch RNG before every generation call, removing all randomness.
+        :type deterministic: bool
+        :param seed: Random seed used when ``deterministic=True``. Ignored otherwise.
+        :type seed: int
         """
 
         try:
@@ -86,6 +113,8 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
 
         self.dtype = dtype
         self.device_map = device_map
+        self.deterministic = deterministic
+        self.seed = seed
         self.model = Qwen3TTSModel.from_pretrained(
             model,
             device_map=device_map,
@@ -100,7 +129,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
                  speaker_voice: str | object = None,
                  tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
-        Generates audio from text using the Hugging Face TTS pipeline.
+        Generates audio from text using voice cloning.
 
         This method passes any additional keyword arguments directly to the
         pipeline, allowing for model-specific parameters like speaker embeddings.
@@ -124,6 +153,11 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
 
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
+
+        if self.deterministic:
+            if "do_sample" not in tts_pipeline_kwargs:
+                tts_pipeline_kwargs["do_sample"] = False
+            _seed_torch(self.seed)
 
         if speaker_voice is not None:
             tts_pipeline_kwargs["ref_audio"] = speaker_voice  # Path to reference audio or (array, sampling_rate) tuple
