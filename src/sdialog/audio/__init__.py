@@ -198,7 +198,12 @@ def generate_utterance(
     :return: A tuple containing the audio data as a numpy array and the sampling rate.
     :rtype: tuple[np.ndarray, int]
     """
-    return tts_pipeline.generate(text, speaker_voice=voice, tts_pipeline_kwargs=tts_pipeline_kwargs)
+    audio, sr = tts_pipeline.generate(text, speaker_voice=voice, tts_pipeline_kwargs=tts_pipeline_kwargs)
+
+    if isinstance(audio, torch.Tensor):
+        audio = audio.cpu().numpy()
+
+        return audio, sr
 
 
 def generate_audio_room_accoustic(
