@@ -954,7 +954,7 @@ class AudioDialog(Dialog):
                 description="List of time intervals (seconds) between turns. "
                             "Positive for pause, negative for overlap."
             )
-        
+
         # Prepare prompts
         dialog_text = ""
         for i, turn in enumerate(self.turns):
