@@ -5,7 +5,29 @@ import re
 import logging
 from abc import abstractmethod
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
+
+
+def normalize_audio(audio: np.ndarray, target_rms: float = 0.05) -> np.ndarray:
+    """
+    Perform RMS normalization on an audio signal.
+
+    Centers all outputs around the same gain by normalizing
+    to a target RMS level.
+
+    :param audio: Input audio signal as numpy array.
+    :type audio: np.ndarray
+    :param target_rms: Target RMS level for normalization (default: 0.05).
+    :type target_rms: float
+    :return: RMS-normalized audio signal.
+    :rtype: np.ndarray
+    """
+    current_rms = np.sqrt(np.mean(audio ** 2))
+    if current_rms > 0:
+        audio = audio * (target_rms / current_rms)
+    return audio
 
 
 class TextNormalizer:
