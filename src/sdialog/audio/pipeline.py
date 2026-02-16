@@ -178,7 +178,7 @@ def to_audio(
     :param skip_annotation: Whether to skip the annotation of the sound effects
                             (if your dialogs are already annotated with sound effects tags, you can skip this step).
     :type skip_annotation: Optional[bool]
-    :param remove_silences: Whether to remove silences from the audio.
+    :param remove_silences: Remove the silences at the beginning and the end of the audio.
     :type remove_silences: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
@@ -581,7 +581,7 @@ class AudioPipeline:
         :param skip_annotation: Whether to skip the annotation of the sound effects
                                 (if your dialogs are already annotated with sound effects tags, you can skip this step).
         :type skip_annotation: Optional[bool]
-        :param remove_silences: Whether to remove silences from the audio.
+        :param remove_silences: Remove the silences at the beginning and the end of the audio.
         :type remove_silences: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
