@@ -706,56 +706,55 @@ class AudioPipeline:
                     remove_silences=remove_silences
                 )
 
-                # Compute the overlapping and pausing between turns using LLM
-                if overlap_pauses:
-                    dialog.compute_overlapping_and_pausing_llm(
-                        verbose=verbose,
-                        seed=seed
-                    )
-                else:
-                    rng = random.Random(seed) if seed is not None else random
-                    _gaps = [
-                        round(rng.uniform(0.2, 0.7), 1)
-                        for _idx in
-                        range(len(dialog.turns) - 1)
-                    ]
-
-                    for i in range(len(_gaps)):
-                        dialog.turns[i].gap_duration = _gaps[i]
-
-                dialog.update_turn_timings()
-
-                if add_sound_effects:
-
-                    from sdialog.audio.dscaper_utils import get_sound_effects_db
-
-                    # Fetch the list of available sound effects from dscaper
-                    _available_sound_effects = get_sound_effects_db(dscaper_manager=self._dscaper)
-
-                    dialog.add_sound_effects(
-                        room=room,
-                        dscaper_manager=self._dscaper,
-                        available_sound_effects=_available_sound_effects,
-                        dropout=sound_effects_dropout,
-                        verbose=verbose,
-                        skip_annotation=skip_annotation
-                    )
-                else:
-                    dialog.sound_effects = []
-                    for turn in dialog.turns:
-                        turn.sound_effects = []
-                        turn.text_with_tags = ""
-
-                # Ensure that the turn timings are updated after the overlapping
-                # and pausing between turns are computed
-                dialog.update_turn_timings()
-
                 # Save the utterances audios to the project path
                 dialog.save_utterances_audios(
                     dir_audio=self.dir_audio,
                     project_path=os.path.join(dialog.audio_dir_path, dialog_directory),
                     sampling_rate=self.sampling_rate
                 )
+
+            # Compute the overlapping and pausing between turns using LLM
+            if overlap_pauses:
+                dialog.compute_overlapping_and_pausing_llm(
+                    verbose=verbose,
+                    seed=seed
+                )
+            else:
+                rng = random.Random(seed) if seed is not None else random
+                _gaps = [
+                    round(rng.uniform(0.2, 0.7), 1)
+                    for _idx in
+                    range(len(dialog.turns) - 1)
+                ]
+
+                for i in range(len(_gaps)):
+                    dialog.turns[i].gap_duration = _gaps[i]
+
+            dialog.update_turn_timings()
+
+            if add_sound_effects:
+
+                from sdialog.audio.dscaper_utils import get_sound_effects_db
+
+                # Fetch the list of available sound effects from dscaper
+                _available_sound_effects = get_sound_effects_db(dscaper_manager=self._dscaper)
+
+                dialog.add_sound_effects(
+                    room=room,
+                    dscaper_manager=self._dscaper,
+                    available_sound_effects=_available_sound_effects,
+                    dropout=sound_effects_dropout,
+                    verbose=verbose,
+                    skip_annotation=skip_annotation
+                )
+            else:
+                for turn in dialog.turns:
+                    turn.sound_effects = []
+                    turn.text_with_tags = ""
+
+            # Ensure that the turn timings are updated after the overlapping
+            # and pausing between turns are computed
+            dialog.update_turn_timings()
 
             #########################################################
             # Step 2: Generate the timeline from dSCAPER

@@ -347,6 +347,7 @@ def generate_dscaper_timeline(
                     if foreground_effect_position is not None
                     else RoomPosition.TOP_RIGHT
                 ),
+                loop_event=True,
             )
             dscaper.add_event(timeline_name, foreground_metadata)
 
