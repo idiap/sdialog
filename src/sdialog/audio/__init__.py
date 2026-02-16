@@ -80,7 +80,7 @@ def generate_utterances_audios(
     seed: int = None,
     sampling_rate: int = 24_000,
     tts_pipeline_kwargs: dict = {},
-    remove_silences: bool = False
+    remove_silences: bool = True
 ) -> AudioDialog:
     """
     Generates audio for each utterance in an AudioDialog object using the specified TTS engine.

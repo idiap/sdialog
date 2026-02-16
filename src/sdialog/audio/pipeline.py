@@ -723,6 +723,15 @@ class AudioPipeline:
                     sampling_rate=self.sampling_rate
                 )
 
+                from sdialog.audio.dscaper_utils import send_utterances_to_dscaper
+
+                # Send the utterances to dSCAPER
+                dialog: AudioDialog = send_utterances_to_dscaper(
+                    dialog,
+                    self._dscaper,
+                    dialog_directory=dialog_directory
+                )
+
             # Compute the overlapping and pausing between turns using LLM
             if overlap_pauses:
                 dialog.compute_overlapping_and_pausing_llm(
@@ -770,19 +779,7 @@ class AudioPipeline:
             # Step 2: Generate the timeline from dSCAPER
             #########################################################
 
-            from sdialog.audio.dscaper_utils import (
-                send_utterances_to_dscaper,
-                generate_dscaper_timeline
-            )
-
-            logger.info("[Step 2] Sending utterances to dSCAPER...")
-
-            # Send the utterances to dSCAPER
-            dialog: AudioDialog = send_utterances_to_dscaper(
-                dialog,
-                self._dscaper,
-                dialog_directory=dialog_directory
-            )
+            from sdialog.audio.dscaper_utils import generate_dscaper_timeline
 
             # Generate the timeline from dSCAPER
             logger.info("[Step 2] Generating timeline from dSCAPER...")
