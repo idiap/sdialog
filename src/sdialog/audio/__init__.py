@@ -65,7 +65,7 @@ from sdialog.audio.room import Room, RoomPosition
 from sdialog.audio.acoustics_simulator import AcousticsSimulator
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
 from sdialog.audio.dialog import AudioDialog, RoomAcousticsConfig
-from sdialog.audio.utils import AudioUtils, SourceVolume, Role, logger
+from sdialog.audio.utils import SourceVolume, Role, logger
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -140,7 +140,7 @@ def generate_utterances_audios(
 
         # Generate the utterance audio
         utterance_audio, utterance_sampling_rate = generate_utterance(
-            text=AudioUtils.remove_audio_tags(turn.text),
+            text=turn.text,
             voice=turn.voice,
             tts_pipeline=tts_pipeline,
             tts_pipeline_kwargs=tts_pipeline_kwargs

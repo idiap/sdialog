@@ -13,7 +13,6 @@ Key Components:
   - WallMaterial, FloorMaterial, CeilingMaterial: Material enums for acoustics
   - SourceType, SpeakerSide: Audio source and speaker positioning enums
   - SourceVolume: Audio volume level enumeration
-  - AudioUtils: Utility functions for audio processing
   - RoomMaterials: Room material configuration model
   - Role: Speaker role enumeration
 
@@ -21,7 +20,7 @@ Example:
 
     .. code-block:: python
 
-        from sdialog.audio.utils import RGBAColor, Furniture, AudioUtils
+        from sdialog.audio.utils import RGBAColor, Furniture
 
         # Create furniture for room simulation
         chair = Furniture(
@@ -30,9 +29,6 @@ Example:
             width=0.5, height=1.2, depth=0.5,
             color=RGBAColor.BLACK
         )
-
-        # Process audio text
-        clean_text = AudioUtils.remove_audio_tags("<speak>Hello world</speak>")
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -336,46 +332,6 @@ class SourceVolume(Enum):
     HIGH = 0.05
     VERY_HIGH = 0.07
     EXTREMELY_HIGH = 0.10
-
-
-class AudioUtils:
-    """
-    Utility class for audio processing operations.
-
-    This class provides static utility methods for common audio processing
-    tasks, including text preprocessing for TTS engines and audio data
-    manipulation. These utilities help ensure consistent audio processing
-    across different components of the sdialog library.
-
-    Key Features:
-
-      - Text preprocessing for TTS engines
-      - Audio tag removal and cleaning
-      - Audio data validation and processing
-      - Common audio operations and transformations
-    """
-
-    @staticmethod
-    def remove_audio_tags(text: str) -> str:
-        """
-        Removes audio-specific tags and formatting from text.
-
-        This method cleans text by removing various types of audio tags
-        and formatting that might interfere with TTS generation. It removes
-        XML-style tags, asterisks, and other formatting elements that are
-        commonly used in audio markup languages.
-
-        Supported tag formats:
-            - XML-style tags: <tag>content</tag>
-            - Asterisks: *text*
-            - Other formatting elements
-
-        :param text: The text to clean of audio tags and formatting.
-        :type text: str
-        :return: The cleaned text with audio tags and formatting removed.
-        :rtype: str
-        """
-        return re.sub(r'<[^>]*>', '', text).replace("*", "")
 
 
 class RoomMaterials(BaseModel):
