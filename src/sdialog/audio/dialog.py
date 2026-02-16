@@ -1020,4 +1020,4 @@ class AudioDialog(Dialog):
 
         # Apply gaps
         for i in range(len(gaps)):
-            self.turns[i].gap_duration = gaps[i]
+            self.turns[i].gap_duration = gaps[i] if gaps[i] <= 0.7 else 0.7

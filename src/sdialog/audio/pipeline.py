@@ -740,6 +740,11 @@ class AudioPipeline:
                         verbose=verbose,
                         skip_annotation=skip_annotation
                     )
+                else:
+                    dialog.sound_effects = []
+                    for turn in dialog.turns:
+                        turn.sound_effects = []
+                        turn.text_with_tags = ""
 
                 # Ensure that the turn timings are updated after the overlapping
                 # and pausing between turns are computed
@@ -781,7 +786,9 @@ class AudioPipeline:
                 background_effect=environment.get("background_effect") or "white_noise",
                 audio_file_format=audio_file_format,
                 room=room,
-                sampling_rate=self.sampling_rate
+                sampling_rate=self.sampling_rate,
+                seed=seed,
+                add_sound_effects=add_sound_effects
             )
             logger.info("[Step 2] Has been completed!")
 
