@@ -58,6 +58,7 @@ from sdialog import Dialog
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
+from sdialog.audio.normalizers import normalize_audio
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
 from sdialog.audio.tts import BaseTTS, Qwen3TTS, Qwen3TTSVoiceClone
@@ -104,7 +105,8 @@ def to_audio(
     sound_effects_datasets: Optional[List[str]] = None,
     sound_effects_dropout: Optional[float] = 0.0,
     skip_annotation: Optional[bool] = False,
-    remove_silences: Optional[bool] = True
+    remove_silences: Optional[bool] = True,
+    normalize: Optional[bool] = True
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -180,6 +182,9 @@ def to_audio(
     :type skip_annotation: Optional[bool]
     :param remove_silences: Remove the silences at the beginning and the end of the audio.
     :type remove_silences: Optional[bool]
+    :param normalize: Apply RMS normalization after each audio processing step to center
+                      all outputs around the same gain level.
+    :type normalize: Optional[bool]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -303,7 +308,8 @@ def to_audio(
             add_sound_effects=add_sound_effects,
             sound_effects_dropout=sound_effects_dropout,
             skip_annotation=skip_annotation,
-            remove_silences=remove_silences
+            remove_silences=remove_silences,
+            normalize=normalize
         )
 
     finally:
@@ -530,7 +536,8 @@ class AudioPipeline:
         add_sound_effects: Optional[bool] = False,
         sound_effects_dropout: Optional[float] = 0.0,
         skip_annotation: Optional[bool] = False,
-        remove_silences: Optional[bool] = True
+        remove_silences: Optional[bool] = True,
+        normalize: Optional[bool] = True
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -583,6 +590,9 @@ class AudioPipeline:
         :type skip_annotation: Optional[bool]
         :param remove_silences: Remove the silences at the beginning and the end of the audio.
         :type remove_silences: Optional[bool]
+        :param normalize: Apply RMS normalization after each audio processing step to center
+                          all outputs around the same gain level.
+        :type normalize: Optional[bool]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -792,9 +802,14 @@ class AudioPipeline:
             logger.info("[Step 2] Has been completed!")
 
             # Combine the audio segments into a single master audio track as a baseline
-            dialog.set_combined_audio(
-                dialog.get_dry_audio()
-            )
+            _combined_audio = dialog.get_dry_audio()
+
+            # Apply RMS normalization to the dry audio (after sound events + overlaps)
+            if normalize:
+                _combined_audio = normalize_audio(_combined_audio)
+                logger.info("[Step 2] RMS normalization applied to the dry audio.")
+
+            dialog.set_combined_audio(_combined_audio)
 
             # Save the combined audio to exported_audios folder
             sf.write(
@@ -881,6 +896,13 @@ class AudioPipeline:
                             orig_sr=sr,
                             target_sr=self.sampling_rate
                         )
+
+                        # Apply RMS normalization to the wet audio (after room acoustics)
+                        if normalize:
+                            y_resampled = normalize_audio(y_resampled)
+                            logger.info(
+                                f"[Step 3] RMS normalization applied to wet audio: {config_name}"
+                            )
 
                         # Overwrite the audio file with the new sampling rate
                         sf.write(
