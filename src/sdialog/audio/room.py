@@ -649,7 +649,8 @@ class Room(BaseModel):
         speaker_name: str,
         furniture_name: str = "center",
         max_distance: float = 0.3,
-        side: Optional[str] = None
+        side: Optional[str] = None,
+        seed: Optional[int] = None
     ):
         """
         Place a speaker position around a furniture.
@@ -672,11 +673,11 @@ class Room(BaseModel):
 
         # Get position based on whether a specific side is requested
         if side is not None:
-            position = self._get_position_on_furniture_side(furniture, side, max_distance)
+            position = self._get_position_on_furniture_side(furniture, side, max_distance, seed=seed)
         else:
             # Get a random position around the furniture (considering the furniture 2D dimensions)
             # Position validation is already handled within _get_random_position_around_furniture
-            position = self._get_random_position_around_furniture(furniture, max_distance)
+            position = self._get_random_position_around_furniture(furniture, max_distance, seed=seed)
 
         # Add the speaker to the room
         self.speakers_positions[speaker_name] = position
@@ -756,7 +757,8 @@ class Room(BaseModel):
     def _get_random_position_around_furniture(
         self,
         furniture: Furniture,
-        max_distance: float = 0.3
+        max_distance: float = 0.3,
+        seed: Optional[int] = None
     ) -> Position3D:
         """
         Get a random position around a furniture.
@@ -769,6 +771,8 @@ class Room(BaseModel):
             Position3D: A random position around the furniture
         """
         import random
+
+        rng = random.Random(seed) if seed is not None else random
 
         # Calculate the area around the furniture where we can place the position
         # We need to consider the furniture dimensions plus the max_distance
@@ -791,9 +795,10 @@ class Room(BaseModel):
         max_attempts = 9999
 
         while attempts < max_attempts:
+
             # Generate random coordinates
-            random_x = random.uniform(min_x, max_x)
-            random_y = random.uniform(min_y, max_y)
+            random_x = rng.uniform(min_x, max_x)
+            random_y = rng.uniform(min_y, max_y)
 
             # Clamp position to room bounds first
             clamped_position = self._clamp_position_to_room_bounds(random_x, random_y, 0.0)
@@ -837,7 +842,8 @@ class Room(BaseModel):
         self,
         furniture: Furniture,
         side: str,
-        max_distance: float = 0.3
+        max_distance: float = 0.3,
+        seed: Optional[int] = None
     ) -> Position3D:
         """
         Get a position on a specific side of a furniture.
@@ -851,6 +857,8 @@ class Room(BaseModel):
             Position3D: A position on the specified side of the furniture
         """
         import random
+
+        rng = random.Random(seed) if seed is not None else random
 
         # Define the sides based on furniture orientation
         # Assuming furniture is oriented with front facing positive Y direction
@@ -904,8 +912,8 @@ class Room(BaseModel):
 
         while attempts < max_attempts:
             # Generate random coordinates within the side corridor
-            random_x = random.uniform(x_min, x_max)
-            random_y = random.uniform(y_min, y_max)
+            random_x = rng.uniform(x_min, x_max)
+            random_y = rng.uniform(y_min, y_max)
 
             # Clamp position to room bounds
             clamped_position = self._clamp_position_to_room_bounds(random_x, random_y, 0.0)
