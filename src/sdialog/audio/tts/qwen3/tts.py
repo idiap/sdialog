@@ -15,6 +15,34 @@ def _seed_torch(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+def _normalize_audio(wav, eps=1e-12, clip=True):
+    """Normalize audio to float32 in [-1, 1] range."""
+    x = np.asarray(wav)
+
+    if np.issubdtype(x.dtype, np.integer):
+        info = np.iinfo(x.dtype)
+        if info.min < 0:
+            y = x.astype(np.float32) / max(abs(info.min), info.max)
+        else:
+            mid = (info.max + 1) / 2.0
+            y = (x.astype(np.float32) - mid) / mid
+    elif np.issubdtype(x.dtype, np.floating):
+        y = x.astype(np.float32)
+        m = np.max(np.abs(y)) if y.size else 0.0
+        if m > 1.0 + 1e-6:
+            y = y / (m + eps)
+    else:
+        raise TypeError(f"Unsupported dtype: {x.dtype}")
+
+    if clip:
+        y = np.clip(y, -1.0, 1.0)
+
+    if y.ndim > 1:
+        y = np.mean(y, axis=-1).astype(np.float32)
+
+    return y
+
+
 class Qwen3TTS(BaseTTS):
     def __init__(
             self,
@@ -160,7 +188,12 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             _seed_torch(self.seed)
 
         if speaker_voice is not None:
-            tts_pipeline_kwargs["ref_audio"] = speaker_voice  # Path to reference audio or (array, sampling_rate) tuple
+            # Normalize the reference audio input if it's a (wav, sr) tuple
+            if isinstance(speaker_voice, tuple) and len(speaker_voice) == 2:
+                wav, ref_sr = speaker_voice
+                wav = _normalize_audio(wav)
+                speaker_voice = (wav, ref_sr)
+            tts_pipeline_kwargs["ref_audio"] = speaker_voice
             # tts_pipeline_kwargs["ref_text"] = ref_text  # TODO: should be the transcription of ref_audio
             tts_pipeline_kwargs["x_vector_only_mode"] = True
         else:
