@@ -6,7 +6,7 @@ import torch
 import numpy as np
 
 from ..base import BaseTTS
-from sdialog.audio.normalizers import TextNormalizer, normalize_text
+from sdialog.audio.normalizers import TextNormalizer, UnicodeToAsciiNormalizer, normalize_text
 
 
 class HuggingFaceTTS(BaseTTS):
@@ -31,6 +31,7 @@ class HuggingFaceTTS(BaseTTS):
             model_id: str = "facebook/mms-tts-eng",
             device: str = None,
             text_normalizers: list[TextNormalizer] = None,
+            unicode_to_ascii: bool = True,
             **kwargs):
         """
         Initializes the Hugging Face TTS engine.
@@ -42,6 +43,9 @@ class HuggingFaceTTS(BaseTTS):
         :type device: str
         :param text_normalizers: The list of text normalizers to apply.
         :type text_normalizers: list[TextNormalizer]
+        :param unicode_to_ascii: If True, prepend a UnicodeToAsciiNormalizer to the
+                                 normalizer chain (default: True).
+        :type unicode_to_ascii: bool
         :raises ImportError: If the `transformers` package is not installed.
         """
         try:
@@ -56,6 +60,11 @@ class HuggingFaceTTS(BaseTTS):
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.pipeline = pipeline("text-to-speech", model=model_id, device=device, **kwargs)
+
+        if text_normalizers is None:
+            text_normalizers = []
+        if unicode_to_ascii:
+            text_normalizers = [UnicodeToAsciiNormalizer()] + list(text_normalizers)
         self.text_normalizers = text_normalizers
 
     def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
