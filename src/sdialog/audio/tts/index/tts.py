@@ -6,7 +6,7 @@ import torch
 import numpy as np
 
 from ..base import BaseTTS
-from sdialog.audio.normalizers import TextNormalizer, normalize_text
+from sdialog.audio.normalizers import TextNormalizer, UnicodeToAsciiNormalizer, normalize_text
 
 
 class IndexTTS(BaseTTS):

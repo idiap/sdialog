@@ -5,7 +5,7 @@ import torch
 import numpy as np
 
 from ..base import BaseTTS, BaseVoiceCloneTTS
-from sdialog.audio.normalizers import TextNormalizer, normalize_text
+from sdialog.audio.normalizers import TextNormalizer, UnicodeToAsciiNormalizer, normalize_text
 
 
 def _seed_torch(seed: int) -> None:
@@ -50,6 +50,7 @@ class Qwen3TTS(BaseTTS):
             device_map: str = None,
             dtype: torch.dtype = torch.bfloat16,
             text_normalizers: list[TextNormalizer] = None,
+            unicode_to_ascii: bool = True,
             deterministic: bool = False,
             seed: int = 42,
             **model_kwargs):
@@ -58,6 +59,11 @@ class Qwen3TTS(BaseTTS):
 
         :param model: The model identifier from the Hugging Face Hub.
         :type model: str
+        :param text_normalizers: The list of text normalizers to apply.
+        :type text_normalizers: list[TextNormalizer]
+        :param unicode_to_ascii: If True, prepend a UnicodeToAsciiNormalizer to the
+                                 normalizer chain (default: True).
+        :type unicode_to_ascii: bool
         :param deterministic: If True, disables sampling (greedy decoding) and seeds
                               the torch RNG before every generation call, removing all randomness.
         :type deterministic: bool
@@ -84,6 +90,11 @@ class Qwen3TTS(BaseTTS):
             **model_kwargs
             # attn_implementation="flash_attention_2",
         )
+
+        if text_normalizers is None:
+            text_normalizers = []
+        if unicode_to_ascii:
+            text_normalizers = [UnicodeToAsciiNormalizer()] + list(text_normalizers)
         self.text_normalizers = text_normalizers
 
     def generate(self, text: str, speaker_voice: str = None, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
@@ -116,6 +127,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             device_map: str = None,
             dtype: torch.dtype = torch.bfloat16,
             text_normalizers: list[TextNormalizer] = None,
+            unicode_to_ascii: bool = True,
             deterministic: bool = False,
             seed: int = 42,
             **model_kwargs):
@@ -124,6 +136,11 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
 
         :param model: The model identifier from the Hugging Face Hub.
         :type model: str
+        :param text_normalizers: The list of text normalizers to apply.
+        :type text_normalizers: list[TextNormalizer]
+        :param unicode_to_ascii: If True, prepend a UnicodeToAsciiNormalizer to the
+                                 normalizer chain (default: True).
+        :type unicode_to_ascii: bool
         :param deterministic: If True, disables sampling (greedy decoding) and seeds
                               the torch RNG before every generation call, removing all randomness.
         :type deterministic: bool
@@ -150,6 +167,11 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
             **model_kwargs
             # attn_implementation="flash_attention_2",
         )
+
+        if text_normalizers is None:
+            text_normalizers = []
+        if unicode_to_ascii:
+            text_normalizers = [UnicodeToAsciiNormalizer()] + list(text_normalizers)
         self.text_normalizers = text_normalizers
 
     def generate(self,

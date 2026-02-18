@@ -159,6 +159,83 @@ class ReplaceCommaWithDotNormalizer(TextNormalizer):
         return text.replace(",", ".")
 
 
+class UnicodeToAsciiNormalizer(TextNormalizer):
+    """
+    Normalizer that replaces common Unicode characters with ASCII equivalents.
+    Handles fancy quotes, dashes, special spaces, ligatures, bullets, fractions,
+    and other characters commonly produced by LLMs that may confuse TTS engines.
+    """
+
+    UNICODE_REPLACEMENTS = {
+        # Quotes
+        "\u2018": "'",    # left single quotation mark
+        "\u2019": "'",    # right single quotation mark
+        "\u201A": "'",    # single low-9 quotation mark
+        "\u201C": '"',    # left double quotation mark
+        "\u201D": '"',    # right double quotation mark
+        "\u201E": '"',    # double low-9 quotation mark
+        "\u2039": "'",    # single left-pointing angle quotation
+        "\u203A": "'",    # single right-pointing angle quotation
+        "\u00AB": '"',    # left guillemet
+        "\u00BB": '"',    # right guillemet
+        "\u2032": "'",    # prime (feet, minutes)
+        "\u2033": '"',    # double prime (inches, seconds)
+
+        # Dashes and hyphens
+        "\u2010": "-",    # hyphen
+        "\u2011": "-",    # non-breaking hyphen
+        "\u2012": "-",    # figure dash
+        "\u2013": "-",    # en dash
+        "\u2014": "-",    # em dash
+        "\u2015": "-",    # horizontal bar
+        "\u2212": "-",    # minus sign
+
+        # Spaces (collapse to normal space)
+        "\u00A0": " ",    # non-breaking space
+        "\u2002": " ",    # en space
+        "\u2003": " ",    # em space
+        "\u2009": " ",    # thin space
+        "\u200A": " ",    # hair space
+        "\u200B": "",     # zero-width space (remove)
+        "\u200C": "",     # zero-width non-joiner (remove)
+        "\u200D": "",     # zero-width joiner (remove)
+        "\uFEFF": "",     # BOM / zero-width no-break space (remove)
+
+        # Ellipsis
+        "\u2026": "...",  # horizontal ellipsis
+
+        # Ligatures
+        "\uFB01": "fi",   # fi ligature
+        "\uFB02": "fl",   # fl ligature
+
+        # Bullets (replace with dash for TTS list reading)
+        "\u2022": "-",    # bullet
+        "\u2023": "-",    # triangular bullet
+        "\u25E6": "-",    # white bullet
+
+        # Fractions (spell out for TTS)
+        "\u00BC": " one quarter",
+        "\u00BD": " one half",
+        "\u00BE": " three quarters",
+
+        # Other common LLM outputs
+        "\u00B0": " degrees",  # degree sign
+    }
+
+    def normalize(self, text: str) -> str:
+        """
+        Replace fancy Unicode characters with ASCII equivalents.
+
+        :param text: The text to normalize.
+        :type text: str
+        :return: The normalized text.
+        :rtype: str
+        """
+        for src, dst in self.UNICODE_REPLACEMENTS.items():
+            text = text.replace(src, dst)
+        return text
+
+
 class WhisperNormalizer(TextNormalizer):
     """
     Normalizer for whisper.
