@@ -313,6 +313,21 @@ class Agent:
                 utterance = self._preprocessing_fn(utterance) if self._preprocessing_fn else utterance
                 self.memory.append(HumanMessage(content=utterance))
 
+        # Create a temporary Dialog from memory if current_dialog is not provided
+        # This allows orchestrators to work even when the agent is not served
+        if current_dialog is None and len(self.memory) > 1:
+            turns = []
+            for msg in self.memory:
+                if isinstance(msg, HumanMessage):
+                    speaker = "User"
+                elif isinstance(msg, AIMessage):
+                    speaker = self.get_name()
+                else:
+                    continue
+                turns.append(Turn(speaker=speaker, text=msg.content))
+
+            current_dialog = Dialog(turns=turns)
+
         if return_events:
             events = []
         if self._orchestrators:
