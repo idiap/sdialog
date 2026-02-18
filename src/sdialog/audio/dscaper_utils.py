@@ -366,7 +366,7 @@ def generate_dscaper_timeline(
                 event_duration=["const", str(f"{turn.audio_duration:.1f}")],
                 speaker=turn.speaker,
                 text=turn.text,
-                position=_speaker_role
+                position=_speaker_role,
             )
             dscaper.add_event(timeline_name, _event_metadata)
 
@@ -494,3 +494,51 @@ def generate_dscaper_timeline(
         logger.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
 
     return dialog
+
+
+def snr_callback_mix(
+    premix,
+    snr=None,
+    sir=None,
+    ref_mic=0,
+    n_src=None,
+    n_mics=None,
+    dialog: AudioDialog = None,
+    amplitude_factor: float = 2.0
+):
+    """
+    Callback to lower the gain of SPEAKER 2.
+    :param premix: The premix array.
+    :type premix: np.ndarray
+    :param snr: The SNR value.
+    :type snr: float
+    :param sir: The SIR value.
+    :type sir: float
+    :param ref_mic: The reference microphone index.
+    :type ref_mic: int
+    :param n_src: The number of sources.
+    :type n_src: int
+    :param n_mics: The number of microphones.
+    :type n_mics: int
+    :param dialog: The audio dialogue.
+    :type dialog: AudioDialog
+    :param amplitude_factor: The amplitude factor.
+    :type amplitude_factor: float
+    :return: The mixed audio.
+    :rtype: np.ndarray
+    """
+    import numpy as np
+
+    # Identify SPEAKER 2 indices
+    speaker_2_indices = [
+        i for i, s in enumerate(dialog.audio_sources)
+        if s.position == Role.SPEAKER_2.value or s.name == Role.SPEAKER_2.value
+    ]
+
+    if speaker_2_indices:
+        # Lower gain by 2 (divide amplitude by 2)
+        valid_indices = [i for i in speaker_2_indices if i < premix.shape[0]]
+        if valid_indices:
+            premix[valid_indices, :, :] /= amplitude_factor
+
+    return np.sum(premix, axis=0)

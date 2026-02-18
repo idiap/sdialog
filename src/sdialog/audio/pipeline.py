@@ -52,7 +52,7 @@ import logging
 from tqdm import tqdm
 import soundfile as sf
 from datasets import load_dataset
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Callable
 
 from sdialog import Dialog
 from sdialog.audio.utils import logger
@@ -106,7 +106,9 @@ def to_audio(
     sound_effects_dropout: Optional[float] = 0.0,
     skip_annotation: Optional[bool] = False,
     remove_silences: Optional[bool] = True,
-    normalize: Optional[bool] = True
+    normalize: Optional[bool] = True,
+    callback_mix_fn: Optional[Callable] = None,
+    callback_mix_kwargs: dict = {}
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -185,6 +187,10 @@ def to_audio(
     :param normalize: Apply RMS normalization after each audio processing step to center
                       all outputs around the same gain level.
     :type normalize: Optional[bool]
+    :param callback_mix_fn: Callback function to apply to the mixed audio.
+    :type callback_mix_fn: Optional[Callable]
+    :param callback_mix_kwargs: Keyword arguments for the callback function.
+    :type callback_mix_kwargs: dict
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -309,7 +315,9 @@ def to_audio(
             sound_effects_dropout=sound_effects_dropout,
             skip_annotation=skip_annotation,
             remove_silences=remove_silences,
-            normalize=normalize
+            normalize=normalize,
+            callback_mix_fn=callback_mix_fn,
+            callback_mix_kwargs=callback_mix_kwargs,
         )
 
     finally:
@@ -537,7 +545,9 @@ class AudioPipeline:
         sound_effects_dropout: Optional[float] = 0.0,
         skip_annotation: Optional[bool] = False,
         remove_silences: Optional[bool] = True,
-        normalize: Optional[bool] = True
+        normalize: Optional[bool] = True,
+        callback_mix_fn: Optional[Callable] = None,
+        callback_mix_kwargs: dict = {}
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -593,6 +603,10 @@ class AudioPipeline:
         :param normalize: Apply RMS normalization after each audio processing step to center
                           all outputs around the same gain level.
         :type normalize: Optional[bool]
+        :param callback_mix_fn: Callback function to apply to the mixed audio.
+        :type callback_mix_fn: Optional[Callable]
+        :param callback_mix_kwargs: Keyword arguments for the callback function.
+        :type callback_mix_kwargs: dict
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -794,7 +808,7 @@ class AudioPipeline:
                 room=room,
                 sampling_rate=self.sampling_rate,
                 seed=seed,
-                add_sound_effects=add_sound_effects
+                add_sound_effects=add_sound_effects,
             )
             logger.info("[Step 2] Has been completed!")
 
@@ -875,7 +889,9 @@ class AudioPipeline:
                         environment["foreground_effect_position"]
                         if "foreground_effect_position" in environment
                         else RoomPosition.TOP_RIGHT
-                    )
+                    ),
+                    callback_mix_fn=callback_mix_fn,
+                    callback_mix_kwargs=callback_mix_kwargs,
                 )
 
                 logger.info(f"[Step 3] Room accoustic has been generated successfully for dialogue {dialog.id}!")

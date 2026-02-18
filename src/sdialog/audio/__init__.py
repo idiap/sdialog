@@ -58,7 +58,7 @@ import librosa
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-from typing import Union
+from typing import Union, Optional, Callable
 
 from sdialog.audio.tts import BaseTTS
 from sdialog.audio.room import Room, RoomPosition
@@ -216,7 +216,9 @@ def generate_audio_room_accoustic(
     audio_file_format: str = "wav",
     background_effect: str = "white_noise",
     foreground_effect: str = "ac_noise_minimal",
-    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT,
+    callback_mix_fn: Optional[Callable] = None,
+    callback_mix_kwargs: dict = {}
 ) -> AudioDialog:
     """
     Generates room acoustics simulation for the dialogue audio.
@@ -252,6 +254,10 @@ def generate_audio_room_accoustic(
     :type foreground_effect: str
     :param foreground_effect_position: Position for foreground effects.
     :type foreground_effect_position: RoomPosition
+    :param callback_mix_fn: Callback function to apply to the mixed audio.
+    :type callback_mix_fn: Optional[Callable]
+    :param callback_mix_kwargs: Keyword arguments for the callback function.
+    :type callback_mix_kwargs: dict
     :return: The AudioDialog with room acoustics simulation results and file paths.
     :rtype: AudioDialog
     """
@@ -259,9 +265,18 @@ def generate_audio_room_accoustic(
     # Create the room acoustics simulator
     room_acoustics = AcousticsSimulator(room=room, kwargs_pyroom=kwargs_pyroom)
 
+    # Prepare callback kwargs
+    _callback_mix_kwargs = callback_mix_kwargs.copy() if callback_mix_kwargs is not None else {}
+
+    # Add dialog to kwargs if not present
+    if "dialog" not in _callback_mix_kwargs:
+        _callback_mix_kwargs["dialog"] = dialog
+
     _audio_accoustic = room_acoustics.simulate(
         sources=dialog.get_audio_sources(),
-        source_volumes=source_volumes
+        source_volumes=source_volumes,
+        callback_mix_fn=callback_mix_fn,
+        callback_mix_kwargs=_callback_mix_kwargs,
     )
 
     # Save the audio file

@@ -49,9 +49,10 @@ Example:
 import os
 import numpy as np
 import soundfile as sf
-from typing import List
+from typing import List, Callable, Optional
 
 from sdialog.audio.utils import logger, SourceVolume
+from sdialog.audio.dscaper_utils import snr_callback_mix
 from sdialog.audio.room import Room, AudioSource, RoomPosition, DirectivityType, Position3D
 
 
@@ -297,7 +298,9 @@ class AcousticsSimulator:
         self,
         sources: List[AudioSource] = [],
         source_volumes: dict[str, SourceVolume] = {},
-        reset: bool = False
+        reset: bool = False,
+        callback_mix_fn: Optional[Callable] = None,
+        callback_mix_kwargs: Optional[dict] = None
     ):
         """
         Simulates room acoustics for the given audio sources.
@@ -319,6 +322,10 @@ class AcousticsSimulator:
         :type source_volumes: dict[str, SourceVolume]
         :param reset: If True, resets the room acoustics simulator before simulation.
         :type reset: bool
+        :param callback_mix_fn: Callback function to apply to the mixed audio.
+        :type callback_mix_fn: Optional[Callable]
+        :param callback_mix_kwargs: Keyword arguments for the callback function.
+        :type callback_mix_kwargs: dict
         :return: Processed audio with room acoustics effects applied.
         :rtype: np.ndarray
         :raises ValueError: If audio sources are invalid or empty.
@@ -334,7 +341,10 @@ class AcousticsSimulator:
             self._add_sources(sources, source_volumes)
 
             logger.info("[Step 3] Simulating room acoustics...")
-            self._pyroom.simulate()
+            self._pyroom.simulate(
+                callback_mix=callback_mix_fn if callback_mix_fn is not None else None,
+                callback_mix_kwargs=callback_mix_kwargs if callback_mix_fn is not None else {}
+            )
 
         except ValueError as e:
 
@@ -379,6 +389,7 @@ class AcousticsSimulator:
 
         del self._pyroom
         self._pyroom = None
+        self.audiosources = []
 
     @staticmethod
     def apply_snr(x, snr):

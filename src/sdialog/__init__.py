@@ -553,6 +553,10 @@ class Dialog(BaseModel):
         :type skip_annotation: Optional[bool]
         :param remove_silences: Remove the silences at the beginning and the end of the audio.
         :type remove_silences: Optional[bool]
+        :param callback_mix_fn: Callback function to apply to the mixed audio.
+        :type callback_mix_fn: Optional[Callable]
+        :param callback_mix_kwargs: Keyword arguments for the callback function.
+        :type callback_mix_kwargs: dict
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.
