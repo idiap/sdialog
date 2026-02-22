@@ -504,7 +504,8 @@ def snr_callback_mix(
     n_src=None,
     n_mics=None,
     dialog: AudioDialog = None,
-    amplitude_factor: float = 2.0
+    amplitude_factor: float = 2.0,
+    speaker_role: str = Role.SPEAKER_2.value
 ):
     """
     Callback to lower the gain of SPEAKER 2.
@@ -524,21 +525,24 @@ def snr_callback_mix(
     :type dialog: AudioDialog
     :param amplitude_factor: The amplitude factor.
     :type amplitude_factor: float
+    :param speaker_role: The speaker role.
+    :type speaker_role: str
     :return: The mixed audio.
     :rtype: np.ndarray
     """
     import numpy as np
 
-    # Identify SPEAKER 2 indices
-    speaker_2_indices = [
+    if speaker_role not in [Role.SPEAKER_1.value, Role.SPEAKER_2.value]:
+        raise ValueError(f"Invalid speaker role: {speaker_role}")
+
+    speaker_indices = [
         i for i, s in enumerate(dialog.audio_sources)
-        if s.position == Role.SPEAKER_2.value or s.name == Role.SPEAKER_2.value
+        if s.position == speaker_role or s.name == speaker_role
     ]
 
-    if speaker_2_indices:
-        # Lower gain by 2 (divide amplitude by 2)
-        valid_indices = [i for i in speaker_2_indices if i < premix.shape[0]]
-        if valid_indices:
-            premix[valid_indices, :, :] /= amplitude_factor
+    valid_indices = [i for i in speaker_indices if i < premix.shape[0]]
+
+    if valid_indices:
+        premix[valid_indices, :, :] /= amplitude_factor
 
     return np.sum(premix, axis=0)
