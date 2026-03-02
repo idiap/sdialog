@@ -69,7 +69,7 @@ class Turn(BaseModel):
         return len(self.text.split())
 
     def __str__(self):
-        return f"{self.speaker}: {self.text}"
+        return f"{self.speaker}: {self.text}" if self.speaker else self.text
 
     def prompt(self) -> str:
         """Generates a prompt string for this turn."""
