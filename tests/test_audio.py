@@ -716,13 +716,20 @@ def mock_dependencies(tmp_path):
             base_path = tmp_path / "dscaper_data"
             timeline_name = args[0]
             generate_id = "test_id"
-            
-            soundscape_positions_path = base_path / "timelines" / timeline_name / "generate" / generate_id / "soundscape_positions"
+
+            soundscape_positions_path = (
+                base_path
+                / "timelines"
+                / timeline_name
+                / "generate"
+                / generate_id
+                / "soundscape_positions"
+            )
             soundscape_positions_path.mkdir(parents=True, exist_ok=True)
-            
+
             # Create a dummy soundscape file
             sf.write(soundscape_positions_path / "speaker_1.wav", np.zeros(16000), 16000)
-            
+
             return MagicMock(status="success", content={"id": generate_id})
 
         mock_dscaper_instance.generate_timeline.side_effect = generate_timeline_side_effect
