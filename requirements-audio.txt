@@ -6,5 +6,5 @@ pyloudnorm
 pyroomacoustics
 datasets<=2.21.0
 huggingface_hub[cli]
-dscaper==1.7.7
+dscaper>=1.7.7
 whisper-normalization

@@ -159,31 +159,6 @@ class Dialog(BaseModel):
     events: Optional[List[Event]] = None
     notes: Optional[Any] = None
     _path: Optional[str] = None
-    _annotations: Optional[dict[str, Any]] = {}
-
-    def get_annotations(self, task_name: str = None) -> dict[str, Any]:
-        """
-        Get the annotations for a specific task or all tasks.
-        :param task_name: The name of the task to get the annotations for.
-        :type task_name: Optional[str]
-        :return: The annotations for the task or all tasks.
-        :rtype: dict[str, Any]
-        """
-        if task_name is None:
-            return self._annotations
-        return self._annotations[task_name]
-
-    def add_annotations(self, task_name: str, annotations: dict[str, Any]) -> None:
-        """
-        Add annotations for a specific task.
-        :param task_name: The name of the task to add the annotations for.
-        :type task_name: str
-        :param annotations: The annotations to add.
-        :type annotations: dict[str, Any]
-        :return: None
-        :rtype: None
-        """
-        self._annotations[task_name] = annotations
 
     def __len__(self):
         """
@@ -499,8 +474,8 @@ class Dialog(BaseModel):
         This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
         All keyword arguments are passed to it.
 
-        :param dir_audio: Directory path for storing audio outputs.
-        :type dir_audio: str
+        :param path: Path to the audio file or directory for storing audio outputs.
+        :type path: str
         :param dialog_dir_name: Custom name for the dialogue directory.
         :type dialog_dir_name: str
         :param dscaper_data_path: Path to dSCAPER data directory.

@@ -1362,4 +1362,8 @@ Performance Considerations
 Common Recipes
 --------------
 
-1. **Generate Multi-Variant Persona Set**: :class:`~sdialog.generators.PersonaGenerator`
+1. **Generate Multi-Variant Persona Set**: :class:`~sdialog.generators.PersonaGenerator` with rule lists and numeric ranges + seed cycle.
+2. **Scenario Simulation at Scale**: For each scenario → build Agents → attach orchestrators → run ``dialog_with`` for N seeds.
+3. **Quality Filtering Pipeline**: Generate dialogs → apply LLM judges (realism > threshold) → compute flow score percentile → retain top quantile.
+4. **Style Harmonization**: Paraphrase dialogs targeting only system speaker with controlled extra instructions.
+5. **Activation Steering Study**: Attach :class:`~sdialog.interpretability.Inspector` → collect baseline activations → compute direction (e.g., mean difference) → apply :class:`~sdialog.interpretability.DirectionSteerer` → compare linguistic + refusal metrics pre/post.
