@@ -48,19 +48,26 @@ class STAR:
         """
         Read the action graph for a given task.
 
-        :param task_name: Name of the task (folder name under tasks/).
-        :type task_name: str
+        :param task_name: Name of the task (folder name under tasks/), or a pre-loaded
+            JSON dict (as returned by the task's JSON file) to skip disk I/O.
+        :type task_name: Union[str, dict]
         :param as_dot: If True, return a DOT string; else return the raw graph dict.
         :type as_dot: bool
         :return: Graph in DOT format or raw dictionary mapping edges.
         :rtype: Union[str, dict]
         """
-        with open(os.path.join(STAR._path, f"tasks/{task_name}/{task_name}.json")) as reader:
-            if not as_dot:
-                return json.load(reader)["graph"]
-            dot_edges = ";\n".join(f"    {a} -> {b}" for a, b in json.load(reader)["graph"].items())
+        if isinstance(task_name, dict):
+            data = task_name
+            label = ""
+        else:
+            with open(os.path.join(STAR._path, f"tasks/{task_name}/{task_name}.json")) as reader:
+                data = json.load(reader)
+            label = task_name
 
-        return "digraph %s  {\n%s\n}" % (task_name, dot_edges)
+        if not as_dot:
+            return data["graph"]
+        dot_edges = ";\n".join(f"    {a} -> {b}" for a, b in data["graph"].items())
+        return "digraph %s  {\n%s\n}" % (label, dot_edges)
 
     @staticmethod
     def read_graph_responses(task_name, as_dict: bool = False):
@@ -69,19 +76,22 @@ class STAR:
 
         Placeholders of the form {variable[:format]} are uppercased for visibility.
 
-        :param task_name: Name of the task.
-        :type task_name: str
+        :param task_name: Name of the task, or a pre-loaded responses dict to skip disk I/O.
+        :type task_name: Union[str, dict]
         :param as_dict: If True, return a dict; otherwise a JSON-formatted string.
         :type as_dict: bool
         :return: Mapping node -> example response, or JSON dump.
         :rtype: Union[dict, str]
         """
-        with open(os.path.join(STAR._path, f"tasks/{task_name}/responses.json")) as reader:
-            responses = json.load(reader)
-            responses = {key: re.sub(r"{(.+?)(?::\w+?)?}", lambda m: m.group(1).upper(), value)
-                         for key, value in responses.items()
-                         if key != "out_of_scope"}
-            return responses if as_dict else json.dumps(responses, indent=2)
+        if isinstance(task_name, dict):
+            raw = task_name
+        else:
+            with open(os.path.join(STAR._path, f"tasks/{task_name}/responses.json")) as reader:
+                raw = json.load(reader)
+        responses = {key: re.sub(r"{(.+?)(?::\w+?)?}", lambda m: m.group(1).upper(), value)
+                     for key, value in raw.items()
+                     if key != "out_of_scope"}
+        return responses if as_dict else json.dumps(responses, indent=2)
 
     @staticmethod
     def get_task_names():

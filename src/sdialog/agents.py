@@ -34,6 +34,35 @@ from .util import get_llm_model, is_amazon_model_name, is_huggingface_model_name
 logger = logging.getLogger(__name__)
 
 
+def final_response_tool(func=None):
+    """
+    Decorator to mark a tool whose raw output should be returned directly as the
+    agent response (bypassing the post-tool LLM synthesis step).
+
+    This is useful for pre-formatted outputs (e.g., large markdown tables)
+    where token-by-token regeneration by the LLM is unnecessary.
+
+    Usage:
+
+        .. code-block:: python
+
+            from sdialog.agents import final_response_tool
+
+            @final_response_tool
+            def my_tool(...) -> str:
+                ...
+
+    :param func: The tool function to mark.
+    :type func: Optional[callable]
+    :return: Decorated function.
+    :rtype: callable
+    """
+    if func is None:
+        return final_response_tool
+    setattr(func, "_sdialog_final_response_tool", True)
+    return func
+
+
 class Agent:
     """
     Agent that simulates a persona-driven conversational actor using an LLM.
@@ -88,6 +117,8 @@ class Agent:
     :type example_dialogs: Optional[List[Dialog]]
     :param tools: List of functions to be used as tools by the agent (if supported by the LLM).
     :type tools: Optional[List[callable]]
+                  Tools decorated with ``@final_response_tool`` return their
+                  raw output directly as the final agent response.
     :param think: If True, enables "thinking" segments in responses (if supported by the LLM).
     :type think: bool
     :param thinking_pattern: Regex pattern to manually identify "thinking" segments in responses.
@@ -161,6 +192,10 @@ class Agent:
         # Private attributes
         self._system_prompt_template = system_prompt_template
         self._thinking_pattern = thinking_pattern
+        self._final_response_tools = {
+            fn.__name__ for fn in tools
+            if getattr(fn, "_sdialog_final_response_tool", False)
+        } if tools else set()
         self._tools = {fn.__name__: tool(fn) for fn in tools} if tools else None
         self._model_uri = model
         self._context = context
@@ -479,6 +514,14 @@ class Agent:
                                                      "output": tool_msg.content,
                                                      "call_id": tool_msg.tool_call_id},
                                             timestamp=int(time())))
+
+                        # For tools explicitly marked as direct-response tools,
+                        # bypass the post-tool LLM step only if output is non-empty.
+                        # Empty outputs should be handled as regular tools.
+                        if tool_call["name"] in self._final_response_tools:
+                            output = tool_msg.content.strip() if isinstance(tool_msg.content, str) else tool_msg.content
+                            if output:
+                                return AIMessage(content=str(output)), events
                 else:
                     logger.warning(f"Tool '{tool_call['name']}' not found among bound tools.")
 

@@ -283,6 +283,15 @@ class BaseDialogFlowScore(BaseDialogScore):
                                                 if node_id[0].lower() == "u"],
                                                k=k_neighbors)
 
+        # Pre-compute vocabulary size for Laplace smoothing (exclude metadata nodes)
+        self.vocab_size = len([node_id for node_id in self.nodes.keys() if not node_id.startswith("_")])
+
+        # Pre-compute total outbound frequency counts for each node (for Laplace smoothing)
+        self.outbound_totals = {
+            node: sum(d["fr"] for _, _, d in self.graph.out_edges(node, data=True))
+            for node in self.graph.nodes()
+        }
+
     def get_node_sequence(self, dialog: Dialog, probs: bool = False) -> List[str]:
         """
         Map each turn to its nearest node and optionally return transition probabilities.
@@ -324,12 +333,23 @@ class BaseDialogFlowScore(BaseDialogScore):
 
     def compute_dialog_log_likelihood(self, dialog: Dialog) -> Tuple[float, int]:
         """
-        Compute cumulative log-probability statistics for a dialog.
+        Compute cumulative log-probability statistics for a dialog using Laplace smoothing.
+
+        Laplace smoothing approach (add-one smoothing):
+        - For each transition: P_laplace(dest|src) = (count(src→dest) + 1) / (sum_outbound_counts + V)
+        - Known edges: Use edge frequency count + 1
+        - Unknown edges: Use count of 1 (equivalent to adding a pseudo-count)
+        - Both are normalized by (total_outbound_count + V) where V is vocabulary size
+
+        This provides a principled probability distribution that:
+        1. Smooths all transitions (known and unknown) consistently
+        2. Avoids zero probabilities for unseen transitions
+        3. Doesn't modify the graph structure (scoring-time smoothing)
 
         Returns four values:
           sum_log_p_known: Sum of log probabilities only over known edges.
           n_turns_known: Count of contributing turns with known edges (includes initial offset).
-          sum_log_p: Sum over all considered turns (unknown edges use uniform fallback).
+          sum_log_p: Sum over all considered turns (with Laplace smoothing).
           n_turns: Total counted turns (includes initial offset; respects ai_speaker filtering).
 
         :param dialog: Dialog to evaluate.
@@ -341,8 +361,10 @@ class BaseDialogFlowScore(BaseDialogScore):
         sum_log_p, sum_log_p_known = 0, 0
         n_turns, n_turns_known = 1, 1  # start with 1 to account for the first turn and avoid division by zero
         prev_node = DEFAULT_TOKEN_START
+
         if self.only_system:
             dialog = [turn for turn in dialog if turn.speaker.lower() == self.ai_speaker.lower()]
+
         for turn in dialog:
             speaker = turn.speaker.lower()
             if speaker in self.speakers:
@@ -355,14 +377,23 @@ class BaseDialogFlowScore(BaseDialogScore):
             current_node, _ = neighbors[0]
             prob_correct_node = softmax([1 - dist for _, dist in neighbors])[0] if self.use_softmax else 1
 
+            # Get total outbound count for source node (for Laplace smoothing denominator)
+            total_outbound_count = self.outbound_totals.get(prev_node, 0)
+
             prob_current_node = self.graph.get_edge_data(prev_node, current_node)
             if prob_current_node is not None:
-                log_p = log(prob_current_node["weight"] * prob_correct_node)
+                # Known edge: Laplace smoothing = (count + 1) / (total + V)
+                edge_count = prob_current_node["fr"]
+                smoothed_prob = (edge_count + 1) / (total_outbound_count + self.vocab_size)
+                log_p = log(smoothed_prob * prob_correct_node)
                 sum_log_p += log_p
                 sum_log_p_known += log_p
                 n_turns_known += 1
             else:
-                sum_log_p += log(1e-12)  # fallback for unknown edges
+                # Unknown edge: Laplace smoothing = 1 / (total + V)
+                smoothed_prob = 1 / (total_outbound_count + self.vocab_size)
+                sum_log_p += log(smoothed_prob)
+
             n_turns += 1
             prev_node = current_node
 

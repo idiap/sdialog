@@ -4,6 +4,106 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [0.4.6] 2026-03-12 🧠
+
+### Added
+- **sdialog.agents**:
+  - New `@final_response_tool` decorator to return tool output directly as the final agent response (bypassing post-tool LLM synthesis for non-empty outputs).
+  - Example:
+    ```python
+    from sdialog.agents import Agent, final_response_tool
+
+    @final_response_tool
+    def get_table(callsign: str) -> str:
+        return "| Timestamp | Transcription |\n|---|---|\n| ... | ... |"
+
+    agent = Agent(tools=[get_table])
+    ```
+
+### Changed
+- **sdialog.evaluation**:
+  - `KDEDistanceEvaluator` now supports multiple values per dialog.
+  - Improved placeholder handling in STAR response generation.
+  - Implemented Laplace smoothing in dialog log-likelihood computation.
+
+
+---
+
+## [0.4.5] 2026-02-18 🎙️
+
+### Added
+- **sdialog.audio**:
+  - Voice cloning support in voice databases.
+  - New TTS classes: `Qwen3TTS`, `Qwen3TTSVoiceClone`, and `BaseVoiceCloneTTS`.
+  - Persona-based dynamic voice generation and customizable voice descriptions.
+  - Improved speaker name / role mapping for voice assignment.
+
+### Changed
+- **sdialog.audio**:
+  - `Dialog.to_audio()` supports output path as positional argument.
+  - Audio pipeline now supports more flexible voice assignment.
+  - Qwen3-TTS voice cloning set as default dynamic voice creation path.
+
+### Fixed
+- **sdialog.agents**:
+  - Restored orchestration behavior when agent is served.
+- **sdialog.audio**:
+  - Fixed speaker-role mapping and case-sensitivity edge cases.
+  - Fixed optional audio path handling in `Dialog.to_audio()`.
+  - Fixed label assignment and default `keep_duplicate` handling.
+- **sdialog.evaluation**:
+  - Fixed division-by-zero / `log(0)` edge cases in divergence computations.
+  - Added jitter handling for KL/CS divergence when variance is zero.
+  - Fixed fallback behavior for unknown edges in flow score computation.
+
+
+---
+
+## [0.4.3] 2025-11-30 📊
+
+### Added
+- **sdialog.evaluation**:
+  - New readability and conversational metrics.
+  - New scoring classes for individual linguistic features.
+  - Added `Dialog.from_folder()` to load dialogs from directories.
+  - Added `ToolSequenceValidator` for validating tool usage order in dialogs.
+
+### Changed
+- **sdialog.evaluation**:
+  - Enhanced plotting support with customizable titles and labels.
+- **sdialog.interpretability**:
+  - Improved top-k visualization and steering defaults.
+
+### Fixed
+- **sdialog.agents**:
+  - Improved tool invocation error handling.
+- **sdialog**:
+  - Updated dialog prompt formatting.
+
+---
+
+## [0.4.2] 2025-11-21 🛠️
+
+### Changed
+- **sdialog.agents**:
+  - Improved progress bar behavior during dialog generation.
+- **sdialog.audio**:
+  - Updated dependencies and dscaper integration behavior.
+
+### Documentation
+- Added clearer Kokoro TTS installation instructions.
+
+---
+
+## [0.4.1] 2025-11-20 🔧
+
+### Fixed
+- **sdialog.audio**:
+  - Fixed dscaper timeline generation bug and test updates around deleted directories.
+
+### Documentation
+- Updated audio tutorials and README installation instructions (including sox/ffmpeg and setup guidance).
+
 ## [0.4.0] 2025-10-30 🔊
 
 ### Added
