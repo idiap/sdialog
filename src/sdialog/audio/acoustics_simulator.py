@@ -52,7 +52,6 @@ import soundfile as sf
 from typing import List, Callable, Optional
 
 from sdialog.audio.utils import logger, SourceVolume
-from sdialog.audio.dscaper_utils import snr_callback_mix
 from sdialog.audio.room import Room, AudioSource, RoomPosition, DirectivityType, Position3D
 
 

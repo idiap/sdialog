@@ -38,6 +38,7 @@ class IndexTTS(BaseTTS):
             cfg_path="model/config.yaml",
             device="cuda" if torch.cuda.is_available() else "cpu",
             version="2",
+            unicode_to_ascii: bool = True,
             text_normalizers: list[TextNormalizer] = None):
         """
         Initializes the IndexTTS engine with the specified model configuration.
@@ -54,6 +55,9 @@ class IndexTTS(BaseTTS):
                       (default: automatically detects CUDA availability).
         :type device: str
         :param text_normalizers: The list of text normalizers to apply.
+        :param unicode_to_ascii: If True, prepend a UnicodeToAsciiNormalizer to the
+                                 normalizer chain (default: True).
+        :type unicode_to_ascii: bool
         :type text_normalizers: list[TextNormalizer]
         :raises ImportError: If the indextts package is not installed.
         :raises FileNotFoundError: If the model directory or config file is not found.
@@ -68,6 +72,13 @@ class IndexTTS(BaseTTS):
 
         # Initialize the IndexTTS model
         self.pipeline = IndexTTS(model_dir=model_dir, cfg_path=cfg_path, device=device)
+
+        if text_normalizers is None:
+            text_normalizers = []
+
+        if unicode_to_ascii:
+            text_normalizers = [UnicodeToAsciiNormalizer()] + list(text_normalizers)
+
         self.text_normalizers = text_normalizers
 
     def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
