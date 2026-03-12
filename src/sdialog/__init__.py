@@ -69,7 +69,7 @@ class Turn(BaseModel):
         return len(self.text.split())
 
     def __str__(self):
-        return f"{self.speaker}: {self.text}"
+        return f"{self.speaker}: {self.text}" if self.speaker else self.text
 
     def prompt(self) -> str:
         """Generates a prompt string for this turn."""
@@ -491,6 +491,7 @@ class Dialog(BaseModel):
 
     def to_audio(
         self,
+        path: str = None,
         **kwargs: dict
     ):
         """
@@ -566,6 +567,9 @@ class Dialog(BaseModel):
             from sdialog.audio.pipeline import to_audio
         except Exception:
             raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
+
+        if path is not None:
+            kwargs["dir_audio"] = path
 
         return to_audio(
             self,

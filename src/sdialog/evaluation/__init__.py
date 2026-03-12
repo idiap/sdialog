@@ -2063,7 +2063,17 @@ class KDEDistanceEvaluator(BaseDatasetScoreEvaluator):
                                  for dialogue in tqdm(reference_dialogues,
                                                       desc=f"Computing reference {self.name} scores",
                                                       leave=verbose)]
-        self.reference_scores = np.array([s for s in self.reference_scores if s is not None])
+        # Flatten if reference_scores contains lists/arrays (e.g. multiple scores per dialog)
+        # This handles cases like TurnLength which returns a list of values per dialog
+        flattened_scores = []
+        for s in self.reference_scores:
+            if s is None:
+                continue
+            if isinstance(s, (list, np.ndarray)):
+                flattened_scores.extend(s)
+            else:
+                flattened_scores.append(s)
+        self.reference_scores = np.array(flattened_scores)
 
     def __plot__(self, dialog_scores: Dict[str, np.ndarray], plot: Optional[plt.Axes] = None, zoom: bool = False):
         """

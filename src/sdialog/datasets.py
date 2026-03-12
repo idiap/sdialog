@@ -426,7 +426,19 @@ Response example for each action is provided in the following json:
 ```json
 {STAR.read_graph_responses(task_name)}
 ```
-where UPPERCASE words above are just example placeholders. You MUST fill in those with any coherent values in the actual conversation.
+
+**CRITICAL INSTRUCTION - PLACEHOLDER HANDLING:**
+Placeholders in the format {{VARIABLE_NAME}} (such as {{APARTMENT_NAME}}, {{POIS}}, {{FLOOR}}) are TEMPLATE VARIABLES that you MUST REPLACE with actual, specific, concrete values during the conversation.
+
+DO NOT output placeholders as-is. Examples:
+- WRONG: "I found an apartment in APARTMENT_NAME"
+- CORRECT: "I found an apartment in Sunrise Towers"
+- WRONG: "It is located near POIS"
+- CORRECT: "It is located near Central Park and the subway station"
+- WRONG: "It is on level FLOOR"
+- CORRECT: "It is on level 3"
+
+Always generate realistic, contextually appropriate values instead of leaving placeholders unfilled.
 """  # noqa: E501
         return flowcharts
 
