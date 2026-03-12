@@ -90,6 +90,59 @@ Let's start with something fun and straightforward—creating a simple dialogue 
 
 Individual agents can be served and exposed as a OpenAI compatible API endpoint with the :meth:`~sdialog.agents.Agent.serve` method (e.g. ``mentor.serve(port=1333)``), see :ref:`here <serving_agents>` for more details.
 
+.. _ex-agent-tools:
+
+Agent Tools (Function Calling)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+You can attach plain Python functions as tools. When the backend supports tool/function calling,
+the agent can call them during response generation.
+
+.. code-block:: python
+
+    import sdialog
+    from sdialog.agents import Agent
+
+    sdialog.config.llm("openai:gpt-4.1")
+
+    def get_weather(city: str) -> dict:
+        """Return weather information for a city."""
+        return {"city": city, "temperature_c": 21, "condition": "sunny"}
+
+    assistant = Agent(
+        name="WeatherAssistant",
+        tools=[get_weather],
+        system_prompt="Use tools when needed and answer concisely."
+    )
+
+    print(assistant("What's the weather in Geneva?"))
+
+.. _ex-final-response-tool:
+
+Direct Tool Output with ``@final_response_tool``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If a tool returns a pre-formatted result (e.g., a markdown table), you can mark it with
+``@final_response_tool`` so the agent returns the tool output directly as the final response.
+
+This is especially useful when the tool already produces exactly the text you want the user to see.
+Without the decorator, the LLM would typically read the tool output and generate a new answer from it,
+which may add extra wording, reformat the content, or spend unnecessary tokens reproducing a large block
+of structured text. With ``@final_response_tool``, the tool output becomes the final answer directly.
+
+.. code-block:: python
+
+    from sdialog.agents import Agent, final_response_tool
+
+    @final_response_tool
+    def get_report_table(topic: str) -> str:
+        return "| Item | Value |\n|---|---|\n| example | 42 |"
+
+    agent = Agent(tools=[get_report_table])
+
+Notes:
+
+- Non-empty tool output is returned directly as the agent final answer.
+- Empty tool output falls back to regular tool flow (the LLM can continue and synthesize a response).
+
 Few-Shot Learning with Example Dialogs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Now let's explore one of SDialog's most powerful features! We can guide our dialogues by providing examples that show the system what style, structure, or format we want. This technique, called few-shot learning, works by supplying ``example_dialogs`` to generation components. These exemplar dialogs are injected into the system prompt to steer tone, task format, and conversation flow.
