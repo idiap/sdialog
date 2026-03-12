@@ -831,7 +831,7 @@ class Server:
                         # Stream while preserving original whitespace separators (spaces, newlines, tabs)
                         for match in re.finditer(r'\S+\s*', content):
                             yield _send_chunk(content=match.group(0))
-                            time.sleep(0.01)  # Adjust delay as needed
+                            time.sleep(0.001)  # Adjust delay as needed
 
                 # Send final chunk
                 yield _send_chunk(content="", done=True)
