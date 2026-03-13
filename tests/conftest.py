@@ -111,5 +111,19 @@ def _install_torchcodec_stub() -> None:
     sys.modules["torchcodec"] = torchcodec_module
     sys.modules["torchcodec.decoders"] = decoders_module
 
+    # transformers.audio_utils (and others) call importlib.metadata.version("torchcodec")
+    # at module level.  That call bypasses sys.modules and reads on-disk dist-info, so
+    # it raises PackageNotFoundError even though our stub is in sys.modules, causing a
+    # cascade failure across ALL tests.  Patch it to return a harmless version string.
+    import importlib.metadata as _imeta
+    _real_version = _imeta.version
+
+    def _patched_version(name: str) -> str:
+        if name == "torchcodec":
+            return "0.0.0"
+        return _real_version(name)
+
+    _imeta.version = _patched_version
+
 
 _install_torchcodec_stub()
