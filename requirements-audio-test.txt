@@ -4,6 +4,5 @@ sox
 jams
 pyloudnorm
 pyroomacoustics
-datasets<=3.6.0
 huggingface_hub[cli]
 dscaper>=1.7.0
