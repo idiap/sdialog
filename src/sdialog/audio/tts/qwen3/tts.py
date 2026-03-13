@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 import torch
 import numpy as np
+from typing import Optional
 
 from ..base import BaseTTS, BaseVoiceCloneTTS
 from sdialog.audio.normalizers import TextNormalizer, UnicodeToAsciiNormalizer, normalize_text
@@ -176,7 +177,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
 
     def generate(self,
                  text: str,
-                 speaker_voice: str | object = None,
+                 speaker_voice: Optional[object] = None,
                  tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
         Generates audio from text using voice cloning.

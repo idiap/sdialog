@@ -490,7 +490,7 @@ class AudioDialog(Dialog):
         persona_to_voice_desc: Union[str, callable] = None,
         voices: dict[Role, Union[Voice, tuple[str, str]]] = None,
         keep_duplicate: bool = False,
-        tts_engine: BaseTTS | BaseVoiceCloneTTS = None,
+        tts_engine: Union[BaseTTS, BaseVoiceCloneTTS] = None,
         seed: int = None
     ) -> None:
         """
