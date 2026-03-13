@@ -704,14 +704,17 @@ def mock_dependencies():
     with patch('sdialog.audio.pipeline.Qwen3TTS') as mock_tts, \
          patch('sdialog.audio.pipeline.Qwen3TTSVoiceClone') as mock_tts, \
          patch('sdialog.audio.pipeline.HuggingfaceVoiceDatabase') as mock_db, \
-         patch('sdialog.audio.pipeline.scaper', create=True) as mock_scaper, \
+         patch('sdialog.audio.pipeline.dscaper') as mock_dscaper, \
+         patch('sdialog.audio.pipeline.load_dataset', return_value=[]) as mock_load_dataset, \
+         patch('sdialog.audio.pipeline.default_dscaper_datasets', return_value=[]) as mock_default_datasets, \
          patch('sdialog.audio.pipeline.generate_utterances_audios') as mock_gen_utt, \
          patch('sdialog.audio.dialog.AudioDialog.save_utterances_audios') as mock_save_utt, \
          patch('sdialog.audio.pipeline.librosa', create=True) as mock_librosa, \
          patch('sdialog.audio.pipeline.sf', create=True) as mock_sf, \
          patch('sdialog.audio.pipeline.generate_audio_room_accoustic') as mock_gen_room:
         yield {
-            "tts": mock_tts, "db": mock_db, "scaper": mock_scaper,
+            "tts": mock_tts, "db": mock_db, "dscaper": mock_dscaper,
+            "load_dataset": mock_load_dataset, "default_dscaper_datasets": mock_default_datasets,
             "gen_utt": mock_gen_utt, "save_utt": mock_save_utt,
             "librosa": mock_librosa, "sf": mock_sf, "gen_room": mock_gen_room,
             "ir_db": MagicMock()
