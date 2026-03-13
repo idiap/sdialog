@@ -58,14 +58,14 @@ import librosa
 import numpy as np
 from tqdm import tqdm
 import soundfile as sf
-from typing import Union
+from typing import Union, Optional, Callable
 
 from sdialog.audio.tts import BaseTTS
-from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.room import Room, RoomPosition
-from sdialog.audio.utils import AudioUtils, SourceVolume, Role, logger
 from sdialog.audio.acoustics_simulator import AcousticsSimulator
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
+from sdialog.audio.dialog import AudioDialog, RoomAcousticsConfig
+from sdialog.audio.utils import SourceVolume, Role, logger
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -79,7 +79,8 @@ def generate_utterances_audios(
     keep_duplicate: bool = False,
     seed: int = None,
     sampling_rate: int = 24_000,
-    tts_pipeline_kwargs: dict = {}
+    tts_pipeline_kwargs: dict = {},
+    remove_silences: bool = True
 ) -> AudioDialog:
     """
     Generates audio for each utterance in an AudioDialog object using the specified TTS engine.
@@ -113,6 +114,8 @@ def generate_utterances_audios(
     :type seed: int
     :param sampling_rate: Sampling rate for the audio generation.
     :type sampling_rate: int
+    :param remove_silences: If True, remove the silences at the beginning and the end of the audio.
+    :type remove_silences: bool
     :return: The AudioDialog object with generated audio for each turn.
     :rtype: AudioDialog
     """
@@ -137,7 +140,7 @@ def generate_utterances_audios(
 
         # Generate the utterance audio
         utterance_audio, utterance_sampling_rate = generate_utterance(
-            text=AudioUtils.remove_audio_tags(turn.text),
+            text=turn.text,
             voice=turn.voice,
             tts_pipeline=tts_pipeline,
             tts_pipeline_kwargs=tts_pipeline_kwargs
@@ -156,8 +159,15 @@ def generate_utterances_audios(
                 target_sr=sampling_rate,
             )
 
+        # Remove the silences at the beginning and the end of the audio
+        if remove_silences:
+            utterance_audio, _ = librosa.effects.trim(utterance_audio, top_db=60)
+
         # Set the utterance audio to the turn
         turn.set_audio(utterance_audio, sampling_rate)
+
+        # Set the audio duration of the turn
+        turn.audio_duration = utterance_audio.shape[0] / sampling_rate
 
     return dialog
 
@@ -188,7 +198,12 @@ def generate_utterance(
     :return: A tuple containing the audio data as a numpy array and the sampling rate.
     :rtype: tuple[np.ndarray, int]
     """
-    return tts_pipeline.generate(text, speaker_voice=voice, tts_pipeline_kwargs=tts_pipeline_kwargs)
+    audio, sr = tts_pipeline.generate(text, speaker_voice=voice, tts_pipeline_kwargs=tts_pipeline_kwargs)
+
+    if isinstance(audio, torch.Tensor):
+        audio = audio.cpu().numpy()
+
+    return audio, sr
 
 
 def generate_audio_room_accoustic(
@@ -201,7 +216,9 @@ def generate_audio_room_accoustic(
     audio_file_format: str = "wav",
     background_effect: str = "white_noise",
     foreground_effect: str = "ac_noise_minimal",
-    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT,
+    callback_mix_fn: Optional[Callable] = None,
+    callback_mix_kwargs: dict = {}
 ) -> AudioDialog:
     """
     Generates room acoustics simulation for the dialogue audio.
@@ -237,6 +254,10 @@ def generate_audio_room_accoustic(
     :type foreground_effect: str
     :param foreground_effect_position: Position for foreground effects.
     :type foreground_effect_position: RoomPosition
+    :param callback_mix_fn: Callback function to apply to the mixed audio.
+    :type callback_mix_fn: Optional[Callable]
+    :param callback_mix_kwargs: Keyword arguments for the callback function.
+    :type callback_mix_kwargs: dict
     :return: The AudioDialog with room acoustics simulation results and file paths.
     :rtype: AudioDialog
     """
@@ -244,9 +265,18 @@ def generate_audio_room_accoustic(
     # Create the room acoustics simulator
     room_acoustics = AcousticsSimulator(room=room, kwargs_pyroom=kwargs_pyroom)
 
+    # Prepare callback kwargs
+    _callback_mix_kwargs = callback_mix_kwargs.copy() if callback_mix_kwargs is not None else {}
+
+    # Add dialog to kwargs if not present
+    if "dialog" not in _callback_mix_kwargs:
+        _callback_mix_kwargs["dialog"] = dialog
+
     _audio_accoustic = room_acoustics.simulate(
         sources=dialog.get_audio_sources(),
-        source_volumes=source_volumes
+        source_volumes=source_volumes,
+        callback_mix_fn=callback_mix_fn,
+        callback_mix_kwargs=_callback_mix_kwargs,
     )
 
     # Save the audio file
@@ -270,10 +300,10 @@ def generate_audio_room_accoustic(
     # If the audio paths post processing are already in the dialog, use them, otherwise create a new dictionary
     if (
         room_name in dialog.audio_step_3_filepaths
-        and "audio_paths_post_processing" in dialog.audio_step_3_filepaths[room_name]
-        and dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"] != {}
+        and dialog.audio_step_3_filepaths[room_name].audio_paths_post_processing is not None
+        and dialog.audio_step_3_filepaths[room_name].audio_paths_post_processing != {}
     ):
-        audio_paths_post_processing = dialog.audio_step_3_filepaths[room_name]["audio_paths_post_processing"]
+        audio_paths_post_processing = dialog.audio_step_3_filepaths[room_name].audio_paths_post_processing
         logger.info(
             f"Existing audio paths for the post processing stage "
             f"already exist for room name: '{room_name}' and are kept unchanged"
@@ -281,17 +311,17 @@ def generate_audio_room_accoustic(
     else:
         audio_paths_post_processing = {}
 
-    dialog.audio_step_3_filepaths[room_name] = {
-        "audio_path": current_room_audio_path,
-        "microphone_position": room.mic_position,
-        "room_name": room_name,
-        "room": room,
-        "source_volumes": source_volumes,
-        "kwargs_pyroom": kwargs_pyroom,
-        "background_effect": background_effect,
-        "foreground_effect": foreground_effect,
-        "foreground_effect_position": foreground_effect_position,
-        "audio_paths_post_processing": audio_paths_post_processing
-    }
+    dialog.audio_step_3_filepaths[room_name] = RoomAcousticsConfig(
+        audio_path=current_room_audio_path,
+        microphone_position=room.mic_position,
+        room_name=room_name,
+        room=room,
+        source_volumes=source_volumes,
+        kwargs_pyroom=kwargs_pyroom,
+        background_effect=background_effect,
+        foreground_effect=foreground_effect,
+        foreground_effect_position=foreground_effect_position,
+        audio_paths_post_processing=audio_paths_post_processing,
+    )
 
     return dialog

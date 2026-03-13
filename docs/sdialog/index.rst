@@ -656,7 +656,7 @@ Audio Generation
 The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
 
 Setup and Installation
----------------------
+----------------------
 
 To work with audio features in SDialog, you'll need to install additional dependencies and system packages:
 

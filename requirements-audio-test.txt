@@ -5,4 +5,4 @@ jams
 pyloudnorm
 pyroomacoustics
 huggingface_hub[cli]
-dscaper>=1.7.0
+dscaper>=1.7.7

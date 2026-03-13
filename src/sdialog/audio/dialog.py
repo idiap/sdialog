@@ -36,19 +36,58 @@ Example:
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+
+import re
 import os
 import json
 import random
+import dscaper
 import numpy as np
 import soundfile as sf
-from typing import List, Union
+from typing import List, Union, Dict, Any
+from pydantic import BaseModel, Field, field_validator
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from sdialog import Dialog
+from sdialog.config import config
 from sdialog.audio.turn import AudioTurn
-from sdialog.audio.room import AudioSource
+from sdialog.util import get_llm_model, get_universal_id
 from sdialog.audio.tts.base import BaseTTS, BaseVoiceCloneTTS
 from sdialog.audio.voice_database import BaseVoiceDatabase, Voice
-from sdialog.audio.utils import Role, CaseInsensitiveDict, logger, generate_reference_voices
+from sdialog.audio.room import AudioSource, Room, MicrophonePosition, RoomPosition
+from sdialog.audio.utils import Role, CaseInsensitiveDict, logger, generate_reference_voices, SourceVolume
+
+
+class RoomAcousticsConfig(BaseModel):
+    audio_path: str
+    microphone_position: MicrophonePosition
+    room_name: str
+    room: Room
+    source_volumes: Dict[str, SourceVolume] = Field(default_factory=dict)
+    kwargs_pyroom: Dict[str, Any] = Field(default_factory=dict)
+    background_effect: str = "white_noise"
+    foreground_effect: str = "ac_noise_minimal"
+    foreground_effect_position: RoomPosition = RoomPosition.TOP_RIGHT
+    audio_paths_post_processing: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("source_volumes", "kwargs_pyroom", "audio_paths_post_processing", mode="before")
+    def _validate_dicts(cls, v):
+        return v if v is not None else {}
+
+    @field_validator("background_effect", mode="before")
+    def _validate_background_effect(cls, v):
+        return v if v is not None else "white_noise"
+
+    @field_validator("foreground_effect", mode="before")
+    def _validate_foreground_effect(cls, v):
+        return v if v is not None else "ac_noise_minimal"
+
+    @field_validator("foreground_effect_position", mode="before")
+    def _validate_foreground_effect_position(cls, v):
+        return v if v is not None else RoomPosition.TOP_RIGHT
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class AudioDialog(Dialog):
@@ -66,13 +105,28 @@ class AudioDialog(Dialog):
 
     audio_step_1_filepath: str = ""
     audio_step_2_filepath: str = ""
-    audio_step_3_filepaths: dict[str, dict] = {}
+    audio_step_3_filepaths: Dict[str, RoomAcousticsConfig] = {}
 
     speakers_names: dict[str, str] = {}  # role2name mapping
     speakers_roles: dict[str, str] = CaseInsensitiveDict()  # name2role mapping (case insensitive)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def clone(self, new_id: int = None) -> "AudioDialog":
+        """
+        Creates a deep copy of the dialogue.
+
+        :param new_id: Optional ID to assign to the cloned dialog. If None, a new universal ID is generated.
+        :type new_id: int, optional
+        :return: A new AudioDialog object that is a deep copy of this one, with updated id and parentId.
+        :rtype: AudioDialog
+        """
+        cloned = AudioDialog.from_dict(self.json())
+        cloned.parentId = cloned.id
+        cloned.id = new_id if new_id is not None else get_universal_id()
+
+        return cloned
 
     def _update_speakers_roles(self):
         """Compute the mapping between speaker names and roles needed for audio inference pipeline."""
@@ -343,28 +397,28 @@ class AudioDialog(Dialog):
 
             # For each room configuration, display the original audio and the processed audio
             for config_name in self.audio_step_3_filepaths:
-
+                config_data = self.audio_step_3_filepaths[config_name]
                 print(f"> Room Configuration: {config_name}")
                 print("Room Accoustic Audio:")
                 display(Audio(
-                    self.audio_step_3_filepaths[config_name]["audio_path"],
+                    config_data.audio_path,
                     autoplay=False
                 ))
 
                 # If the room configuration has processed audio, display it
                 if (
                     config_name in self.audio_step_3_filepaths
-                    and "audio_paths_post_processing" in self.audio_step_3_filepaths[config_name]
-                    and len(self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]) > 0
+                    and config_data.audio_paths_post_processing is not None
+                    and len(config_data.audio_paths_post_processing) > 0
                 ):
                     print("#" * 10)
                     print("Post Processing Audio (e.g. microphone effect):")
                     print("#" * 10)
 
                     # For each recording device, display the processed audio
-                    for _rd in self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"]:
+                    for _rd in config_data.audio_paths_post_processing:
                         display(Audio(
-                            self.audio_step_3_filepaths[config_name]["audio_paths_post_processing"][_rd],
+                            config_data.audio_paths_post_processing[_rd],
                             autoplay=False
                         ))
 
@@ -403,8 +457,6 @@ class AudioDialog(Dialog):
         os.makedirs(f"{project_path}/exported_audios", exist_ok=True)
         os.makedirs(f"{project_path}/exported_audios/rooms", exist_ok=True)
 
-        current_time = 0.0
-
         for idx, turn in enumerate(self.turns):
 
             audio_data = turn.get_audio()
@@ -414,11 +466,21 @@ class AudioDialog(Dialog):
 
             # Calculate the duration of the audio
             turn.audio_duration = audio_data.shape[0] / sampling_rate
-            turn.audio_start_time = current_time
-            current_time += turn.audio_duration
 
             # Save the audio file
             sf.write(turn.audio_path, audio_data, sampling_rate)
+
+    def update_turn_timings(self):
+        """
+        Updates the start times of turns based on their duration and gap durations.
+        Useful after computing overlaps/pauses.
+        """
+        current_time = 0.0
+        for turn in self.turns:
+            turn.audio_start_time = current_time
+            current_time += turn.audio_duration + turn.gap_duration
+            if current_time < 0:
+                current_time = 0.0
 
     # TODO: this method should be rename since does not return anything, maybe more like
     #       "update_voices_from_personas" or "assign_voices_to_personas", and perhaps should be a private method
@@ -487,6 +549,10 @@ class AudioDialog(Dialog):
             # Get the role of the speaker (speaker_1 or speaker_2)
             role: Role = self.speakers_roles[speaker]
 
+            print(f"voices: {voices}")
+            print(f"role: {role}")
+            print(f"speaker: {speaker}")
+
             if voices and role not in voices and speaker not in voices:
                 raise ValueError(f"Voice for {str(role)} not found in the voices dictionary")
 
@@ -520,3 +586,438 @@ class AudioDialog(Dialog):
             else:
                 # Fallback, forward the provided value directly to the TTS engine
                 persona["voice"] = voices[role]
+
+    def get_dry_audio(self) -> np.ndarray:
+        """
+        Get the combination of multiple audio segments into a single master audio track.
+
+        Concatenates all audio segments from the dialogue turns into a single
+        continuous audio track. This creates a baseline audio representation
+        of the entire dialogue for further processing and analysis.
+
+        :return: Combined audio data as numpy array.
+        :rtype: np.ndarray
+        """
+        _audio, _sr = sf.read(self.audio_step_2_filepath)
+        return _audio
+
+    def add_sound_effects(
+        self,
+        room: Any = None,
+        dscaper_manager: dscaper.Dscaper = None,
+        available_sound_effects: dict[str, dict] = None,
+        model_name_alignment: str = "Qwen/Qwen3-ForcedAligner-0.6B",
+        dropout: float = 0.0,
+        verbose: bool = False,
+        skip_annotation: bool = False
+    ) -> None:
+        """
+        Add sound effects (such as door opening, footsteps, etc.) to the audio.
+
+        :param room: The room object to use for furniture information.
+        :type room: Any
+        :param dscaper_manager: The dSCAPER manager to use for fetching audio files.
+        :type dscaper_manager: dscaper.Dscaper
+        :param available_sound_effects: The dictionary of available sound effects.
+        :type available_sound_effects: dict[str, dict]
+        :param model_name_alignment: The name of the model to use for forced alignment.
+        :type model_name_alignment: str
+        :param dropout: The dropout rate for sound effects.
+        :type dropout: float
+        :param verbose: Whether to print verbose output.
+        :type verbose: bool
+        :param skip_annotation: Whether to skip the annotation of the sound effects.
+        :type skip_annotation: bool
+        """
+
+        if not skip_annotation:
+            # Annotate the turns with sound effect tags using LLM
+            decorated_turns = self._annotate_sound_effects_from_turns(
+                sound_effects_db=available_sound_effects,
+                room=room
+            )
+        else:
+            decorated_turns = self.turns
+
+        # If the dropout rate is greater than 0.0, we will drop some of the sound effects tags
+        if dropout > 0.0:
+            for turn in decorated_turns:
+                # Use a callback to drop tags individually with probability `dropout`
+                turn.text = re.sub(
+                    r"\[(.*?)\]",
+                    lambda m: "" if random.random() < dropout else m.group(0),
+                    turn.text
+                )
+                turn.text = turn.text.strip()
+
+        if not decorated_turns:
+            logger.warning("No sound effects tags found. Skipping sound effects.")
+            return
+
+        # Load aligner model
+        try:
+            import torch
+            from qwen_asr import Qwen3ForcedAligner
+
+            logger.info(f"Loading {model_name_alignment} for sound effect alignment...")
+            aligner = Qwen3ForcedAligner.from_pretrained(
+                model_name_alignment,
+                dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+                device_map="cuda:0" if torch.cuda.is_available() else "cpu",
+            )
+        except ImportError:
+            logger.error("`qwen-asr` package not found. Skipping forced alignment for sound effects.")
+            logger.error("Please install it via: pip install qwen-asr")
+            raise ImportError("`qwen-asr` package not found. Please install it via: pip install qwen-asr")
+        except Exception as e:
+            logger.error(f"Failed to load {model_name_alignment}: {e}")
+            raise Exception(f"Failed to load {model_name_alignment}: {e}")
+
+        # Process each turn to add sound effects
+        for i, turn in enumerate(self.turns):
+
+            new_text = decorated_turns[i].text
+
+            # Process the turn to add sound effects
+            self._parse_sound_effects(
+                turn=turn,
+                new_text=new_text,
+                available_sound_effects=available_sound_effects,
+                aligner=aligner,
+                dscaper_manager=dscaper_manager,
+                verbose=verbose
+            )
+
+        self.update_turn_timings()
+
+    def _annotate_sound_effects_from_turns(
+        self,
+        sound_effects_db: Dict[str, Dict],
+        room: Any = None
+    ) -> List[BaseModel]:
+        """
+        Uses LLM to add sound effect tags to the dialogue turns.
+
+        :param sound_effects_db: Dictionary of available sound effects.
+        :param room: The room object to use for furniture information.
+        :return: List of decorated turns or None if failed.
+        """
+
+        llm_params = config["llm"].copy()
+        model_name = llm_params.pop("model", None)
+
+        if not model_name:
+            logger.warning("LLM model not configured. Skipping sound effects generation.")
+            return None
+
+        # Warn user about English only focus
+        logger.warning("The sound effects feature currently focuses on English dialogues only.")
+
+        class DecoratedTurn(BaseModel):
+            text: str = Field(
+                description=(
+                    "The text of the turn with sound effect tags added. Format:"
+                    " [tag|position]. Example: 'Hello [knock|door] world' or 'Hello [knock] world'."
+                )
+            )
+
+        class DecoratedDialog(BaseModel):
+            turns: List[DecoratedTurn] = Field(description="List of turns with sound effects added.")
+
+        # Prepare prompts
+        dialog_text = ""
+        for i, turn in enumerate(self.turns):
+            dialog_text += f"Turn {i+1} ({turn.speaker}): {turn.text}\n"
+
+        db_description = "\n".join([
+            f"- [{tag}]: {info['description']} "
+            for tag, info in sound_effects_db.items()
+        ])
+
+        position_options = (
+            "- 'human': The sound originates from the current speaker's position.\n"
+            "- Room Anchors: 'room-center', 'room-top_left', "
+            "'room-top_right', 'room-bottom_left', 'room-bottom_right'.\n"
+        )
+
+        if room:
+            furnitures = list(room.furnitures.keys())
+            if furnitures:
+                position_options += f"- Furniture: {', '.join(furnitures)}.\n"
+
+        # Check if there are stage tags in the dialog
+        has_stage_tags = any("<stage>" in turn.text for turn in self.turns)
+
+        # Load the system prompt from the file
+        prompt_file = "annotate_sound_effects_with_stage.txt" if has_stage_tags else "annotate_sound_effects.txt"
+        prompt_path = os.path.join(os.path.dirname(__file__), "prompts", prompt_file)
+
+        with open(prompt_path, "r") as f:
+            system_prompt_template = f.read()
+
+        system_prompt = system_prompt_template.format(
+            position_options=position_options,
+            db_description=db_description
+        )
+
+        human_prompt = (
+            f"Dialogue:\n{dialog_text}\n\n"
+            f"Add sound effects tags to the dialogue turns."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        # Invoke LLM
+        try:
+            llm = get_llm_model(
+                model_name=model_name,
+                output_format=DecoratedDialog,
+                **llm_params
+            )
+            raw_response = llm.invoke(messages)
+            structured_response = DecoratedDialog.model_validate(raw_response)
+            decorated_turns = structured_response.turns
+
+            if len(decorated_turns) != len(self.turns):
+                logger.error(
+                    f"LLM returned {len(decorated_turns)} turns, expected {len(self.turns)}. "
+                    "Skipping sound effects."
+                )
+                return None
+
+            return decorated_turns
+
+        except Exception as e:
+            logger.error(f"Failed to generate sound effects with LLM: {e}")
+            return None
+
+    def _parse_sound_effects(
+            self,
+            turn: AudioTurn,
+            new_text: str,
+            available_sound_effects: dict[str, dict],
+            aligner: Any,
+            dscaper_manager: dscaper.Dscaper,
+            verbose: bool = False) -> None:
+        """
+        Process a single turn to insert/mix sound effects based on tags and forced alignment.
+
+        :param turn: The audio turn object to modify.
+        :type turn: AudioTurn
+        :param new_text: The text containing sound effect tags.
+        :type new_text: str
+        :param available_sound_effects: The sound effects database.
+        :type available_sound_effects: dict[str, dict]
+        :param aligner: The loaded Qwen3ForcedAligner model.
+        :type aligner: Any
+        :param dscaper_manager: The dSCAPER manager to use for fetching audio files.
+        :type dscaper_manager: dscaper.Dscaper
+        :param verbose: Whether to print verbose output.
+        :type verbose: bool
+        """
+
+        if verbose:
+            logger.info(new_text)
+
+        # Check for tags
+        tags = re.findall(r"\[(.*?)\]", new_text)
+        if not tags:
+            return
+
+        current_audio = turn.get_audio()
+        if current_audio is None or len(current_audio) == 0:
+            return
+
+        sr = turn.sampling_rate
+
+        # Clean text for alignment (remove tags)
+        clean_text = re.sub(r"\[(.*?)\]", "", new_text)
+        # Remove multiple spaces if any
+        clean_text = re.sub(r"\s+", " ", clean_text).strip()
+
+        if not clean_text:
+            # If text is only tags, just play them sequentially or mixed
+            alignment = []
+        else:
+            # Perform forced alignment
+            try:
+
+                if hasattr(current_audio, "numpy"):
+                    current_audio = current_audio.numpy()
+
+                audio_input = (current_audio.astype(np.float32), sr)
+
+                results = aligner.align(
+                    audio=audio_input,
+                    text=clean_text,
+                    language="English"  # Focusing on English as requested
+                )
+                # results is a list (batch) of alignments. We sent one item.
+                # structure: results[0] is list of WordItem. Each item has .text, .start_time, .end_time
+                alignment = results[0]
+            except Exception as e:
+                logger.error(f"Forced alignment failed: {e}. Skipping sound effects for this turn.")
+                return
+
+        # Find tag positions relative to words
+        # We map tags in new_text to positions in clean_text, then to time using alignment
+        tag_matches = list(re.finditer(r"\[(.*?)\]", new_text))
+        valid_tag_infos = []  # (tag_name, position, timestamp_seconds)
+
+        # Process each tag to add sound effects
+        for match in tag_matches:
+
+            full_tag = match.group(1)
+
+            # Parse tag and position
+            if '|' in full_tag:
+                tag, position = full_tag.split('|', 1)
+            else:
+                tag = full_tag
+                position = "human"  # Default position
+
+            if tag not in available_sound_effects:
+                continue
+
+            # Reconstruct clean text up to this tag
+            full_clean_pre_text = re.sub(r"\[(.*?)\]", "", new_text[:match.start()])
+
+            # Remove the <stage> and </stage> tags and all in between from the full_clean_pre_text
+            if "<stage>" in full_clean_pre_text:
+                full_clean_pre_text = re.sub(r"<stage>.*?</stage>", "", full_clean_pre_text)
+
+            found_time = 0.0
+
+            # If there is speech, find the time of the tag in the alignment based on the words before the tag
+            if alignment is not None:
+
+                # Heuristic: count words before the tag in the clean text representation
+                # and map to the word index in the alignment.
+                words_before = full_clean_pre_text.split()
+                num_words_before = len(words_before)
+
+                if num_words_before == 0:
+                    found_time = alignment[0].start_time
+                elif num_words_before >= len(alignment):
+                    found_time = alignment[-1].end_time
+                else:
+                    # Insert after the word corresponding to the count
+                    # num_words_before corresponds to the index of the *next* word
+                    # so (num_words_before - 1) is the index of the word just processed.
+                    last_word = alignment[num_words_before - 1]
+                    found_time = last_word.end_time
+
+            valid_tag_infos.append((tag, position, found_time))
+
+        # Update turn text to include tags for reference
+        turn.text_with_tags = new_text
+
+        # Update turn sound effects
+        turn.sound_effects = []
+        for tag, position, start_time in valid_tag_infos:
+            turn.sound_effects.append({
+                "tag": tag,
+                "position": position,
+                "start_time": start_time,
+                "duration": available_sound_effects[tag].get("duration", "unknown"),
+                "position": position,
+            })
+
+    def compute_overlapping_and_pausing_llm(
+        self,
+        verbose: bool = False,
+        seed: int = None
+    ):
+        """
+        Compute the overlapping and pausing between turns using LLM.
+
+        This method computes the overlapping and pausing times between turns using LLM.
+        It will return a new AudioDialog object with the overlapping or pausing times for each turn.
+
+        :param verbose: Verbose mode for logging.
+        :type verbose: bool
+        :return: A new AudioDialog object with the overlapping or pausing times for each turn.
+        :rtype: AudioDialog
+        """
+        llm_params = config["llm"].copy()
+        model_name = llm_params.pop("model", None)
+
+        if not model_name:
+            raise ValueError("LLM model not configured. Please set sdialog.config.llm('provider:model').")
+
+        # Define schema for structured output
+        class GapDurations(BaseModel):
+            gaps: List[float] = Field(
+                description="List of time intervals (seconds) between turns. "
+                            "Positive for pause, negative for overlap."
+            )
+
+        # Prepare prompts
+        dialog_text = ""
+        for i, turn in enumerate(self.turns):
+            # dialog_text += f"Turn {i+1} ({turn.speaker}): {turn.text}\n"
+            dialog_text += f"Turn {i+1} ({turn.speaker} / {turn.audio_duration} seconds): {turn.text}\n"
+
+        system_prompt = (
+            "Analyze the dialogue and determine the natural timing gaps between turns. "
+            "For each transition between Turn N and Turn N+1, provide a time duration in seconds:\n"
+            "- Positive value (e.g., 0.5): A pause or silence.\n"
+            "- Negative value (e.g., -0.2): An overlap.\n"
+            "- 0.0: Immediate follow-up."
+        )
+
+        # print(system_prompt)
+
+        human_prompt = (
+            f"Dialogue:\n{dialog_text}\n\n"
+            f"Provide a list of {len(self.turns) - 1} float values representing the gaps between consecutive turns."
+        )
+        # print(human_prompt)
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        # Invoke LLM
+        try:
+            llm = get_llm_model(
+                model_name=model_name,
+                output_format=GapDurations,
+                **llm_params
+            )
+            raw_response = llm.invoke(messages)
+            structured_response = GapDurations.model_validate(raw_response)
+            gaps = structured_response.gaps
+        except Exception as e:
+            logger.warning(f"Failed to compute gaps with LLM: {e}")
+            rng = random.Random(seed) if seed is not None else random
+            gaps = [
+                round(rng.uniform(0.2, 0.7), 1)
+                for _idx in
+                range(len(self.turns) - 1)
+            ]
+
+        # Validate length
+        expected_gaps = len(self.turns) - 1
+        if len(gaps) != expected_gaps:
+            logger.warning(
+                f"LLM returned {len(gaps)} gaps, expected {expected_gaps}. "
+                "Adjusting to match turn count."
+            )
+            # Pad or truncate
+            if len(gaps) < expected_gaps:
+                gaps.extend([0.0] * (expected_gaps - len(gaps)))
+            else:
+                gaps = gaps[:expected_gaps]
+
+        if verbose:
+            logger.info("-------------------------------- gaps --------------------------------")
+            logger.info(gaps)
+
+        # Apply gaps
+        for i in range(len(gaps)):
+            self.turns[i].gap_duration = gaps[i] if gaps[i] <= 0.7 else 0.7

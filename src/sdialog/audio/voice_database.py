@@ -490,11 +490,19 @@ class BaseVoiceDatabase:
 
         for (gender, age), voices in self._data[lang].items():
             for voice in voices:
+
                 if voice.identifier == identifier:
+
                     if not keep_duplicate:
+
+                        if lang not in self._used_voices:
+                            self._used_voices[lang] = []
+
                         if voice.identifier in self._used_voices[lang]:
                             raise ValueError(f"Voice with identifier {identifier} is already used")
+
                         self._used_voices[lang].append(voice.identifier)
+
                     return voice
 
         raise ValueError(f"Voice with identifier {identifier} not found in the database")

@@ -32,8 +32,8 @@ Example:
 # SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import numpy as np
-from abc import abstractmethod, ABC
 from typing import Any
+from abc import abstractmethod, ABC
 
 
 class BaseTTS(ABC):

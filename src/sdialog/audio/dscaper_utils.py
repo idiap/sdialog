@@ -43,13 +43,15 @@ Example:
 # SPDX-License-Identifier: MIT
 
 import os
-import dscaper
+import json
 import shutil
+import dscaper
 import logging
+import soundfile as sf
 
-from sdialog.audio.utils import logger
+from sdialog.audio.utils import logger, Role
 from sdialog.audio.dialog import AudioDialog
-from sdialog.audio.room import AudioSource, RoomPosition
+from sdialog.audio.room import AudioSource, RoomPosition, Room
 from dscaper.dscaper_datatypes import (
     DscaperAudio,
     DscaperTimeline,
@@ -88,7 +90,9 @@ def send_utterances_to_dscaper(
     for turn in dialog.turns:
 
         metadata = DscaperAudio(
-            library=dialog_directory, label=turn.speaker, filename=os.path.basename(turn.audio_path)
+            library=dialog_directory,
+            label=turn.speaker,
+            filename=os.path.basename(turn.audio_path)
         )
 
         resp = _dscaper.store_audio(turn.audio_path, metadata)
@@ -116,6 +120,116 @@ def send_utterances_to_dscaper(
     return dialog
 
 
+def get_sound_effects_db(
+    dscaper_manager: dscaper.Dscaper
+) -> dict[str, dict]:
+    """
+    Returns the sound effects database.
+
+    :param dscaper_manager: dSCAPER instance for audio database management.
+    :type dscaper_manager: dscaper.Dscaper
+    :return: Dictionary containing the sound effect metadata.
+    :rtype: dict[str, dict]: Dictionary containing the sound effect metadata.
+    :returns:
+    {
+        "my_label": {
+            "library": "sfx|my_dataset_name",
+            "label": "my_label",
+            "description": "my_description",
+            "duration": "1.0",
+        }
+    }
+    :rtype: dict[str, dict]
+    """
+
+    # List all libraries in dscaper_manager that start with "sfx|"
+    _libraries = [
+        _l
+        for _l in dscaper_manager.get_libraries().content
+        if _l.startswith("sfx|")
+    ]
+
+    # Extract the items from the libraries that start with "sfx|"
+    _libraries_labels = [
+        (_library, dscaper_manager.get_labels(_library).content)
+        for _library in _libraries
+    ]
+
+    metadata = {}
+
+    for _lib, _labels in _libraries_labels:
+
+        for _label in _labels:
+
+            _metadata = dscaper_manager.get_label_metadata(
+                library=_lib,
+                label=_label,
+                include_audios=True
+            ).content
+
+            _first_audio_description = json.loads(
+                _metadata["audios"][0]["sandbox"]
+            )["description"]
+
+            metadata[_label] = {
+                "library": _lib,
+                "label": _label,
+                "description": _first_audio_description,
+            }
+
+    return metadata
+
+
+def _resolve_sound_effect_position(
+        sfx_position: str,
+        sfx_tag: str,
+        default_role: str,
+        room: Room) -> str:
+    """
+    Resolve the position of a sound effect.
+
+    :param sfx_position: The position string to resolve.
+    :type sfx_position: str
+    :param sfx_tag: The tag of the sound effect.
+    :type sfx_tag: str
+    :param default_role: The default role to use if the position is invalid.
+    :type default_role: str
+    :param room: The room configuration for checking validity.
+    :type room: Room
+    :return: The resolved position.
+    :rtype: str
+    """
+
+    sfx_position = sfx_position.replace("sfx|", "")
+
+    if sfx_position == "human":
+        return default_role
+
+    is_valid = False
+
+    # Check if it's a speaker role
+    if sfx_position in [Role.SPEAKER_1.value, Role.SPEAKER_2.value]:
+        is_valid = True
+
+    # Check if it's a room position
+    elif sfx_position.startswith("room-") and isinstance(RoomPosition(sfx_position), RoomPosition):
+        is_valid = True
+
+    # Check if it's a furniture
+    elif sfx_position in room.furnitures:
+        is_valid = True
+
+    if not is_valid:
+        logger.warning(
+            f"Position '{sfx_position}' for sound effect '{sfx_tag}' "
+            f"is not valid in the current room configuration. "
+            f"Defaulting to '{default_role}'."
+        )
+        return default_role
+
+    return sfx_position
+
+
 def generate_dscaper_timeline(
         dialog: AudioDialog,
         dscaper: dscaper.Dscaper,
@@ -127,7 +241,9 @@ def generate_dscaper_timeline(
         audio_file_format: str = "wav",
         seed: int = 0,
         referent_db: int = -40,
-        reverberation: int = 0
+        reverberation: int = 0,
+        room: Room = None,
+        add_sound_effects: bool = False
 ) -> AudioDialog:
     """
     Generate a dSCAPER timeline for realistic audio environment simulation.
@@ -159,6 +275,10 @@ def generate_dscaper_timeline(
     :type referent_db: int
     :param reverberation: Reverberation time in seconds.
     :type reverberation: int
+    :param room: Room configuration for checking the validity of the positions.
+    :type room: Room
+    :param add_sound_effects: Whether to add sound effects to the timeline.
+    :type add_sound_effects: bool
     :return: Audio dialogue with generated timeline and audio sources.
     :rtype: AudioDialog
     """
@@ -170,9 +290,11 @@ def generate_dscaper_timeline(
             f"You provided: {audio_file_format}"
         ))
 
+    # Compute the duration of the whole dialogue by considering for each turn:
+    # the duration of the turn, the gap and the duration of the sound effects
+    # dialog.total_duration = dialog.get_timeline_duration()
+
     timeline_name = dialog_directory
-    total_duration = dialog.get_combined_audio().shape[0] / sampling_rate
-    dialog.total_duration = total_duration
     dialog.timeline_name = timeline_name
 
     timeline_path = os.path.join(
@@ -192,7 +314,7 @@ def generate_dscaper_timeline(
         # Create the timeline
         timeline_metadata = DscaperTimeline(
             name=timeline_name,
-            duration=total_duration,
+            # duration=dialog.total_duration, # BEFORE
             description=f"Timeline for dialog {dialog.id}"
         )
         dscaper.create_timeline(timeline_metadata)
@@ -202,7 +324,9 @@ def generate_dscaper_timeline(
             library="background",
             label=[
                 "const",
-                background_effect if background_effect is not None and background_effect != "" else "white_noise"
+                background_effect
+                if background_effect is not None and background_effect != ""
+                else "white_noise"
             ],
             source_file=["choose", "[]"]
         )
@@ -217,17 +341,17 @@ def generate_dscaper_timeline(
                 label=["const", foreground_effect],
                 source_file=["choose", "[]"],
                 event_time=["const", "0"],
-                event_duration=["const", str(f"{total_duration:.1f}")],  # Force infinite loop
+                # event_duration=["const", str(f"{dialog.total_duration:.1f}")],  # Force infinite loop
                 position=(
                     foreground_effect_position
                     if foreground_effect_position is not None
                     else RoomPosition.TOP_RIGHT
                 ),
+                loop_event=True,
             )
             dscaper.add_event(timeline_name, foreground_metadata)
 
         # Add the events and utterances to the timeline
-        current_time = 0.0
         for i, turn in enumerate(dialog.turns):
 
             # The role is used here to identify the source of emission of the audio
@@ -242,10 +366,33 @@ def generate_dscaper_timeline(
                 event_duration=["const", str(f"{turn.audio_duration:.1f}")],
                 speaker=turn.speaker,
                 text=turn.text,
-                position=_speaker_role
+                position=_speaker_role,
             )
             dscaper.add_event(timeline_name, _event_metadata)
-            current_time += turn.audio_duration
+
+            # Add sound effects events if any
+            if hasattr(turn, 'sound_effects') and turn.sound_effects and add_sound_effects is True:
+
+                for sfx in turn.sound_effects:
+
+                    sfx_start_time = turn.audio_start_time + sfx['start_time']
+                    sfx_position = _resolve_sound_effect_position(
+                        sfx_position=sfx['position'],
+                        sfx_tag=sfx['tag'],
+                        default_role=_speaker_role,
+                        room=room
+                    )
+
+                    _sfx_event_metadata = DscaperEvent(
+                        library="sfx|sound_events",
+                        label=["const", sfx['tag']],
+                        source_file=["choose", "[]"],
+                        event_time=["const", str(f"{sfx_start_time:.1f}")],
+                        # event_duration=["const", str(f"{sfx['duration']:.1f}")],
+                        position=sfx_position,
+                        snr=["const", "-10.0"]
+                    )
+                    dscaper.add_event(timeline_name, _sfx_event_metadata)
 
         # Generate the timeline
         resp = dscaper.generate_timeline(
@@ -271,15 +418,34 @@ def generate_dscaper_timeline(
         "soundscape_positions"
     )
 
-    # Build the path to the audio output
-    audio_output_path = os.path.join(
+    # Create the dry audio by taking the isolated soundscape positions
+    # for speakers 1/2 and for SFX and stack them together (they are aligned)
+    _dir_soundscape_positions = os.path.join(
         dscaper.get_dscaper_base_path(),
         "timelines",
         timeline_name,
         "generate",
         resp.content["id"],
-        "soundscape.wav"
+        "soundscape_positions"
     )
+
+    _audio_2_audio = None
+    _audio_2_sr = None
+
+    for _file in os.listdir(_dir_soundscape_positions):
+
+        if not _file.endswith(".wav") or not (_file.startswith("speaker_") or _file.startswith("sfx_")):
+            continue
+
+        _path = os.path.join(_dir_soundscape_positions, _file)
+        _audio, _sr = sf.read(_path)
+
+        if _audio_2_audio is None:
+            _audio_2_audio = _audio
+            _audio_2_sr = _sr
+        else:
+            _audio_2_audio += _audio
+
     # Copy the audio output to the dialog audio directory
     dialog.audio_step_2_filepath = os.path.join(
         dialog.audio_dir_path,
@@ -287,7 +453,20 @@ def generate_dscaper_timeline(
         "exported_audios",
         f"audio_pipeline_step2.{audio_file_format}"
     )
-    shutil.copy(audio_output_path, dialog.audio_step_2_filepath)
+
+    # If the user want to re-sample the output audio to a different sampling rate
+    if sampling_rate != _audio_2_sr:
+
+        import librosa
+
+        _audio_2_audio = librosa.resample(
+            y=_audio_2_audio.T,
+            orig_sr=_audio_2_sr,
+            target_sr=sampling_rate
+        ).T
+
+    # Overwrite the audio file with the new sampling rate
+    sf.write(dialog.audio_step_2_filepath, _audio_2_audio, sampling_rate)
 
     # Get the sounds files
     sounds_files = [_ for _ in os.listdir(soundscape_positions_path) if _.endswith(".wav")]
@@ -315,3 +494,55 @@ def generate_dscaper_timeline(
         logger.error(f"Failed to generate dscaper timeline for {timeline_name}: {resp.message}")
 
     return dialog
+
+
+def snr_callback_mix(
+    premix,
+    snr=None,
+    sir=None,
+    ref_mic=0,
+    n_src=None,
+    n_mics=None,
+    dialog: AudioDialog = None,
+    amplitude_factor: float = 2.0,
+    speaker_role: str = Role.SPEAKER_2.value
+):
+    """
+    Callback to lower the gain of SPEAKER 2.
+    :param premix: The premix array.
+    :type premix: np.ndarray
+    :param snr: The SNR value.
+    :type snr: float
+    :param sir: The SIR value.
+    :type sir: float
+    :param ref_mic: The reference microphone index.
+    :type ref_mic: int
+    :param n_src: The number of sources.
+    :type n_src: int
+    :param n_mics: The number of microphones.
+    :type n_mics: int
+    :param dialog: The audio dialogue.
+    :type dialog: AudioDialog
+    :param amplitude_factor: The amplitude factor.
+    :type amplitude_factor: float
+    :param speaker_role: The speaker role.
+    :type speaker_role: str
+    :return: The mixed audio.
+    :rtype: np.ndarray
+    """
+    import numpy as np
+
+    if speaker_role not in [Role.SPEAKER_1.value, Role.SPEAKER_2.value]:
+        raise ValueError(f"Invalid speaker role: {speaker_role}")
+
+    speaker_indices = [
+        i for i, s in enumerate(dialog.audio_sources)
+        if s.position == speaker_role or s.name == speaker_role
+    ]
+
+    valid_indices = [i for i in speaker_indices if i < premix.shape[0]]
+
+    if valid_indices:
+        premix[valid_indices, :, :] /= amplitude_factor
+
+    return np.sum(premix, axis=0)

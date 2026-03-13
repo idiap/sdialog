@@ -4,7 +4,7 @@ sox
 jams
 pyloudnorm
 pyroomacoustics
-datasets<=3.6.0
+datasets<=2.21.0
 huggingface_hub[cli]
-dscaper>=1.7.0
-qwen-tts
+dscaper>=1.7.7
+whisper-normalization

@@ -5,6 +5,7 @@
 import numpy as np
 
 from ..base import BaseTTS
+from sdialog.audio.normalizers import TextNormalizer, UnicodeToAsciiNormalizer, normalize_text
 
 
 class KokoroTTS(BaseTTS):
@@ -46,7 +47,9 @@ class KokoroTTS(BaseTTS):
     def __init__(
             self,
             lang_code: str = "a",
-            speed: float = 1.0):
+            speed: float = 1.0,
+            text_normalizers: list[TextNormalizer] = None,
+            unicode_to_ascii: bool = True):
         """
         Initializes the Kokoro TTS engine with the specified language.
 
@@ -58,6 +61,11 @@ class KokoroTTS(BaseTTS):
         :type lang_code: str
         :param speed: Speech speed multiplier (default: 1.0 for normal speed).
         :type speed: float
+        :param text_normalizers: The list of text normalizers to apply.
+        :type text_normalizers: list[TextNormalizer]
+        :param unicode_to_ascii: If True, prepend a UnicodeToAsciiNormalizer to the
+                                 normalizer chain (default: True).
+        :type unicode_to_ascii: bool
         :raises ValueError: If the provided language code is not supported.
         :raises ImportError: If the kokoro package is not installed.
         """
@@ -80,6 +88,12 @@ class KokoroTTS(BaseTTS):
 
         self.lang_code = lang_code
         self.speed = speed
+
+        if text_normalizers is None:
+            text_normalizers = []
+        if unicode_to_ascii:
+            text_normalizers = [UnicodeToAsciiNormalizer()] + list(text_normalizers)
+        self.text_normalizers = text_normalizers
 
         # Initialize the Kokoro pipeline
         self.pipeline = KPipeline(lang_code=self.lang_code)
@@ -106,6 +120,10 @@ class KokoroTTS(BaseTTS):
         :raises ValueError: If the voice is not compatible with the selected language.
         :raises RuntimeError: If audio generation fails.
         """
+
+        # Normalize the text if text normalizers are provided.
+        if self.text_normalizers is not None and len(self.text_normalizers) > 0:
+            text = normalize_text(text, self.text_normalizers)
 
         # Generate audio using the Kokoro pipeline
         generator = self.pipeline(text, voice=speaker_voice, speed=self.speed)

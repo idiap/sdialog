@@ -474,7 +474,7 @@ class Dialog(BaseModel):
         This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
         All keyword arguments are passed to it.
 
-        :param path: Directory path for storing audio outputs.
+        :param path: Path to the audio file or directory for storing audio outputs.
         :type path: str
         :param dialog_dir_name: Custom name for the dialogue directory.
         :type dialog_dir_name: str
@@ -510,8 +510,6 @@ class Dialog(BaseModel):
         :type audio_file_format: str
         :param seed: Seed for random number generator.
         :type seed: int
-        :param re_sampling_rate: Re-sampling rate for the output audio.
-        :type re_sampling_rate: Optional[int]
         :param recording_devices: The identifiers of the recording devices to simulate.
         :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
         :param impulse_response_database: The database for impulse responses.
@@ -520,6 +518,21 @@ class Dialog(BaseModel):
         :type override_tts_audio: Optional[bool]
         :param verbose: Verbose mode for logging.
         :type verbose: Optional[bool]
+        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
+        :type overlap_pauses: Optional[bool]
+        :param add_sound_effects: Add sound effects (such as door opening, footsteps, etc.) to the audio.
+        :type add_sound_effects: Optional[bool]
+        :param sound_effects_dropout: Dropout rate for sound effects.
+        :type sound_effects_dropout: Optional[float]
+        :param skip_annotation: Whether to skip the annotation of the sound effects
+                                (if your dialogs are already annotated with sound effects tags, you can skip this step).
+        :type skip_annotation: Optional[bool]
+        :param remove_silences: Remove the silences at the beginning and the end of the audio.
+        :type remove_silences: Optional[bool]
+        :param callback_mix_fn: Callback function to apply to the mixed audio.
+        :type callback_mix_fn: Optional[Callable]
+        :param callback_mix_kwargs: Keyword arguments for the callback function.
+        :type callback_mix_kwargs: dict
         :return: Audio dialogue with processed audio data.
         :rtype: "sdialog.audio.dialog.AudioDialog"
         :raises Exception: If the audio module is not installed.

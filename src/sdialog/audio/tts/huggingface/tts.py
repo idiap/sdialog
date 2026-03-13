@@ -6,6 +6,7 @@ import torch
 import numpy as np
 
 from ..base import BaseTTS
+from sdialog.audio.normalizers import TextNormalizer, UnicodeToAsciiNormalizer, normalize_text
 
 
 class HuggingFaceTTS(BaseTTS):
@@ -29,6 +30,8 @@ class HuggingFaceTTS(BaseTTS):
             self,
             model_id: str = "facebook/mms-tts-eng",
             device: str = None,
+            text_normalizers: list[TextNormalizer] = None,
+            unicode_to_ascii: bool = True,
             **kwargs):
         """
         Initializes the Hugging Face TTS engine.
@@ -38,6 +41,11 @@ class HuggingFaceTTS(BaseTTS):
         :param device: Device for model inference ("cuda" or "cpu"). If None,
                        it will auto-detect CUDA availability.
         :type device: str
+        :param text_normalizers: The list of text normalizers to apply.
+        :type text_normalizers: list[TextNormalizer]
+        :param unicode_to_ascii: If True, prepend a UnicodeToAsciiNormalizer to the
+                                 normalizer chain (default: True).
+        :type unicode_to_ascii: bool
         :raises ImportError: If the `transformers` package is not installed.
         """
         try:
@@ -52,6 +60,12 @@ class HuggingFaceTTS(BaseTTS):
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.pipeline = pipeline("text-to-speech", model=model_id, device=device, **kwargs)
+
+        if text_normalizers is None:
+            text_normalizers = []
+        if unicode_to_ascii:
+            text_normalizers = [UnicodeToAsciiNormalizer()] + list(text_normalizers)
+        self.text_normalizers = text_normalizers
 
     def generate(self, text: str, speaker_voice: str, tts_pipeline_kwargs: dict = {}) -> tuple[np.ndarray, int]:
         """
@@ -69,6 +83,12 @@ class HuggingFaceTTS(BaseTTS):
         :return: A tuple containing the audio data as a numpy array and the sampling rate.
         :rtype: tuple[np.ndarray, int]
         """
+
+        # Normalize the text if text normalizers are provided.
+        if self.text_normalizers is not None and len(self.text_normalizers) > 0:
+            text = normalize_text(text, self.text_normalizers)
+
+        # Generate the audio using the Hugging Face TTS pipeline.
         output = self.pipeline(text, **tts_pipeline_kwargs)
 
         return (output["audio"][0], output["sampling_rate"])

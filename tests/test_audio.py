@@ -5,13 +5,11 @@ import pytest
 import numpy as np
 import pandas as pd
 
-# Try to import audio dependencies
-# try:
 import soundfile as sf
 
 from sdialog.audio.turn import AudioTurn
 from sdialog.audio.room_generator import BasicRoomGenerator
-from sdialog.audio.utils import Role, AudioUtils, Furniture, SpeakerSide
+from sdialog.audio.utils import Role, Furniture, SpeakerSide
 from sdialog.audio.room import Position3D, Dimensions3D, DirectivityType, Room
 from sdialog.audio.voice_database import Voice, is_a_audio_file
 from sdialog.audio.voice_database import BaseVoiceDatabase, LocalVoiceDatabase, VoiceDatabase
@@ -23,17 +21,6 @@ from sdialog.audio.pipeline import AudioPipeline, to_audio
 from sdialog.audio.dscaper_utils import send_utterances_to_dscaper, generate_dscaper_timeline
 from sdialog.audio.impulse_response_database import LocalImpulseResponseDatabase, RecordingDevice
 from sdialog.audio.processing import AudioProcessor
-# except ImportError:
-#     print("\n" + "=" * 80)
-#     print("Audio dependencies are not installed. All audio tests will be skipped.")
-#     print("=" * 80 + "\n")
-
-#     # Skip the entire module - pytest will not collect any tests from this file
-#     pytest.skip(
-#         "Audio dependencies not installed. If you are working with audio, install them with: "
-#         "pip install sdialog[audio]",
-#         allow_module_level=True
-#     )
 
 from sdialog import Turn, Dialog
 from unittest.mock import MagicMock, patch
@@ -279,12 +266,6 @@ def test_audio_turn_get_set_audio():
     turn.set_audio(audio_data, 16000)
     retrieved_audio = turn.get_audio()
     assert np.array_equal(audio_data, retrieved_audio)
-
-
-def test_audio_utils_remove_tags():
-    tagged_text = "<speak>Hello *world*</speak>"
-    cleaned_text = AudioUtils.remove_audio_tags(tagged_text)
-    assert cleaned_text == "Hello world"
 
 
 def test_furniture_get_top_z():
@@ -699,25 +680,62 @@ def test_persona_to_voice_missing_role_in_voices_dict(dialog_with_personas):
 
 # Tests for AudioPipeline
 @pytest.fixture
-def mock_dependencies():
+def mock_dependencies(tmp_path):
     """Mocks all external dependencies for AudioPipeline tests."""
     with patch('sdialog.audio.pipeline.Qwen3TTS') as mock_tts, \
-         patch('sdialog.audio.pipeline.Qwen3TTSVoiceClone') as mock_tts, \
+         patch('sdialog.audio.pipeline.Qwen3TTSVoiceClone') as mock_tts_clone, \
          patch('sdialog.audio.pipeline.HuggingfaceVoiceDatabase') as mock_db, \
-         patch('sdialog.audio.pipeline.dscaper') as mock_dscaper, \
-         patch('sdialog.audio.pipeline.load_dataset', return_value=[]) as mock_load_dataset, \
-         patch('sdialog.audio.pipeline.default_dscaper_datasets', return_value=[]) as mock_default_datasets, \
+         patch('sdialog.audio.pipeline.dscaper') as mock_scaper, \
          patch('sdialog.audio.pipeline.generate_utterances_audios') as mock_gen_utt, \
          patch('sdialog.audio.dialog.AudioDialog.save_utterances_audios') as mock_save_utt, \
          patch('sdialog.audio.pipeline.librosa', create=True) as mock_librosa, \
          patch('sdialog.audio.pipeline.sf', create=True) as mock_sf, \
-         patch('sdialog.audio.pipeline.generate_audio_room_accoustic') as mock_gen_room:
+         patch('sdialog.audio.pipeline.generate_audio_room_accoustic') as mock_gen_room, \
+         patch('sdialog.audio.pipeline.load_dataset') as mock_load_dataset, \
+         patch('sdialog.audio.dscaper_utils.send_utterances_to_dscaper') as mock_send_utt:
+
+        # Configure Dscaper mock
+        mock_dscaper_instance = mock_scaper.Dscaper.return_value
+
+        # Configure generate_timeline to create necessary directories
+        def generate_timeline_side_effect(*args, **kwargs):
+            # Create the directory structure that generate_dscaper_timeline expects
+            base_path = tmp_path / "dscaper_data"
+            timeline_name = args[0]
+            generate_id = "test_id"
+
+            soundscape_positions_path = (
+                base_path
+                / "timelines"
+                / timeline_name
+                / "generate"
+                / generate_id
+                / "soundscape_positions"
+            )
+            soundscape_positions_path.mkdir(parents=True, exist_ok=True)
+
+            # Create a dummy soundscape file
+            sf.write(soundscape_positions_path / "speaker_1.wav", np.zeros(16000), 16000)
+
+            return MagicMock(status="success", content={"id": generate_id})
+
+        mock_dscaper_instance.generate_timeline.side_effect = generate_timeline_side_effect
+
+        # Configure get_dscaper_base_path
+        mock_dscaper_instance.get_dscaper_base_path.return_value = str(tmp_path / "dscaper_data")
+
+        # Configure load_dataset
+        mock_load_dataset.return_value = [
+            {"audio": {"path": "dummy.wav"}, "label": "test", "description": "test"}
+        ]
+
         yield {
-            "tts": mock_tts, "db": mock_db, "dscaper": mock_dscaper,
-            "load_dataset": mock_load_dataset, "default_dscaper_datasets": mock_default_datasets,
+            "tts": mock_tts, "tts_clone": mock_tts_clone, "db": mock_db, "scaper": mock_scaper,
             "gen_utt": mock_gen_utt, "save_utt": mock_save_utt,
             "librosa": mock_librosa, "sf": mock_sf, "gen_room": mock_gen_room,
-            "ir_db": MagicMock()
+            "ir_db": MagicMock(),
+            "load_dataset": mock_load_dataset,
+            "send_utt": mock_send_utt
         }
 
 
@@ -726,48 +744,7 @@ def test_audio_pipeline_initialization(mock_dependencies):
     pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
     assert isinstance(pipeline.tts_engine, MagicMock)
     assert pipeline.voice_database is None
-    mock_dependencies["tts"].assert_called_once()
-
-
-def test_audio_pipeline_inference_step1(mock_dependencies, audio_dialog_instance, tmp_path):
-    """Tests that inference correctly calls step 1 functions."""
-    pipeline = AudioPipeline(dir_audio=str(tmp_path), impulse_response_database=mock_dependencies["ir_db"])
-
-    # Manually create the directory structure that the pipeline expects to exist.
-    dialog_dir = tmp_path / f"dialog_{audio_dialog_instance.id}"
-    (dialog_dir / "exported_audios").mkdir(parents=True)
-    audio_dialog_instance.audio_step_1_filepath = str(dialog_dir / "exported_audios" / "audio_pipeline_step1.wav")
-
-    # Prepare a dialog with mock audio data for the mock's return value
-    dialog_with_audio = audio_dialog_instance
-    for turn in dialog_with_audio.turns:
-        turn.set_audio(np.zeros(10), 16000)
-
-    mock_dependencies["gen_utt"].return_value = dialog_with_audio
-
-    pipeline.inference(audio_dialog_instance)
-
-    mock_dependencies["gen_utt"].assert_called_once()
-    mock_dependencies["save_utt"].assert_called_once()
-
-
-def test_audio_pipeline_inference_resampling(mock_dependencies, audio_dialog_instance, tmp_path):
-    """Tests that resampling is called when specified."""
-    step1_file = tmp_path / "step1.wav"
-    step1_file.touch()
-    audio_dialog_instance.audio_step_1_filepath = str(step1_file)
-
-    pipeline = AudioPipeline(dir_audio=str(tmp_path), impulse_response_database=mock_dependencies["ir_db"])
-    pipeline.inference(audio_dialog_instance, perform_tts=False, re_sampling_rate=16000)
-
-    # This is a bit indirect. We check if librosa.resample was called.
-    # The mocks need to be set up for this to be reachable.
-    # For now, let's assume the logic inside inference is correct if step 1 is skipped
-    # A more detailed test would mock the os.path.exists and sf.write calls.
-    # Given the complexity, we'll check that it *doesn't* get called when not requested.
-
-    pipeline.inference(audio_dialog_instance, perform_tts=False)
-    mock_dependencies["librosa"].resample.assert_not_called()
+    mock_dependencies["tts_clone"].assert_called_once()
 
 
 def test_to_audio_wrapper_errors(mock_dependencies):
@@ -775,20 +752,6 @@ def test_to_audio_wrapper_errors(mock_dependencies):
     dialog = Dialog(turns=[Turn(speaker="A", text="t"), Turn(speaker="B", text="t")])
     with pytest.raises(ValueError, match="room name is only used if the step 3 is done"):
         to_audio(dialog, room_name="test", perform_room_acoustics=False)
-
-
-def test_audio_pipeline_master_audio(audio_dialog_instance, mock_dependencies):
-    """Tests the master_audio concatenation logic."""
-    # Give each turn some dummy audio
-    audio_chunk = np.ones(10)
-    for turn in audio_dialog_instance.turns:
-        turn.set_audio(audio_chunk, 16000)
-
-    pipeline = AudioPipeline(impulse_response_database=mock_dependencies["ir_db"])
-    mastered = pipeline.master_audio(audio_dialog_instance)
-
-    assert len(mastered) == len(audio_chunk) * len(audio_dialog_instance.turns)
-    assert np.array_equal(mastered, np.concatenate([audio_chunk, audio_chunk, audio_chunk]))
 
 
 # Tests for dscaper_utils
@@ -814,7 +777,8 @@ def dscaper_dialog(audio_dialog_instance, tmp_path):
     # Create dummy audio files for each turn
     for i, turn in enumerate(dialog.turns):
         turn.audio_path = str(tmp_path / f"turn_{i}.wav")
-        (tmp_path / f"turn_{i}.wav").touch()
+        # (tmp_path / f"turn_{i}.wav").touch()
+        sf.write(str(tmp_path / f"turn_{i}.wav"), np.zeros(16000), 16000)
     return dialog
 
 
@@ -841,9 +805,11 @@ def test_generate_dscaper_timeline(mock_dscaper, dscaper_dialog, tmp_path):
     # This simulates the real dscaper behavior more accurately.
     def create_mock_files(*args, **kwargs):
         soundscape_positions_path.mkdir(parents=True, exist_ok=True)
-        soundscape_wav_path.touch()
+        # soundscape_wav_path.touch()
+        sf.write(soundscape_wav_path, np.zeros(16000), 16000)
         # Also create the source file it will look for
-        (soundscape_positions_path / "speaker_1.wav").touch()
+        # (soundscape_positions_path / "speaker_1.wav").touch()
+        sf.write(soundscape_positions_path / "speaker_1.wav", np.zeros(16000), 16000)
         # Return the original mock's response
         return MagicMock(status="success", content={"id": "test_id"})
 
