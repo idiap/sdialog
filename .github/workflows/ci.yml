@@ -39,6 +39,7 @@ jobs:
           pytest -v --cov-report=xml --cov=src/sdialog
 
       - name: Upload coverage reports to Codecov
+        if: matrix.python-version == '3.10'
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: false
