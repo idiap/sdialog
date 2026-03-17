@@ -690,7 +690,8 @@ def mock_dependencies(tmp_path):
          patch('sdialog.audio.dialog.AudioDialog.save_utterances_audios') as mock_save_utt, \
          patch('sdialog.audio.pipeline.librosa', create=True) as mock_librosa, \
          patch('sdialog.audio.pipeline.sf', create=True) as mock_sf, \
-         patch('sdialog.audio.pipeline.generate_audio_room_accoustic') as mock_gen_room, \
+         patch('sdialog.audio.room_acoustics_backends.pyroomacoustics.'
+               'PyroomAcousticsBackend.simulate') as mock_gen_room, \
          patch('sdialog.audio.pipeline.load_dataset') as mock_load_dataset, \
          patch('sdialog.audio.dscaper_utils.send_utterances_to_dscaper') as mock_send_utt:
 

@@ -52,18 +52,19 @@ import logging
 from tqdm import tqdm
 import soundfile as sf
 from datasets import load_dataset
-from typing import List, Optional, Union, Callable
+from typing import List, Optional, Union, Callable, Any
 
 from sdialog import Dialog
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
+from sdialog.audio import generate_utterances_audios
 from sdialog.audio.normalizers import normalize_audio
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
 from sdialog.audio.tts import BaseTTS, Qwen3TTS, Qwen3TTSVoiceClone
+from sdialog.audio.room_acoustics_backends import resolve_room_acoustics_backend
 from sdialog.audio.voice_database import Voice, BaseVoiceDatabase, HuggingfaceVoiceDatabase
-from sdialog.audio import generate_utterances_audios, generate_audio_room_accoustic
 from sdialog.audio.impulse_response_database import ImpulseResponseDatabase, RecordingDevice
 from sdialog.audio.utils import (
     Role,
@@ -108,7 +109,9 @@ def to_audio(
     remove_silences: Optional[bool] = True,
     normalize: Optional[bool] = True,
     callback_mix_fn: Optional[Callable] = None,
-    callback_mix_kwargs: dict = {}
+    callback_mix_kwargs: dict = {},
+    room_acoustics_backend: Optional[Any] = None,
+    room_acoustics_backend_kwargs: Optional[dict] = None,
 ) -> AudioDialog:
     """
     Convert a dialogue into an audio dialogue with comprehensive audio processing.
@@ -191,6 +194,13 @@ def to_audio(
     :type callback_mix_fn: Optional[Callable]
     :param callback_mix_kwargs: Keyword arguments for the callback function.
     :type callback_mix_kwargs: dict
+    :param room_acoustics_backend: Backend used in step 3 for room acoustics simulation.
+                                   Supports None (defaults to PyroomAcousticsBackend),
+                                   a backend class/instance, or an object exposing simulate(...).
+    :type room_acoustics_backend: Optional[Any]
+    :param room_acoustics_backend_kwargs: Optional kwargs used to instantiate/configure
+                                          the room acoustics backend.
+    :type room_acoustics_backend_kwargs: Optional[dict]
     :return: Audio dialogue with processed audio data.
     :rtype: AudioDialog
     """
@@ -272,18 +282,26 @@ def to_audio(
 
         if perform_room_acoustics:
 
+            # Resolve the room acoustics backend
+            _acoustics_backend = resolve_room_acoustics_backend(
+                room_acoustics_backend,
+                room_acoustics_backend_kwargs
+            )
+
             # Place the speakers around the furnitures in the room
-            for _role, _kwargs in speaker_positions.items():
+            if isinstance(room, Room):
 
-                if _role in room.speakers_positions:
-                    continue
+                for _role, _kwargs in speaker_positions.items():
 
-                room.place_speaker_around_furniture(
-                    speaker_name=_role,
-                    furniture_name=_kwargs["furniture_name"],
-                    max_distance=_kwargs["max_distance"],
-                    side=_kwargs["side"]
-                )
+                    if _role in room.speakers_positions:
+                        continue
+
+                    room.place_speaker_around_furniture(
+                        speaker_name=_role,
+                        furniture_name=_kwargs["furniture_name"],
+                        max_distance=_kwargs["max_distance"],
+                        side=_kwargs["side"]
+                    )
 
             _environment = {
                 "room": room,
@@ -291,7 +309,8 @@ def to_audio(
                 "foreground_effect": foreground_effect,
                 "foreground_effect_position": foreground_effect_position,
                 "source_volumes": source_volumes,
-                "kwargs_pyroom": kwargs_pyroom
+                "kwargs_pyroom": kwargs_pyroom,
+                "room_acoustics_backend": _acoustics_backend
             }
 
         else:
@@ -318,6 +337,8 @@ def to_audio(
             normalize=normalize,
             callback_mix_fn=callback_mix_fn,
             callback_mix_kwargs=callback_mix_kwargs,
+            room_acoustics_backend=room_acoustics_backend,
+            room_acoustics_backend_kwargs=room_acoustics_backend_kwargs,
         )
 
     finally:
@@ -547,7 +568,9 @@ class AudioPipeline:
         remove_silences: Optional[bool] = True,
         normalize: Optional[bool] = True,
         callback_mix_fn: Optional[Callable] = None,
-        callback_mix_kwargs: dict = {}
+        callback_mix_kwargs: dict = {},
+        room_acoustics_backend: Optional[Any] = None,
+        room_acoustics_backend_kwargs: Optional[dict] = None,
     ) -> AudioDialog:
         """
         Execute the complete audio generation pipeline.
@@ -607,6 +630,13 @@ class AudioPipeline:
         :type callback_mix_fn: Optional[Callable]
         :param callback_mix_kwargs: Keyword arguments for the callback function.
         :type callback_mix_kwargs: dict
+        :param room_acoustics_backend: Backend used in step 3 for room acoustics simulation.
+                                       Supports None (defaults to PyroomAcousticsBackend),
+                                       a backend class/instance, or an object exposing simulate(...).
+        :type room_acoustics_backend: Optional[Any]
+        :param room_acoustics_backend_kwargs: Optional kwargs used to instantiate/configure
+                                              the room acoustics backend.
+        :type room_acoustics_backend_kwargs: Optional[dict]
         :return: Processed audio dialogue with all audio data.
         :rtype: AudioDialog
 
@@ -649,8 +679,14 @@ class AudioPipeline:
             else:
                 logger.info(f"[Initialization] Audio file format for generation is set to {audio_file_format}")
 
+            _env_backend = environment.get("room_acoustics_backend") if environment is not None else None
+            _backend = resolve_room_acoustics_backend(
+                room_acoustics_backend if room_acoustics_backend is not None else _env_backend,
+                room_acoustics_backend_kwargs
+            )
+
             # Create variables from room from the environment
-            room: Room = (
+            room: Any = (
                 environment["room"]
                 if environment is not None
                 and "room" in environment
@@ -664,6 +700,8 @@ class AudioPipeline:
                 and environment["kwargs_pyroom"] is not None
                 and "ray_tracing" in environment["kwargs_pyroom"]
                 and environment["kwargs_pyroom"]["ray_tracing"]
+                and isinstance(room, Room)
+                and _backend.name == "pyroom"
                 and room.directivity_type is not None
                 and room.directivity_type != DirectivityType.OMNIDIRECTIONAL
             ):
@@ -844,8 +882,8 @@ class AudioPipeline:
 
                 logger.info("[Step 3] Starting...")
 
-                if not isinstance(environment["room"], Room):
-                    raise ValueError("The room must be a Room object")
+                if _backend.requires_room and room is None:
+                    raise ValueError(f"The selected acoustics backend '{_backend.name}' requires a room object.")
 
                 # Check if the step 2 is not done
                 if len(dialog.audio_step_2_filepath) < 1:
@@ -864,34 +902,23 @@ class AudioPipeline:
                 logger.info(f"[Step 3] Generating room accoustic for dialogue {dialog.id}")
 
                 # Override the room name if provided otherwise use the hash of the room
-                room_name = room_name if room_name is not None else room.name
+                room_name = (
+                    room_name
+                    if room_name is not None
+                    else (room.name if isinstance(room, Room) else _backend.name)
+                )
 
-                # Generate the audio room accoustic from the dialog and room object
-                dialog: AudioDialog = generate_audio_room_accoustic(
+                # Generate step-3 audio using the selected acoustics backend.
+                dialog: AudioDialog = _backend.simulate(
                     dialog=dialog,
                     room=room,
                     dialog_directory=dialog_directory,
                     room_name=room_name,
-                    kwargs_pyroom=environment["kwargs_pyroom"] if "kwargs_pyroom" in environment else {},
-                    source_volumes=environment["source_volumes"] if "source_volumes" in environment else {},
                     audio_file_format=audio_file_format,
-                    background_effect=(
-                        environment["background_effect"]
-                        if "background_effect" in environment
-                        else "white_noise"
-                    ),
-                    foreground_effect=(
-                        environment["foreground_effect"]
-                        if "foreground_effect" in environment
-                        else "ac_noise_minimal"
-                    ),
-                    foreground_effect_position=(
-                        environment["foreground_effect_position"]
-                        if "foreground_effect_position" in environment
-                        else RoomPosition.TOP_RIGHT
-                    ),
+                    environment=environment,
                     callback_mix_fn=callback_mix_fn,
                     callback_mix_kwargs=callback_mix_kwargs,
+                    sampling_rate=self.sampling_rate,
                 )
 
                 logger.info(f"[Step 3] Room accoustic has been generated successfully for dialogue {dialog.id}!")
