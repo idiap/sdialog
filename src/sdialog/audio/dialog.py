@@ -609,7 +609,8 @@ class AudioDialog(Dialog):
         model_name_alignment: str = "Qwen/Qwen3-ForcedAligner-0.6B",
         dropout: float = 0.0,
         verbose: bool = False,
-        skip_annotation: bool = False
+        skip_annotation: bool = False,
+        environment: dict = None
     ) -> None:
         """
         Add sound effects (such as door opening, footsteps, etc.) to the audio.
@@ -634,7 +635,8 @@ class AudioDialog(Dialog):
             # Annotate the turns with sound effect tags using LLM
             decorated_turns = self._annotate_sound_effects_from_turns(
                 sound_effects_db=available_sound_effects,
-                room=room
+                room=room,
+                environment=environment
             )
         else:
             decorated_turns = self.turns
@@ -693,7 +695,8 @@ class AudioDialog(Dialog):
     def _annotate_sound_effects_from_turns(
         self,
         sound_effects_db: Dict[str, Dict],
-        room: Any = None
+        room: Any = None,
+        environment: dict = None
     ) -> List[BaseModel]:
         """
         Uses LLM to add sound effect tags to the dialogue turns.
@@ -736,14 +739,26 @@ class AudioDialog(Dialog):
 
         position_options = (
             "- 'human': The sound originates from the current speaker's position.\n"
-            "- Room Anchors: 'room-center', 'room-top_left', "
-            "'room-top_right', 'room-bottom_left', 'room-bottom_right'.\n"
         )
 
-        if room:
-            furnitures = list(room.furnitures.keys())
-            if furnitures:
-                position_options += f"- Furniture: {', '.join(furnitures)}.\n"
+        speaker_rooms = environment.get("speaker_rooms", {}) if environment else {}
+
+        if speaker_rooms:
+            position_options += "This is a telecommunications call. Each speaker is in a different room.\n"
+            for role, spk_room in speaker_rooms.items():
+                position_options += f"For {role}:\n"
+                position_options += f"  - Room Anchors: '{role}_room-center', '{role}_room-top_left', '{role}_room-top_right', '{role}_room-bottom_left', '{role}_room-bottom_right'.\n"
+                if spk_room and hasattr(spk_room, "furnitures") and spk_room.furnitures:
+                    position_options += f"  - Furniture: {', '.join([f'{role}_{f}' for f in spk_room.furnitures.keys()])}.\n"
+        else:
+            position_options += (
+                "- Room Anchors: 'room-center', 'room-top_left', "
+                "'room-top_right', 'room-bottom_left', 'room-bottom_right'.\n"
+            )
+            if room and hasattr(room, "furnitures"):
+                furnitures = list(room.furnitures.keys())
+                if furnitures:
+                    position_options += f"- Furniture: {', '.join(furnitures)}.\n"
 
         # Check if there are stage tags in the dialog
         has_stage_tags = any("<stage>" in turn.text for turn in self.turns)

@@ -104,12 +104,17 @@ class AudioProcessor:
                 target_sr=sample_rate
             )
 
-        # check if the audio is mono otherwise convert it to mono
-        if audio.ndim > 1:
-            audio = audio.mean(axis=1)
-
         # Apply convolution to the audio of step 3
-        processed_audio = fftconvolve(audio, impulse_response, mode="full")
+        if audio.ndim > 1:
+            # Process each channel separately
+            processed_channels = []
+            for i in range(audio.shape[1]):
+                channel_audio = audio[:, i]
+                processed_channel = fftconvolve(channel_audio, impulse_response, mode="full")
+                processed_channels.append(processed_channel)
+            processed_audio = np.stack(processed_channels, axis=1)
+        else:
+            processed_audio = fftconvolve(audio, impulse_response, mode="full")
 
         # Level the gain of the processed audio to match the original audio
         original_rms = np.sqrt(np.mean(audio**2))

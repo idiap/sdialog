@@ -270,6 +270,15 @@ class AcousticsSimulator:
                 if audio.ndim > 1:
                     audio = np.mean(audio, axis=1)
 
+                # Resample if necessary
+                if original_fs != self.sampling_rate:
+                    import librosa
+                    audio = librosa.resample(
+                        y=audio,
+                        orig_sr=original_fs,
+                        target_sr=self.sampling_rate
+                    )
+
                 # Reduce the volume of those audio sources
                 if audio_source.position.startswith("room-"):
                     audio = (

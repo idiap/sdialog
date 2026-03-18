@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from .base import BaseRoomAcousticsBackend
 from .pyroomacoustics import PyroomAcousticsBackend
+from .telecommunications import TelecommunicationsBackend
 
 
 def resolve_room_acoustics_backend(
@@ -28,6 +29,12 @@ def resolve_room_acoustics_backend(
 
     if room_acoustics_backend is None:
         return PyroomAcousticsBackend()
+
+    if isinstance(room_acoustics_backend, str):
+        if room_acoustics_backend.lower() == "pyroom":
+            return PyroomAcousticsBackend(**kwargs)
+        elif room_acoustics_backend.lower() in ["telecommunications", "telecom", "telephone"]:
+            return TelecommunicationsBackend(**kwargs)
 
     if isinstance(room_acoustics_backend, BaseRoomAcousticsBackend):
         return room_acoustics_backend
