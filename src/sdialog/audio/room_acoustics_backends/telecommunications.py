@@ -30,34 +30,79 @@ class TelecommunicationsBackend(BaseRoomAcousticsBackend):
     requires_room = True
     name = "telecommunications"
 
-    def _apply_telephone_effect(self, audio: np.ndarray, sr: int) -> np.ndarray:
+    def _apply_telephone_effect(self, audio: np.ndarray, sr: int, codec: str = "default") -> np.ndarray:
         """
-        Applies a telephone effect: bandpass filter (300-3400 Hz) and downsampling to 8kHz.
+        Applies a telephone effect and simulates codec compression.
 
         :param audio: Input audio signal.
         :param sr: Sampling rate of the input audio.
+        :param codec: Codec to simulate (e.g., 'g.711', 'g.729', 'amr', 'amr-wb', 'default').
         :return: Processed audio signal.
         """
-        # Bandpass filter (300Hz - 3400Hz)
-        lowcut = 300.0
-        highcut = 3400.0
+        codec = codec.lower()
+
+        # Define codec parameters
+        if codec == "amr-wb":
+            lowcut = 50.0
+            highcut = 7000.0
+            target_sr = 16000
+            quantization_levels = 32  # 5-bit equivalent for simulation
+        elif codec == "amr":
+            lowcut = 200.0
+            highcut = 3400.0
+            target_sr = 8000
+            quantization_levels = 16  # 4-bit equivalent for simulation
+        elif codec == "g.729":
+            lowcut = 300.0
+            highcut = 3400.0
+            target_sr = 8000
+            quantization_levels = 8   # 3-bit equivalent for simulation
+        elif codec == "g.711":
+            lowcut = 300.0
+            highcut = 3400.0
+            target_sr = 8000
+            quantization_levels = 128  # 8-bit equivalent for simulation
+        else:  # default
+            lowcut = 300.0
+            highcut = 3400.0
+            target_sr = 8000
+            quantization_levels = None
+
+        # Bandpass filter
         nyq = 0.5 * sr
-        low = lowcut / nyq
-        high = highcut / nyq
+        low = min(lowcut / nyq, 0.99)
+        high = min(highcut / nyq, 0.99)
 
-        # Apply Butterworth bandpass filter
-        b, a = butter(5, [low, high], btype='band')
-        filtered_audio = lfilter(b, a, audio)
+        if low < high:
+            b, a = butter(5, [low, high], btype='band')
+            audio = lfilter(b, a, audio)
 
-        # Simulate telephone bandwidth by downsampling to 8kHz and back
-        target_sr = 8000
+        # Simulate telephone bandwidth by downsampling
         if sr != target_sr:
-            audio_8k = librosa.resample(y=filtered_audio, orig_sr=sr, target_sr=target_sr)
-            audio_restored = librosa.resample(y=audio_8k, orig_sr=target_sr, target_sr=sr)
-        else:
-            audio_restored = filtered_audio
+            audio = librosa.resample(y=audio, orig_sr=sr, target_sr=target_sr)
 
-        return audio_restored
+        # Apply codec compression simulation (mu-law companding + quantization)
+        if quantization_levels is not None:
+            max_val = np.max(np.abs(audio))
+            if max_val > 0:
+                audio = audio / max_val
+
+            mu = 255.0
+            # Compand
+            y = np.sign(audio) * np.log(1 + mu * np.abs(audio)) / np.log(1 + mu)
+            # Quantize
+            y = np.round(y * quantization_levels) / quantization_levels
+            # Expand
+            audio = np.sign(y) * (1 / mu) * ((1 + mu) ** np.abs(y) - 1)
+
+            if max_val > 0:
+                audio = audio * max_val
+
+        # Upsample back to original sr
+        if sr != target_sr:
+            audio = librosa.resample(y=audio, orig_sr=target_sr, target_sr=sr)
+
+        return audio
 
     def simulate(
         self,
@@ -80,7 +125,9 @@ class TelecommunicationsBackend(BaseRoomAcousticsBackend):
         :param room_name: Name of the room profile to generate.
         :param audio_file_format: Audio format for exported files (default: "wav").
         :param environment: Optional environment overrides. Can contain `speaker_rooms`
-                            (dict mapping speaker roles to Room objects).
+                            (dict mapping speaker roles to Room objects) and `speaker_codecs`
+                            (dict mapping speaker roles to codec strings like 'g.711', 'amr', etc.
+                            or a global `codec` string).
         :param callback_mix_fn: Optional callback used during audio mixing.
         :param callback_mix_kwargs: Optional keyword arguments for the mix callback.
         :param sampling_rate: Sampling rate used for generated audio.
@@ -114,6 +161,9 @@ class TelecommunicationsBackend(BaseRoomAcousticsBackend):
             _callback_mix_kwargs["dialog"] = dialog
 
         # Process each speaker individually
+        codec = env.get("codec", "default")
+        speaker_codecs = env.get("speaker_codecs", {})
+
         for speaker_role, speaker_room in speaker_rooms.items():
 
             # Filter sources for this speaker
@@ -146,8 +196,9 @@ class TelecommunicationsBackend(BaseRoomAcousticsBackend):
             )
 
             # Apply telephone effect
-            logger.info(f"Applying telephone effect for {speaker_role}...")
-            telephone_audio = self._apply_telephone_effect(speaker_audio, sr=sampling_rate)
+            speaker_codec = speaker_codecs.get(speaker_role, codec)
+            logger.info(f"Applying telephone effect (codec: {speaker_codec}) for {speaker_role}...")
+            telephone_audio = self._apply_telephone_effect(speaker_audio, sr=sampling_rate, codec=speaker_codec)
             mixed_signals.append(telephone_audio)
 
         if not mixed_signals:
