@@ -8,7 +8,7 @@
 [![Downloads](https://static.pepy.tech/badge/sdialog)](https://pepy.tech/project/sdialog)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/)
 
-Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [ArXiv paper](https://arxiv.org/abs/2506.10622) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
+Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Paper](https://aclanthology.org/2026.eacl-demo.23/) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ---
 SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge **agent construction → user simulation → dialog generation → evaluation** in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
@@ -312,7 +312,7 @@ print(audio_dialog.display())
 
 ## 📖 Documentation and tutorials
 
-- [ArXiv paper](https://arxiv.org/abs/2506.10622)
+- [EACL 2026 paper](https://aclanthology.org/2026.eacl-demo.23/) ([ArXiv version](https://arxiv.org/abs/2506.10622))
 - [Demo (video)](demo.md)
 - [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials)
 - [API reference](https://sdialog.readthedocs.io/en/latest/api/sdialog.html)
@@ -382,7 +382,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 ## 📚 Citation
 
-If you use SDialog in academic work, please consider citing [our paper](https://arxiv.org/abs/2506.10622):
+If you use SDialog in academic work, please consider citing [our paper](https://aclanthology.org/2026.eacl-demo.23/), published at EACL 2026:
 
 ```bibtex
 @misc{burdisso2025sdialogpythontoolkitendtoend,
@@ -395,9 +395,22 @@ If you use SDialog in academic work, please consider citing [our paper](https://
   url           = {https://arxiv.org/abs/2506.10622},
 }
 ```
-
-_(A system demonstration version of the paper has been submitted to EACL 2026 and is under review; we will update this BibTeX if accepted)_
-
+<!-- ```bibtex
+@inproceedings{burdisso-etal-2026-sdialog,
+    title = "{SD}ialog: A Python Toolkit for End-to-End Agent Building, User Simulation, Dialog Generation, and Evaluation",
+    author = {Burdisso, Sergio and Baroudi, S{\'e}verin and Labrak, Yanis and Gr{\"u}nert, David and Cyrta, Pawel and Chen, Yiyang and Madikeri, Srikanth and Villatoro-tello, Esa{\'u} and Marxer, Ricard and Motlicek, Petr},
+    editor = "Croce, Danilo and Leidner, Jochen and Moosavi, Nafise Sadat",
+    booktitle = "Proceedings of the 19th Conference of the {E}uropean Chapter of the {A}ssociation for {C}omputational {L}inguistics (Volume 3: System Demonstrations)",
+    month = mar,
+    year = "2026",
+    address = "Rabat, Marocco",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2026.eacl-demo.23/",
+    doi = "10.18653/v1/2026.eacl-demo.23",
+    pages = "320--340",
+    ISBN = "979-8-89176-382-1"
+}
+``` -->
 
 ## 🙏 Acknowledgments
 
