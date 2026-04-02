@@ -80,6 +80,10 @@ class AudioProcessor:
         # Load the input audio of step 3
         audio, sample_rate = sf.read(input_audio_path)
 
+        # Ensure the input audio is mono
+        if audio.ndim > 1:
+            audio = audio.mean(axis=1)
+
         # Get the impulse response from the database
         impulse_response_path = impulse_response_database.get_ir(device)
 
@@ -105,16 +109,7 @@ class AudioProcessor:
             )
 
         # Apply convolution to the audio of step 3
-        if audio.ndim > 1:
-            # Process each channel separately
-            processed_channels = []
-            for i in range(audio.shape[1]):
-                channel_audio = audio[:, i]
-                processed_channel = fftconvolve(channel_audio, impulse_response, mode="full")
-                processed_channels.append(processed_channel)
-            processed_audio = np.stack(processed_channels, axis=1)
-        else:
-            processed_audio = fftconvolve(audio, impulse_response, mode="full")
+        processed_audio = fftconvolve(audio, impulse_response, mode="full")
 
         # Level the gain of the processed audio to match the original audio
         original_rms = np.sqrt(np.mean(audio**2))

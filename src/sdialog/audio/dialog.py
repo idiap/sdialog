@@ -747,9 +747,15 @@ class AudioDialog(Dialog):
             position_options += "This is a telecommunications call. Each speaker is in a different room.\n"
             for role, spk_room in speaker_rooms.items():
                 position_options += f"For {role}:\n"
-                position_options += f"  - Room Anchors: '{role}_room-center', '{role}_room-top_left', '{role}_room-top_right', '{role}_room-bottom_left', '{role}_room-bottom_right'.\n"
+                position_options += (f"  - Room Anchors: "
+                                     f"'{role}_room-center', '{role}_room-top_left', "
+                                     f"'{role}_room-top_right', '{role}_room-bottom_left', "
+                                     f"'{role}_room-bottom_right'.\n")
                 if spk_room and hasattr(spk_room, "furnitures") and spk_room.furnitures:
-                    position_options += f"  - Furniture: {', '.join([f'{role}_{f}' for f in spk_room.furnitures.keys()])}.\n"
+                    position_options += (
+                        f"  - Furniture: "
+                        f"{', '.join([f'{role}_{f}' for f in spk_room.furnitures.keys()])}.\n"
+                    )
         else:
             position_options += (
                 "- Room Anchors: 'room-center', 'room-top_left', "
