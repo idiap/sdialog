@@ -455,6 +455,9 @@ def get_llm_model(model_name: str,
     if tools:
         llm = llm.bind_tools(tools)
 
+    # Strip secrets from returned params (e.g., api_key, openai_api_key) for safe storage (e.g. in saved dialogs)
+    llm_kwargs = {k: v for k, v in llm_kwargs.items() if "api_key" not in k.lower()}
+
     return llm if not return_model_params else (llm, llm_kwargs)
 
 
