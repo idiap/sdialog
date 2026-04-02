@@ -211,6 +211,10 @@ def _resolve_sound_effect_position(
     if sfx_position in [Role.SPEAKER_1.value, Role.SPEAKER_2.value]:
         is_valid = True
 
+    # Check if it's a telecommunications specific position (e.g., speaker_1_door)
+    elif sfx_position.startswith(f"{Role.SPEAKER_1.value}_") or sfx_position.startswith(f"{Role.SPEAKER_2.value}_"):
+        is_valid = True
+
     # Check if it's a room position
     elif sfx_position.startswith("room-") and isinstance(RoomPosition(sfx_position), RoomPosition):
         is_valid = True
@@ -243,7 +247,8 @@ def generate_dscaper_timeline(
         referent_db: int = -40,
         reverberation: int = 0,
         room: Room = None,
-        add_sound_effects: bool = False
+        add_sound_effects: bool = False,
+        environment: dict = None
 ) -> AudioDialog:
     """
     Generate a dSCAPER timeline for realistic audio environment simulation.
@@ -310,6 +315,14 @@ def generate_dscaper_timeline(
     original_level = sox_logger.level
     sox_logger.setLevel(logging.ERROR)
 
+    def _get_library_for_effect(effect_name: str) -> str:
+        if effect_name in ["fan_noise", "white_noise"]:
+            return "background"
+        elif effect_name in ["ac_noise_loud", "ac_noise_low", "ac_noise_medium", "ac_noise_minimal"]:
+            return "foreground"
+        else:
+            return "sfx|sound_events"
+
     try:
         # Create the timeline
         timeline_metadata = DscaperTimeline(
@@ -319,37 +332,116 @@ def generate_dscaper_timeline(
         )
         dscaper.create_timeline(timeline_metadata)
 
-        # Add the background to the timeline
-        background_metadata = DscaperBackground(
-            library="background",
-            label=[
-                "const",
-                background_effect
-                if background_effect is not None and background_effect != ""
-                else "white_noise"
-            ],
-            source_file=["choose", "[]"]
-        )
-        dscaper.add_background(timeline_name, background_metadata)
+        environment = environment or {}
+        speaker_rooms = environment.get("speaker_rooms", {})
 
-        # Add the foreground to the timeline
-        if foreground_effect is not None and foreground_effect != "":
-            foreground_metadata = DscaperEvent(
-                library="foreground",
-                speaker="foreground",
-                text="foreground",
-                label=["const", foreground_effect],
-                source_file=["choose", "[]"],
-                event_time=["const", "0"],
-                # event_duration=["const", str(f"{dialog.total_duration:.1f}")],  # Force infinite loop
-                position=(
-                    foreground_effect_position
-                    if foreground_effect_position is not None
-                    else RoomPosition.TOP_RIGHT
-                ),
-                loop_event=True,
+        if speaker_rooms:
+            # Telecommunications mode: add background and foreground for each speaker
+            for speaker_role in speaker_rooms.keys():
+                # Background for this speaker
+                bg_effect = environment.get(f"background_effect_{speaker_role}", background_effect)
+                if bg_effect and bg_effect != "":
+                    bg_library = _get_library_for_effect(bg_effect)
+
+                    bg_metadata = DscaperEvent(
+                        library=bg_library,
+                        speaker="background",
+                        text="background",
+                        label=["const", bg_effect],
+                        source_file=["choose", "[]"],
+                        event_time=["const", "0"],
+                        position=f"{speaker_role}_no_type",
+                        loop_event=True,
+                    )
+                    dscaper.add_event(timeline_name, bg_metadata)
+
+                # Foreground for this speaker
+                fg_effect = environment.get(f"foreground_effect_{speaker_role}", foreground_effect)
+                fg_pos = environment.get(f"foreground_effect_position_{speaker_role}", foreground_effect_position)
+                fg_pos_str = fg_pos.value if hasattr(fg_pos, 'value') else str(fg_pos)
+
+                if fg_effect and fg_effect != "":
+
+                    fg_library = _get_library_for_effect(fg_effect)
+
+                    fg_metadata = DscaperEvent(
+                        library=fg_library,
+                        speaker="foreground",
+                        text="foreground",
+                        label=["const", fg_effect],
+                        source_file=["choose", "[]"],
+                        event_time=["const", "0"],
+                        position=f"{speaker_role}_{fg_pos_str}",
+                        loop_event=True,
+                    )
+                    dscaper.add_event(timeline_name, fg_metadata)
+
+            # Scaper requires at least one background event. We add a silent one if we used events for backgrounds.
+            # We use white_noise but we will set SNR very low
+            silent_bg = DscaperBackground(
+                library="background",
+                label=["const", "white_noise"],
+                source_file=["choose", "[]"]
             )
-            dscaper.add_event(timeline_name, foreground_metadata)
+            dscaper.add_background(timeline_name, silent_bg)
+        else:
+            # Add the background to the timeline (single room)
+            bg_library = _get_library_for_effect(background_effect)
+
+            # If the user specified a background effect that isn't actually in the background library,
+            # we have to add it as an event, and then add a silent background to satisfy Scaper.
+            if bg_library != "background" and background_effect is not None and background_effect != "":
+                bg_metadata = DscaperEvent(
+                    library=bg_library,
+                    speaker="background",
+                    text="background",
+                    label=["const", background_effect],
+                    source_file=["choose", "[]"],
+                    event_time=["const", "0"],
+                    position="no_type",
+                    loop_event=True,
+                )
+                dscaper.add_event(timeline_name, bg_metadata)
+
+                # Add dummy background
+                background_metadata = DscaperBackground(
+                    library="background",
+                    label=["const", "white_noise"],
+                    source_file=["choose", "[]"]
+                )
+                dscaper.add_background(timeline_name, background_metadata)
+            else:
+                background_metadata = DscaperBackground(
+                    library="background",
+                    label=[
+                        "const",
+                        background_effect
+                        if background_effect is not None and background_effect != ""
+                        else "white_noise"
+                    ],
+                    source_file=["choose", "[]"]
+                )
+                dscaper.add_background(timeline_name, background_metadata)
+
+            # Add the foreground to the timeline (single room)
+            if foreground_effect is not None and foreground_effect != "":
+                fg_library = _get_library_for_effect(foreground_effect)
+                foreground_metadata = DscaperEvent(
+                    library=fg_library,
+                    speaker="foreground",
+                    text="foreground",
+                    label=["const", foreground_effect],
+                    source_file=["choose", "[]"],
+                    event_time=["const", "0"],
+                    # event_duration=["const", str(f"{dialog.total_duration:.1f}")],  # Force infinite loop
+                    position=(
+                        foreground_effect_position
+                        if foreground_effect_position is not None
+                        else RoomPosition.TOP_RIGHT
+                    ),
+                    loop_event=True,
+                )
+                dscaper.add_event(timeline_name, foreground_metadata)
 
         # Add the events and utterances to the timeline
         for i, turn in enumerate(dialog.turns):
@@ -455,7 +547,7 @@ def generate_dscaper_timeline(
     )
 
     # If the user want to re-sample the output audio to a different sampling rate
-    if sampling_rate != _audio_2_sr:
+    if _audio_2_sr is not None and sampling_rate != _audio_2_sr:
 
         import librosa
 
@@ -466,7 +558,8 @@ def generate_dscaper_timeline(
         ).T
 
     # Overwrite the audio file with the new sampling rate
-    sf.write(dialog.audio_step_2_filepath, _audio_2_audio, sampling_rate)
+    if _audio_2_audio is not None:
+        sf.write(dialog.audio_step_2_filepath, _audio_2_audio, sampling_rate)
 
     # Get the sounds files
     sounds_files = [_ for _ in os.listdir(soundscape_positions_path) if _.endswith(".wav")]
