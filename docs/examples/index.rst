@@ -1119,6 +1119,43 @@ SDialog allows you to simulate different microphone effects by convolving audio 
     ir_path = hf_db.get_ir("some_ir_identifier")
 
 
+Telecommunications Simulation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SDialog provides a specialized backend for simulating telecommunications, such as telephone calls. This allows you to place each speaker in a different acoustic environment (room) and apply telephone-like bandpass filtering and codec compression before mixing their audio.
+
+.. code-block:: python
+
+    from sdialog.audio.room_acoustics_backends.telecommunications import TelecommunicationsBackend
+    from sdialog.audio.pipeline import AudioPipeline
+    from sdialog.audio.room import Room
+
+    # Create different rooms for each speaker
+    caller_room = Room(name="Office", ...)
+    receiver_room = Room(name="Street", ...)
+
+    # Configure the telecommunications environment
+    telecom_env = {
+        "speaker_rooms": {
+            "speaker_1": caller_room,
+            "speaker_2": receiver_room
+        },
+        "codec": "g.711",  # Apply G.711 codec simulation globally
+        # Or specify per-speaker codecs:
+        # "speaker_codecs": {"speaker_1": "amr-wb", "speaker_2": "g.729"},
+        "mixing_strategy": "stereo"  # "mono" or "stereo"
+    }
+
+    # Run the pipeline with the telecommunications backend
+    audio_dialog = audio_pipeline.inference(
+        dialog,
+        environment=telecom_env,
+        perform_room_acoustics=True,
+        room_acoustics_backend="telecommunications"
+    )
+
+Supported codecs include: ``'g.711'``, ``'g.729'``, ``'amr'``, ``'amr-wb'``, and ``'default'``. You can also control the mixing strategy (``mono`` or ``stereo``) to place speakers on different audio channels.
+
+
 Multilingual Audio Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 SDialog supports multilingual audio generation. You can use a compatible model from the Hugging Face Hub via ``HuggingFaceTTS`` or create your own custom TTS engine for more advanced use cases.
