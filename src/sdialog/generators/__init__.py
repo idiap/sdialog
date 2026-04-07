@@ -535,6 +535,7 @@ class Paraphraser:
     def __call__(self,
                  dialog: Dialog,
                  target_speaker: str = None,
+                 raise_on_validation_failure: bool = True,
                  seed: int = None) -> Dialog:
         """
         Paraphrase a dialog (entirely or selectively by speaker).
@@ -543,6 +544,8 @@ class Paraphraser:
         :type dialog: Dialog
         :param target_speaker: Override target speaker filter for this call.
         :type target_speaker: Optional[str]
+        :param raise_on_validation_failure: Whether to raise an error if the LLM output fails validation.
+        :type raise_on_validation_failure: bool
         :param seed: Optional random seed (used for reproducibility where supported).
         :type seed: Optional[int]
         :return: New Dialog instance with paraphrased turns.
@@ -589,6 +592,8 @@ class Paraphraser:
         new_dialog.model = self.model_info
         if len(new_dialog) != len(dialog):
             logger.warning("Number of turns in the new paraphrased dialog does not match the original!")
+            if raise_on_validation_failure:
+                raise ValueError("Number of turns in the new paraphrased dialog does not match the original!")
 
         return new_dialog
 
