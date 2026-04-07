@@ -80,6 +80,10 @@ class AudioProcessor:
         # Load the input audio of step 3
         audio, sample_rate = sf.read(input_audio_path)
 
+        # Ensure the input audio is mono
+        if audio.ndim > 1:
+            audio = audio.mean(axis=1)
+
         # Get the impulse response from the database
         impulse_response_path = impulse_response_database.get_ir(device)
 
@@ -103,10 +107,6 @@ class AudioProcessor:
                 orig_sr=ir_sr,
                 target_sr=sample_rate
             )
-
-        # check if the audio is mono otherwise convert it to mono
-        if audio.ndim > 1:
-            audio = audio.mean(axis=1)
 
         # Apply convolution to the audio of step 3
         processed_audio = fftconvolve(audio, impulse_response, mode="full")

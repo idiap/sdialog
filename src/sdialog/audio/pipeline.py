@@ -563,7 +563,7 @@ class AudioPipeline:
         verbose: Optional[bool] = False,
         overlap_pauses: Optional[bool] = False,
         add_sound_effects: Optional[bool] = False,
-        sound_effects_dropout: Optional[float] = 0.0,
+        sound_effects_dropout: Optional[float] = 0.66,
         skip_annotation: Optional[bool] = False,
         remove_silences: Optional[bool] = True,
         normalize: Optional[bool] = True,
@@ -816,7 +816,8 @@ class AudioPipeline:
                     available_sound_effects=_available_sound_effects,
                     dropout=sound_effects_dropout,
                     verbose=verbose,
-                    skip_annotation=skip_annotation
+                    skip_annotation=skip_annotation,
+                    environment=environment
                 )
             else:
                 for turn in dialog.turns:
@@ -847,6 +848,7 @@ class AudioPipeline:
                 sampling_rate=self.sampling_rate,
                 seed=seed,
                 add_sound_effects=add_sound_effects,
+                environment=environment,
             )
             logger.info("[Step 2] Has been completed!")
 
@@ -929,7 +931,11 @@ class AudioPipeline:
 
                     if os.path.exists(audio_path):
 
-                        y, sr = librosa.load(audio_path, sr=None)
+                        y, sr = librosa.load(
+                            audio_path,
+                            sr=None,
+                            mono=True if environment.get("mixing_strategy", None) == "mono" else False
+                        )
 
                         y_resampled = librosa.resample(
                             y=y,
@@ -947,7 +953,7 @@ class AudioPipeline:
                         # Overwrite the audio file with the new sampling rate
                         sf.write(
                             audio_path,
-                            y_resampled,
+                            y_resampled.T if y_resampled.ndim > 1 else y_resampled,
                             self.sampling_rate
                         )
 
