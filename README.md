@@ -385,17 +385,6 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 If you use SDialog in academic work, please consider citing [our paper](https://aclanthology.org/2026.eacl-demo.23/), published at EACL 2026:
 
 ```bibtex
-@misc{burdisso2025sdialogpythontoolkitendtoend,
-  title         = {SDialog: A Python Toolkit for End-to-End Agent Building, User Simulation, Dialog Generation, and Evaluation},
-  author        = {Sergio Burdisso and Séverin Baroudi and Yanis Labrak and David Grunert and Pawel Cyrta and Yiyang Chen and Srikanth Madikeri and Thomas Schaaf and Esaú Villatoro-Tello and Ahmed Hassoon and Ricard Marxer and Petr Motlicek},
-  year          = {2025},
-  eprint        = {2506.10622},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.AI},
-  url           = {https://arxiv.org/abs/2506.10622},
-}
-```
-<!-- ```bibtex
 @inproceedings{burdisso-etal-2026-sdialog,
     title = "{SD}ialog: A Python Toolkit for End-to-End Agent Building, User Simulation, Dialog Generation, and Evaluation",
     author = {Burdisso, Sergio and Baroudi, S{\'e}verin and Labrak, Yanis and Gr{\"u}nert, David and Cyrta, Pawel and Chen, Yiyang and Madikeri, Srikanth and Villatoro-tello, Esa{\'u} and Marxer, Ricard and Motlicek, Petr},
@@ -410,7 +399,7 @@ If you use SDialog in academic work, please consider citing [our paper](https://
     pages = "320--340",
     ISBN = "979-8-89176-382-1"
 }
-``` -->
+```
 
 ## 🙏 Acknowledgments
 
