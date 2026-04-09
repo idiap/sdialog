@@ -270,7 +270,7 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
             self.resp_acts = None
             self.graph = None
 
-        self.resp_utt_embs = self.sent_encoder.encode(self.resp_utts)
+        self.resp_utt_embs = self.sent_encoder.encode(self.resp_utts.tolist())
 
     def instruct(self, dialog: List[Turn], utterance: str) -> str:
         """

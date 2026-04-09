@@ -436,6 +436,8 @@ Response example for each action is provided in the following json:
 ```json
 {STAR.read_graph_responses(task_name)}
 ```
+However, make sure to express the responses in your own words, as long as they are consistent with the provided flowchart logic and express the same meaning as the provided examples and a single action per response.
+Additionally, let the user know that you can't proceed to the next action or step if you are missing any required information according to the flowchart.
 
 **CRITICAL INSTRUCTION - PLACEHOLDER HANDLING:**
 Placeholders in the format {{VARIABLE_NAME}} (such as {{APARTMENT_NAME}}, {{POIS}}, {{FLOOR}}) are TEMPLATE VARIABLES that you MUST REPLACE with actual, specific, concrete values during the conversation.
@@ -490,7 +492,8 @@ Always generate realistic, contextually appropriate values instead of leaving pl
 The actual DOT for the current tasks are:
 {STAR.get_flowchart_description_for_scenario(scenario)}
 """,  # noqa: E501
-                       model=model_name)
+                       model=model_name,
+                       can_finish=False)
 
         return system, user
 
