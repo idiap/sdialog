@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 
 import requests
-from typing import Optional, List, Callable
 from sdialog.agents import Agent, BasePersona
 
 # Allow running this tutorial directly from the repository without requiring
@@ -13,10 +12,10 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 
-
 # ---------------------------------------------------------------------------
 # Tool function
 # ---------------------------------------------------------------------------
+
 
 def search_italian_university_data(query: str, docs_k: str = "3") -> dict:
     """
