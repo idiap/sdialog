@@ -42,7 +42,10 @@ __version__ = "0.4.7"
 def _get_dynamic_version() -> str:
     """ Retrieves the current version of the package, appending the current git commit hash if available."""
     try:
-        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode("utf-8")
+        commit_hash = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+        ).strip().decode("utf-8")
         # If not a valid commit hash, set to empty string
         if re.match(r"\b[0-9a-f]{5,40}\b", commit_hash):
             return f"{__version__}+{commit_hash}"
