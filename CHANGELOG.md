@@ -4,6 +4,35 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [0.4.7] 2026-04-14 📡
+
+### Added
+- **sdialog.audio**:
+  - New telecommunication simulation engine and codecs support.
+  - New modular room acoustics backend system (`pyroomacoustics` and telecommunications backends).
+  - New text/audio normalization utilities in `sdialog.audio.normalizers`.
+  - New prompt templates for sound-effect annotation with and without stage-aware context.
+  - New tutorials for telecommunication simulation, overlaps/pauses, and sound events.
+
+### Changed
+- **sdialog.audio**:
+  - Refactored acoustics simulation to a modular backend architecture.
+  - Extended audio pipeline with overlap/pause control, sound-event handling, and improved post-processing.
+  - Improved determinism and normalization behavior for Qwen3-TTS-based generation and voice cloning.
+
+### Fixed
+- **sdialog.generators**:
+  - Improved validation error handling in `Paraphraser`.
+- **sdialog**:
+  - Prevented API keys from being persisted in LLM metadata.
+- **sdialog.audio**:
+  - Fixed sentence-transformers modality mismatch issues in audio workflows.
+  - Fixed multiple robustness issues in audio processing (NumPy conversion, dScaper edge cases, dataset handling, and normalization consistency).
+  - Fixed audio test/tooling compatibility issues (`torchcodec`/`qwen_tts` stubs and type hints).
+
+
+---
+
 ## [0.4.6] 2026-03-12 🧠
 
 ### Added
