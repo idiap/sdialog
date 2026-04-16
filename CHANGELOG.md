@@ -4,7 +4,7 @@ All notable changes to SDialog will be documented here.
 
 ---
 
-## [0.4.7] 2026-04-14 📡
+## [0.4.7] 2026-04-14 📞
 
 ### Added
 - **sdialog.audio**:
@@ -18,7 +18,7 @@ All notable changes to SDialog will be documented here.
 - **sdialog.audio**:
   - Refactored acoustics simulation to a modular backend architecture.
   - Extended audio pipeline with overlap/pause control, sound-event handling, and improved post-processing.
-  - Improved determinism and normalization behavior for Qwen3-TTS-based generation and voice cloning.
+  - Improved normalization behavior for Qwen3-TTS-based generation and voice cloning.
 
 ### Fixed
 - **sdialog.generators**:
