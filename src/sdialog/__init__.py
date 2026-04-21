@@ -142,6 +142,9 @@ class Dialog(BaseModel):
     :type turns: Optional[List[Turn]]
     :param events: List of dialogue events (optional).
     :type events: Optional[List[Event]]
+    :param annotations: Annotation metadata associated with the dialogue, such as labels
+                        or structured annotation outputs.
+    :type annotations: Optional[Union[str, dict[str, Any]]]
     :param notes: Free-text notes or comments about the dialogue.
     :type notes: Optional[str]
     """
@@ -157,6 +160,7 @@ class Dialog(BaseModel):
     scenario: Optional[Union[dict, str]] = None
     turns: Optional[List[Turn]] = Field(default_factory=list)
     events: Optional[List[Event]] = None
+    annotations: Optional[Union[str, dict[str, Any]]] = None
     notes: Optional[Any] = None
     _path: Optional[str] = None
 
