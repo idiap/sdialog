@@ -1830,17 +1830,22 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
 
         mode_str = "mean-" if mean else ""
         super().__init__(name=name or f"{mode_str}{model_name.split('/')[-1]}" + ("-ai" if ai_speaker else ""))
-        self.model = SentenceTransformer(model_name)
+        self.model = SentenceTransformer(
+            model_name,
+            model_kwargs={"use_safetensors": True},
+        )
         self.mean = mean
         self.verbose = verbose
         self.ai_speaker = ai_speaker
 
-    def embed(self, dialog: Dialog) -> np.ndarray:
+    def embed(self, dialog: Dialog, **encode_kwargs) -> np.ndarray:
         """
         Generate embedding for a dialog.
 
         :param dialog: Dialog instance.
         :type dialog: Dialog
+        :param encode_kwargs: Additional keyword arguments to pass to the encode function of the SentenceTransformer model.
+        :type encode_kwargs: dict
         :return: Embedding vector.
         :rtype: np.ndarray
         """
@@ -1852,7 +1857,7 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
                 texts = [turn.text for turn in dialog if hasattr(turn, "text")]
             if not texts:
                 return np.zeros(self.model.get_sentence_embedding_dimension())
-            embs = self.model.encode(texts, show_progress_bar=self.verbose)
+            embs = self.model.encode(texts, show_progress_bar=self.verbose, **encode_kwargs)
             return np.mean(embs, axis=0)
         else:
             if self.ai_speaker:
@@ -1862,7 +1867,7 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
                 dialog_text = "\n".join([turn.text for turn in dialog])
             if not dialog_text:
                 return np.zeros(self.model.get_sentence_embedding_dimension())
-            emb = self.model.encode([dialog_text], show_progress_bar=self.verbose)[0]
+            emb = self.model.encode([dialog_text], show_progress_bar=self.verbose, **encode_kwargs)[0]
             return emb
 
 

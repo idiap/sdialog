@@ -269,7 +269,11 @@ def dialog2trajectories(
                 embedding_model = DEFAULT_OPENAI_MODEL
             sentence_encoder = SentenceTransformerOpenAI(embedding_model)
         else:
-            sentence_encoder = SentenceTransformer(embedding_model, device=device)
+            sentence_encoder = SentenceTransformer(
+                embedding_model,
+                device=device,
+                model_kwargs={"use_safetensors": True},
+            )
 
         domains[domain]["emb"] = sentence_encoder.encode(domains[domain]["text"],
                                                          show_progress_bar=True,  # show_progress_bar=verbose,

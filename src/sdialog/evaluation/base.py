@@ -102,24 +102,28 @@ class BaseDialogEmbedder(ABC):
         """Initialize the dialog embedder."""
         self.name = name
 
-    def __call__(self, dialog: Dialog) -> np.ndarray:
+    def __call__(self, dialog: Dialog, **encode_kwargs) -> np.ndarray:
         """
         Embed a dialog into a vector representation (delegates to embed()).
 
         :param dialog: The dialog instance to embed.
         :type dialog: Dialog
+        :param encode_kwargs: Additional keyword arguments for the embedding process.
+        :type encode_kwargs: dict
         :return: Vector representation of the dialog.
         :rtype: np.ndarray
         """
-        return self.embed(dialog)
+        return self.embed(dialog, **encode_kwargs)
 
     @abstractmethod
-    def embed(self, dialog: Dialog) -> np.ndarray:
+    def embed(self, dialog: Dialog, **encode_kwargs) -> np.ndarray:
         """
         Produce an embedding vector for the given dialog.
 
         :param dialog: The dialog instance to embed.
         :type dialog: Dialog
+        :param encode_kwargs: Additional keyword arguments for the embedding process.
+        :type encode_kwargs: dict
         :return: Embedding vector.
         :rtype: np.ndarray
         :raises NotImplementedError: If not implemented in subclass.
@@ -267,7 +271,10 @@ class BaseDialogFlowScore(BaseDialogScore):
                                                   use_only_system_speaker=use_only_ai_speaker,
                                                   use_closest_as_centroid_emb=use_closest_as_centroid_emb,
                                                   **self.d2f_kwargs)
-            self.encoder = SentenceTransformer(self.nodes["_metadata"]["model"])
+            self.encoder = SentenceTransformer(
+                self.nodes["_metadata"]["model"],
+                model_kwargs={"use_safetensors": True},
+            )
             # Store encoder for later reuse to avoid OOM when multiple scores are used
             self.nodes["_metadata"]["encoder"] = self.encoder
 

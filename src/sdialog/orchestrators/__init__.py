@@ -257,7 +257,10 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
                  sbert_model: str = "sergioburdisso/dialog2flow-joint-bert-base",
                  top_k: int = 5):
         """Initialize SimpleResponseOrchestrator."""
-        self.sent_encoder = SentenceTransformer(sbert_model)
+        self.sent_encoder = SentenceTransformer(
+            sbert_model,
+            model_kwargs={"use_safetensors": True},
+        )
         self.responses = responses
         self.top_k = top_k
 
