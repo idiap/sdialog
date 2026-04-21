@@ -1844,7 +1844,7 @@ class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
 
         :param dialog: Dialog instance.
         :type dialog: Dialog
-        :param encode_kwargs: Additional keyword arguments to pass to the encode function of the SentenceTransformer model.
+        :param encode_kwargs: keyword arguments to pass to the encode function of the SentenceTransformer model.
         :type encode_kwargs: dict
         :return: Embedding vector.
         :rtype: np.ndarray
