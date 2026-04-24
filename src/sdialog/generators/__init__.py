@@ -9,8 +9,8 @@ import logging
 
 from tqdm.auto import tqdm
 from jinja2 import Template
-from pydantic import BaseModel
-from typing import Union, List, Any, Optional
+from pydantic import BaseModel, ValidationError
+from typing import Union, List, Any, Optional, get_origin, get_args
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.base import BaseLanguageModel
 
@@ -367,6 +367,60 @@ class PersonaGenerator(BaseAttributeModelGenerator):
     :param llm_kwargs: Extra LLM keyword arguments.
     :type llm_kwargs: dict
     """
+    @staticmethod
+    def _infer_placeholder_value(annotation: Any) -> Any:
+        """Infer a conservative placeholder value from a type annotation."""
+        origin = get_origin(annotation)
+
+        if origin is Union:
+            args = get_args(annotation)
+            non_none_args = [arg for arg in args if arg is not type(None)]
+            # If Optional[...] is allowed, None is the safest placeholder.
+            if len(non_none_args) != len(args):
+                return None
+            for arg in non_none_args:
+                value = PersonaGenerator._infer_placeholder_value(arg)
+                if value is not None:
+                    return value
+            return ""
+
+        if origin in (list, List):
+            return []
+        if origin is dict:
+            return {}
+        if origin is tuple:
+            return ()
+
+        if annotation is str:
+            return ""
+        if annotation is int:
+            return 0
+        if annotation is float:
+            return 0.0
+        if annotation is bool:
+            return False
+        if annotation is Any:
+            return ""
+
+        if isinstance(annotation, type):
+            try:
+                return annotation()
+            except Exception:
+                return ""
+
+        return ""
+
+    @classmethod
+    def _build_persona_init_data(cls, persona_cls: type[BasePersona]) -> dict[str, Any]:
+        """Build initialization data for every declared field in a persona class."""
+        init_data = {}
+        for field_name, field_info in persona_cls.model_fields.items():
+            if field_info.is_required():
+                init_data[field_name] = cls._infer_placeholder_value(field_info.annotation)
+            else:
+                init_data[field_name] = field_info.get_default(call_default_factory=True)
+        return init_data
+
     def __init__(self,
                  persona: BasePersona,
                  generated_attributes: str = "all",
@@ -377,7 +431,12 @@ class PersonaGenerator(BaseAttributeModelGenerator):
         if isinstance(persona, BasePersona):
             persona_instance = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
-            persona_instance = persona()
+            try:
+                persona_instance = persona()
+            except ValidationError:
+                # Build an instance with placeholders so required fields without defaults
+                # do not break generator initialization.
+                persona_instance = persona.model_construct(**self._build_persona_init_data(persona))
         else:
             raise ValueError("persona must be a BasePersona instance or subclass.")
         system_prompt = "You are an expert at generating persona JSON objects for synthetic dialogue generation."
