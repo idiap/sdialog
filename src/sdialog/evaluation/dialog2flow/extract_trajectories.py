@@ -258,7 +258,8 @@ def dialog2trajectories(
 
         domains[domain]["speaker"] = np.array(domains[domain]["speaker"])
         domains[domain]["text"] = np.array(domains[domain]["text"])
-        domains[domain]["prediction"] = np.zeros_like(domains[domain]["text"], dtype=int)
+        # Use -1 as sentinel for "not assigned yet" so valid cluster id 0 is preserved.
+        domains[domain]["prediction"] = np.full_like(domains[domain]["text"], fill_value=-1, dtype=int)
         domains[domain]["labels"] = np.array([get_turn_text(t, use_ground_truth=True)
                                               for t in domains[domain]["log"]])
 
@@ -401,8 +402,10 @@ def dialog2trajectories(
                                 output_file)
                 logger.log(log_level, f"Dendrogram plot for {speaker} utterances saved in `{output_file}`")
 
-        if not domains[domain]['prediction'].any():
-            logger.warning(f"No cluster predictions for '{domain}'. Skipped.")
+        preds = domains[domain]['prediction']
+        if preds.size == 0 or np.any(preds < 0):
+            n_missing = int(np.sum(preds < 0)) if preds.size else 0
+            logger.warning(f"No/partial cluster predictions for '{domain}' (missing={n_missing}). Skipped.")
             continue
 
         for ix, turn in enumerate(domains[domain]["log"]):
