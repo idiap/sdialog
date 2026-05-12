@@ -120,7 +120,7 @@ Run the Jupyter server inside the apptainer first:
 ```bash
 apptainer run -H $(pwd) --nv sdialog.sif
 
-exec jupyter lab --no-browser --ip 0.0.0.0 --port 3300
+jupyter notebook --no-browser --ip 0.0.0.0 --port 3300
 ```
 
 And then copy the URL that was printed when running the Server including the token value. For instance, for the following log:
