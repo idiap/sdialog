@@ -749,19 +749,48 @@ class KNNModel:
         """
         Retrieve k nearest neighbors by cosine distance.
 
-        :param target_emb: Query embedding vector.
-        :type target_emb: Sequence[float]
+        Accepts either a single embedding vector or a list/array of embedding vectors.
+        Maintains backward compatibility: single embeddings return a single result list,
+        batch embeddings return a list of result lists.
+
+        :param target_emb: Query embedding vector (1D) or list/array of vectors (2D).
+                           If 1D, returns a single result list.
+                           If 2D, returns a list of result lists.
+        :type target_emb: Union[Sequence[float], np.ndarray, List]
         :param k: Override number of neighbors (defaults to self.k).
         :type k: int
-        :return: List of (item_id, distance) pairs ordered by proximity.
-        :rtype: List[Tuple[Any, float]]
+        :return: If target_emb is 1D: List of (item_id, distance) tuples (backward compatible).
+                 If target_emb is 2D: List of lists of (item_id, distance) tuples.
+        :rtype: Union[List[Tuple[Any, float]], List[List[Tuple[Any, float]]]]
         """
         k = k or self.k
-        dists, indexes = self.model.kneighbors([target_emb],
-                                               min(k, len(self.model.ix2id)),
+        k_neighbors = min(k, len(self.model.ix2id))
+
+        # Detect if input is single embedding (1D) or batch (2D)
+        is_single = False
+        if isinstance(target_emb, np.ndarray):
+            is_single = target_emb.ndim == 1
+            query_embeddings = target_emb if target_emb.ndim == 2 else [target_emb]
+        else:
+            # Convert to numpy array to check dimensionality
+            target_emb_array = np.array(target_emb)
+            is_single = target_emb_array.ndim == 1
+            query_embeddings = target_emb_array if target_emb_array.ndim == 2 else [target_emb_array]
+
+        # Query all embeddings at once
+        dists, indexes = self.model.kneighbors(query_embeddings,
+                                               k_neighbors,
                                                return_distance=True)
-        dists, indexes = dists[0], indexes[0]
-        return [(self.model.ix2id[indexes[ix]], dist) for ix, dist in enumerate(dists)]
+
+        # Convert results to list of neighbor lists
+        results = []
+        for i in range(len(dists)):
+            neighbors_list = [(self.model.ix2id[indexes[i][j]], dists[i][j])
+                              for j in range(len(dists[i]))]
+            results.append(neighbors_list)
+
+        # If input was single, return single result (backward compatible)
+        return results[0] if is_single else results
 
     __call__ = neighbors
 
