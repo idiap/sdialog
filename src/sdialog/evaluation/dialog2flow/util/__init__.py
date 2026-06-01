@@ -106,10 +106,15 @@ def get_openai_embedding(client, docs: list, model="text-embedding-3-large", dim
     return data[0].embedding
 
 
-def init_gpt(model_name="gpt-4-turbo-2024-04-09", seed=42):
+def init_gpt(model_name="gpt-4.1", seed=42):
     global gpt_client, gpt_model, gpt_seed
-    if gpt_client is None and "gpt" in model_name:
-        gpt_client = OpenAI()
+    normalized_model_name = model_name.strip().lower()
+    is_openai_api_model = (
+        "gpt" in normalized_model_name
+        and "ollama" not in normalized_model_name
+        and not normalized_model_name.startswith("gpt-oss")
+    )
+    gpt_client = OpenAI() if is_openai_api_model else None
     gpt_model = model_name
     gpt_seed = seed
 
