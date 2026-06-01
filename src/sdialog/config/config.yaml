@@ -22,7 +22,7 @@ prompts:
         real_dialog: ../prompts/evaluation/llm_judge_score_inst_real.j2
         real_dialog_likert: ../prompts/evaluation/llm_judge_score_inst_real_likert.j2
 llm:
-  model: gemma3:27b
+  model: openai:gpt-4.1
   temperature: null  # model's default
   seed: 13
   max_tokens: null
