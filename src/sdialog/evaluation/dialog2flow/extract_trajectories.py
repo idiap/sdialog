@@ -19,7 +19,6 @@ import numpy as np
 
 from tqdm.auto import tqdm
 from networkx import DiGraph
-from tenacity import RetryError
 from matplotlib import pyplot as plt
 from typing import List, Union, Dict, Tuple
 from simpleneighbors import SimpleNeighbors
