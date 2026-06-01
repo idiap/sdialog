@@ -15,7 +15,9 @@ These abstractions standardize evaluation pipelines for synthetic dialog generat
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import os
+import gc
 import logging
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -271,6 +273,10 @@ class BaseDialogFlowScore(BaseDialogScore):
                                                   use_only_system_speaker=use_only_ai_speaker,
                                                   use_closest_as_centroid_emb=use_closest_as_centroid_emb,
                                                   **self.d2f_kwargs)
+            # Release temporary graph-construction encoder memory before creating the persistent one.
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             self.encoder = SentenceTransformer(
                 self.nodes["_metadata"]["model"],
                 model_kwargs={"use_safetensors": True},

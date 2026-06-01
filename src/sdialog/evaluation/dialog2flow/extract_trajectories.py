@@ -11,6 +11,7 @@ MIT License
 """
 import re
 import os
+import gc
 import json
 import torch
 import logging
@@ -344,17 +345,9 @@ def dialog2trajectories(
 
             # Saving cluster information for later use (centroid embeddings and top-k utterances of each cluster)
             if labels_enabled:
-                try:
-                    init_gpt(labels_model)
-                    for cluster in tqdm(cluster_topk_utts, desc=f"Cluster labels ({speaker.title()}):"):
-                        cluster["name"] = get_cluster_label(cluster["utterances"], labels_model)
-                except RetryError:
-                    error_details = ""
-                    if "gpt" not in labels_model:
-                        error_details = ("Is ollama server running (`ollama serve`)? "
-                                         "is the model locally availbale (`ollama list`)?")
-                    raise ValueError("Error while trying to generate node labels with LLM model "
-                                     f"`{labels_model}`. {error_details}")
+                init_gpt(labels_model)
+                for cluster in tqdm(cluster_topk_utts, desc=f"Cluster labels ({speaker.title()}):"):
+                    cluster["name"] = get_cluster_label(cluster["utterances"], labels_model)
 
             if multi_domain:
                 output_path_clusters = os.path.join(output_path_clusters_folder, domain)
@@ -401,6 +394,12 @@ def dialog2trajectories(
                                 f"{speaker.title()} Utterances ({model_name})",
                                 output_file)
                 logger.log(log_level, f"Dendrogram plot for {speaker} utterances saved in `{output_file}`")
+
+        # Encoder is no longer needed for this domain after embeddings and optional closest-centroid saves.
+        del sentence_encoder
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         preds = domains[domain]['prediction']
         if preds.size == 0 or np.any(preds < 0):
