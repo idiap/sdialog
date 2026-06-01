@@ -354,7 +354,7 @@ class BaseAttributeModelGenerator(ABC):
                     )
 
                 schema = self._attribute_model.model_json_schema()
-                if is_openai_model_name(self.llm_model):
+                if is_openai_model_name(self.llm_model) and "description" in schema:
                     schema["description"] = schema["description"][:1024]  # To avoid API string maximum length error
                 filtered_properties = schema
                 if n > 1:

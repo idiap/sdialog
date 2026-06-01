@@ -155,7 +155,7 @@ def test_persona_generator_function_dependency(monkeypatch):
             return "Party"
         return "Dancying"
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
-    gen = PersonaGenerator(DummyPersona)
+    gen = PersonaGenerator(DummyPersona, model=MODEL)
     gen.set(name=["Loco Polaco", "Loca Polaca"], hobby=get_hobby)
 
     p = gen.generate()
@@ -189,7 +189,7 @@ def test_persona_generator_txt_template(monkeypatch):
 def test_persona_generator_csv_template(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.csv")
-    gen = PersonaGenerator(DummyPersona)
+    gen = PersonaGenerator(DummyPersona, model=MODEL)
     gen.set(
         name="{{csv:name:%s}}" % csv_path,
         age="{{20-30}}"
@@ -203,7 +203,7 @@ def test_persona_generator_csv_template(monkeypatch):
 def test_persona_generator_tsv_template(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
     csv_path = os.path.join(PATH_TEST_DATA, "personas.tsv")
-    gen = PersonaGenerator(DummyPersona)
+    gen = PersonaGenerator(DummyPersona, model=MODEL)
     gen.set(
         name="{{tsv:name:%s}}" % csv_path,
         age="{{20-30}}"
@@ -222,7 +222,7 @@ def test_persona_generator_range_template():
 
 def test_persona_generator_defaults(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyPersonaLLM)
-    gen = PersonaGenerator(DummyPersona)
+    gen = PersonaGenerator(DummyPersona, model=MODEL)
     persona = gen.generate()
     persona2 = Persona.from_dict(persona.json(), DummyPersona)
     assert persona.name == persona2.name
@@ -230,7 +230,7 @@ def test_persona_generator_defaults(monkeypatch):
 
 def test_dialog_generator_example_dialogs(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
-    gen = DialogGenerator(dialogue_details="test", example_dialogs=[example_dialog])
+    gen = DialogGenerator(dialogue_details="test", example_dialogs=[example_dialog], model=MODEL)
     assert gen.example_dialogs[0] == example_dialog
     _ = gen()
     assert example_dialog.turns[0].text in gen.messages[0].content
@@ -240,7 +240,7 @@ def test_persona_dialog_generator_example_dialogs(monkeypatch):
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyLLMDialogOutput)
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b, example_dialogs=[example_dialog])
+    gen = PersonaDialogGenerator(persona_a, persona_b, example_dialogs=[example_dialog], model=MODEL)
     assert gen.example_dialogs[0] == example_dialog
     _ = gen()
     assert example_dialog.turns[0].text in gen.messages[0].content
@@ -251,7 +251,7 @@ def test_persona_dialog_generator_with_context_in_constructor(monkeypatch):
     ctx = Context(location="Cafe", goals=["Casual chat"])
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b, context=ctx)
+    gen = PersonaDialogGenerator(persona_a, persona_b, context=ctx, model=MODEL)
     dialog = gen()
     assert "Cafe" in gen.dialogue_details
     assert hasattr(dialog, "turns")
@@ -262,7 +262,7 @@ def test_persona_dialog_generator_with_context_at_generate(monkeypatch):
     ctx = Context(location="Library", goals=["Study"])
     persona_a = Persona(name="A")
     persona_b = Persona(name="B")
-    gen = PersonaDialogGenerator(persona_a, persona_b)
+    gen = PersonaDialogGenerator(persona_a, persona_b, model=MODEL)
     dialog = gen(context=ctx)
     assert "Library" in gen.prompt()
     assert hasattr(dialog, "turns")
@@ -274,7 +274,7 @@ def test_context_generator_basic(monkeypatch):
     """
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
     ctx = Context(location="Library", goals=["Study"])
-    gen = ContextGenerator(context=ctx)
+    gen = ContextGenerator(context=ctx, model=MODEL)
     ctx = gen.generate()
     assert ctx.location == "Library"
     assert isinstance(ctx.goals, list)
@@ -286,7 +286,7 @@ def test_context_generator_attribute_overrides(monkeypatch):
     """
     monkeypatch.setattr("sdialog.util.ChatOllama", DummyContextLLM)
     ctx = Context()
-    gen = ContextGenerator(context=ctx)
+    gen = ContextGenerator(context=ctx, model=MODEL)
     gen.set(
         location=["Cafe", "Library"],
         # Delegate goals to LLM ("*" means fill via LLM) so DummyContextLLM sets it
