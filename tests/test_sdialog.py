@@ -55,6 +55,60 @@ def test_dialog_to_file_and_from_file(tmp_path):
     assert loaded_txt.turns[1].text == "Hello"
 
 
+def test_dialog_save_alias_and_open_alias(tmp_path):
+    turns = [Turn(speaker="A", text="Hi"), Turn(speaker="B", text="Hello")]
+    dialog = Dialog(turns=turns)
+    json_path = tmp_path / "dialog_alias.json"
+
+    dialog.save(str(json_path))
+    loaded = Dialog.open(str(json_path))
+
+    assert isinstance(loaded, Dialog)
+    assert loaded.turns[0].speaker == "A"
+    assert loaded.turns[1].text == "Hello"
+
+
+def test_dialog_open_alias_for_folder(tmp_path):
+    d1 = Dialog(turns=[Turn(speaker="A", text="Hi")])
+    d2 = Dialog(turns=[Turn(speaker="B", text="Hello")])
+
+    d1.to_file(str(tmp_path / "1.json"))
+    d2.to_file(str(tmp_path / "2.json"))
+
+    loaded = Dialog.open(str(tmp_path), type="json")
+
+    assert isinstance(loaded, list)
+    assert len(loaded) == 2
+    assert all(isinstance(d, Dialog) for d in loaded)
+
+
+def test_dialog_load_alias(tmp_path):
+    turns = [Turn(speaker="A", text="Hi"), Turn(speaker="B", text="Hello")]
+    dialog = Dialog(turns=turns)
+    json_path = tmp_path / "dialog_load_alias.json"
+
+    dialog.to_file(str(json_path))
+    loaded = Dialog.load(str(json_path))
+
+    assert isinstance(loaded, Dialog)
+    assert loaded.turns[0].speaker == "A"
+    assert loaded.turns[1].text == "Hello"
+
+
+def test_dialog_load_folder_alias(tmp_path):
+    d1 = Dialog(turns=[Turn(speaker="A", text="Hi")])
+    d2 = Dialog(turns=[Turn(speaker="B", text="Hello")])
+
+    d1.to_file(str(tmp_path / "1.json"))
+    d2.to_file(str(tmp_path / "2.json"))
+
+    loaded = Dialog.load_folder(str(tmp_path), type="json")
+
+    assert isinstance(loaded, list)
+    assert len(loaded) == 2
+    assert all(isinstance(d, Dialog) for d in loaded)
+
+
 def test_instruction_event():
     event = Event(agent="user", action="instruct", content="Do this", timestamp=1)
     instr = Instruction(text="Do this", events=event)

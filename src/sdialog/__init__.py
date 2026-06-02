@@ -468,6 +468,31 @@ class Dialog(BaseModel):
             else:
                 writer.write(self.description())
 
+    def save(self, path: str = None, type: str = "auto",
+             makedir: bool = True, overwrite: bool = True,
+             ensure_ascii: bool = False):
+        """
+        Alias for ``to_file()``.
+
+        :param path: Output file path, if not provided, uses the same path used to load the dialogue.
+        :type path: str
+        :param type: "json", "csv", "txt", or "auto" (determined by file extension).
+        :type type: str
+        :param makedir: If True, creates parent directories as needed.
+        :type makedir: bool
+        :param overwrite: If False and the file exists, raise FileExistsError instead of overwriting.
+        :type overwrite: bool
+        :param ensure_ascii: If True and type is "json", escape non-ASCII characters in the output.
+        :type ensure_ascii: bool
+        """
+        return self.to_file(
+            path=path,
+            type=type,
+            makedir=makedir,
+            overwrite=overwrite,
+            ensure_ascii=ensure_ascii
+        )
+
     def to_audio(
         self,
         path: str = None,
@@ -809,6 +834,123 @@ class Dialog(BaseModel):
                     raise ValueError(f"File '{path}': {str(e)}")
             else:
                 raise ValueError(f"Unknown file type '{type}'. Supported types: 'json', 'txt', 'csv', 'tsv'.")
+
+    @classmethod
+    def open(cls,
+             path: str,
+             type: str = "auto",
+             txt_template: str = "{speaker}: {text}",
+             csv_speaker_col: Union[int, str] = "speaker",
+             csv_text_col: Union[int, str] = "text",
+             collapse_consecutive_speakers: bool = False,
+             collapse_separator: str = "\n") -> Union["Dialog", List["Dialog"]]:
+        """
+        Alias for ``from_file()``.
+
+        :param path: Path to the dialogue file or directory.
+        :type path: str
+        :param type: ``"json"``, ``"txt"``, ``"csv"``, ``"tsv"``, or ``"auto"``.
+        :type type: str
+        :param txt_template: Template for parsing text dialogue turns.
+        :type txt_template: str
+        :param csv_speaker_col: Column identifier for speaker in CSV/TSV files.
+        :type csv_speaker_col: Union[int, str]
+        :param csv_text_col: Column identifier for text in CSV/TSV files.
+        :type csv_text_col: Union[int, str]
+        :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker.
+        :type collapse_consecutive_speakers: bool
+        :param collapse_separator: String used to join texts when collapsing consecutive turns.
+        :type collapse_separator: str
+        :return: The loaded dialogue object or list of dialogue objects.
+        :rtype: Union[Dialog, List[Dialog]]
+        """
+        return cls.from_file(
+            path=path,
+            type=type,
+            txt_template=txt_template,
+            csv_speaker_col=csv_speaker_col,
+            csv_text_col=csv_text_col,
+            collapse_consecutive_speakers=collapse_consecutive_speakers,
+            collapse_separator=collapse_separator
+        )
+
+    @classmethod
+    def load(cls,
+             path: str,
+             type: str = "auto",
+             txt_template: str = "{speaker}: {text}",
+             csv_speaker_col: Union[int, str] = "speaker",
+             csv_text_col: Union[int, str] = "text",
+             collapse_consecutive_speakers: bool = False,
+             collapse_separator: str = "\n") -> Union["Dialog", List["Dialog"]]:
+        """
+        Alias for ``from_file()``.
+
+        :param path: Path to the dialogue file or directory.
+        :type path: str
+        :param type: ``"json"``, ``"txt"``, ``"csv"``, ``"tsv"``, or ``"auto"``.
+        :type type: str
+        :param txt_template: Template for parsing text dialogue turns.
+        :type txt_template: str
+        :param csv_speaker_col: Column identifier for speaker in CSV/TSV files.
+        :type csv_speaker_col: Union[int, str]
+        :param csv_text_col: Column identifier for text in CSV/TSV files.
+        :type csv_text_col: Union[int, str]
+        :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker.
+        :type collapse_consecutive_speakers: bool
+        :param collapse_separator: String used to join texts when collapsing consecutive turns.
+        :type collapse_separator: str
+        :return: The loaded dialogue object or list of dialogue objects.
+        :rtype: Union[Dialog, List[Dialog]]
+        """
+        return cls.from_file(
+            path=path,
+            type=type,
+            txt_template=txt_template,
+            csv_speaker_col=csv_speaker_col,
+            csv_text_col=csv_text_col,
+            collapse_consecutive_speakers=collapse_consecutive_speakers,
+            collapse_separator=collapse_separator
+        )
+
+    @classmethod
+    def load_folder(cls,
+                    path: str,
+                    type: str = "auto",
+                    txt_template: str = "{speaker}: {text}",
+                    csv_speaker_col: Union[int, str] = "speaker",
+                    csv_text_col: Union[int, str] = "text",
+                    collapse_consecutive_speakers: bool = False,
+                    collapse_separator: str = "\n") -> List["Dialog"]:
+        """
+        Alias for ``from_folder()``.
+
+        :param path: Path to the directory containing dialogue files.
+        :type path: str
+        :param type: ``"json"``, ``"txt"``, ``"csv"``, ``"tsv"``, or ``"auto"``.
+        :type type: str
+        :param txt_template: Template for parsing text dialogue turns.
+        :type txt_template: str
+        :param csv_speaker_col: Column identifier for speaker in CSV/TSV files.
+        :type csv_speaker_col: Union[int, str]
+        :param csv_text_col: Column identifier for text in CSV/TSV files.
+        :type csv_text_col: Union[int, str]
+        :param collapse_consecutive_speakers: If True, collapses consecutive turns by the same speaker.
+        :type collapse_consecutive_speakers: bool
+        :param collapse_separator: String used to join texts when collapsing consecutive turns.
+        :type collapse_separator: str
+        :return: A list of loaded dialogue objects from the folder.
+        :rtype: List[Dialog]
+        """
+        return cls.from_folder(
+            path=path,
+            type=type,
+            txt_template=txt_template,
+            csv_speaker_col=csv_speaker_col,
+            csv_text_col=csv_text_col,
+            collapse_consecutive_speakers=collapse_consecutive_speakers,
+            collapse_separator=collapse_separator
+        )
 
     @staticmethod
     def from_str(dialog_text: str,
