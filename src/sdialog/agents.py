@@ -11,6 +11,7 @@ import re
 import json
 import random
 import logging
+import traceback
 
 from time import time
 from tqdm.auto import tqdm
@@ -20,7 +21,7 @@ from typing import List, Union, Optional, Tuple
 from langchain_core.tools import tool
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.messages.base import BaseMessage, messages_to_dict
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 
 from .config import config
 from jinja2 import Template
@@ -320,7 +321,8 @@ class Agent:
     def __call__(self,
                  utterance: Union[str, List[BaseMessage]] = "",
                  return_events: bool = False,
-                 current_dialog: Dialog = None) -> str:
+                 current_dialog: Dialog = None,
+                 return_tool_errors: bool = False) -> str:
         """
         Processes an input utterance and generates a response.
 
@@ -331,6 +333,8 @@ class Agent:
         :type return_events: bool
         :param current_dialog: The current dialog state as a Dialog object for orchestrators.
         :type current_dialog: Dialog
+        :param return_tool_errors: If True, tool-call failures are converted to tool output and fed back to the LLM.
+        :type return_tool_errors: bool
         :return: The agent's response or events, or None if finished.
         :rtype: Union[str, List[Event], None]
         """
@@ -405,14 +409,14 @@ class Agent:
                 # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
                 # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
                 response, response_events = self._get_llm_response(self.memory + [HumanMessage(
-                    content="" if is_huggingface_model_name(self._model_uri) else ".")
-                ])
+                    content="" if is_huggingface_model_name(self._model_uri) else "."
+                )], return_tool_errors=return_tool_errors)
                 logger.warning(
                     "For HuggingFace or AWS LLMs, the last message in the conversation history must be a HumanMessage. "
                     "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
                 )
             else:
-                response, response_events = self._get_llm_response(self.memory)
+                response, response_events = self._get_llm_response(self.memory, return_tool_errors=return_tool_errors)
 
             if self._inspectors:
                 self._hook_response_data.response_end()
@@ -446,7 +450,9 @@ class Agent:
         else:
             return response if response else ""
 
-    def _get_llm_response(self, messages, update_tool_memory: bool = False) -> Tuple[AIMessage, List[Event]]:
+    def _get_llm_response(self, messages,
+                          update_tool_memory: bool = False,
+                          return_tool_errors: bool = False) -> Tuple[AIMessage, List[Event]]:
         """
         Generate a single LLM turn from the given message history, handling tool-calls and
         extracting optional "thinking" traces.
@@ -455,6 +461,8 @@ class Agent:
         :type messages: List[BaseMessage]
         :param update_tool_memory: If True, appends tool results to the agent's memory.
         :type update_tool_memory: bool
+        :param return_tool_errors: If True, tool-call failures are captured and returned as tool output.
+        :type return_tool_errors: bool
         :return: The LLM response and list of events.
         :rtype: Tuple[AIMessage, List[Event]]
         """
@@ -501,7 +509,18 @@ class Agent:
                         tool_msg = selected_tool.invoke(tool_call)
                     except Exception:
                         logger.error(f"Error invoking tool '{tool_call['name']}' with args {tool_call['args']}.")
-                        tool_error = True
+                        if return_tool_errors:
+                            tool_msg = ToolMessage(
+                                content=(
+                                    f"Error invoking tool '{tool_call['name']}' with args {tool_call['args']}.\n\n"
+                                    f"{traceback.format_exc()}"
+                                ),
+                                name=tool_call["name"],
+                                tool_call_id=tool_call["id"]
+                            )
+                            tool_error = False
+                        else:
+                            tool_error = True
 
                     if not tool_error:
                         messages.append(tool_msg)
@@ -527,7 +546,7 @@ class Agent:
 
             # If tools were called, re-query the LLM with the updated messages
             if messages_n != len(messages):
-                response, new_events = self._get_llm_response(messages, update_tool_memory)
+                response, new_events = self._get_llm_response(messages, update_tool_memory, return_tool_errors)
                 events.extend(new_events)
                 return response, events
 
@@ -630,6 +649,7 @@ class Agent:
               host: str = "0.0.0.0",
               port: int = 1333,
               stateless: bool = True,
+              debug: bool = False,
               log_level: str = "info"):
         """
         Starts a REST API server to interact with the agent.
@@ -641,12 +661,14 @@ class Agent:
         :param stateless: If True, the server does not maintain conversation state (as such the full context
                           must be provided with each request).
         :type stateless: bool
+        :param debug: If True, enables debug mode for the server (errors will be sent back in the response to the LLM).
+        :type debug: bool
         :param log_level: Logging level for the server.
         :type log_level: str
         """
         from .server import Server
 
-        return Server.serve(agents=self, host=host, port=port, stateless=stateless, log_level=log_level)
+        return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level)
 
     def response_lookahead(self, message: str = None):
         """

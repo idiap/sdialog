@@ -142,12 +142,14 @@ class Server:
     _agent_locks: Dict[str, Lock] = {}
     _app: Optional[FastAPI] = None
     _stateless: bool = False
+    _debug: bool = False
 
     @classmethod
     def _setup_agents(cls,
                       agents: Union[Agent, List[Agent]],
                       model_names: Optional[Union[str, List[str]]] = None,
-                      stateless: bool = None) -> str:
+                      stateless: bool = None,
+                      debug: bool = False) -> str:
         """
         Set up the agent for serving, including model name processing and FastAPI app creation.
 
@@ -157,6 +159,8 @@ class Server:
         :type model_names: Optional[Union[str, List[str]]]
         :param stateless: If True, the agent will not maintain memory between requests.
         :type stateless: bool
+        :param debug: If True, tool-call failures are returned to the agent as tool output.
+        :type debug: bool
         :return: The processed model name.
         :rtype: str
         """
@@ -185,6 +189,7 @@ class Server:
 
         if stateless is not None:
             cls._stateless = stateless
+        cls._debug = debug
 
         # Create FastAPI app if not exists
         if cls._app is None:
@@ -198,6 +203,7 @@ class Server:
               host: str = "0.0.0.0",
               port: int = 1333,
               stateless: bool = True,
+              debug: bool = False,
               model_names: Optional[Union[str, List[str]]] = None,
               log_level: str = "info") -> None:
         """
@@ -217,6 +223,8 @@ class Server:
         :param stateless: If True, the agent will not maintain memory between requests and the
                           full context must be provided with each request.
         :type stateless: bool
+        :param debug: If True, tool-call failures are returned to the agent as tool output.
+        :type debug: bool
         :param model_names: Model names to expose in the API (defaults to agent's name).
         :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
@@ -243,7 +251,7 @@ class Server:
                 # Starting server for agents on localhost:1333
                 # > 2 registered agents: Scientist:latest, Bot:latest
         """
-        cls._setup_agents(agents, model_names, stateless)
+        cls._setup_agents(agents, model_names, stateless, debug)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"> {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -256,7 +264,7 @@ class Server:
                             "Falling back to threaded server...")
                 # Use the threaded version as fallback
                 # Agents were already added in _setup_agents
-                return cls.serve_in_thread([], host, port, stateless, None, log_level)
+                return cls.serve_in_thread([], host, port, stateless, debug, None, log_level)
             else:
                 # Re-raise if it's a different RuntimeError
                 raise
@@ -267,6 +275,7 @@ class Server:
                           host: str = "0.0.0.0",
                           port: int = 1333,
                           stateless: bool = True,
+                          debug: bool = False,
                           model_names: Optional[Union[str, List[str]]] = None,
                           log_level: str = "info") -> None:
         """
@@ -284,12 +293,14 @@ class Server:
         :param stateless: If True, the agent will not maintain memory between requests and the
                           full context must be provided with each request.
         :type stateless: bool
+        :param debug: If True, tool-call failures are returned to the agent as tool output.
+        :type debug: bool
         :param model_names: Model names to expose in the API (defaults to agent's name).
         :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
         """
-        cls._setup_agents(agents, model_names, stateless)
+        cls._setup_agents(agents, model_names, stateless, debug)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"- {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -313,6 +324,7 @@ class Server:
                         host: str = "0.0.0.0",
                         port: int = 1333,
                         stateless: bool = True,
+                        debug: bool = False,
                         model_names: Optional[Union[str, List[str]]] = None,
                         log_level: str = "info") -> None:
         """
@@ -331,6 +343,8 @@ class Server:
         :param stateless: If True, the agent will not maintain memory between requests and the
                           full context must be provided with each request.
         :type stateless: bool
+        :param debug: If True, tool-call failures are returned to the agent as tool output.
+        :type debug: bool
         :param model_names: Model names to expose in the API (defaults to agent's name).
         :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
@@ -346,7 +360,7 @@ class Server:
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                    cls.serve_async(agents, host, port, stateless, model_names, log_level)
+                    cls.serve_async(agents, host, port, stateless, debug, model_names, log_level)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
@@ -621,7 +635,7 @@ class Server:
                     events = []
                 else:
                     # Generate response with events
-                    events = agent(user_input, return_events=True)
+                    events = agent(user_input, return_events=True, return_tool_errors=cls._debug)
 
                 return cls._create_response(request, events)
 
@@ -698,7 +712,7 @@ class Server:
                     events = []
                 else:
                     # Generate response with events
-                    events = agent(user_input, return_events=True)
+                    events = agent(user_input, return_events=True, return_tool_errors=cls._debug)
 
                 # Pre-index tool outputs by call_id for quick lookup when we see the corresponding call event
                 outputs_by_call_id = {}
@@ -850,7 +864,7 @@ class Server:
         :param model_name: Model name to use for the agent.
         :type model_name: str
         """
-        model_name = cls._setup_agents(agent, model_name)
+        model_name = cls._setup_agents(agent, model_name, debug=cls._debug)
         logger.info(f"Added agent '{model_name}' to server")
 
     @classmethod

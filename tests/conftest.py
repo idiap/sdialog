@@ -10,8 +10,12 @@ def _install_qwen_tts_stub() -> None:
     try:
         __import__("qwen_tts")
         return
-    except ImportError:
-        pass
+    except Exception as exc:
+        print(
+            "Audio tests will be skipped because qwen_tts could not be loaded: "
+            f"{exc}",
+            file=sys.stderr,
+        )
 
     class _FakeQwen3TTSModel:
         def __init__(self, *args, **kwargs):
@@ -50,8 +54,12 @@ def _install_torchcodec_stub() -> None:
     try:
         __import__("torchcodec")
         return
-    except ImportError:
-        pass
+    except Exception as exc:
+        print(
+            "Audio tests will be skipped because torchcodec could not be loaded: "
+            f"{exc}",
+            file=sys.stderr,
+        )
 
     class _FakeTensor:
         def __init__(self, array):

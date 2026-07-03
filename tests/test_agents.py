@@ -83,3 +83,40 @@ def test_agents_dialog_with_context():
     assert len(dialog.turns) > 0
     assert agent1._context is ctx
     assert agent2._context is ctx
+
+
+def test_agent_debug_mode_surfaces_tool_error():
+    from types import SimpleNamespace
+    from langchain_core.messages import HumanMessage
+
+    class SequenceLLM:
+        def __init__(self):
+            self.calls = []
+            self.invocations = 0
+
+        def invoke(self, memory):
+            self.calls.append(list(memory))
+            self.invocations += 1
+            if self.invocations == 1:
+                return SimpleNamespace(
+                    content="",
+                    tool_calls=[{"name": "boom_tool", "args": {"x": 1}, "id": "call-1"}],
+                )
+            return SimpleNamespace(content="final answer")
+
+        def __str__(self):
+            return "sequence"
+
+    class FailingTool:
+        def invoke(self, tool_call):
+            raise RuntimeError("boom")
+
+    agent = Agent(model=SequenceLLM())
+    agent._tools = {"boom_tool": FailingTool()}
+
+    response, events = agent._get_llm_response([HumanMessage(content="hello")], return_tool_errors=True)
+
+    assert response.content == "final answer"
+    assert any(message.__class__.__name__ == "ToolMessage" and "RuntimeError: boom" in message.content
+               for message in agent.llm.calls[1])
+    assert any(event.action == "tool" and event.actionLabel == "output" for event in events)

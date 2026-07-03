@@ -32,10 +32,12 @@ class MockAgent:
         self.memory = memory or []
         self.persona = Persona(name=name)  # Mock persona instead of importing
         self.call_count = 0
+        self.last_debug = None
 
-    def __call__(self, message, return_events=False):
+    def __call__(self, message, return_events=False, return_tool_errors=False):
         """Mock agent call method."""
         self.call_count += 1
+        self.last_debug = return_tool_errors
         events = [
             Event(agent=self.name, action="think", content="I'm thinking about this...", timestamp=0),
             Event(agent=self.name, action="utter", content=f"Response to: {message}", timestamp=1)
@@ -68,6 +70,7 @@ def server_client():
     Server._agents.clear()
     Server._agent_locks.clear()
     Server._app = None
+    Server._debug = False
 
     # Create a new app
     Server._create_app()
@@ -275,6 +278,19 @@ class TestChatCompletions:
         assert data["model"] == "test-model:latest"
         assert data["object"] == "chat.completion"
         assert "choices" in data
+
+    def test_chat_completion_debug_flag_propagated(self, server_client, mock_agent):
+        """Test that server debug mode is forwarded to the agent call."""
+        Server._setup_agents(mock_agent, debug=True)
+
+        request_data = {
+            "model": "test-agent:latest",
+            "messages": [{"role": "user", "content": "Hello"}]
+        }
+
+        response = server_client.post("/v1/chat/completions", json=request_data)
+        assert response.status_code == 200
+        assert mock_agent.last_debug is True
 
     def test_chat_completion_with_open_webui_task(self, server_client, mock_agent):
         """Test chat completion with Open WebUI task message (should be ignored)."""
