@@ -6,6 +6,16 @@ This directory contains a series of tutorials demonstrating the audio generation
 
 Here is a breakdown of the tutorials available in this directory:
 
+### 0. Quickstart (`0.quickstart.ipynb`)
+**Start here.** One-line audio generation with `dialog.to_audio()`. It covers:
+- Voices matched to the personas, designed, random or your own.
+- Ground-truth annotations (segments, word timestamps, RTTM / JSON).
+- Scene presets (clean, conversational, room, call center, far field, hard) in mono or stereo.
+- Pauses, overlaps, reverberation, noise and telephone channels.
+- Parallel batch generation.
+
+> Tutorials 1-10 below use the legacy audio pipeline (`sdialog.audio.pipeline`), which is deprecated and requires `pip install sdialog[audio-legacy]`.
+
 ### 1. Audio Generation (`1.audio_generation.ipynb`)
 This tutorial covers the fundamentals of generating audio from a textual dialogue. It explains how to:
 - Set up the Text-to-Speech (TTS) engine.
