@@ -261,21 +261,21 @@ Steering intervention:
 Audio Generation
 ^^^^^^^^^^^^^^^^
 
-Turn text dialogs into realistic audio with ground-truth annotations (who speaks when, what is said), at different levels of difficulty, with a single call:
+Turn any dialog into realistic audio, with ground-truth annotations (who speaks when, what is said):
 
 .. code-block:: python
 
-    from sdialog import Dialog
+    audio = dialog.to_audio()
+    audio.save("my_dialog")  # my_dialog.wav + annotations
 
-    dialog = Dialog.from_file("my_dialog.json")
+Want it to sound like a phone call, or a noisy room? Use a preset:
 
-    audio = dialog.to_audio()                                     # clean audio (Dia2), persona-matched voices
-    audio = dialog.to_audio(preset="call_center", stereo=True)    # agent / caller on separate channels
-    audio = dialog.to_audio(voices="random", reverb="large", noise=10, overlap=0.2, seed=0)
-    audio.save("output/dialog")                                   # .wav + .json annotations + .rttm
+.. code-block:: python
+
+    audio = dialog.to_audio(preset="call_center")  # also: "room", "far_field", "hard", ...
 
 .. tip::
-   See the `audio tutorials <https://github.com/idiap/sdialog/tree/main/tutorials/01_audio>`_ for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at `Audio Generation <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation>`_.
+   Voices, pauses, overlaps, noise, stereo output, batch generation and more: see the `audio quickstart tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/0.quickstart.ipynb>`_ and the `Audio Generation <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation>`_ documentation.
 
 
 Project Vision & Community Call

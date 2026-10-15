@@ -24,9 +24,9 @@ Example:
         audio.segments                      # turn-level annotations (speaker, text, start, end, word timestamps)
         audio.save("output/dialog")         # output/dialog.wav, .json and .rttm
 
-        # Many dialogues in parallel (one model per GPU)
-        from sdialog.audio import to_audio_batch
-        to_audio_batch(dialogs, "output/", devices=["cuda:0", "cuda:1"], preset="room", seed=0)
+        # Many dialogues in parallel (one model per available GPU)
+        from sdialog.audio import dialogs_to_audio
+        dialogs_to_audio(dialogs, "output/", preset="room")
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -36,7 +36,7 @@ import importlib
 
 from .presets import register_preset, list_presets
 from .result import DialogAudio, Segment
-from .synthesis import to_audio, to_audio_batch
+from .synthesis import to_audio, dialogs_to_audio
 from .voice_database import (BaseVoiceDatabase, HuggingfaceVoiceDatabase, LocalVoiceDatabase,
                              Voice, VoiceDatabase)
 
@@ -72,7 +72,7 @@ def __getattr__(name):
 
 __all__ = [
     "to_audio",
-    "to_audio_batch",
+    "dialogs_to_audio",
     "DialogAudio",
     "Segment",
     "register_preset",

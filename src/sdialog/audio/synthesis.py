@@ -18,6 +18,7 @@ Example:
         audio = dialog.to_audio(preset="call_center", stereo=True)    # agent / caller channels
         audio = dialog.to_audio(voices="random", reverb="large", noise=10, overlap=0.2, seed=0)
         audio.save("output/dialog")                                   # .wav + .json + .rttm
+        dialogs_to_audio(dialogs, "output/", preset="room")          # many dialogues, all available GPUs
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -369,50 +370,65 @@ def _worker(jobs, out_dir, device, tts_factory, kwargs, results):
     _run_jobs(jobs, out_dir, device, tts_factory, kwargs, results)
 
 
-def to_audio_batch(dialogs: Sequence,
-                   out_dir: str,
-                   devices: Optional[List[str]] = None,
-                   workers_per_device: int = 1,
-                   tts_factory: Optional[Callable[[str], BaseDialogTTS]] = None,
-                   seed: Optional[int] = None,
-                   **kwargs) -> List[dict]:
+def _resolve_devices(devices: Optional[Union[str, List[str]]]) -> List[str]:
+    """Expands ``devices`` (None, "cpu", "cuda", "cuda:N" or a list) into a list of torch device names."""
+    if isinstance(devices, (list, tuple)):
+        if not devices:
+            raise ValueError("devices must not be an empty list")
+        return list(devices)
+    if devices not in (None, "cuda") and not isinstance(devices, str):
+        raise TypeError(f"devices must be None, a device name or a list of device names, got {devices!r}")
+    if devices is not None and devices != "cuda":
+        return [devices]  # "cpu", "cuda:1", ...
+    try:
+        import torch
+        n_gpus = torch.cuda.device_count()
+    except ImportError:
+        n_gpus = 0
+    if n_gpus == 0 and devices == "cuda":
+        raise RuntimeError("devices='cuda' was requested but no GPU is available")
+    return [f"cuda:{i}" for i in range(n_gpus)] or ["cpu"]
+
+
+def dialogs_to_audio(dialogs: Sequence,
+                     out_dir: str,
+                     devices: Optional[Union[str, List[str]]] = None,
+                     workers_per_device: int = 1,
+                     tts_factory: Optional[Callable[[str], BaseDialogTTS]] = None,
+                     seed: Optional[int] = None,
+                     **kwargs) -> List[dict]:
     """
     Converts many dialogues to audio in parallel, with one TTS model per worker process.
 
     Every dialogue is saved under ``out_dir`` (``<dialog_id>.wav``, ``.json`` and ``.rttm``) and an
-    ``index.jsonl`` file lists all the outputs. Each dialogue gets its own seed derived from ``seed`` and its
-    position in ``dialogs``, so results do not depend on the number of workers.
+    ``index.jsonl`` file lists all the outputs. Each dialogue gets its own seed (derived from ``seed`` and its
+    position in ``dialogs``, or drawn at random if ``seed`` is not given), which is saved in its annotations
+    and in ``index.jsonl``; results do not depend on the number of workers.
 
     :param dialogs: Dialogues to convert.
     :param out_dir: Output folder.
-    :param devices: Devices to use, e.g. ``["cuda:0", "cuda:1"]`` (default: all visible GPUs, or the CPU).
+    :param devices: Where to run: ``None`` (default) uses all visible GPUs, or the CPU if there is none;
+                    ``"cpu"``; ``"cuda"`` (all GPUs); a single device like ``"cuda:1"``; or a list of devices.
     :param workers_per_device: Number of worker processes (each with its own model) per device.
     :param tts_factory: Function ``device -> BaseDialogTTS`` creating each worker's engine (default:
                         ``Dia2TTS(device=device)``). Must be a top-level (picklable) function when using
                         several workers.
-    :param seed: Base random seed.
+    :param seed: Base random seed, to make the whole batch reproducible.
     :param kwargs: Any other :func:`to_audio` argument (preset, voices, stereo, ...).
-    :return: The rows of ``index.jsonl`` (one per dialogue, with output paths, or an "error" field).
+    :return: The rows of ``index.jsonl`` (one per dialogue, with output paths and seed, or an "error" field).
 
     Example:
 
         .. code-block:: python
 
-            from sdialog.audio import to_audio_batch
+            from sdialog.audio import dialogs_to_audio
 
-            rows = to_audio_batch(dialogs, "audios/", devices=["cuda:0", "cuda:1"], preset="call_center",
-                                  stereo=True, seed=0)
+            rows = dialogs_to_audio(dialogs, "audios/", preset="call_center", stereo=True)  # all available GPUs
     """
-    if devices is None:
-        try:
-            import torch
-            n_gpus = torch.cuda.device_count()
-        except ImportError:
-            n_gpus = 0
-        devices = [f"cuda:{i}" for i in range(n_gpus)] or ["cpu"]
+    devices = _resolve_devices(devices)
     os.makedirs(out_dir, exist_ok=True)
     jobs = [(ix, dialog, _dialog_seed(seed, ix)) for ix, dialog in enumerate(dialogs)]
-    workers = [d for d in devices for _ in range(workers_per_device)]
+    workers = [d for d in devices for _ in range(max(1, workers_per_device))]
     workers = workers[:max(1, len(jobs))]
 
     if len(workers) == 1:
@@ -437,4 +453,4 @@ def to_audio_batch(dialogs: Sequence,
     return rows
 
 
-__all__ = ["to_audio", "to_audio_batch", "get_default_tts"]
+__all__ = ["to_audio", "dialogs_to_audio", "get_default_tts"]

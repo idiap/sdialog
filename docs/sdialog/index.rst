@@ -669,20 +669,26 @@ Quick Start
 
 .. code-block:: python
 
-    from sdialog import Dialog
+    audio = dialog.to_audio()
+    audio.save("my_dialog")  # my_dialog.wav + my_dialog.json (annotations) + my_dialog.rttm
 
-    dialog = Dialog.from_file("my_dialog.json")
+To make it sound like a phone call, a meeting room or a noisy far-field recording, use a preset (see `Presets`_):
 
-    audio = dialog.to_audio()                 # clean audio, voices matched to the personas
-    audio.audio, audio.sample_rate            # numpy waveform (mono: (n,), stereo: (n, 2)) and sample rate
-    audio.save("output/dialog")               # output/dialog.wav, output/dialog.json, output/dialog.rttm
+.. code-block:: python
 
-    for seg in audio.segments:                # one segment per turn
+    audio = dialog.to_audio(preset="call_center")
+
+The returned object holds the audio and its annotations:
+
+.. code-block:: python
+
+    audio.audio, audio.sample_rate        # numpy waveform and sample rate
+    audio.display()                       # audio player (Jupyter)
+
+    for seg in audio.segments:            # one segment per turn
         print(f"{seg.start:6.2f} - {seg.end:6.2f}  {seg.speaker}: {seg.text}")
 
-``dialog.to_audio(path="output/dialog")`` generates and saves in one step. In Jupyter, ``audio.display()`` shows an audio player.
-
-Everything runs in memory (no temporary files), and every random choice is drawn from ``seed``: the same seed always gives the same audio. When no seed is given, a random one is drawn and stored in the annotations (``audio.config["seed"]``).
+Pass ``seed=`` to get the same audio every time. Without it, a random seed is used and saved in ``audio.config["seed"]``. The sections below cover the options for advanced use.
 
 Voices
 ------
@@ -790,14 +796,15 @@ Annotations
 Batch Generation
 ----------------
 
-``to_audio_batch`` converts many dialogues in parallel, with one TTS model per worker process. Each dialogue gets its own seed, derived from ``seed`` and its position, so the results don't depend on the number of workers:
+``dialogs_to_audio`` converts many dialogues in parallel, with one TTS model per worker process. By default it uses every available GPU (or the CPU if there is none). ``devices`` can also be ``"cpu"``, ``"cuda"``, a single device like ``"cuda:1"``, or a list of devices.
+
+Each dialogue gets its own seed. With ``seed`` set, the seed is derived from it and the dialogue's position, so the whole batch is reproducible and results don't depend on the number of workers. Without it, a random seed is used. Either way, the seed of every dialogue is saved in its annotations and in ``index.jsonl``:
 
 .. code-block:: python
 
-    from sdialog.audio import to_audio_batch
+    from sdialog.audio import dialogs_to_audio
 
-    rows = to_audio_batch(dialogs, "audios/", devices=["cuda:0", "cuda:1"],
-                          preset="call_center", stereo=True, seed=0)
+    rows = dialogs_to_audio(dialogs, "audios/", preset="call_center", stereo=True)
     # audios/<dialog_id>.wav/.json/.rttm and audios/index.jsonl
 
 Using Other TTS Engines

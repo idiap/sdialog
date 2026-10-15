@@ -17,7 +17,7 @@ pytest.importorskip("soundfile")
 from sdialog import Dialog, Turn  # noqa: E402
 from sdialog.audio import effects, list_presets, register_preset  # noqa: E402
 from sdialog.audio.presets import PRESETS, resolve_scene  # noqa: E402
-from sdialog.audio.synthesis import to_audio, to_audio_batch  # noqa: E402
+from sdialog.audio.synthesis import _resolve_devices, dialogs_to_audio, to_audio  # noqa: E402
 from sdialog.audio.timeline import place_turns  # noqa: E402
 from sdialog.audio.tts import BaseDialogTTS, PerTurnTTS, TurnAudio  # noqa: E402
 from sdialog.audio.tts.base import BaseTTS  # noqa: E402
@@ -409,14 +409,35 @@ def test_dialog_to_audio_method(dialog):
 
 
 def test_batch(dialog, tmp_path):
-    rows = to_audio_batch([dialog, dialog], str(tmp_path), devices=["cpu"], tts_factory=_tone_factory,
-                          seed=0, voices="random")
+    rows = dialogs_to_audio([dialog, dialog], str(tmp_path), devices="cpu", tts_factory=_tone_factory,
+                            seed=0, voices="random")
     assert [r["index"] for r in rows] == [0, 1] and all("error" not in r for r in rows)
     assert len(open(tmp_path / "index.jsonl").read().strip().split("\n")) == 2
     assert rows[0]["seed"] != rows[1]["seed"]
     single = to_audio(dialog, tts=ToneTTS(), voices="random", seed=rows[1]["seed"])
     import soundfile as sf
     np.testing.assert_allclose(sf.read(rows[1]["audio"])[0], single.audio, atol=1e-4)
+
+
+def test_batch_random_seeds_are_saved(dialog, tmp_path):
+    rows = dialogs_to_audio([dialog, dialog], str(tmp_path), devices="cpu", tts_factory=_tone_factory,
+                            voices="random")
+    assert all(isinstance(r["seed"], int) for r in rows) and rows[0]["seed"] != rows[1]["seed"]
+
+
+def test_resolve_devices(monkeypatch):
+    torch = pytest.importorskip("torch")
+    assert _resolve_devices("cpu") == ["cpu"]
+    assert _resolve_devices("cuda:1") == ["cuda:1"]
+    assert _resolve_devices(["cuda:0", "cuda:2"]) == ["cuda:0", "cuda:2"]
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    assert _resolve_devices(None) == ["cuda:0", "cuda:1"] and _resolve_devices("cuda") == ["cuda:0", "cuda:1"]
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 0)
+    assert _resolve_devices(None) == ["cpu"]
+    with pytest.raises(RuntimeError):
+        _resolve_devices("cuda")
+    with pytest.raises(ValueError):
+        _resolve_devices([])
 
 
 def _tone_factory(device):

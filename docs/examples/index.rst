@@ -692,14 +692,14 @@ Let's start with the simplest way to generate audio from your dialogues: ``dialo
 
     dialog = Dialog.from_file("path/to/your/dialog.json")
 
-    # Clean audio with Dia2 and voices matched to the personas
-    audio = dialog.to_audio(seed=0)
+    # Clean audio, with voices matched to the personas
+    audio = dialog.to_audio()
     audio.save("output/clean")          # output/clean.wav, .json, .rttm
 
-    # The same dialogue as a call-center recording, agent and caller on separate channels
-    audio = dialog.to_audio(preset="call_center", stereo=True, seed=0)
+    # The same dialogue as a call-center recording
+    audio = dialog.to_audio(preset="call_center")
 
-    # Full control: random voices, a reverberant room, noise and overlapping speech
+    # Advanced: random voices, a reverberant room, noise, overlapping speech, reproducible with a seed
     audio = dialog.to_audio(voices="random", reverb="large", noise=(5, 15), overlap=0.25, seed=0)
     for seg in audio.segments:
         print(f"{seg.start:6.2f} - {seg.end:6.2f}  {seg.speaker}: {seg.text}")
