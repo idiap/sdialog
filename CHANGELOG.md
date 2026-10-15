@@ -4,6 +4,38 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [0.5.0] 2026-10-15 🔊
+
+### Added
+- **sdialog.audio**:
+  - New `dialog.to_audio()` engine (`sdialog.audio.synthesis`): in-memory dialogue-to-audio synthesis returning a `DialogAudio` object with the waveform and ground-truth annotations (turn segments, word timestamps, RTTM/JSON export, `save()`).
+  - [Dia2](https://github.com/nari-labs/dia2) dialogue TTS (`Dia2TTS`) as the default engine, vendored under `sdialog.audio.tts.dia2` (Apache-2.0). Changes from upstream: seeding, Whisper loaded once, and in-memory reference audio.
+  - Voice selection with `voices="db" | "design" | "random"`, or an explicit `{speaker: voice}` dictionary.
+  - Realism controls: `pauses`, `overlap`, `reverb` (simulated rooms or measured RIRs), `noise`, `channel` (telephone codecs) and `level_jitter_db`, either shared or per speaker. Output in mono or `stereo` (one channel per speaker).
+  - Scene presets: `clean`, `conversational`, `room`, `call_center`, `far_field`, `hard`, plus `register_preset()` for custom ones.
+  - `to_audio_batch()` for parallel, multi-GPU generation, with one model per worker.
+  - `BaseDialogTTS` interface for dialogue-level engines, and `PerTurnTTS` to use classic engines (Kokoro, Qwen3-TTS, ...) with `dialog.to_audio()`.
+  - New `sdialog[audio-legacy]` extra with the dependencies of the legacy pipeline.
+
+### Changed
+- **sdialog.audio**:
+  - `sdialog[audio]` now installs the lightweight new engine plus Dia2's dependencies (Python >= 3.10). dSCAPER, librosa, sox and the other legacy dependencies moved to `sdialog[audio-legacy]`.
+  - `import sdialog.audio` no longer imports heavy dependencies; legacy names are loaded lazily.
+  - The legacy helpers that lived in `sdialog/audio/__init__.py` moved to `sdialog.audio.legacy`. They can still be imported from `sdialog.audio`.
+
+### Deprecated
+- **sdialog.audio**:
+  - The legacy pipeline (`sdialog.audio.pipeline.to_audio` / `AudioPipeline`, dSCAPER-based) is deprecated. `dialog.to_audio()` still routes calls that use its arguments (e.g. `perform_room_acoustics=True`) to it, with a `DeprecationWarning`.
+
+### Fixed
+- **sdialog.audio**:
+  - `Dialog.to_audio()` no longer hides real import errors behind "module not installed", and the documented `perform_tts` argument no longer raises a `TypeError`.
+  - Persona ages given as text (e.g. "middle-aged") no longer break voice selection.
+  - `audio/prompts/*.txt` is now included in the package.
+  - Removed leftover debug prints in the audio module.
+
+---
+
 ## [0.4.7] 2026-04-14 📞
 
 ### Added
