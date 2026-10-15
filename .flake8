@@ -2,5 +2,6 @@
 max-line-length = 120
 exclude =
     .venv,
-    ./tutorials/dscaper
-    ./git
+    ./tutorials/dscaper,
+    ./git,
+    ./src/sdialog/audio/tts/dia2/_dia2

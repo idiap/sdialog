@@ -35,6 +35,7 @@ setup:
 	python -m venv .venv
 	source .venv/bin/activate; pip install -r requirements.txt
 	source .venv/bin/activate; pip install -r requirements-audio.txt
+	source .venv/bin/activate; pip install -r requirements-audio-legacy.txt
 
 setup-dev:
 	@if [ -f requirements-dev.txt ]; then source .venv/bin/activate; pip install -r requirements-dev.txt; fi

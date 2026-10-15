@@ -166,6 +166,70 @@ sdialog.audio
    :members:
    :show-inheritance:
 
+sdialog.audio.synthesis
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.synthesis
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.result
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.result
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.presets
+^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.presets
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.effects
+^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.effects
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.timeline
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.timeline
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.voices
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.voices
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.tts.dialog_tts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.tts.dialog_tts
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
+sdialog.audio.tts.dia2.tts
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.tts.dia2.tts
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
 sdialog.audio.dialog
 ^^^^^^^^^^^^^^^^^^^^
 

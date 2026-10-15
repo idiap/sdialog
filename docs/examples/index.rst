@@ -684,7 +684,29 @@ Audio Generation
 
 Quick Audio Generation
 ~~~~~~~~~~~~~~~~~~~~~~~
-Let's start with the simplest way to generate audio from your dialogues! SDialog provides convenient one-function audio generation that handles everything automatically.
+Let's start with the simplest way to generate audio from your dialogues: ``dialog.to_audio()`` returns the audio together with its ground-truth annotations.
+
+.. code-block:: python
+
+    from sdialog import Dialog
+
+    dialog = Dialog.from_file("path/to/your/dialog.json")
+
+    # Clean audio with Dia2 and voices matched to the personas
+    audio = dialog.to_audio(seed=0)
+    audio.save("output/clean")          # output/clean.wav, .json, .rttm
+
+    # The same dialogue as a call-center recording, agent and caller on separate channels
+    audio = dialog.to_audio(preset="call_center", stereo=True, seed=0)
+
+    # Full control: random voices, a reverberant room, noise and overlapping speech
+    audio = dialog.to_audio(voices="random", reverb="large", noise=(5, 15), overlap=0.25, seed=0)
+    for seg in audio.segments:
+        print(f"{seg.start:6.2f} - {seg.end:6.2f}  {seg.speaker}: {seg.text}")
+
+Legacy Audio Pipeline (deprecated)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The examples below use the deprecated ``sdialog.audio.pipeline`` (dSCAPER and 3D room models), which requires ``pip install sdialog[audio-legacy]`` and will be removed in a future release.
 
 .. code-block:: python
 
@@ -724,7 +746,9 @@ For more control over the audio generation process, let's use the full AudioPipe
 
 .. code-block:: python
 
-    from sdialog.audio import AudioDialog, KokoroTTS, HuggingfaceVoiceDatabase
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.tts import KokoroTTS
+    from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
     from sdialog.audio.pipeline import AudioPipeline
     from sdialog.audio.room import DirectivityType
     from sdialog.audio.utils import SourceVolume, SourceType, Role

@@ -23,6 +23,7 @@ import csv
 import logging
 import importlib
 import tempfile
+import warnings
 
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
@@ -42,6 +43,17 @@ logging.basicConfig(
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+# Arguments of the legacy (deprecated) audio pipeline, routed to it by Dialog.to_audio() for compatibility
+_LEGACY_TO_AUDIO_ARGS = {
+    "dir_audio", "dialog_dir_name", "dscaper_data_path", "room_name", "perform_room_acoustics", "tts_engine",
+    "persona_to_voice_desc", "dscaper_datasets", "room", "speaker_positions", "background_effect",
+    "foreground_effect", "foreground_effect_position", "kwargs_pyroom", "source_volumes", "audio_file_format",
+    "recording_devices", "impulse_response_database", "override_tts_audio", "verbose", "overlap_pauses",
+    "add_sound_effects", "sound_effects_datasets", "sound_effects_dropout", "skip_annotation", "remove_silences",
+    "normalize", "callback_mix_fn", "callback_mix_kwargs", "room_acoustics_backend",
+    "room_acoustics_backend_kwargs", "perform_tts",
+}
 
 # import config sumbodule as "config" attribute of the package
 config = importlib.import_module("sdialog.config")
@@ -496,89 +508,73 @@ class Dialog(BaseModel):
     def to_audio(
         self,
         path: str = None,
-        **kwargs: dict
+        preset: str = None,
+        voices: Union[str, dict] = "db",
+        stereo: bool = False,
+        sample_rate: int = 16000,
+        seed: int = None,
+        **kwargs
     ):
         """
-        Convert the dialogue to an audio dialogue.
-        This is a convenience wrapper around the full `sdialog.audio.pipeline.to_audio` function.
-        All keyword arguments are passed to it.
+        Converts the dialogue into audio, with ground-truth annotations (who speaks when, what is said).
 
-        :param path: Path to the audio file or directory for storing audio outputs.
+        Uses the Dia2 dialogue TTS model by default. See :func:`sdialog.audio.synthesis.to_audio` for all the
+        options (``voice_database``, ``tts``, ``pauses``, ``overlap``, ``max_overlap``, ``reverb``, ``noise``,
+        ``channel``, ``level_jitter_db``, ...).
+
+        Example:
+
+            .. code-block:: python
+
+                audio = dialog.to_audio()                                   # clean, persona-matched voices
+                audio = dialog.to_audio(preset="call_center", stereo=True)  # one channel per speaker
+                audio = dialog.to_audio(voices="random", reverb="large", noise=10, overlap=0.2, seed=0)
+                audio.save("output/dialog")                                 # .wav + .json + .rttm
+
+        :param path: If given, saves ``<path>.wav``, ``<path>.json`` (annotations) and ``<path>.rttm``.
         :type path: str
-        :param dialog_dir_name: Custom name for the dialogue directory.
-        :type dialog_dir_name: str
-        :param dscaper_data_path: Path to dSCAPER data directory.
-        :type dscaper_data_path: Optional[str]
-        :param room_name: Custom name for the room configuration.
-        :type room_name: Optional[str]
-        :param perform_tts: Convert the dialog into audio using the text-to-speech engine.
-        :type perform_tts: Optional[bool]
-        :param perform_room_acoustics: Enable room acoustics simulation and dSCAPER timeline generation.
-        :type perform_room_acoustics: Optional[bool]
-        :param tts_engine: Text-to-speech engine for audio generation.
-        :type tts_engine: BaseTTS
-        :param voice_database: Voice database for speaker selection.
-        :type voice_database: BaseVoiceDatabase
-        :param dscaper_datasets: List of Hugging Face datasets for dSCAPER.
-        :type dscaper_datasets: List[str]
-        :param room: Room configuration for acoustics simulation.
-        :type room: Room
-        :param speaker_positions: Speaker positioning configuration.
-        :type speaker_positions: dict[Role, dict]
-        :param background_effect: Background audio effect type.
-        :type background_effect: str
-        :param foreground_effect: Foreground audio effect type.
-        :type foreground_effect: str
-        :param foreground_effect_position: Position for foreground effects.
-        :type foreground_effect_position: RoomPosition
-        :param kwargs_pyroom: PyRoomAcoustics configuration parameters.
-        :type kwargs_pyroom: dict
-        :param source_volumes: Volume levels for different audio sources.
-        :type source_volumes: dict[SourceType, SourceVolume]
-        :param audio_file_format: Audio file format (wav, mp3, flac).
-        :type audio_file_format: str
-        :param seed: Seed for random number generator.
+        :param preset: Scene preset: "clean", "conversational", "room", "call_center", "far_field" or "hard".
+        :type preset: str
+        :param voices: "db" (voice database matching the personas), "design" (designed from the persona
+                       description), "random", or a ``{speaker: voice}`` dictionary.
+        :type voices: Union[str, dict]
+        :param stereo: If True, output one channel per speaker; otherwise mono.
+        :type stereo: bool
+        :param sample_rate: Output sample rate (Hz).
+        :type sample_rate: int
+        :param seed: Random seed for reproducible audio.
         :type seed: int
-        :param recording_devices: The identifiers of the recording devices to simulate.
-        :type recording_devices: Optional[List[Union[RecordingDevice, str]]]
-        :param impulse_response_database: The database for impulse responses.
-        :type impulse_response_database: Optional[ImpulseResponseDatabase]
-        :param override_tts_audio: Override the TTS audio if it already exists.
-        :type override_tts_audio: Optional[bool]
-        :param verbose: Verbose mode for logging.
-        :type verbose: Optional[bool]
-        :param overlap_pauses: Generate the audio with overlapping and pausing between turns using LLM.
-        :type overlap_pauses: Optional[bool]
-        :param add_sound_effects: Add sound effects (such as door opening, footsteps, etc.) to the audio.
-        :type add_sound_effects: Optional[bool]
-        :param sound_effects_dropout: Dropout rate for sound effects.
-        :type sound_effects_dropout: Optional[float]
-        :param skip_annotation: Whether to skip the annotation of the sound effects
-                                (if your dialogs are already annotated with sound effects tags, you can skip this step).
-        :type skip_annotation: Optional[bool]
-        :param remove_silences: Remove the silences at the beginning and the end of the audio.
-        :type remove_silences: Optional[bool]
-        :param callback_mix_fn: Callback function to apply to the mixed audio.
-        :type callback_mix_fn: Optional[Callable]
-        :param callback_mix_kwargs: Keyword arguments for the callback function.
-        :type callback_mix_kwargs: dict
-        :return: Audio dialogue with processed audio data.
-        :rtype: "sdialog.audio.dialog.AudioDialog"
-        :raises Exception: If the audio module is not installed.
+        :return: The audio and its annotations.
+        :rtype: sdialog.audio.DialogAudio
+        :raises ImportError: If the audio dependencies are not installed.
         """
+        legacy_args = set(kwargs) & _LEGACY_TO_AUDIO_ARGS
+        if legacy_args:
+            warnings.warn(f"dialog.to_audio() arguments {sorted(legacy_args)} belong to the legacy audio pipeline, "
+                          "which is deprecated and will be removed in a future release. See the documentation of "
+                          "sdialog.audio for the new options.", DeprecationWarning, stacklevel=2)
+            try:
+                from sdialog.audio.pipeline import to_audio as legacy_to_audio
+            except ImportError as e:
+                raise ImportError(f"The legacy audio pipeline dependencies are missing ({e}). "
+                                  "Install them with `pip install sdialog[audio-legacy]`.") from e
+            kwargs.pop("perform_tts", None)  # documented but never supported by the legacy pipeline
+            if path is not None:
+                kwargs["dir_audio"] = path
+            if seed is not None:
+                kwargs["seed"] = seed
+            if voices != "db":
+                kwargs["voices"] = voices
+            return legacy_to_audio(self, **kwargs)
 
         try:
-            from sdialog.audio.pipeline import to_audio
-        except Exception:
-            raise Exception("The audio module is not installed. Please install it with `pip install sdialog[audio]`")
+            from sdialog.audio.synthesis import to_audio
+        except ImportError as e:
+            raise ImportError(f"The audio dependencies are missing ({e}). "
+                              "Install them with `pip install sdialog[audio]`.") from e
 
-        if path is not None:
-            kwargs["dir_audio"] = path
-
-        return to_audio(
-            self,
-            **kwargs
-        )
+        return to_audio(self, path=path, preset=preset, voices=voices, stereo=stereo,
+                        sample_rate=sample_rate, seed=seed, **kwargs)
 
     @staticmethod
     def from_huggingface(repo_id: str,

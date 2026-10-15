@@ -261,9 +261,7 @@ Steering intervention:
 Audio Generation
 ^^^^^^^^^^^^^^^^
 
-Convert text dialogs to realistic audio conversations with speech synthesis, voice assignment, and acoustic simulation.
-
-SDialog can transform text dialogs into realistic audio conversations with a simple one-line command:
+Turn text dialogs into realistic audio with ground-truth annotations (who speaks when, what is said), at different levels of difficulty, with a single call:
 
 .. code-block:: python
 
@@ -271,15 +269,10 @@ SDialog can transform text dialogs into realistic audio conversations with a sim
 
     dialog = Dialog.from_file("my_dialog.json")
 
-    # Convert to audio with default settings (Kokoro TTS)
-    audio_dialog = dialog.to_audio()
-
-    # Or customize the audio generation
-    audio_dialog = dialog.to_audio(
-        perform_room_acoustics=True,
-        audio_file_format="mp3",
-        re_sampling_rate=16000,
-    )
+    audio = dialog.to_audio()                                     # clean audio (Dia2), persona-matched voices
+    audio = dialog.to_audio(preset="call_center", stereo=True)    # agent / caller on separate channels
+    audio = dialog.to_audio(voices="random", reverb="large", noise=10, overlap=0.2, seed=0)
+    audio.save("output/dialog")                                   # .wav + .json annotations + .rttm
 
 .. tip::
    See the `audio tutorials <https://github.com/idiap/sdialog/tree/main/tutorials/01_audio>`_ for examples including acoustic simulation, room generation, and voice databases. Full documentation is available at `Audio Generation <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation>`_.

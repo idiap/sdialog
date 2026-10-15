@@ -47,7 +47,8 @@ autodoc_mock_imports = [
     # Model / orchestration related
     'ollama', 'openai',
     # Audio processing libraries
-    'soundfile', 'dscaper', 'pyroomacoustics', 'TTS', 'kokoro',
+    'soundfile', 'dscaper', 'pyroomacoustics', 'TTS', 'kokoro', 'sphn', 'whisper_timestamped',
+    'safetensors', 'qwen_tts',
     # Utility libs
     'tqdm', 'print_color', 'jinja2', 'graphviz', 'PIL', 'tenacity', 'joblib'
 ]

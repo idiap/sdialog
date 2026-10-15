@@ -264,23 +264,19 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 ## 🔊 Audio generation
 
 <details>
-<summary>Convert text dialogs to audio conversations with speech synthesis, voice assignment, and acoustic simulation.</summary>
+<summary>Turn text dialogs into realistic audio, with ground-truth annotations, at different levels of difficulty.</summary>
 
-SDialog can transform text dialogs into audio conversations with a simple one-line command. The audio module supports:
+SDialog turns any two-speaker dialog into audio with a single call. Each turn is annotated with its speaker, text, start and end times, and word timestamps, so the audio can be used for ASR, diarization, speech LLMs and other speech tasks:
 
-* **Text-to-Speech (TTS)**: Kokoro and HuggingFace models (with planned support for better TTS like IndexTTS and API-based TTS like OpenAI)
-* **Voice databases**: Automatic or manual voice assignment based on persona attributes (age, gender, language)
-* **Acoustic simulation**: Room acoustics simulation for realistic spatial audio
-* **Microphone simulation**: Professional microphones simulation from brands like Shure, Sennheiser, and Sony
-* **Multiple formats**: Export to WAV, MP3, or FLAC with custom sampling rates
-* **Multi-stage pipeline**: Step 1 (tts and concatenate utterances) and Step 2/3 (position based timeline generation and room acoustics)
+* **Dialogue TTS**: [Dia2](https://github.com/nari-labs/dia2) is the default engine. It generates whole conversations with natural turn-taking. Other engines (Kokoro, Qwen3-TTS, ...) are also supported.
+* **Voices**: matched to the personas (gender, age) from a voice database, designed from the persona description, random, or set by you.
+* **Realism controls**: pauses, overlapping speech, room reverberation, background noise, telephone codecs (G.711, G.729, AMR), and loudness differences between speakers.
+* **Presets**: `clean`, `conversational`, `room`, `call_center`, `far_field` and `hard`, or your own.
+* **Output**: mono or stereo (one channel per speaker), any sample rate, saved as WAV plus JSON and RTTM annotations.
 
-Generate audio from any dialog easily with just a few lines of code:
-
-Install dependencies (see [the documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#setup-and-installation) for complete setup instructions):
+Install dependencies (Dia2 needs Python >= 3.10, and a GPU is recommended):
 
 ```bash
-apt-get install sox ffmpeg espeak-ng
 pip install sdialog[audio]
 ```
 
@@ -291,17 +287,21 @@ from sdialog import Dialog
 
 dialog = Dialog.from_file("my_dialog.json")
 
-# Convert to audio with default settings (HuggingFace TTS - single speaker)
-audio_dialog = dialog.to_audio(perform_room_acoustics=True)
-print(audio_dialog.display())
+audio = dialog.to_audio()                                         # clean audio, persona-matched voices
+audio = dialog.to_audio(preset="call_center", stereo=True)        # agent / caller on separate channels
+audio = dialog.to_audio(voices="random", reverb="large", noise=10, overlap=0.2, seed=0)
 
-# Or customize the audio generation
-audio_dialog = dialog.to_audio(
-  perform_room_acoustics=True,
-  audio_file_format="mp3",
-  re_sampling_rate=16000,
-)
-print(audio_dialog.display())
+audio.save("output/dialog")          # output/dialog.wav, .json (annotations) and .rttm
+for seg in audio.segments:
+    print(f"{seg.start:6.2f} - {seg.end:6.2f}  {seg.speaker}: {seg.text}")
+```
+
+To convert a whole dataset in parallel, with one model per GPU:
+
+```python
+from sdialog.audio import to_audio_batch
+
+to_audio_batch(dialogs, "audios/", devices=["cuda:0", "cuda:1"], preset="room", seed=0)
 ```
 
 </details>

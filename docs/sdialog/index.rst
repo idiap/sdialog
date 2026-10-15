@@ -653,49 +653,180 @@ Ready to dive deeper? Here's how we can inspect multiple layers simultaneously a
 Audio Generation
 =============================
 
-The audio module of SDialog extends the core functionality by adding comprehensive audio generation and processing capabilities for dialogues. It enables transforming text dialogues into immersive audio experiences with realistic voices and simulated acoustic environments.
+SDialog turns any two-speaker dialogue into realistic audio with a single call, ``dialog.to_audio()``, and returns the audio together with its **ground-truth annotations**: who speaks when, what is said, and word timestamps. With control over voices, timing and acoustics, the same text dialogues can produce audio at different levels of difficulty, for ASR, speaker diarization, speech LLMs, call-center analytics and other speech tasks.
 
 Setup and Installation
 ----------------------
-
-To work with audio features in SDialog, you'll need to install additional dependencies and system packages:
-
-**1. Install SDialog with Audio Dependencies**
 
 .. code-block:: bash
 
     pip install sdialog[audio]
 
-**2. Install System Dependencies**
+The default TTS engine, `Dia2 <https://github.com/nari-labs/dia2>`_, requires **Python >= 3.10**, and a GPU is strongly recommended. It is installed with ``sdialog[audio]``, and its weights are downloaded from Hugging Face on first use. On Python 3.9, ``sdialog[audio]`` installs without Dia2; use another engine instead (see `Using Other TTS Engines`_).
 
-Install Sox and FFmpeg for audio processing:
+Quick Start
+-----------
 
-.. code-block:: bash
+.. code-block:: python
 
-    apt-get install sox ffmpeg
+    from sdialog import Dialog
 
-**3. TTS Engine Setup**
+    dialog = Dialog.from_file("my_dialog.json")
 
-- **HuggingFace TTS**: Already included with ``sdialog[audio]`` (default TTS engine).
+    audio = dialog.to_audio()                 # clean audio, voices matched to the personas
+    audio.audio, audio.sample_rate            # numpy waveform (mono: (n,), stereo: (n, 2)) and sample rate
+    audio.save("output/dialog")               # output/dialog.wav, output/dialog.json, output/dialog.rttm
 
-- **Kokoro TTS**: Requires installation after ``espeak-ng`` for phoneme processing:
+    for seg in audio.segments:                # one segment per turn
+        print(f"{seg.start:6.2f} - {seg.end:6.2f}  {seg.speaker}: {seg.text}")
 
-.. code-block:: bash
+``dialog.to_audio(path="output/dialog")`` generates and saves in one step. In Jupyter, ``audio.display()`` shows an audio player.
 
-    apt-get install espeak-ng
-    pip install -q kokoro>=0.9.4
+Everything runs in memory (no temporary files), and every random choice is drawn from ``seed``: the same seed always gives the same audio. When no seed is given, a random one is drawn and stored in the annotations (``audio.config["seed"]``).
 
-- **Other TTS Engines**: If you plan to use custom TTS engines (e.g., XTTS, IndexTTS), install them manually according to their documentation before use.
+Voices
+------
 
-Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies (including Ollama server, Kokoro TTS, and other TTS engines) is available on Hugging Face and can be downloaded `here <https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif>`_.
+The ``voices`` argument selects how each speaker's voice is chosen:
 
-.. code-block:: bash
+- ``"db"`` (default): picked from a voice database to match each persona's gender, age and language. The default database is ``sdialog/voices-libritts``; pass ``voice_database=`` to use another one (see `Voice Database Management`_). Ages such as ``"middle-aged"`` or ``"30s"`` are understood. Note that ``sdialog/voices-libritts`` has no age labels, so with it voices are matched by gender and language only.
+- ``"design"``: designed from each persona's description with Qwen3-TTS VoiceDesign (requires ``pip install qwen-tts``). The description comes from a Jinja2 template over the persona fields, which you can change with ``voice_description=``.
+- ``"random"``: made up by Dia2, giving new voices for every seed. Each speaker keeps their voice for the whole dialogue.
+- A dictionary ``{speaker: voice}`` with explicit voices, keyed by speaker name or index. A voice is a reference audio path, an ``(array, sample_rate)`` tuple, or a ``Voice`` from a database. Speakers missing from the dictionary get a random voice (a database voice if the engine cannot make up voices).
 
-    apptainer exec --nv sdialog.sif python3 -c "import sdialog; print(sdialog.__version__)"
+.. code-block:: python
 
+    audio = dialog.to_audio(voices="random", seed=42)
+    audio = dialog.to_audio(voices="design", voice_description="A {{ gender }} voice, {{ age }} years old, calm.")
+    audio = dialog.to_audio(voices={"Doctor": "voices/doctor.wav", "Patient": "voices/patient.wav"})
+    print(audio.voices)                       # which voice each speaker got
+
+Timing and Acoustics
+--------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - Argument
+     - Effect
+   * - ``pauses``
+     - ``"natural"`` (default) keeps the timing produced by the TTS engine. A number is the median pause in seconds (log-normal). A ``(min, max)`` tuple draws pauses uniformly.
+   * - ``overlap``
+     - Probability (0-1) that a turn starts before the previous one ends. ``max_overlap`` caps the overlap as a fraction of the previous turn (default 0.3). A speaker never overlaps themselves.
+   * - ``reverb``
+     - ``"small"``, ``"medium"``, ``"large"`` (or ``True``): a simulated room (pyroomacoustics) with a random size, RT60 and speaker positions. Alternatively, a path to an impulse-response file or folder of measured RIRs. Speech onsets are kept aligned, so the annotations stay valid.
+   * - ``noise``
+     - An SNR in dB, a ``(min, max)`` SNR range, a noise type (``"white"``, ``"pink"``, ``"brown"``) or a noise audio file/folder, or ``{"type": ..., "snr": ...}``.
+   * - ``channel``
+     - A telephone codec: ``"telephone"`` (= ``"g711"``), ``"g711"``, ``"g729"``, ``"amr"``, ``"amr-wb"``.
+   * - ``level_jitter_db``
+     - Maximum random loudness difference (dB) between the two speakers.
+   * - ``stereo``
+     - ``True`` for one channel per speaker (in order of appearance), ``False`` (default) for mono.
+   * - ``sample_rate``
+     - Output sample rate (default 16000 Hz).
+
+``reverb``, ``noise`` and ``channel`` accept **one value for the whole recording**, or a **dictionary per speaker**, keyed by speaker name or index (0 = first speaker). A list of values means "pick one at random":
+
+.. code-block:: python
+
+    # both speakers in the same large room (different positions), noisy
+    audio = dialog.to_audio(reverb="large", noise=(5, 15))
+
+    # a phone call: only the caller goes through a (random) codec, and only their side is noisy
+    audio = dialog.to_audio(channel={"Caller": ["g711", "amr"]},
+                            noise={"Caller": {"type": "pink", "snr": (10, 20)}},
+                            overlap=0.15, stereo=True)
+
+Effects for a single speaker are applied to that speaker's own track. Shared effects are applied to the recording: the mono mix, or each stereo channel.
+
+Presets
+-------
+
+Presets bundle realistic values for the timing and acoustic arguments:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - Preset
+     - Scene
+   * - ``clean``
+     - Natural TTS timing, no effects (the default).
+   * - ``conversational``
+     - Shorter pauses, 15% overlapping turns, small loudness differences.
+   * - ``room``
+     - Meeting/office: both speakers in a medium room, light pink noise (SNR 20-30 dB).
+   * - ``call_center``
+     - Agent (first speaker) on a headset; caller (second speaker) through a G.711/AMR phone line with noise (SNR 10-25 dB).
+   * - ``far_field``
+     - Distant microphone in a large reverberant room, SNR 5-15 dB, 20% overlaps.
+   * - ``hard``
+     - Large room, SNR 0-10 dB, G.711 channel, 30% overlaps, ±3 dB loudness differences.
+
+A preset only sets the scene, never the output format, so any preset can be rendered in mono or stereo. Explicit arguments override the preset, and ``False`` turns off one of its effects:
+
+.. code-block:: python
+
+    audio = dialog.to_audio(preset="call_center", stereo=True)   # agent on channel 0, caller on channel 1
+    audio = dialog.to_audio(preset="call_center")                 # same scene, mono
+    audio = dialog.to_audio(preset="hard", channel=False)          # hard, without the telephone channel
+
+    from sdialog.audio import register_preset
+    register_preset("noisy_phone", channel="g711", noise={"type": "brown", "snr": (0, 10)}, overlap=0.2)
+    audio = dialog.to_audio(preset="noisy_phone")
+
+Annotations
+-----------
+
+``to_audio()`` returns a ``DialogAudio`` object:
+
+- ``audio.segments``: one ``Segment`` per turn, with ``turn`` (index in the dialogue), ``speaker``, ``text``, ``start``, ``end``, ``channel`` (stereo only) and ``words`` (word start times, when the engine provides them).
+- ``audio.voices``: the voice of each speaker, e.g. the voice database identifier.
+- ``audio.config``: every parameter used, including the values drawn at random (seed, room size and RT60, SNRs, codecs, ...).
+- ``audio.to_rttm()`` (speaker diarization ground truth), ``audio.to_dict()`` and ``audio.to_json()``.
+
+Batch Generation
+----------------
+
+``to_audio_batch`` converts many dialogues in parallel, with one TTS model per worker process. Each dialogue gets its own seed, derived from ``seed`` and its position, so the results don't depend on the number of workers:
+
+.. code-block:: python
+
+    from sdialog.audio import to_audio_batch
+
+    rows = to_audio_batch(dialogs, "audios/", devices=["cuda:0", "cuda:1"],
+                          preset="call_center", stereo=True, seed=0)
+    # audios/<dialog_id>.wav/.json/.rttm and audios/index.jsonl
+
+Using Other TTS Engines
+-----------------------
+
+Any classic, one-utterance-at-a-time engine can be passed as ``tts``; it is wrapped with ``PerTurnTTS``. This also works on Python 3.9. Each turn is then generated independently:
+
+.. code-block:: python
+
+    from sdialog.audio.tts import Dia2TTS, KokoroTTS, Qwen3TTSVoiceClone
+
+    audio = dialog.to_audio(tts=KokoroTTS())                         # voices from sdialog/voices-kokoro
+    audio = dialog.to_audio(tts=Qwen3TTSVoiceClone())                # voice cloning from sdialog/voices-libritts
+    audio = dialog.to_audio(tts=Dia2TTS("nari-labs/Dia2-1B", cfg_scale=3.0))   # smaller / tuned Dia2
+
+New dialogue-level engines can be added by subclassing ``sdialog.audio.tts.BaseDialogTTS``.
+
+Legacy Audio Pipeline (deprecated)
+----------------------------------
+
+.. warning::
+
+    The pipeline below (``sdialog.audio.pipeline.to_audio`` / ``AudioPipeline``, based on dSCAPER and 3D room
+    models) is deprecated and will be removed in a future release. It needs ``pip install sdialog[audio-legacy]``
+    and system packages (``apt-get install sox ffmpeg``). ``dialog.to_audio()`` still routes calls that use its
+    arguments (e.g. ``perform_room_acoustics=True``) to it, with a deprecation warning.
 
 Audio Module Overview
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 The audio module provides:
 
@@ -705,7 +836,7 @@ The audio module provides:
 - **Audio Pipeline**: Complete dialogue processing with turn-based audio generation
 
 Core Components
----------------
+~~~~~~~~~~~~~~~
 
 **AudioDialog** (:class:`~sdialog.audio.dialog.AudioDialog`)
     Extended dialogue class that inherits from :class:`~sdialog.Dialog` and adds audio turn support. It also contains all the information to generate the audio dialogue.
@@ -742,7 +873,7 @@ Core Components
     Applies audio effects, such as microphone simulation by convolving audio with an impulse response from an impulse response database.
 
 Quick Usage
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 For simple use cases, SDialog provides convenient one-function audio generation:
 
@@ -779,13 +910,15 @@ For simple use cases, SDialog provides convenient one-function audio generation:
     print(f"Room acoustics: {audio_dialog.audio_step_3_filepaths}")
 
 Complete Usage Example
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Here's how to create a complete audio dialogue with environment simulation using the audio pipeline:
 
 .. code-block:: python
 
-    from sdialog.audio import AudioDialog, KokoroTTS, HuggingfaceVoiceDatabase
+    from sdialog.audio.dialog import AudioDialog
+    from sdialog.audio.tts import KokoroTTS
+    from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
     from sdialog.audio.pipeline import AudioPipeline
     from sdialog.audio.room import DirectivityType
     from sdialog.audio.utils import SourceVolume, SourceType
@@ -861,7 +994,7 @@ Here's how to create a complete audio dialogue with environment simulation using
     print(f"Room acoustics simulation: {audio_dialog.audio_step_3_filepaths}")
 
 Room Generation and Configuration
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 SDialog provides powerful room generation capabilities for creating realistic acoustic environments:
 
@@ -1038,7 +1171,7 @@ SDialog provides powerful room generation capabilities for creating realistic ac
     print(f"Speaker 2D distances to the microphone: {distances}")
 
 Voice Database Management
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 SDialog supports multiple voice database types for flexible voice selection:
 
@@ -1129,7 +1262,7 @@ SDialog supports multiple voice database types for flexible voice selection:
     female_voice_spanish = quick_voices.get_voice(gender="female", age=25, lang="spanish")
 
 Microphone Effects
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 SDialog allows you to simulate various microphone effects by applying impulse responses to your generated audio. This is useful for creating more realistic audio by simulating different recording environments and devices.
 
@@ -1159,7 +1292,7 @@ SDialog allows you to simulate various microphone effects by applying impulse re
     )
 
 Telecommunications Simulation
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 SDialog provides a specialized backend for simulating telecommunications, such as telephone calls. This allows you to place each speaker in a different acoustic environment (room) and apply telephone-like bandpass filtering and codec compression before mixing their audio.
 
@@ -1196,7 +1329,7 @@ SDialog provides a specialized backend for simulating telecommunications, such a
 Supported codecs include: ``'g.711'``, ``'g.729'``, ``'amr'``, ``'amr-wb'``, and ``'default'``. You can also control the mixing strategy (``mono`` or ``stereo``) to place speakers on different audio channels.
 
 Multilingual Audio Generation
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 SDialog supports multilingual audio generation with custom TTS engines:
 

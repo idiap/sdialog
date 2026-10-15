@@ -13,7 +13,7 @@ print-color
 PyYAML
 tqdm
 tenacity
-syllables
+syllables>=1.0.4
 
 # === Web server (optional) ===
 fastapi
