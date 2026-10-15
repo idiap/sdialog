@@ -205,9 +205,6 @@ class TelecommunicationsBackend(BaseRoomAcousticsBackend):
             raise ValueError("No audio signals generated. Check speaker roles and sources.")
 
         mixing_strategy = env.get("mixing_strategy", "mono")
-        print("#########################")
-        print("mixing_strategy: ", mixing_strategy)
-        print("#########################")
 
         # Mix all speakers together
         # Pad to same length if necessary
@@ -216,11 +213,9 @@ class TelecommunicationsBackend(BaseRoomAcousticsBackend):
 
         if mixing_strategy == "stereo":
             if len(padded_signals) == 1:
-                print("usecase 1")
                 # Strictly one speaker on the left channel, silence on the right
                 final_mix = np.stack([padded_signals[0], np.zeros_like(padded_signals[0])], axis=1)
             else:
-                print("usecase 2")
 
                 # Strictly first speaker on the left, second speaker on the right
                 left_channel = padded_signals[0]

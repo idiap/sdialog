@@ -40,12 +40,7 @@ from enum import Enum
 from jinja2 import Template
 from pydantic import BaseModel, field_validator
 
-# Create a logger for the audio module
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+# Logger for the audio module (logging configuration is left to the application)
 logger = logging.getLogger(__name__)
 
 voice_reference_model = None

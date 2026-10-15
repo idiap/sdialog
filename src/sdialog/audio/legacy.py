@@ -1,52 +1,10 @@
 """
-This module provides comprehensive functionality for generating audio from text utterances in dialogues.
+Legacy audio generation helpers (turn-by-turn TTS and pyroomacoustics room simulation), used by the
+deprecated :mod:`sdialog.audio.pipeline`.
 
-The audio module extends the core sdialog functionality by adding:
-
-  - Audio generation from text using various TTS engines (Kokoro, IndexTTS)
-  - Voice databases with speaker characteristics (gender, age, language)
-  - Room acoustics simulation for realistic audio environments
-  - Audio dialogue processing with turn-based audio generation
-
-Key Components:
-
-  - AudioDialog: Extended dialogue class with audio turn support
-  - AudioTurn: Individual dialogue turns with associated audio data
-  - BaseTTS: Abstract base class for text-to-speech engines
-  - BaseVoiceDatabase: Voice database management with speaker characteristics
-  - Room: 3D room specification for acoustics simulation
-  - AcousticsSimulator: Acoustics simulation engine
-
-Example:
-
-    .. code-block:: python
-
-        from sdialog.audio import AudioDialog, KokoroTTS, HuggingfaceVoiceDatabase
-        from sdialog.audio.room import Room
-
-        # Create TTS engine and voice database
-        tts = KokoroTTS(lang_code="a")  # American English
-        voice_db = HuggingfaceVoiceDatabase("sdialog/voices-libritts")
-
-        # Convert regular dialog to audio dialog
-        audio_dialog = AudioDialog.from_dialog(dialog)
-
-        # Generate audio for all utterances
-        audio_dialog = generate_utterances_audios(
-            dialog=audio_dialog,
-            voice_database=voice_db,
-            tts_pipeline=tts,
-            seed=42
-        )
-
-        # Simulate room acoustics
-        room = Room(dimensions=(5.0, 4.0, 3.0))
-        audio_dialog = generate_audio_room_accoustic(
-            dialog=audio_dialog,
-            room=room,
-            dialog_directory="output",
-            room_name="living_room"
-        )
+.. deprecated:: 0.5.0
+    Use ``dialog.to_audio()`` (:func:`sdialog.audio.synthesis.to_audio`) instead. This module will be
+    removed in a future release.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>

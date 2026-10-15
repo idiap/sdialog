@@ -26,7 +26,8 @@ Example:
 
     .. code-block:: python
 
-        from sdialog.audio import to_audio, KokoroTTS, HuggingfaceVoiceDatabase
+        from sdialog.audio.pipeline import to_audio
+        from sdialog.audio import KokoroTTS, HuggingfaceVoiceDatabase
         from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 
         # Generate audio from dialogue
@@ -38,6 +39,10 @@ Example:
             voice_database=HuggingfaceVoiceDatabase("sdialog/voices-kokoro"),
             room=MedicalRoomGenerator().generate(args={"room_type": RoomRole.EXAMINATION})
         )
+
+.. deprecated:: 0.5.0
+    This pipeline is deprecated and will be removed in a future release. Use ``dialog.to_audio()``
+    (:func:`sdialog.audio.synthesis.to_audio`) instead.
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
@@ -46,6 +51,7 @@ Example:
 import os
 import json
 import random
+import warnings
 import dscaper
 import librosa
 import logging
@@ -58,7 +64,7 @@ from sdialog import Dialog
 from sdialog.audio.utils import logger
 from sdialog.audio.dialog import AudioDialog
 from sdialog.audio.processing import AudioProcessor
-from sdialog.audio import generate_utterances_audios
+from sdialog.audio.legacy import generate_utterances_audios
 from sdialog.audio.normalizers import normalize_audio
 from sdialog.audio.jsalt import MedicalRoomGenerator, RoomRole
 from sdialog.audio.room import Room, RoomPosition, DirectivityType
@@ -74,6 +80,10 @@ from sdialog.audio.utils import (
     default_dscaper_datasets,
     default_sound_effects_datasets
 )
+
+
+_DEPRECATION_MESSAGE = ("sdialog.audio.pipeline (to_audio / AudioPipeline) is deprecated and will be removed in a "
+                        "future release; use dialog.to_audio() (sdialog.audio.synthesis.to_audio) instead.")
 
 
 def to_audio(
@@ -413,6 +423,7 @@ class AudioPipeline:
         :param impulse_response_database: The database for impulse responses.
         :type impulse_response_database: Optional[ImpulseResponseDatabase]
         """
+        warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
 
         self.dir_audio = dir_audio
 

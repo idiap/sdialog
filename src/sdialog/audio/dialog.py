@@ -549,10 +549,6 @@ class AudioDialog(Dialog):
             # Get the role of the speaker (speaker_1 or speaker_2)
             role: Role = self.speakers_roles[speaker]
 
-            print(f"voices: {voices}")
-            print(f"role: {role}")
-            print(f"speaker: {speaker}")
-
             if voices and role not in voices and speaker not in voices:
                 raise ValueError(f"Voice for {str(role)} not found in the voices dictionary")
 
