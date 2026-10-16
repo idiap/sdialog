@@ -1019,7 +1019,8 @@ class Dialog(BaseModel):
         """
         return Dialog.model_validate(data)
 
-    def from_json(self, json_str: str):
+    @staticmethod
+    def from_json(json_str: str):
         """
         Creates a Dialog object from a JSON string.
 

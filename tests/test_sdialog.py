@@ -37,6 +37,13 @@ def test_dialog_serialization_and_str():
     assert str(dialog) == dialog.description()
 
 
+def test_dialog_from_json():
+    dialog = Dialog(turns=[Turn(speaker="A", text="Hi"), Turn(speaker="B", text="Hello")])
+    loaded = Dialog.from_json(dialog.to_string())
+    assert isinstance(loaded, Dialog)
+    assert [(t.speaker, t.text) for t in loaded.turns] == [("A", "Hi"), ("B", "Hello")]
+
+
 def test_dialog_to_file_and_from_file(tmp_path):
     turns = [Turn(speaker="A", text="Hi"), Turn(speaker="B", text="Hello")]
     dialog = Dialog(turns=turns)
