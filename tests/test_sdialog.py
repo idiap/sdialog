@@ -39,7 +39,7 @@ def test_dialog_serialization_and_str():
 
 def test_dialog_from_json():
     dialog = Dialog(turns=[Turn(speaker="A", text="Hi"), Turn(speaker="B", text="Hello")])
-    loaded = Dialog.from_json(dialog.to_string())
+    loaded = Dialog.from_json(dialog.json(string=True))
     assert isinstance(loaded, Dialog)
     assert [(t.speaker, t.text) for t in loaded.turns] == [("A", "Hi"), ("B", "Hello")]
 
