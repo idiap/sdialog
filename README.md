@@ -299,9 +299,9 @@ for seg in audio.segments:
 To convert a whole dataset in parallel, with one model per GPU:
 
 ```python
-from sdialog.audio import to_audio_batch
+from sdialog.audio import dialogs_to_audio
 
-to_audio_batch(dialogs, "audios/", devices=["cuda:0", "cuda:1"], preset="room", seed=0)
+dialogs_to_audio(dialogs, "audios/", preset="room")
 ```
 
 </details>

@@ -13,7 +13,7 @@ All notable changes to SDialog will be documented here.
   - Voice selection with `voices="db" | "design" | "random"`, or an explicit `{speaker: voice}` dictionary.
   - Realism controls: `pauses`, `overlap`, `reverb` (simulated rooms or measured RIRs), `noise`, `channel` (telephone codecs) and `level_jitter_db`, either shared or per speaker. Output in mono or `stereo` (one channel per speaker).
   - Scene presets: `clean`, `conversational`, `room`, `call_center`, `far_field`, `hard`, plus `register_preset()` for custom ones.
-  - `to_audio_batch()` for parallel, multi-GPU generation, with one model per worker.
+  - `dialogs_to_audio()` for parallel, multi-GPU generation, with one model per worker.
   - `BaseDialogTTS` interface for dialogue-level engines, and `PerTurnTTS` to use classic engines (Kokoro, Qwen3-TTS, ...) with `dialog.to_audio()`.
   - New `sdialog[audio-legacy]` extra with the dependencies of the legacy pipeline.
 
