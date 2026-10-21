@@ -319,6 +319,69 @@ class Server:
         await server.serve()
 
     @classmethod
+    def serve_whatsapp(cls,
+                       agent: Agent,
+                       port: int = 1234,
+                       host: str = "0.0.0.0",
+                       phone_number_id: Optional[str] = None,
+                       access_token: Optional[str] = None,
+                       verify_token: Optional[str] = None,
+                       app_secret: Optional[str] = None,
+                       db_path: str = "whatsapp_sessions.db",
+                       webhook_path: str = "/webhook",
+                       session_timeout: int = 1800,
+                       tunnel: bool = False,
+                       auto_setup: bool = True,
+                       log_level: str = "info") -> None:
+        """
+        Serve an SDialog agent via Meta WhatsApp Cloud API webhook.
+
+        :param agent: The SDialog agent to serve.
+        :type agent: Agent
+        :param port: Port number to listen on.
+        :type port: int
+        :param host: Host address to bind to.
+        :type host: str
+        :param phone_number_id: Meta WhatsApp Phone Number ID.
+        :type phone_number_id: Optional[str]
+        :param access_token: Meta Graph API Access Token.
+        :type access_token: Optional[str]
+        :param verify_token: Webhook verification token.
+        :type verify_token: Optional[str]
+        :param app_secret: Meta App Secret for HMAC validation.
+        :type app_secret: Optional[str]
+        :param db_path: Path to the SQLite session database.
+        :type db_path: str
+        :param webhook_path: Webhook URL path.
+        :type webhook_path: str
+        :param session_timeout: Inactivity seconds before resetting session.
+        :type session_timeout: int
+        :param tunnel: If True, attempts to spawn a public ngrok tunnel.
+        :type tunnel: bool
+        :param auto_setup: If True, auto-discovers phone ID and auto-syncs Meta webhooks.
+        :type auto_setup: bool
+        :param log_level: Logging level for the server.
+        :type log_level: str
+        """
+        from .whatsapp import WhatsAppServer, WhatsAppConfig
+
+        config = WhatsAppConfig(
+            port=port,
+            host=host,
+            phone_number_id=phone_number_id,
+            access_token=access_token,
+            verify_token=verify_token,
+            app_secret=app_secret,
+            db_path=db_path,
+            webhook_path=webhook_path,
+            session_timeout=session_timeout,
+            tunnel=tunnel,
+            auto_setup=auto_setup,
+            log_level=log_level
+        )
+        return WhatsAppServer.serve(agent=agent, config=config)
+
+    @classmethod
     def serve_in_thread(cls,
                         agents: Union[Agent, List[Agent]],
                         host: str = "0.0.0.0",

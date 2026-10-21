@@ -670,6 +670,65 @@ class Agent:
 
         return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level)
 
+    def serve_whatsapp(self,
+                       port: int = 1234,
+                       host: str = "0.0.0.0",
+                       phone_number_id: Optional[str] = None,
+                       access_token: Optional[str] = None,
+                       verify_token: Optional[str] = None,
+                       app_secret: Optional[str] = None,
+                       db_path: str = "whatsapp_sessions.db",
+                       webhook_path: str = "/webhook",
+                       session_timeout: int = 1800,
+                       tunnel: bool = False,
+                       auto_setup: bool = True,
+                       log_level: str = "info"):
+        """
+        Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
+
+        :param port: Port number to bind the server to.
+        :type port: int
+        :param host: Host address to bind the server to.
+        :type host: str
+        :param phone_number_id: Meta WhatsApp Phone Number ID (or WHATSAPP_PHONE_NUMBER_ID env var).
+        :type phone_number_id: Optional[str]
+        :param access_token: Meta Graph API Access Token (or WHATSAPP_ACCESS_TOKEN env var).
+        :type access_token: Optional[str]
+        :param verify_token: Webhook verification token (or WHATSAPP_VERIFY_TOKEN env var).
+        :type verify_token: Optional[str]
+        :param app_secret: Meta App Secret for HMAC validation (or WHATSAPP_APP_SECRET env var).
+        :type app_secret: Optional[str]
+        :param db_path: Path to the SQLite session database.
+        :type db_path: str
+        :param webhook_path: Webhook URL path.
+        :type webhook_path: str
+        :param session_timeout: Seconds of inactivity before a user session resets.
+        :type session_timeout: int
+        :param tunnel: If True, attempts to spawn a public ngrok tunnel.
+        :type tunnel: bool
+        :param auto_setup: If True, auto-discovers phone ID and auto-syncs Meta webhooks.
+        :type auto_setup: bool
+        :param log_level: Logging level for the server.
+        :type log_level: str
+        """
+        from .whatsapp import WhatsAppServer, WhatsAppConfig
+
+        config = WhatsAppConfig(
+            port=port,
+            host=host,
+            phone_number_id=phone_number_id,
+            access_token=access_token,
+            verify_token=verify_token,
+            app_secret=app_secret,
+            db_path=db_path,
+            webhook_path=webhook_path,
+            session_timeout=session_timeout,
+            tunnel=tunnel,
+            auto_setup=auto_setup,
+            log_level=log_level
+        )
+        return WhatsAppServer.serve(agent=self, config=config)
+
     def response_lookahead(self, message: str = None):
         """
         Generates a response without updating the agent's memory.
