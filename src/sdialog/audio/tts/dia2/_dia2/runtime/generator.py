@@ -314,6 +314,8 @@ def run_generation_loop(
                 break
             if t + 1 >= audio_buf.shape[-1]:
                 break
+            if t >= max_context:  # a voice prefix shifts t: positions must stay within the RoPE/KV cache
+                break
             generation.reset_dep_cache()
             positions.fill_(t)
             _fill_audio_channels(step_tokens, audio_buf, delay_tensor, t, token_ids.audio_bos)
