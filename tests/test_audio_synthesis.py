@@ -532,6 +532,21 @@ class TestDia2Windows:
         tts.synthesize([(1, "hi there"), (0, "hello")], ["voice_A.wav", "voice_B.wav"])
         assert tts.scripts[0][1:] == ("voice_B.wav", "voice_A.wav")
 
+    def test_reference_voices_are_cut(self, tmp_path):
+        import soundfile as sf
+        tts = self._tts(reference_seconds=8.0)
+        sr = 16000
+        long_wav = np.random.default_rng(0).standard_normal(20 * sr).astype(np.float32) * 0.1
+        sf.write(tmp_path / "long.wav", long_wav, sr)
+        sf.write(tmp_path / "short.wav", long_wav[:3 * sr], sr)
+        audio, ref_sr = tts._reference(str(tmp_path / "long.wav"))  # a file: cut like an array
+        assert ref_sr == sr and len(audio) == 8 * sr
+        audio, _ = tts._reference(str(tmp_path / "short.wav"))  # shorter than the cap: kept whole
+        assert len(audio) == 3 * sr
+        audio, _ = tts._reference((long_wav, sr))
+        assert len(audio) == 8 * sr
+        assert tts._reference(None) is None
+
     def test_fallback_when_timestamps_mismatch(self):
         tts = self._tts(timestamps_ok=False)
         clips = tts.synthesize([(0, "one two"), (1, "three four")], [None, None], seed=0)

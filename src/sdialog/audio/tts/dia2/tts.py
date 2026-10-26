@@ -73,7 +73,8 @@ class Dia2TTS(BaseDialogTTS):
     :param audio_temperature: Sampling temperature of the audio stream.
     :param top_k: Top-k sampling for both streams.
     :param max_window_words: Maximum number of words generated in a single Dia2 call.
-    :param reference_seconds: Maximum length of reference voice audio (longer references are cut).
+    :param reference_seconds: Maximum length of reference voice audio, given as an array or a file (longer
+                              references are cut).
     :param use_cuda_graph: Use CUDA graphs to speed up generation (GPU only).
     :param whisper_model: Whisper model used by Dia2 to align the reference voices.
     """
@@ -143,9 +144,15 @@ class Dia2TTS(BaseDialogTTS):
         return wav, int(result.sample_rate), list(result.timestamps)
 
     def _reference(self, voice: Any) -> Any:
-        """Normalizes a reference voice to a path or a (possibly shortened) ``(array, sr)`` tuple."""
-        if voice is None or isinstance(voice, str):
-            return voice
+        """Normalizes a reference voice to a (possibly shortened) ``(array, sr)`` tuple."""
+        if voice is None:
+            return None
+        if isinstance(voice, str):
+            # audio files are cut too: a long reference (e.g. from a local voice database) would take most of
+            # Dia2's context, leaving little room for the generated audio
+            import librosa
+            audio, sr = librosa.load(voice, sr=None, mono=True, duration=self.reference_seconds)
+            return audio.astype(np.float32), int(sr)
         audio, sr = voice
         audio = np.asarray(audio, dtype=np.float32)
         audio = audio.mean(axis=1) if audio.ndim == 2 else audio.reshape(-1)
