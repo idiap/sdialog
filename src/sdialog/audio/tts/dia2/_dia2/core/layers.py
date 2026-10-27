@@ -39,6 +39,20 @@ class RotaryEmbedding(nn.Module):
         self.register_buffer("cos_cached", emb.cos(), persistent=False)
         self.register_buffer("sin_cached", emb.sin(), persistent=False)
 
+    def ensure_capacity(self, max_position: int) -> bool:
+        """Grow the cached table so positions up to ``max_position`` are valid.
+
+        Row ``i`` of the table depends only on ``i`` (it is ``cos(i * inv_freq)``,
+        built from ``arange(max_seq_len)``), so extending the range leaves every
+        existing row bit-identical: generations that already fit are unaffected.
+        """
+        needed = int(max_position) + 1
+        if int(self.max_seq_len) >= needed:
+            return False
+        self.max_seq_len = needed
+        self._update_cos_sin_cache()
+        return True
+
     def forward(self, x: torch.Tensor, position_ids: torch.Tensor) -> torch.Tensor:
         cos = self.cos_cached[position_ids].unsqueeze(2).to(dtype=x.dtype)
         sin = self.sin_cached[position_ids].unsqueeze(2).to(dtype=x.dtype)
