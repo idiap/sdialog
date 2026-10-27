@@ -124,6 +124,15 @@
       "contributions": [
         "tutorial"
       ]
+    },
+    {
+      "login": "jordiluque",
+      "name": "Jordi Luque",
+      "avatar_url": "https://avatars.githubusercontent.com/u/67098497?v=4",
+      "profile": "https://github.com/jordiluque",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
