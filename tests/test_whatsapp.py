@@ -639,22 +639,48 @@ def test_meta_discovery_configure_webhooks_mocked():
 # Test 7: Per-user rate limiting
 # ---------------------------------------------------------------------------
 
-def test_rate_limit_sliding_window(test_config):
+def test_rate_limit_per_minute(test_config):
     test_config.max_messages_per_minute = 3
     WhatsAppServer.create_app(MockWhatsAppAgent(), test_config)
 
     clock = {"now": 1000.0}
     with patch("time.monotonic", side_effect=lambda: clock["now"]):
-        assert [WhatsAppServer._check_rate_limit("1111") for _ in range(3)] == [(True, False)] * 3
-        assert WhatsAppServer._check_rate_limit("1111") == (False, True)  # first rejection: notify
-        assert WhatsAppServer._check_rate_limit("1111") == (False, False)  # then drop silently
-        assert WhatsAppServer._check_rate_limit("2222") == (True, False)  # other users unaffected
+        assert [WhatsAppServer._check_rate_limit("1111") for _ in range(3)] == [(True, None)] * 3
+        allowed, notice = WhatsAppServer._check_rate_limit("1111")  # first rejection: notify
+        assert not allowed and "too quickly" in notice
+        assert WhatsAppServer._check_rate_limit("1111") == (False, None)  # then drop silently
+        assert WhatsAppServer._check_rate_limit("2222") == (True, None)  # other users unaffected
 
         clock["now"] += 60
-        assert WhatsAppServer._check_rate_limit("1111") == (True, False)  # window has slid
+        assert WhatsAppServer._check_rate_limit("1111") == (True, None)  # window has slid
 
+
+def test_rate_limit_per_hour(test_config):
+    test_config.max_messages_per_minute = 6
+    test_config.max_messages_per_hour = 10
+    WhatsAppServer.create_app(MockWhatsAppAgent(), test_config)
+
+    clock = {"now": 1000.0}
+    with patch("time.monotonic", side_effect=lambda: clock["now"]):
+        # One message every 30 seconds stays under the per-minute limit...
+        for _ in range(10):
+            assert WhatsAppServer._check_rate_limit("1111") == (True, None)
+            clock["now"] += 30
+        # ...but hits the per-hour one
+        allowed, notice = WhatsAppServer._check_rate_limit("1111")
+        assert not allowed and "message limit" in notice
+        clock["now"] += 120
+        assert WhatsAppServer._check_rate_limit("1111") == (False, None)  # one notice per hour
+
+        clock["now"] += 3600
+        assert WhatsAppServer._check_rate_limit("1111") == (True, None)
+
+
+def test_rate_limit_disabled(test_config):
     test_config.max_messages_per_minute = None
-    assert all(WhatsAppServer._check_rate_limit("1111") == (True, False) for _ in range(100))
+    test_config.max_messages_per_hour = None
+    WhatsAppServer.create_app(MockWhatsAppAgent(), test_config)
+    assert all(WhatsAppServer._check_rate_limit("1111") == (True, None) for _ in range(100))
 
 
 def test_rate_limit_drops_messages_without_calling_agent(test_config):

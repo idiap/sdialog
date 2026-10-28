@@ -332,7 +332,8 @@ class Server:
                        session_timeout: int = 1800,
                        tunnel: bool = False,
                        auto_setup: bool = False,
-                       max_messages_per_minute: Optional[int] = 10,
+                       max_messages_per_minute: Optional[int] = 6,
+                       max_messages_per_hour: Optional[int] = 60,
                        log_level: str = "info") -> None:
         """
         Serve an SDialog agent via Meta WhatsApp Cloud API webhook.
@@ -362,8 +363,12 @@ class Server:
         :param auto_setup: If True (with tunnel=True), overwrites the Meta webhook URL of the WhatsApp
                            Business Account and phone number with the tunnel URL. Use only with test accounts.
         :type auto_setup: bool
-        :param max_messages_per_minute: Per-user rate limit; extra messages are dropped (None to disable).
+        :param max_messages_per_minute: Per-user limit for bursts of messages; extra messages are dropped
+                                        (None to disable).
         :type max_messages_per_minute: Optional[int]
+        :param max_messages_per_hour: Per-user limit for sustained use; extra messages are dropped
+                                      (None to disable).
+        :type max_messages_per_hour: Optional[int]
         :param log_level: Logging level for the server.
         :type log_level: str
         """
@@ -382,6 +387,7 @@ class Server:
             tunnel=tunnel,
             auto_setup=auto_setup,
             max_messages_per_minute=max_messages_per_minute,
+            max_messages_per_hour=max_messages_per_hour,
             log_level=log_level
         )
         return WhatsAppServer.serve(agent=agent, config=config)

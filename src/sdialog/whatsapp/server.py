@@ -37,8 +37,8 @@ class WhatsAppServer:
     _store: Optional[SQLiteSessionStore] = None
     _client: Optional[MetaWhatsAppClient] = None
     _agent_lock: Optional[asyncio.Lock] = None
-    _rate_windows: Dict[str, Deque[float]] = {}  # sender ID -> arrival times within the last minute
-    _rate_notified: Dict[str, float] = {}  # sender ID -> time of the last "slow down" notice
+    _rate_windows: Dict[str, Deque[float]] = {}  # sender ID -> arrival times of accepted messages (last hour)
+    _rate_notified: Dict[Tuple[str, str], float] = {}  # (sender ID, "minute"/"hour") -> time of last notice
 
     @classmethod
     def get_agent_lock(cls) -> asyncio.Lock:
@@ -135,15 +135,11 @@ class WhatsAppServer:
                 cls._store.mark_message_processed(wamid)
 
                 # 5. Per-user rate limit, so one user can't flood the (serialized) agent or run up costs
-                allowed, notify = cls._check_rate_limit(sender_id)
+                allowed, notice = cls._check_rate_limit(sender_id)
                 if not allowed:
                     logger.warning(f"[WhatsApp] Rate limit exceeded for {sender_id}, message {wamid} dropped")
-                    if notify:
-                        background_tasks.add_task(
-                            cls._client.send_text_message,
-                            to=sender_id,
-                            text="You are sending messages too quickly. Please wait a minute and try again.",
-                        )
+                    if notice:
+                        background_tasks.add_task(cls._client.send_text_message, to=sender_id, text=notice)
                     continue
 
                 # 6. Route by message type
@@ -243,31 +239,38 @@ class WhatsAppServer:
             )
 
     @classmethod
-    def _check_rate_limit(cls, sender_id: str) -> Tuple[bool, bool]:
+    def _check_rate_limit(cls, sender_id: str) -> Tuple[bool, Optional[str]]:
         """
-        Sliding one-minute window rate limit per sender.
+        Per-sender sliding window rate limit: a per-minute limit for bursts and a per-hour limit for
+        sustained use. Rejected messages do not count towards the limits.
 
-        :return: ``(allowed, notify)``, where ``notify`` is True for the first rejected message in a minute,
-                 so that the user gets a single notice instead of one reply per dropped message.
+        :return: ``(allowed, notice)``, where ``notice`` is the text to send back for the first rejected message
+                 in each window (None otherwise), so the user gets a single notice instead of one per message.
         """
-        limit = cls._config.max_messages_per_minute
-        if not limit:
-            return True, False
+        limits = [(limit, seconds, unit) for limit, seconds, unit in [
+            (cls._config.max_messages_per_hour, 3600, "hour"),
+            (cls._config.max_messages_per_minute, 60, "minute"),
+        ] if limit]
+        if not limits:
+            return True, None
 
         now = time.monotonic()
         window = cls._rate_windows.setdefault(sender_id, deque())
-        while window and now - window[0] >= 60:
+        while window and now - window[0] >= max(seconds for _, seconds, _ in limits):
             window.popleft()
 
-        if len(window) < limit:
-            window.append(now)
-            return True, False
+        for limit, seconds, unit in limits:
+            if sum(1 for t in window if now - t < seconds) >= limit:
+                last_notice = cls._rate_notified.get((sender_id, unit))
+                if last_notice is not None and now - last_notice < seconds:
+                    return False, None
+                cls._rate_notified[(sender_id, unit)] = now
+                if unit == "minute":
+                    return False, "You are sending messages too quickly. Please wait a minute and try again."
+                return False, "You have reached the message limit for now. Please try again later."
 
-        last_notice = cls._rate_notified.get(sender_id)
-        notify = last_notice is None or now - last_notice >= 60
-        if notify:
-            cls._rate_notified[sender_id] = now
-        return False, notify
+        window.append(now)
+        return True, None
 
     @staticmethod
     def _trim_memory(memory: List[Dict[str, Any]], max_messages: int) -> List[Dict[str, Any]]:
