@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
-# SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-FileContributor: Amit Bhakt <amitbhakt@users.noreply.github.com>
+# SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 """
 WhatsApp integration for SDialog agents.
