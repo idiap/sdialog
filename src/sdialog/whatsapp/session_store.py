@@ -9,8 +9,9 @@ SQLite-backed multi-user session and idempotency store for WhatsApp.
 import json
 import logging
 import sqlite3
-from datetime import datetime
-from typing import Optional, Any, Dict
+from contextlib import contextmanager
+from datetime import datetime, timedelta
+from typing import Optional, Any, Dict, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,19 @@ class SQLiteSessionStore:
         self.db_path = db_path
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        """Create a new SQLite connection with WAL mode and busy timeout configured."""
+    @contextmanager
+    def _get_connection(self) -> Iterator[sqlite3.Connection]:
+        """Open a SQLite connection (WAL mode, busy timeout), commit on success and always close it."""
         conn = sqlite3.connect(self.db_path, timeout=10.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA busy_timeout = 5000;")
-        conn.execute("PRAGMA synchronous = NORMAL;")
-        return conn
+        try:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode = WAL;")
+            conn.execute("PRAGMA busy_timeout = 5000;")
+            conn.execute("PRAGMA synchronous = NORMAL;")
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         """Initialize database tables and indexes."""
@@ -145,7 +151,7 @@ class SQLiteSessionStore:
 
     def cleanup_old_records(self, retention_days: int = 7) -> None:
         """Purge idempotency records older than retention_days."""
+        # received_at is stored in local time, so compute the cutoff the same way (SQLite's 'now' is UTC)
+        cutoff = (datetime.now() - timedelta(days=retention_days)).strftime("%Y-%m-%d %H:%M:%S")
         with self._get_connection() as conn:
-            conn.execute(
-                f"DELETE FROM processed_messages WHERE received_at < datetime('now', '-{retention_days} days')"
-            )
+            conn.execute("DELETE FROM processed_messages WHERE received_at < ?", (cutoff,))

@@ -82,6 +82,7 @@ def test_config(temp_db):
         db_path=temp_db,
         session_timeout=3600,
         enforce_signature=True,
+        mark_as_read=False,  # avoid real Graph API calls from background tasks
     )
 
 
@@ -203,6 +204,31 @@ def test_session_store_idempotency(temp_db):
     # Idempotent re-marking
     store.mark_message_processed(wamid)
     assert store.is_message_processed(wamid)
+
+
+def test_session_store_cleanup_old_records(temp_db):
+    import sqlite3
+
+    store = SQLiteSessionStore(db_path=temp_db)
+    store.mark_message_processed("wamid.new")
+    conn = sqlite3.connect(temp_db)
+    with conn:
+        conn.execute("INSERT INTO processed_messages (wamid, received_at) VALUES ('wamid.old', '2000-01-01 00:00:00')")
+    conn.close()
+
+    store.cleanup_old_records(retention_days=7)
+    assert store.is_message_processed("wamid.new")
+    assert not store.is_message_processed("wamid.old")
+
+
+def test_extract_messages_from_batched_payload():
+    payload = _create_meta_payload(sender="1111", wamid="wamid.A")
+    payload["entry"].append(_create_meta_payload(sender="2222", wamid="wamid.B")["entry"][0])
+
+    messages, sender_name = WhatsAppServer._extract_messages(payload)
+    assert [m["id"] for m in messages] == ["wamid.A", "wamid.B"]
+    assert sender_name == "Alice"
+    assert WhatsAppServer._extract_messages({"entry": "malformed"}) == ([], None)
 
 
 def test_trim_memory_starts_at_user_message():

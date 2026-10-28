@@ -60,6 +60,7 @@ class WhatsAppServer:
         cls._agent = agent
         cls._config = config
         cls._store = SQLiteSessionStore(db_path=config.db_path)
+        cls._store.cleanup_old_records()
         cls._client = MetaWhatsAppClient(config)
         cls._agent_lock = None
 
@@ -251,17 +252,21 @@ class WhatsAppServer:
 
     @staticmethod
     def _extract_messages(payload: Dict[str, Any]):
-        """Safely extract message objects and contact details from Meta webhook payload."""
+        """
+        Safely extract message objects and contact details from Meta webhook payload.
+        Meta may batch several entries and changes in a single delivery, so all of them are collected.
+        """
         messages = []
         sender_name = None
         try:
-            entry = payload.get("entry", [])[0]
-            change = entry.get("changes", [])[0].get("value", {})
-            messages = change.get("messages", [])
-            contacts = change.get("contacts", [])
-            if contacts:
-                sender_name = contacts[0].get("profile", {}).get("name")
-        except (IndexError, KeyError, AttributeError):
+            for entry in payload.get("entry", []):
+                for change in entry.get("changes", []):
+                    value = change.get("value", {})
+                    messages.extend(value.get("messages", []))
+                    contacts = value.get("contacts", [])
+                    if contacts and sender_name is None:
+                        sender_name = contacts[0].get("profile", {}).get("name")
+        except (KeyError, AttributeError, TypeError):
             pass
         return messages, sender_name
 
