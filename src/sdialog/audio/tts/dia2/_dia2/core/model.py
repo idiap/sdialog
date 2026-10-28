@@ -9,6 +9,7 @@ from torch import nn
 from ..config import DiaConfig
 from .cache import KVCache
 from .depformer import Depformer
+from .layers import RotaryEmbedding
 from .precision import Precision
 from .transformer import TransformerDecoder
 
@@ -32,6 +33,29 @@ class Dia2Model(nn.Module):
         self.transformer = TransformerDecoder(config, precision, device)
         self.depformer = Depformer(config, precision, device)
         self._cast_norms_to_compute()
+
+    def ensure_position_capacity(self, max_position: int) -> int:
+        """Grow every rotary table so absolute positions up to ``max_position`` are valid.
+
+        ``max_context_steps`` bounds how many steps are *generated*, but with a
+        voice-clone prefix the generation loop runs *absolute* positions from
+        ``prefix_len - 1`` up to ``prefix_len + max_context_steps - 2``. The rotary
+        table is indexed by that absolute position, so it must cover the whole
+        range, not just ``max_context_steps``.
+        """
+        grown = 0
+        for module in self.modules():
+            if isinstance(module, RotaryEmbedding) and module.ensure_capacity(max_position):
+                grown += 1
+        self._position_capacity = max(
+            int(getattr(self, "_position_capacity", 0)), int(max_position) + 1
+        )
+        return grown
+
+    @property
+    def position_capacity(self) -> int:
+        """Largest absolute position the rotary tables can currently serve."""
+        return int(getattr(self, "_position_capacity", self.config.runtime.max_context_steps))
 
     def init_state(self, batch_size: int, device: torch.device, max_steps: int) -> DecodeState:
         transformer_cache = self.transformer.init_cache(batch_size, device, max_steps)

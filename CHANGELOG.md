@@ -4,6 +4,16 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [0.5.4] 2026-10-26 🩹
+
+### Fixed
+- **sdialog.audio**:
+  - `Dia2TTS` no longer crashes with a CUDA "index out of bounds" error on long generation windows, which also left the GPU process unusable (every later dialogue failed too). The reference voices took up part of Dia2's context, so long windows ran past its position limit. Generation now stops at that limit; a window cut short is regenerated one turn at a time.
+  - The rotary position (RoPE) table of Dia2 is now sized to the positions generation can actually reach (`prefix_len + max_context_steps`) instead of `max_context_steps` only (#136). With reference voices, generation runs at absolute positions shifted by the prefix length, so windows were still cut short (or, before the stop above, crashed) even when they fit in the generation budget. The table grows only when needed and existing rows are unchanged, so generations that already fit give the same output. The stop above stays as a safety check against the new table size.
+  - Reference voices given as audio files (e.g. from a local voice database) are now cut to `reference_seconds` (8 s by default), as arrays already were. Long reference files took up most of Dia2's context, leaving little room for the generated audio and making the crash above frequent.
+
+---
+
 ## [0.5.0] 2026-10-15 🔊
 
 ### Added

@@ -106,6 +106,10 @@ def build_initial_state(
         prefix_len = delayed.shape[1]
     limit = runtime.config.runtime.max_context_steps
     total_steps = max(limit + prefix_len + 1, limit)
+    # The KV cache is sized for the prefix, but the rotary table is not: the loop
+    # below reaches absolute position prefix_len + limit - 2. Size it to the range
+    # that is actually reachable (no-op when it already fits).
+    runtime.model.ensure_position_capacity(prefix_len + limit)
     decode_state = runtime.model.init_state(branches, runtime.device, total_steps)
     audio_buf = torch.full(
         (branches, dep_q, total_steps),
@@ -313,6 +317,8 @@ def run_generation_loop(
             if eos_cutoff is not None and t >= eos_cutoff:
                 break
             if t + 1 >= audio_buf.shape[-1]:
+                break
+            if t >= runtime.model.position_capacity:  # defensive: never index past the rotary table
                 break
             generation.reset_dep_cache()
             positions.fill_(t)
