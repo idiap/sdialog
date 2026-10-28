@@ -8,17 +8,18 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest (26.04) has no Python 3.9 builds (3.9 is end-of-life)
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
         python-version: ["3.9", "3.10"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
