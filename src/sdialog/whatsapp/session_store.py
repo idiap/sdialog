@@ -10,17 +10,9 @@ import json
 import logging
 import sqlite3
 from datetime import datetime
-from typing import Optional, Any, Dict, List
-
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
+from typing import Optional, Any, Dict
 
 logger = logging.getLogger(__name__)
-
-_TYPE_TO_MSG_CLASS = {
-    "HumanMessage": HumanMessage,
-    "AIMessage": AIMessage,
-    "SystemMessage": SystemMessage,
-}
 
 
 class SQLiteSessionStore:
@@ -157,58 +149,3 @@ class SQLiteSessionStore:
             conn.execute(
                 f"DELETE FROM processed_messages WHERE received_at < datetime('now', '-{retention_days} days')"
             )
-
-
-# ---------------------------------------------------------------------------
-# State Bridge: Supports both future Agent.get_state() and interim fallback
-# ---------------------------------------------------------------------------
-
-def restore_agent_state(agent: Any, state: Optional[Dict[str, Any]]) -> None:
-    """Restore agent state. Prefers native agent.set_state() if present."""
-    if not state:
-        return
-
-    if hasattr(agent, "set_state") and callable(agent.set_state):
-        agent.set_state(state)
-        return
-
-    # Fallback bridge before core SDialog implements Agent.set_state():
-    memory_data = state.get("memory", [])
-    restored_msgs: List[BaseMessage] = []
-    for item in memory_data:
-        msg_cls = _TYPE_TO_MSG_CLASS.get(item.get("type"), HumanMessage)
-        restored_msgs.append(msg_cls(content=item.get("content", "")))
-
-    if restored_msgs:
-        # Keep initial system prompt / persona prompt if not present in saved turns
-        if agent.memory and isinstance(agent.memory[0], SystemMessage):
-            agent.memory[:] = [agent.memory[0]] + restored_msgs
-        else:
-            agent.memory[:] = restored_msgs
-
-
-def dump_agent_state(agent: Any, max_history_turns: int = 40) -> Dict[str, Any]:
-    """Serialize agent state. Prefers native agent.get_state() if present."""
-    if hasattr(agent, "get_state") and callable(agent.get_state):
-        return agent.get_state()
-
-    # Fallback bridge before core SDialog implements Agent.get_state():
-    memory_items = []
-    # Skip the primary system message (turn 0) in the dynamic history
-    history = agent.memory[1:] if (agent.memory and isinstance(agent.memory[0], SystemMessage)) else agent.memory
-
-    # Apply sliding window budget
-    if len(history) > max_history_turns:
-        history = history[-max_history_turns:]
-
-    for msg in history:
-        memory_items.append({
-            "type": msg.__class__.__name__,
-            "content": msg.content
-        })
-
-    return {
-        "version": 1,
-        "memory": memory_items,
-        "finished": getattr(agent, "_finished", False)
-    }

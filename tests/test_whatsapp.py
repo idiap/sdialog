@@ -16,7 +16,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from fastapi.testclient import TestClient
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, messages_to_dict, messages_from_dict
 
 from sdialog.whatsapp import (
     WhatsAppConfig,
@@ -24,29 +24,40 @@ from sdialog.whatsapp import (
     SQLiteSessionStore,
     MetaWhatsAppClient,
 )
-from sdialog.whatsapp.session_store import restore_agent_state, dump_agent_state
 
 
 class MockWhatsAppAgent:
-    """Mock agent for WhatsApp testing."""
+    """Mock agent for WhatsApp testing (mirrors Agent's in-place memory reset and state API)."""
 
-    def __init__(self, name="TestBot"):
+    def __init__(self, name="TestBot", latency=0.0):
         self.name = name
+        self.latency = latency
         self.memory = [SystemMessage(content="You are a helpful test bot.")]
         self.call_count = 0
         self.last_input = None
+        self._finished = False
 
     def __call__(self, message: str, **kwargs) -> str:
         self.call_count += 1
         self.last_input = message
         self.memory.append(HumanMessage(content=message))
-        reply = f"Bot reply to: {message}"
+        time.sleep(self.latency)
+        seen = [m.content for m in self.memory if isinstance(m, HumanMessage)]
+        reply = f"Bot reply to: {' | '.join(seen)}"
         self.memory.append(AIMessage(content=reply))
         return reply
 
     def reset(self, seed=None):
-        self.memory = [SystemMessage(content="You are a helpful test bot.")]
-        self.call_count = 0
+        self.memory[:] = self.memory[:1]
+        self._finished = False
+
+    def get_state(self):
+        return {"version": 1, "memory": messages_to_dict(self.memory[1:]),
+                "finished": self._finished, "orchestrators": []}
+
+    def set_state(self, state):
+        self.memory[:] = self.memory[:1] + messages_from_dict(state["memory"])
+        self._finished = state["finished"]
 
 
 @pytest.fixture
@@ -150,23 +161,13 @@ def test_session_store_idempotency(temp_db):
     assert store.is_message_processed(wamid)
 
 
-def test_state_bridge_restore_and_dump():
-    agent = MockWhatsAppAgent()
-    agent.memory.append(HumanMessage(content="User 1"))
-    agent.memory.append(AIMessage(content="Bot 1"))
+def test_trim_memory_starts_at_user_message():
+    memory = [{"type": t} for t in ["human", "ai", "human", "ai", "tool", "ai"]]
 
-    # Dump state
-    state = dump_agent_state(agent, max_history_turns=10)
-    assert len(state["memory"]) == 2
-    assert state["memory"][0]["content"] == "User 1"
-    assert state["memory"][1]["content"] == "Bot 1"
-
-    # Restore on a fresh agent
-    new_agent = MockWhatsAppAgent()
-    restore_agent_state(new_agent, state)
-    assert len(new_agent.memory) == 3  # SystemMessage + 2 turns
-    assert isinstance(new_agent.memory[1], HumanMessage)
-    assert new_agent.memory[1].content == "User 1"
+    assert WhatsAppServer._trim_memory(memory, 10) == memory
+    # The last 5 would start with an AI reply, so trimming skips ahead to the next user message
+    assert WhatsAppServer._trim_memory(memory, 5) == memory[2:]
+    assert WhatsAppServer._trim_memory(memory, 3) == []
 
 
 # ---------------------------------------------------------------------------
@@ -423,14 +424,61 @@ def test_webhook_multi_user_isolation(test_config):
         assert stateB is not None
 
         # Verify User A's history contains User A's message, not User B's
-        contentsA = [m["content"] for m in stateA["memory"]]
-        contentsB = [m["content"] for m in stateB["memory"]]
+        contentsA = [m["data"]["content"] for m in stateA["memory"]]
+        contentsB = [m["data"]["content"] for m in stateB["memory"]]
 
         assert "Hello from A" in contentsA
         assert "Hello from B" not in contentsA
 
         assert "Hello from B" in contentsB
         assert "Hello from A" not in contentsB
+
+
+def test_concurrent_users_do_not_share_memory(test_config):
+    """Two users messaging at the same time must not see each other's conversation (shared agent)."""
+    import asyncio
+
+    WhatsAppServer.create_app(MockWhatsAppAgent(latency=0.3), test_config)
+    sent = {}
+
+    async def fake_send(to, text):
+        sent[to] = text
+
+    async def _test():
+        async def user(wa_id, text, delay):
+            await asyncio.sleep(delay)
+            await WhatsAppServer._handle_user_turn(sender_id=wa_id, text=text, wamid=f"wamid.{wa_id}")
+
+        await asyncio.gather(user("1111", "Alice secret", 0.0), user("2222", "Bob says hi", 0.1))
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", side_effect=fake_send), \
+         patch.object(MetaWhatsAppClient, "mark_as_read", new_callable=AsyncMock):
+        asyncio.run(_test())
+
+    assert sent == {"1111": "Bot reply to: Alice secret", "2222": "Bot reply to: Bob says hi"}
+
+    store = SQLiteSessionStore(db_path=test_config.db_path)
+    assert [m["data"]["content"] for m in store.load_session("1111")["memory"]] == \
+        ["Alice secret", "Bot reply to: Alice secret"]
+    assert [m["data"]["content"] for m in store.load_session("2222")["memory"]] == \
+        ["Bob says hi", "Bot reply to: Bob says hi"]
+
+
+def test_finished_session_starts_over(test_config):
+    """After the agent ends a conversation, the user's next message starts a new one."""
+    import asyncio
+
+    agent = MockWhatsAppAgent()
+    WhatsAppServer.create_app(agent, test_config)
+    store = SQLiteSessionStore(db_path=test_config.db_path)
+    store.save_session("1111", {"version": 1, "finished": True, "orchestrators": [],
+                                "memory": messages_to_dict([HumanMessage(content="Bye"), AIMessage(content="Bye!")])})
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock) as mock_send, \
+         patch.object(MetaWhatsAppClient, "mark_as_read", new_callable=AsyncMock):
+        asyncio.run(WhatsAppServer._handle_user_turn(sender_id="1111", text="Hi again", wamid="wamid.x"))
+
+    mock_send.assert_awaited_once_with(to="1111", text="Bot reply to: Hi again")
 
 
 def test_agent_serve_whatsapp_method_signature():

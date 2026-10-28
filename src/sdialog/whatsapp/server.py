@@ -11,7 +11,7 @@ import hashlib
 import asyncio
 import logging
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -19,11 +19,7 @@ import uvicorn
 
 from .config import WhatsAppConfig
 from .client import MetaWhatsAppClient
-from .session_store import (
-    SQLiteSessionStore,
-    restore_agent_state,
-    dump_agent_state,
-)
+from .session_store import SQLiteSessionStore
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +34,20 @@ class WhatsAppServer:
     _agent: Any = None
     _store: Optional[SQLiteSessionStore] = None
     _client: Optional[MetaWhatsAppClient] = None
-    _user_locks: Dict[str, asyncio.Lock] = {}
+    _agent_lock: Optional[asyncio.Lock] = None
 
     @classmethod
-    def get_user_lock(cls, wa_id: str) -> asyncio.Lock:
-        """Get or create an async lock for a specific WhatsApp sender ID."""
-        if wa_id not in cls._user_locks:
-            cls._user_locks[wa_id] = asyncio.Lock()
-        return cls._user_locks[wa_id]
+    def get_agent_lock(cls) -> asyncio.Lock:
+        """
+        Get the lock guarding the shared agent.
+
+        A single agent instance serves all users, swapping each user's state in and out of its memory,
+        so turns must be processed one at a time. The lock is FIFO, so messages from the same user are
+        still processed in arrival order. Created lazily so it binds to the server's event loop.
+        """
+        if cls._agent_lock is None:
+            cls._agent_lock = asyncio.Lock()
+        return cls._agent_lock
 
     @classmethod
     def create_app(cls, agent: Any, config: WhatsAppConfig) -> FastAPI:
@@ -54,7 +56,7 @@ class WhatsAppServer:
         cls._config = config
         cls._store = SQLiteSessionStore(db_path=config.db_path)
         cls._client = MetaWhatsAppClient(config)
-        cls._user_locks.clear()
+        cls._agent_lock = None
 
         app = FastAPI(
             title="SDialog WhatsApp Agent Server",
@@ -149,15 +151,13 @@ class WhatsAppServer:
 
     @classmethod
     async def _handle_user_turn(cls, sender_id: str, text: str, wamid: str) -> None:
-        """Process incoming user utterance under a per-user lock and reply via WhatsApp."""
-        user_lock = cls.get_user_lock(sender_id)
+        """Process incoming user utterance under the agent lock and reply via WhatsApp."""
+        # Mark message as read (blue checkmark) if configured
+        if cls._config.mark_as_read and cls._client:
+            await cls._client.mark_as_read(wamid)
 
-        async with user_lock:
+        async with cls.get_agent_lock():
             try:
-                # Mark message as read (blue checkmark) if configured
-                if cls._config.mark_as_read and cls._client:
-                    await cls._client.mark_as_read(wamid)
-
                 # Check for explicit session reset commands
                 if text.lower() in ("/reset", "/clear", "/restart"):
                     cls._store.reset_session(sender_id)
@@ -172,9 +172,14 @@ class WhatsAppServer:
                     sender_id, timeout_seconds=cls._config.session_timeout
                 )
 
+                # A finished conversation (agent said goodbye) starts over on the next message
+                if state and state.get("finished"):
+                    state = None
+
                 # Reset agent memory and restore user session state
                 cls._agent.reset()
-                restore_agent_state(cls._agent, state)
+                if state:
+                    cls._agent.set_state(state)
 
                 # Run inference in a threadpool so synchronous LLMs don't block the event loop
                 logger.debug(f"[WhatsApp] Processing turn for user {sender_id}: '{text[:30]}...'")
@@ -185,9 +190,8 @@ class WhatsAppServer:
                     return
 
                 # Save updated user state to SQLite
-                new_state = dump_agent_state(
-                    cls._agent, max_history_turns=cls._config.max_history_turns
-                )
+                new_state = cls._agent.get_state()
+                new_state["memory"] = cls._trim_memory(new_state["memory"], cls._config.max_history_turns)
                 cls._store.save_session(sender_id, new_state)
 
                 # Dispatch reply via Meta WhatsApp Cloud API
@@ -212,6 +216,19 @@ class WhatsAppServer:
                 to=sender_id,
                 text="I currently only support text messages. Please send your query as text.",
             )
+
+    @staticmethod
+    def _trim_memory(memory: List[Dict[str, Any]], max_messages: int) -> List[Dict[str, Any]]:
+        """
+        Keep at most the last ``max_messages`` serialized messages, starting at a user message
+        so that tool calls are never separated from their tool results.
+        """
+        if len(memory) <= max_messages:
+            return memory
+        memory = memory[-max_messages:]
+        while memory and memory[0].get("type") != "human":
+            memory = memory[1:]
+        return memory
 
     @staticmethod
     def _verify_signature(raw_body: bytes, sig_header: str, app_secret: str) -> bool:
