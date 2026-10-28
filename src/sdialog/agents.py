@@ -682,6 +682,7 @@ class Agent:
                        session_timeout: int = 1800,
                        tunnel: bool = False,
                        auto_setup: bool = False,
+                       max_messages_per_minute: Optional[int] = 10,
                        log_level: str = "info"):
         """
         Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
@@ -709,6 +710,8 @@ class Agent:
         :param auto_setup: If True (with tunnel=True), overwrites the Meta webhook URL of the WhatsApp
                            Business Account and phone number with the tunnel URL. Use only with test accounts.
         :type auto_setup: bool
+        :param max_messages_per_minute: Per-user rate limit; extra messages are dropped (None to disable).
+        :type max_messages_per_minute: Optional[int]
         :param log_level: Logging level for the server.
         :type log_level: str
         """
@@ -726,6 +729,7 @@ class Agent:
             session_timeout=session_timeout,
             tunnel=tunnel,
             auto_setup=auto_setup,
+            max_messages_per_minute=max_messages_per_minute,
             log_level=log_level
         )
         return WhatsAppServer.serve(agent=self, config=config)

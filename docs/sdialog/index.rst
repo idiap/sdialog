@@ -395,6 +395,7 @@ Some things to keep in mind:
 
 - Only text messages are supported; users sending other media get a short notice.
 - A single agent serves all users, so messages are processed one at a time (like :meth:`~sdialog.agents.Agent.serve`).
+- Each user can send up to ``max_messages_per_minute`` messages (10 by default, ``None`` to disable). Extra messages are dropped without calling the LLM, and the user gets a single "slow down" notice.
 - Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data.
 - With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.
 

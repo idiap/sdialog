@@ -633,3 +633,44 @@ def test_meta_discovery_configure_webhooks_mocked():
                 assert mock_post.call_count == 3  # All 3 tiers synced
 
     asyncio.run(_test())
+
+
+# ---------------------------------------------------------------------------
+# Test 7: Per-user rate limiting
+# ---------------------------------------------------------------------------
+
+def test_rate_limit_sliding_window(test_config):
+    test_config.max_messages_per_minute = 3
+    WhatsAppServer.create_app(MockWhatsAppAgent(), test_config)
+
+    clock = {"now": 1000.0}
+    with patch("time.monotonic", side_effect=lambda: clock["now"]):
+        assert [WhatsAppServer._check_rate_limit("1111") for _ in range(3)] == [(True, False)] * 3
+        assert WhatsAppServer._check_rate_limit("1111") == (False, True)  # first rejection: notify
+        assert WhatsAppServer._check_rate_limit("1111") == (False, False)  # then drop silently
+        assert WhatsAppServer._check_rate_limit("2222") == (True, False)  # other users unaffected
+
+        clock["now"] += 60
+        assert WhatsAppServer._check_rate_limit("1111") == (True, False)  # window has slid
+
+    test_config.max_messages_per_minute = None
+    assert all(WhatsAppServer._check_rate_limit("1111") == (True, False) for _ in range(100))
+
+
+def test_rate_limit_drops_messages_without_calling_agent(test_config):
+    test_config.max_messages_per_minute = 2
+    agent = MockWhatsAppAgent()
+    client = TestClient(WhatsAppServer.create_app(agent, test_config))
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock) as mock_send:
+        for i in range(4):
+            payload = json.dumps(_create_meta_payload(sender="1111", text=f"msg {i}", wamid=f"wamid.{i}")).encode()
+            resp = client.post("/webhook", content=payload, headers={
+                "Content-Type": "application/json",
+                "X-Hub-Signature-256": _compute_hmac(payload, test_config.app_secret),
+            })
+            assert resp.status_code == 200
+
+    assert agent.call_count == 2
+    notices = [c for c in mock_send.await_args_list if "too quickly" in c.kwargs["text"]]
+    assert len(notices) == 1

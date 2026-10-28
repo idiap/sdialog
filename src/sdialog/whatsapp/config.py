@@ -38,6 +38,7 @@ class WhatsAppConfig:
     # Overwrites the webhook URL of the business account and phone number, use only with test accounts
     auto_setup: bool = False
     max_history_turns: int = 40  # Context window sliding budget
+    max_messages_per_minute: Optional[int] = 10  # Per-user rate limit (None to disable)
     enforce_signature: bool = True  # Reject webhook requests not signed with app_secret
     mark_as_read: bool = True
     log_level: str = "info"

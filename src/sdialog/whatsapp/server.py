@@ -11,7 +11,9 @@ import hashlib
 import asyncio
 import logging
 import threading
-from typing import Optional, Dict, Any, List
+import time
+from collections import deque
+from typing import Optional, Dict, Any, List, Deque, Tuple
 
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -35,6 +37,8 @@ class WhatsAppServer:
     _store: Optional[SQLiteSessionStore] = None
     _client: Optional[MetaWhatsAppClient] = None
     _agent_lock: Optional[asyncio.Lock] = None
+    _rate_windows: Dict[str, Deque[float]] = {}  # sender ID -> arrival times within the last minute
+    _rate_notified: Dict[str, float] = {}  # sender ID -> time of the last "slow down" notice
 
     @classmethod
     def get_agent_lock(cls) -> asyncio.Lock:
@@ -63,6 +67,8 @@ class WhatsAppServer:
         cls._store.cleanup_old_records()
         cls._client = MetaWhatsAppClient(config)
         cls._agent_lock = None
+        cls._rate_windows.clear()
+        cls._rate_notified.clear()
 
         app = FastAPI(
             title="SDialog WhatsApp Agent Server",
@@ -128,7 +134,19 @@ class WhatsAppServer:
 
                 cls._store.mark_message_processed(wamid)
 
-                # 5. Route by message type
+                # 5. Per-user rate limit, so one user can't flood the (serialized) agent or run up costs
+                allowed, notify = cls._check_rate_limit(sender_id)
+                if not allowed:
+                    logger.warning(f"[WhatsApp] Rate limit exceeded for {sender_id}, message {wamid} dropped")
+                    if notify:
+                        background_tasks.add_task(
+                            cls._client.send_text_message,
+                            to=sender_id,
+                            text="You are sending messages too quickly. Please wait a minute and try again.",
+                        )
+                    continue
+
+                # 6. Route by message type
                 if msg_type == "text":
                     text_body = msg.get("text", {}).get("body", "").strip()
                     if text_body:
@@ -223,6 +241,33 @@ class WhatsAppServer:
                 to=sender_id,
                 text="I currently only support text messages. Please send your query as text.",
             )
+
+    @classmethod
+    def _check_rate_limit(cls, sender_id: str) -> Tuple[bool, bool]:
+        """
+        Sliding one-minute window rate limit per sender.
+
+        :return: ``(allowed, notify)``, where ``notify`` is True for the first rejected message in a minute,
+                 so that the user gets a single notice instead of one reply per dropped message.
+        """
+        limit = cls._config.max_messages_per_minute
+        if not limit:
+            return True, False
+
+        now = time.monotonic()
+        window = cls._rate_windows.setdefault(sender_id, deque())
+        while window and now - window[0] >= 60:
+            window.popleft()
+
+        if len(window) < limit:
+            window.append(now)
+            return True, False
+
+        last_notice = cls._rate_notified.get(sender_id)
+        notify = last_notice is None or now - last_notice >= 60
+        if notify:
+            cls._rate_notified[sender_id] = now
+        return False, notify
 
     @staticmethod
     def _trim_memory(memory: List[Dict[str, Any]], max_messages: int) -> List[Dict[str, Any]]:
