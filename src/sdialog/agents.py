@@ -21,7 +21,7 @@ from typing import List, Union, Optional, Tuple
 from langchain_core.tools import tool
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.messages.base import BaseMessage, messages_to_dict
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, messages_from_dict
 
 from .config import config
 from jinja2 import Template
@@ -1049,6 +1049,72 @@ class Agent:
         :rtype: list
         """
         return messages_to_dict(self.memory) if as_dict else self.memory.copy()
+
+    def get_state(self) -> dict:
+        """
+        Returns a JSON-serializable snapshot of the agent's conversation state, which can be restored later
+        (e.g. on a fresh or reset agent) with :func:`set_state`.
+
+        The snapshot includes the conversation memory (excluding the system prompt, which is part of the agent's
+        configuration), the finished flag, and the internal state of attached orchestrators. It does not include
+        the persona, model, or other configuration (see :func:`json` and :func:`clone` for that).
+
+        Example:
+
+            .. code-block:: python
+
+                import json
+                from sdialog.agents import Agent
+
+                bot = Agent(name="Bot")
+                bot("Hi, my name is Alice")
+
+                saved = json.dumps(bot.get_state())
+
+                # Later, e.g. after a restart, continue the same conversation
+                bot.reset()
+                bot.set_state(json.loads(saved))
+                bot("Do you remember my name?")
+
+        :return: Serializable state dictionary.
+        :rtype: dict
+        """
+        memory = self._memory[1:] if self._system_prompt is not None else self._memory
+        return {
+            "version": 1,
+            "memory": messages_to_dict(memory),
+            "finished": self._finished,
+            "orchestrators": [orchestrator.get_state() for orchestrator in self._orchestrators or []]
+        }
+
+    def set_state(self, state: dict):
+        """
+        Restores a conversation state previously obtained with :func:`get_state`, replacing the current
+        conversation memory while keeping the agent's current system prompt.
+
+        Orchestrator states are restored by position; if the number of attached orchestrators differs from the
+        saved state, orchestrator states are not restored and a warning is logged.
+
+        :param state: State dictionary as returned by :func:`get_state`.
+        :type state: dict
+        :raises ValueError: If the state version is not supported.
+        """
+        if state.get("version") != 1:
+            raise ValueError(f"Unsupported agent state version: {state.get('version')}")
+
+        system_prompt = self._memory[:1] if self._system_prompt is not None else []
+        self._memory[:] = system_prompt + messages_from_dict(state.get("memory", []))
+        self._stateless_memory = None
+        self._finished = state.get("finished", False)
+
+        orchestrators = self._orchestrators or []
+        orchestrator_states = state.get("orchestrators", [])
+        if len(orchestrators) == len(orchestrator_states):
+            for orchestrator, orchestrator_state in zip(orchestrators, orchestrator_states):
+                orchestrator.set_state(orchestrator_state)
+        else:
+            logger.warning(f"Agent has {len(orchestrators)} orchestrator(s) but the state has "
+                           f"{len(orchestrator_states)}; orchestrator states were not restored.")
 
     #: Alias for :func:`Agent.dialog_with`.
     talk_with = dialog_with

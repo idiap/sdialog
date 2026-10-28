@@ -120,3 +120,54 @@ def test_agent_debug_mode_surfaces_tool_error():
     assert any(message.__class__.__name__ == "ToolMessage" and "RuntimeError: boom" in message.content
                for message in agent.llm.calls[1])
     assert any(event.action == "tool" and event.actionLabel == "output" for event in events)
+
+
+def test_agent_get_set_state_roundtrip():
+    import json
+    from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+    from sdialog.orchestrators import ChangeMindOrchestrator
+
+    agent = Agent(persona=Persona(name="A"), name="A", model=DummyLLM()) | ChangeMindOrchestrator(max_times=1)
+    system_prompt = agent.memory[0].content
+    agent.memory.extend([
+        HumanMessage(content="What's the weather?"),
+        AIMessage(content="", tool_calls=[{"name": "weather", "args": {"city": "Martigny"}, "id": "call-1"}]),
+        ToolMessage(content="Sunny", name="weather", tool_call_id="call-1"),
+        AIMessage(content="It's sunny."),
+    ])
+    agent._orchestrators[0].times = 1
+    agent._finished = True
+
+    state = json.loads(json.dumps(agent.get_state()))  # must be JSON-serializable
+    assert state["version"] == 1
+    assert len(state["memory"]) == 4  # system prompt excluded
+
+    agent.reset()
+    assert len(agent.memory) == 1 and agent._orchestrators[0].times == 0 and not agent._finished
+
+    agent.set_state(state)
+    assert agent.memory[0].content == system_prompt
+    assert [type(m) for m in agent.memory[1:]] == [HumanMessage, AIMessage, ToolMessage, AIMessage]
+    assert agent.memory[2].tool_calls[0]["args"] == {"city": "Martigny"}
+    assert agent.memory[3].tool_call_id == "call-1"
+    assert agent._orchestrators[0].times == 1
+    assert agent._finished
+
+
+def test_agent_set_state_keeps_current_system_prompt_and_handles_mismatch(caplog):
+    import pytest
+    from langchain_core.messages import HumanMessage
+    from sdialog.orchestrators import ChangeMindOrchestrator
+
+    source = Agent(persona=Persona(name="A"), name="A", model=DummyLLM()) | ChangeMindOrchestrator()
+    source.memory.append(HumanMessage(content="Hello"))
+    state = source.get_state()
+
+    target = Agent(persona=Persona(name="B"), name="B", model=DummyLLM())
+    target.set_state(state)
+    assert target.memory[0].content == target.prompt()
+    assert target.memory[1].content == "Hello"
+    assert "orchestrator states were not restored" in caplog.text
+
+    with pytest.raises(ValueError):
+        target.set_state({"version": 99, "memory": []})
