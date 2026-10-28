@@ -97,18 +97,62 @@ def test_whatsapp_config_defaults():
     assert config.max_history_turns == 40
 
 
-def test_whatsapp_config_validation():
-    config = WhatsAppConfig(phone_number_id=None, access_token=None)
+@pytest.fixture
+def no_whatsapp_env(monkeypatch):
+    for var in ("WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_TOKEN", "WHATSAPP_VERIFY_TOKEN",
+                "WHATSAPP_WEBHOOK_VERIFY_TOKEN", "WHATSAPP_APP_SECRET"):
+        monkeypatch.delenv(var, raising=False)
+
+
+def test_whatsapp_config_validation(no_whatsapp_env):
+    config = WhatsAppConfig(phone_number_id=None, access_token=None, app_secret="secret")
     with pytest.raises(ValueError, match="phone_number_id is required"):
         config.validate(dry_run=False)
 
-    config = WhatsAppConfig(phone_number_id="123", access_token=None)
+    config = WhatsAppConfig(phone_number_id="123", access_token=None, app_secret="secret")
     with pytest.raises(ValueError, match="access_token is required"):
         config.validate(dry_run=False)
 
     # Valid config
-    config = WhatsAppConfig(phone_number_id="123", access_token="token")
+    config = WhatsAppConfig(phone_number_id="123", access_token="token", app_secret="secret")
     config.validate(dry_run=False)  # Should not raise
+
+
+def test_whatsapp_config_requires_app_secret(no_whatsapp_env, temp_db):
+    config = WhatsAppConfig(phone_number_id="123", access_token="token", db_path=temp_db)
+    with pytest.raises(ValueError, match="app_secret is required"):
+        config.validate(dry_run=False)
+    with pytest.raises(ValueError, match="app_secret is required"):
+        WhatsAppServer.create_app(MockWhatsAppAgent(), config)
+
+    # Explicit opt-out accepts unsigned requests
+    config = WhatsAppConfig(phone_number_id="123", access_token="token", db_path=temp_db,
+                            enforce_signature=False, mark_as_read=False)
+    client = TestClient(WhatsAppServer.create_app(MockWhatsAppAgent(), config))
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock):
+        resp = client.post("/webhook", json=_create_meta_payload())
+    assert resp.status_code == 200
+
+
+def test_whatsapp_config_env_fallback_with_explicit_none(no_whatsapp_env, monkeypatch):
+    """Agent.serve_whatsapp() passes None for unset arguments; env vars must still be used."""
+    monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "env_phone")
+    monkeypatch.setenv("WHATSAPP_ACCESS_TOKEN", "env_token")
+    monkeypatch.setenv("WHATSAPP_APP_SECRET", "env_secret")
+    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "env_verify")
+
+    config = WhatsAppConfig(phone_number_id=None, access_token=None, app_secret=None, verify_token=None)
+    assert (config.phone_number_id, config.access_token, config.app_secret, config.verify_token) == \
+        ("env_phone", "env_token", "env_secret", "env_verify")
+    assert not config.verify_token_generated
+
+
+def test_whatsapp_config_generates_random_verify_token(no_whatsapp_env):
+    config1, config2 = WhatsAppConfig(), WhatsAppConfig()
+    assert config1.verify_token_generated
+    assert len(config1.verify_token) >= 32
+    assert config1.verify_token != config2.verify_token
+    assert not WhatsAppConfig().auto_setup
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +284,9 @@ def test_webhook_verification_failure(test_config):
             "hub.challenge": "challenge",
         },
     )
+    assert response.status_code == 403
+
+    response = client.get("/webhook", params={"hub.mode": "subscribe", "hub.challenge": "challenge"})
     assert response.status_code == 403
 
 

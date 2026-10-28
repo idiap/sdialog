@@ -52,6 +52,11 @@ class WhatsAppServer:
     @classmethod
     def create_app(cls, agent: Any, config: WhatsAppConfig) -> FastAPI:
         """Create and configure the FastAPI WhatsApp webhook application."""
+        config.validate(dry_run=True)
+        if not config.enforce_signature:
+            logger.warning("[WhatsApp] enforce_signature=False: webhook requests are NOT verified, anyone who "
+                           "knows the URL can make the agent reply (and spend LLM/WhatsApp credits) on your behalf")
+
         cls._agent = agent
         cls._config = config
         cls._store = SQLiteSessionStore(db_path=config.db_path)
@@ -71,7 +76,8 @@ class WhatsAppServer:
             hub_challenge: str = Query(None, alias="hub.challenge"),
         ):
             """Handle Meta WhatsApp webhook verification challenge."""
-            if hub_mode == "subscribe" and hub_verify_token == config.verify_token:
+            if hub_mode == "subscribe" and hub_verify_token and \
+               hmac.compare_digest(hub_verify_token, config.verify_token):
                 logger.info("[WhatsApp] Webhook verification challenge accepted")
                 return Response(content=hub_challenge, media_type="text/plain")
             logger.warning("[WhatsApp] Webhook verification failed: token mismatch")
@@ -88,7 +94,7 @@ class WhatsAppServer:
             raw_body = await request.body()
 
             # 1. HMAC Signature Verification
-            if config.app_secret and config.enforce_signature:
+            if config.enforce_signature:
                 sig_header = request.headers.get("X-Hub-Signature-256", "")
                 if not cls._verify_signature(raw_body, sig_header, config.app_secret):
                     logger.warning("[WhatsApp] Rejected request with invalid HMAC signature")
@@ -285,7 +291,8 @@ class WhatsAppServer:
             from .discovery import MetaDiscoveryClient
             discovery = MetaDiscoveryClient(config.access_token, config.app_secret)
             callback_url = f"{public_url}{config.webhook_path}"
-            logger.info(f"[WhatsApp] Auto-configuring Meta webhooks to {callback_url}...")
+            logger.warning(f"[WhatsApp] auto_setup=True: overriding the Meta webhook URL of the WhatsApp Business "
+                           f"Account and phone number to {callback_url} (it is not restored on shutdown)")
             try:
                 res = asyncio.run(discovery.configure_webhooks(
                     callback_url=callback_url,
@@ -300,7 +307,9 @@ class WhatsAppServer:
 
         logger.info(f"[WhatsApp] Starting server on {config.host}:{config.port}")
         logger.info(f"[WhatsApp] Webhook endpoint: {config.webhook_path}")
-        logger.info(f"[WhatsApp] Verify Token: {config.verify_token}")
+        if config.verify_token_generated:
+            logger.warning(f"[WhatsApp] No verify token set, generated one for this run: {config.verify_token} "
+                           "(enter it in Meta's webhook settings, or set WHATSAPP_VERIFY_TOKEN to keep it fixed)")
 
         uvicorn.run(app, host=config.host, port=config.port, log_level=config.log_level)
 
@@ -337,7 +346,6 @@ class WhatsAppServer:
             logger.info("=" * 60)
             logger.info(f"[WhatsApp] Public Tunnel URL: {public_url}{config.webhook_path}")
             logger.info(f"[WhatsApp] Meta Callback URL: {public_url}{config.webhook_path}")
-            logger.info(f"[WhatsApp] Meta Verify Token: {config.verify_token}")
             logger.info("=" * 60)
             return public_url
         except ImportError:

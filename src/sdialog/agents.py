@@ -681,7 +681,7 @@ class Agent:
                        webhook_path: str = "/webhook",
                        session_timeout: int = 1800,
                        tunnel: bool = False,
-                       auto_setup: bool = True,
+                       auto_setup: bool = False,
                        log_level: str = "info"):
         """
         Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
@@ -694,9 +694,9 @@ class Agent:
         :type phone_number_id: Optional[str]
         :param access_token: Meta Graph API Access Token (or WHATSAPP_ACCESS_TOKEN env var).
         :type access_token: Optional[str]
-        :param verify_token: Webhook verification token (or WHATSAPP_VERIFY_TOKEN env var).
+        :param verify_token: Webhook verification token (or WHATSAPP_VERIFY_TOKEN env var; random if unset).
         :type verify_token: Optional[str]
-        :param app_secret: Meta App Secret for HMAC validation (or WHATSAPP_APP_SECRET env var).
+        :param app_secret: Meta App Secret for HMAC validation (or WHATSAPP_APP_SECRET env var). Required.
         :type app_secret: Optional[str]
         :param db_path: Path to the SQLite session database.
         :type db_path: str
@@ -706,7 +706,8 @@ class Agent:
         :type session_timeout: int
         :param tunnel: If True, attempts to spawn a public ngrok tunnel.
         :type tunnel: bool
-        :param auto_setup: If True, auto-discovers phone ID and auto-syncs Meta webhooks.
+        :param auto_setup: If True (with tunnel=True), overwrites the Meta webhook URL of the WhatsApp
+                           Business Account and phone number with the tunnel URL. Use only with test accounts.
         :type auto_setup: bool
         :param log_level: Logging level for the server.
         :type log_level: str
