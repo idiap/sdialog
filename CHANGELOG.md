@@ -6,6 +6,10 @@ All notable changes to SDialog will be documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **sdialog.evaluation**:
+  - `ConversationalFeatures` (and the scores based on it) and `ReadabilityScore` (and the scores based on it) now ignore the speaker names: they were computed on the "Speaker: text" lines, so `BackChannelRateScore` was always 0 and speaker names were counted as words (e.g. in `LexicalDiversityScore` or `GunningFogScore`).
+
 ### Removed
 - **sdialog.audio**:
   - The legacy audio pipeline (`sdialog.audio.pipeline.to_audio` / `AudioPipeline`, dSCAPER-based), deprecated since 0.5.0, with the modules only it used: `dialog` (`AudioDialog`), `turn`, `room`, `room_generator`, `acoustics_simulator`, `room_acoustics_backends`, `impulse_response_database`, `processing`, `dscaper_utils`, `jsalt`, `legacy` and `utils`. `dialog.to_audio()` now raises a `TypeError` for the legacy pipeline's arguments (e.g. `perform_room_acoustics=True`) instead of routing them to it; use its own options (`preset=`, `reverb=`, `noise=`, `channel=`, ...) instead.

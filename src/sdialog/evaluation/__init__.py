@@ -343,7 +343,7 @@ class ConversationalFeatures(BaseDialogScore):
             dialog = dialog.filter(speaker=self.speaker)
 
         results = {}
-        all_text = str(dialog)
+        all_text = "\n".join(turn.text for turn in dialog)  # without the "Speaker:" prefixes
         turn_lengths = [len(turn) for turn in dialog]
         total_words = sum(turn_lengths)
 
@@ -366,7 +366,7 @@ class ConversationalFeatures(BaseDialogScore):
             results["lexical_diversity"] = (unique_words / max(1, len(words))) if words else 0.0
 
         if not self.feature or "back-channel-rate" in self.feature:
-            back_channel_turns = sum(1 for turn in dialog if self.is_back_channel(str(turn)))
+            back_channel_turns = sum(1 for turn in dialog if self.is_back_channel(turn.text))
             results["back_channel_rate"] = (back_channel_turns / max(1, len(dialog)) * 100)
 
         if not self.feature or "filler-word-density" in self.feature:
@@ -617,7 +617,7 @@ class ReadabilityScore(BaseDialogScore):
             dialog = dialog.filter(speaker=self.speaker)
 
         results = {}
-        all_text = str(dialog)
+        all_text = "\n".join(turn.text for turn in dialog)  # without the "Speaker:" prefixes
         if not self.feature or "gunning-fog" in self.feature:
             results["gunning_fog"] = self.calculate_gunning_fog(all_text)
         if not self.feature or "flesch-reading-ease" in self.feature:

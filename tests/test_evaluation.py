@@ -8,6 +8,8 @@ from sdialog.evaluation import (
     SentenceTransformerDialogEmbedder,
     ReferenceCentroidEmbeddingEvaluator,
     StatsEvaluator,
+    ConversationalFeatures,
+    GunningFogScore,
 )
 from sdialog import Dialog, Turn
 
@@ -81,3 +83,16 @@ def test_stats_evaluator():
     stats = evaluator(dialogs)
     assert "mean" in stats
     assert stats["mean"] == 1.0
+
+
+def test_conversational_features_ignore_speaker_names():
+    dialog = Dialog(turns=[Turn(speaker="Hmm", text="Do you like it?"), Turn(speaker="B", text="yeah")])
+    features = ConversationalFeatures()(dialog)
+    assert features["back_channel_rate"] == 50.0  # "yeah" is a back-channel turn
+    assert features["hesitation_rate"] == 0.0  # the speaker name "Hmm" is not a hesitation
+    assert features["lexical_diversity"] == 1.0  # speaker names are not counted as words
+
+
+def test_readability_ignores_speaker_names():
+    dialog = Dialog(turns=[Turn(speaker="Extraordinarily", text="I see."), Turn(speaker="B", text="Me too.")])
+    assert GunningFogScore()(dialog) == pytest.approx(0.4 * 2)  # 4 words, 2 sentences, no complex words
