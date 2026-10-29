@@ -187,6 +187,26 @@ class ChangeMindOrchestrator(BaseOrchestrator):
         """
         self.times = 0
 
+    def get_state(self) -> dict:
+        """
+        Return the internal counter of times triggered.
+
+        :return: State dictionary.
+        :rtype: dict
+        """
+        return {"times": self.times}
+
+    def set_state(self, state: dict):
+        """
+        Restore the internal counter of times triggered.
+
+        :param state: State dictionary as returned by :func:`get_state`.
+        :type state: dict
+        :return: None
+        :rtype: None
+        """
+        self.times = state.get("times", 0)
+
     def instruct(self, dialog: List[Turn], utterance: str) -> str:
         """
         Possibly return a mind-change instruction based on probability and remaining allowance.

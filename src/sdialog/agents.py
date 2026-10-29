@@ -21,7 +21,7 @@ from typing import List, Union, Optional, Tuple
 from langchain_core.tools import tool
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.messages.base import BaseMessage, messages_to_dict
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, messages_from_dict
 
 from .config import config
 from jinja2 import Template
@@ -670,6 +670,76 @@ class Agent:
 
         return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level)
 
+    def serve_whatsapp(self,
+                       port: int = 1234,
+                       host: str = "0.0.0.0",
+                       phone_number_id: Optional[str] = None,
+                       access_token: Optional[str] = None,
+                       verify_token: Optional[str] = None,
+                       app_secret: Optional[str] = None,
+                       db_path: str = "whatsapp_sessions.db",
+                       webhook_path: str = "/webhook",
+                       session_timeout: int = 1800,
+                       tunnel: bool = False,
+                       auto_setup: bool = False,
+                       max_messages_per_minute: Optional[int] = 6,
+                       max_messages_per_hour: Optional[int] = 60,
+                       log_level: str = "info"):
+        """
+        Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
+
+        :param port: Port number to bind the server to.
+        :type port: int
+        :param host: Host address to bind the server to.
+        :type host: str
+        :param phone_number_id: Meta WhatsApp Phone Number ID (or WHATSAPP_PHONE_NUMBER_ID env var).
+        :type phone_number_id: Optional[str]
+        :param access_token: Meta Graph API Access Token (or WHATSAPP_ACCESS_TOKEN env var).
+        :type access_token: Optional[str]
+        :param verify_token: Webhook verification token (or WHATSAPP_VERIFY_TOKEN env var; random if unset).
+        :type verify_token: Optional[str]
+        :param app_secret: Meta App Secret for HMAC validation (or WHATSAPP_APP_SECRET env var). Required.
+        :type app_secret: Optional[str]
+        :param db_path: Path to the SQLite session database.
+        :type db_path: str
+        :param webhook_path: Webhook URL path.
+        :type webhook_path: str
+        :param session_timeout: Seconds of inactivity before a user session resets.
+        :type session_timeout: int
+        :param tunnel: If True, attempts to spawn a public ngrok tunnel.
+        :type tunnel: bool
+        :param auto_setup: If True (with tunnel=True), overwrites the Meta webhook URL of the WhatsApp
+                           Business Account and phone number with the tunnel URL. Use only with test accounts.
+        :type auto_setup: bool
+        :param max_messages_per_minute: Per-user limit for bursts of messages; extra messages are dropped
+                                        (None to disable).
+        :type max_messages_per_minute: Optional[int]
+        :param max_messages_per_hour: Per-user limit for sustained use; extra messages are dropped
+                                      (None to disable).
+        :type max_messages_per_hour: Optional[int]
+        :param log_level: Logging level for the server.
+        :type log_level: str
+        """
+        from .whatsapp import WhatsAppServer, WhatsAppConfig
+
+        config = WhatsAppConfig(
+            port=port,
+            host=host,
+            phone_number_id=phone_number_id,
+            access_token=access_token,
+            verify_token=verify_token,
+            app_secret=app_secret,
+            db_path=db_path,
+            webhook_path=webhook_path,
+            session_timeout=session_timeout,
+            tunnel=tunnel,
+            auto_setup=auto_setup,
+            max_messages_per_minute=max_messages_per_minute,
+            max_messages_per_hour=max_messages_per_hour,
+            log_level=log_level
+        )
+        return WhatsAppServer.serve(agent=self, config=config)
+
     def response_lookahead(self, message: str = None):
         """
         Generates a response without updating the agent's memory.
@@ -990,6 +1060,72 @@ class Agent:
         :rtype: list
         """
         return messages_to_dict(self.memory) if as_dict else self.memory.copy()
+
+    def get_state(self) -> dict:
+        """
+        Returns a JSON-serializable snapshot of the agent's conversation state, which can be restored later
+        (e.g. on a fresh or reset agent) with :func:`set_state`.
+
+        The snapshot includes the conversation memory (excluding the system prompt, which is part of the agent's
+        configuration), the finished flag, and the internal state of attached orchestrators. It does not include
+        the persona, model, or other configuration (see :func:`json` and :func:`clone` for that).
+
+        Example:
+
+            .. code-block:: python
+
+                import json
+                from sdialog.agents import Agent
+
+                bot = Agent(name="Bot")
+                bot("Hi, my name is Alice")
+
+                saved = json.dumps(bot.get_state())
+
+                # Later, e.g. after a restart, continue the same conversation
+                bot.reset()
+                bot.set_state(json.loads(saved))
+                bot("Do you remember my name?")
+
+        :return: Serializable state dictionary.
+        :rtype: dict
+        """
+        memory = self._memory[1:] if self._system_prompt is not None else self._memory
+        return {
+            "version": 1,
+            "memory": messages_to_dict(memory),
+            "finished": self._finished,
+            "orchestrators": [orchestrator.get_state() for orchestrator in self._orchestrators or []]
+        }
+
+    def set_state(self, state: dict):
+        """
+        Restores a conversation state previously obtained with :func:`get_state`, replacing the current
+        conversation memory while keeping the agent's current system prompt.
+
+        Orchestrator states are restored by position; if the number of attached orchestrators differs from the
+        saved state, orchestrator states are not restored and a warning is logged.
+
+        :param state: State dictionary as returned by :func:`get_state`.
+        :type state: dict
+        :raises ValueError: If the state version is not supported.
+        """
+        if state.get("version") != 1:
+            raise ValueError(f"Unsupported agent state version: {state.get('version')}")
+
+        system_prompt = self._memory[:1] if self._system_prompt is not None else []
+        self._memory[:] = system_prompt + messages_from_dict(state.get("memory", []))
+        self._stateless_memory = None
+        self._finished = state.get("finished", False)
+
+        orchestrators = self._orchestrators or []
+        orchestrator_states = state.get("orchestrators", [])
+        if len(orchestrators) == len(orchestrator_states):
+            for orchestrator, orchestrator_state in zip(orchestrators, orchestrator_states):
+                orchestrator.set_state(orchestrator_state)
+        else:
+            logger.warning(f"Agent has {len(orchestrators)} orchestrator(s) but the state has "
+                           f"{len(orchestrator_states)}; orchestrator states were not restored.")
 
     #: Alias for :func:`Agent.dialog_with`.
     talk_with = dialog_with

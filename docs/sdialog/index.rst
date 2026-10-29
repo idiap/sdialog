@@ -362,6 +362,43 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
     # Serve both agents on port 1333 (select them by name from the GUI)
     Server.serve([agent1, agent2], port=1333)
 
+.. _serving_agents_whatsapp:
+
+Serving Agents on WhatsApp
+--------------------------
+
+Agents can also chat with real users over WhatsApp, through the Meta WhatsApp Cloud API, with :meth:`~sdialog.agents.Agent.serve_whatsapp`. Meta sends each incoming message to a webhook served by SDialog, the agent replies, and the reply is sent back through Meta's API. Each user (phone number) has their own conversation, saved in a local SQLite database and restored on their next message with :meth:`~sdialog.agents.Agent.get_state` / :meth:`~sdialog.agents.Agent.set_state`. Conversations reset after ``session_timeout`` seconds of inactivity (30 minutes by default), or when the user sends ``/reset``.
+
+To try it with a free Meta test account:
+
+1. At `developers.facebook.com <https://developers.facebook.com/>`_, create an app of type "Business" and add the **WhatsApp** product. Meta provides a test phone number, its **Phone Number ID**, and a temporary **access token**. Add your own phone number as an allowed recipient.
+2. Copy the **App Secret** from *App settings → Basic*. It is required, since it is used to check that webhook requests really come from Meta.
+3. Expose the server on a public HTTPS URL. For local testing, ``tunnel=True`` opens an `ngrok <https://ngrok.com/>`_ tunnel (``pip install pyngrok``).
+4. In the app's *WhatsApp → Configuration* page, set the callback URL (tunnel URL + ``/webhook``) and the verify token, and subscribe to the ``messages`` field.
+
+.. code-block:: python
+
+    import os
+    from sdialog.agents import Agent
+
+    os.environ["WHATSAPP_ACCESS_TOKEN"] = "..."
+    os.environ["WHATSAPP_PHONE_NUMBER_ID"] = "..."
+    os.environ["WHATSAPP_APP_SECRET"] = "..."
+    os.environ["WHATSAPP_VERIFY_TOKEN"] = "any-random-string"  # same value as in Meta's webhook settings
+
+    support = Agent(name="Support")
+    support.serve_whatsapp(tunnel=True)
+
+Then send a WhatsApp message to the test number from your phone.
+
+Some things to keep in mind:
+
+- Only text messages are supported; users sending other media get a short notice.
+- A single agent serves all users, so messages are processed one at a time (like :meth:`~sdialog.agents.Agent.serve`).
+- Each user can send up to ``max_messages_per_minute`` messages per minute (6 by default, enough for a few quick messages in a row) and ``max_messages_per_hour`` per hour (60 by default). Extra messages are dropped without calling the LLM, and the user gets a single notice; set either limit to ``None`` to disable it.
+- Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data.
+- With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.
+
 
 ----
 

@@ -4,6 +4,17 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **sdialog.agents**:
+  - `Agent.serve_whatsapp()` (and `Server.serve_whatsapp()`) to chat with agents over WhatsApp through the Meta WhatsApp Cloud API, with one conversation per user saved in SQLite (#135, contributed by @amitbhakt). See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp).
+  - `Agent.get_state()` / `Agent.set_state()` to save a conversation (memory, finished flag and orchestrator state) and restore it later, e.g. on a fresh or reset agent.
+- **sdialog.orchestrators**:
+  - `get_state()` / `set_state()` hooks for stateful orchestrators; `ChangeMindOrchestrator` saves its trigger counter.
+
+---
+
 ## [0.5.4] 2026-10-26 🩹
 
 ### Fixed

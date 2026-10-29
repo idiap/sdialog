@@ -188,6 +188,28 @@ class BaseOrchestrator(ABC):
         """
         pass
 
+    def get_state(self) -> dict:
+        """
+        Return a JSON-serializable snapshot of the internal state (overridden in stateful orchestrators).
+        Used by :func:`sdialog.agents.Agent.get_state`.
+
+        :return: State dictionary (empty for stateless orchestrators).
+        :rtype: dict
+        """
+        return {}
+
+    def set_state(self, state: dict):
+        """
+        Restore internal state from :func:`get_state` output (overridden in stateful orchestrators).
+        Used by :func:`sdialog.agents.Agent.set_state`.
+
+        :param state: State dictionary as returned by :func:`get_state`.
+        :type state: dict
+        :return: None
+        :rtype: None
+        """
+        pass
+
 
 class BasePersistentOrchestrator(BaseOrchestrator):
     """

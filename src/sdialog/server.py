@@ -319,6 +319,80 @@ class Server:
         await server.serve()
 
     @classmethod
+    def serve_whatsapp(cls,
+                       agent: Agent,
+                       port: int = 1234,
+                       host: str = "0.0.0.0",
+                       phone_number_id: Optional[str] = None,
+                       access_token: Optional[str] = None,
+                       verify_token: Optional[str] = None,
+                       app_secret: Optional[str] = None,
+                       db_path: str = "whatsapp_sessions.db",
+                       webhook_path: str = "/webhook",
+                       session_timeout: int = 1800,
+                       tunnel: bool = False,
+                       auto_setup: bool = False,
+                       max_messages_per_minute: Optional[int] = 6,
+                       max_messages_per_hour: Optional[int] = 60,
+                       log_level: str = "info") -> None:
+        """
+        Serve an SDialog agent via Meta WhatsApp Cloud API webhook.
+
+        :param agent: The SDialog agent to serve.
+        :type agent: Agent
+        :param port: Port number to listen on.
+        :type port: int
+        :param host: Host address to bind to.
+        :type host: str
+        :param phone_number_id: Meta WhatsApp Phone Number ID.
+        :type phone_number_id: Optional[str]
+        :param access_token: Meta Graph API Access Token.
+        :type access_token: Optional[str]
+        :param verify_token: Webhook verification token (or WHATSAPP_VERIFY_TOKEN env var; random if unset).
+        :type verify_token: Optional[str]
+        :param app_secret: Meta App Secret for HMAC validation (or WHATSAPP_APP_SECRET env var). Required.
+        :type app_secret: Optional[str]
+        :param db_path: Path to the SQLite session database.
+        :type db_path: str
+        :param webhook_path: Webhook URL path.
+        :type webhook_path: str
+        :param session_timeout: Inactivity seconds before resetting session.
+        :type session_timeout: int
+        :param tunnel: If True, attempts to spawn a public ngrok tunnel.
+        :type tunnel: bool
+        :param auto_setup: If True (with tunnel=True), overwrites the Meta webhook URL of the WhatsApp
+                           Business Account and phone number with the tunnel URL. Use only with test accounts.
+        :type auto_setup: bool
+        :param max_messages_per_minute: Per-user limit for bursts of messages; extra messages are dropped
+                                        (None to disable).
+        :type max_messages_per_minute: Optional[int]
+        :param max_messages_per_hour: Per-user limit for sustained use; extra messages are dropped
+                                      (None to disable).
+        :type max_messages_per_hour: Optional[int]
+        :param log_level: Logging level for the server.
+        :type log_level: str
+        """
+        from .whatsapp import WhatsAppServer, WhatsAppConfig
+
+        config = WhatsAppConfig(
+            port=port,
+            host=host,
+            phone_number_id=phone_number_id,
+            access_token=access_token,
+            verify_token=verify_token,
+            app_secret=app_secret,
+            db_path=db_path,
+            webhook_path=webhook_path,
+            session_timeout=session_timeout,
+            tunnel=tunnel,
+            auto_setup=auto_setup,
+            max_messages_per_minute=max_messages_per_minute,
+            max_messages_per_hour=max_messages_per_hour,
+            log_level=log_level
+        )
+        return WhatsAppServer.serve(agent=agent, config=config)
+
+    @classmethod
     def serve_in_thread(cls,
                         agents: Union[Agent, List[Agent]],
                         host: str = "0.0.0.0",

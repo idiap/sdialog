@@ -18,6 +18,7 @@ syllables>=1.0.4
 # === Web server (optional) ===
 fastapi
 uvicorn
+httpx
 
 # === LangChain ecosystem ===
 # LangChain ≥0.3.0 officially targets Python 3.9+, but later releases may require 3.10+.
