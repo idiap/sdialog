@@ -372,7 +372,7 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
 
     support.serve(port=1333, max_requests_per_minute=None, max_requests_per_hour=None)
 
-**Parallel requests.** By default, each agent processes one request at a time (the server keeps answering other requests, such as model listings, meanwhile). With ``max_workers=N``, up to N requests per agent are processed at the same time, each on a clone of the agent sharing its model (:meth:`~sdialog.agents.Agent.clone`), e.g. ``support.serve(port=1333, max_workers=4)``. This only applies in stateless mode (the default), since a stateful agent keeps a single conversation, and only helps when the model runs elsewhere (an API, or a model server such as Ollama): agents with a local Hugging Face model or with inspectors are always served one request at a time.
+**Parallel requests.** Each agent processes up to ``max_workers`` requests at the same time (8 by default), each on a fresh clone of the agent that shares its model (:meth:`~sdialog.agents.Agent.clone`), e.g. ``support.serve(port=1333, max_workers=16)``. Stateful agents (``stateless=False``) keep a single conversation, so they process one request at a time, and so do agents with a local Hugging Face model or with inspectors, since parallel calls would not be faster. With several workers, the agent's tools and custom functions (e.g. ``postprocess_fn``) may run at the same time for different requests, so they must be thread-safe; pass ``max_workers=1`` otherwise.
 
 .. _serving_agents_whatsapp:
 
@@ -406,7 +406,7 @@ Then send a WhatsApp message to the test number from your phone.
 Some things to keep in mind:
 
 - Only text messages are supported; users sending other media get a short notice.
-- By default, messages are processed one at a time. With ``max_workers=N``, up to N users are served at the same time, each on a clone of the agent sharing its model (:meth:`~sdialog.agents.Agent.clone`); a user's own messages are still processed one at a time, in order. This only helps when the model runs elsewhere (an API, or a model server such as Ollama): agents with a local Hugging Face model or with inspectors are always served one turn at a time.
+- Up to ``max_workers`` users (8 by default) are served at the same time, each message on a fresh clone of the agent that shares its model (:meth:`~sdialog.agents.Agent.clone`); a user's own messages are still processed one at a time, in order. Agents with a local Hugging Face model or with inspectors are served one message at a time, since parallel calls would not be faster. With several workers, the agent's tools and custom functions (e.g. ``postprocess_fn``) may run at the same time for different users, so they must be thread-safe; pass ``max_workers=1`` otherwise.
 - Each user can send up to ``max_messages_per_minute`` messages per minute (6 by default, enough for a few quick messages in a row) and ``max_messages_per_hour`` per hour (60 by default). Extra messages are dropped without calling the LLM, and the user gets a single notice; set either limit to ``None`` to disable it.
 - Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data. Conversations of users inactive for more than ``session_retention_days`` (30 by default) are deleted.
 - With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.

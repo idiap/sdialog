@@ -12,8 +12,8 @@ All notable changes to SDialog will be documented here.
   - `Agent.get_state()` / `Agent.set_state()` to save a conversation (memory, finished flag and orchestrator state) and restore it later, e.g. on a fresh or reset agent.
   - `Agent.clone()` to copy an agent with its own conversation (memory, orchestrators, LLM settings such as the seed) that shares its language model, so weights and API clients are not duplicated.
 - **sdialog.agent_pool**:
-  - `AgentPool`, a pool of an agent and its clones to run up to `max_workers` conversation turns at a time, with turns of the same conversation kept in order. Limited to one worker for local Hugging Face models and agents with inspectors.
-- **Parallel serving**: `max_workers` in `Agent.serve()`, `Server.serve()` / `serve_async()` / `serve_in_thread()` (stateless mode) and `serve_whatsapp()` (1 by default, i.e. one request at a time as before) to serve several users at the same time.
+  - `AgentPool` to run up to `max_workers` conversation turns of an agent at a time (8 by default), each on a fresh clone, with turns of the same conversation kept in order. Agents with a local Hugging Face model or inspectors run one turn at a time.
+- **Parallel serving**: `max_workers` in `Agent.serve()`, `Server.serve()` / `serve_async()` / `serve_in_thread()` and `serve_whatsapp()` to serve several users at the same time (see Changed).
 - **sdialog.orchestrators**:
   - `get_state()` / `set_state()` hooks for stateful orchestrators; `ChangeMindOrchestrator` saves its trigger counter.
 - **sdialog.whatsapp**:
@@ -32,6 +32,8 @@ All notable changes to SDialog will be documented here.
 ### Changed
 - **sdialog.server**:
   - The REST API server now rate limits chat requests by default (30/minute and 300/hour per client IP). Scripts that call a served agent in a fast loop (e.g. evaluations) may get HTTP 429 errors; pass `max_requests_per_minute=None, max_requests_per_hour=None` to `serve()` to disable the limits.
+- **sdialog.server** and **sdialog.whatsapp**:
+  - Served agents now process up to 8 requests (REST, stateless mode) or users (WhatsApp) at the same time instead of one, each on a clone of the agent. The agent's tools and custom functions (e.g. `postprocess_fn`) may therefore run concurrently and must be thread-safe; pass `max_workers=1` for the previous behavior. Agents with a local Hugging Face model or inspectors, and stateful REST agents, still run one at a time.
 
 ---
 

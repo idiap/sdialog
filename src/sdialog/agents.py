@@ -709,7 +709,7 @@ class Agent:
               log_level: str = "info",
               max_requests_per_minute: Optional[int] = 30,
               max_requests_per_hour: Optional[int] = 300,
-              max_workers: int = 1):
+              max_workers: Optional[int] = None):
         """
         Starts a REST API server to interact with the agent.
 
@@ -731,9 +731,10 @@ class Agent:
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
         :param max_workers: Maximum number of requests processed at the same time, each on a clone of the agent
-                            sharing its model. Only used when ``stateless=True`` and only helps when the model runs
-                            elsewhere (API or model server): local Hugging Face models are served one request at a time.
-        :type max_workers: int
+                            sharing its model (None: 8). Only used when ``stateless=True``; agents with a local
+                            Hugging Face model or inspectors serve one request at a time. With several workers, the
+                            agent's tools must be thread-safe.
+        :type max_workers: Optional[int]
         """
         from .server import Server
 
@@ -757,7 +758,7 @@ class Agent:
                        max_messages_per_minute: Optional[int] = 6,
                        max_messages_per_hour: Optional[int] = 60,
                        log_level: str = "info",
-                       max_workers: int = 1):
+                       max_workers: Optional[int] = None):
         """
         Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
 
@@ -798,10 +799,10 @@ class Agent:
         :param log_level: Logging level for the server.
         :type log_level: str
         :param max_workers: Maximum number of users whose messages are processed at the same time, each on a
-                            clone of the agent sharing its model (a user's messages are always processed one at a
-                            time, in order). Only helps when the model runs elsewhere (API or model server):
-                            local Hugging Face models are served one turn at a time.
-        :type max_workers: int
+                            clone of the agent sharing its model (None: 8; a user's messages are always processed
+                            one at a time, in order). Agents with a local Hugging Face model or inspectors serve one
+                            message at a time. With several workers, the agent's tools must be thread-safe.
+        :type max_workers: Optional[int]
         """
         from .whatsapp import WhatsAppServer, WhatsAppConfig
 

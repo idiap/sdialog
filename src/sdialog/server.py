@@ -148,7 +148,7 @@ class Server:
     _stateless: bool = False
     _debug: bool = False
     _rate_limiter: Optional[RateLimiter] = None  # Per client IP, set when the server starts
-    _max_workers: int = 1
+    _max_workers: Optional[int] = None  # None: AgentPool's default
     _pools: Dict[str, AgentPool] = {}  # model name -> pool of the agent and its clones, created on first request
 
     @classmethod
@@ -193,7 +193,8 @@ class Server:
             agent._can_finish = False  # Disable internal end-of-dialog detection; turn-taking is client-driven
             cls._agents[model_name] = agent
             cls._agent_locks[model_name] = Lock()
-            cls._pools.pop(model_name, None)  # Rebuilt for the new agent on its first request
+            if model_name in cls._pools:  # Rebuilt for the new agent on its first request
+                cls._pools.pop(model_name).close()
 
         if stateless is not None:
             cls._stateless = stateless
@@ -216,7 +217,7 @@ class Server:
               log_level: str = "info",
               max_requests_per_minute: Optional[int] = 30,
               max_requests_per_hour: Optional[int] = 300,
-              max_workers: int = 1) -> None:
+              max_workers: Optional[int] = None) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API.
 
@@ -247,10 +248,10 @@ class Server:
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
         :param max_workers: Maximum number of requests processed at the same time per agent, each on a clone
-                            of the agent sharing its model. Only used in stateless mode (a stateful agent has a single
-                            conversation) and only helps when the model runs elsewhere (API or model server): local
-                            Hugging Face models are served one request at a time.
-        :type max_workers: int
+                            of the agent sharing its model (None: 8). Agents with a local Hugging Face model or
+                            inspectors, and stateful agents (a single conversation), serve one request at a time.
+                            With several workers, the agent's tools must be thread-safe.
+        :type max_workers: Optional[int]
 
 
         Example:
@@ -305,7 +306,7 @@ class Server:
                           log_level: str = "info",
                           max_requests_per_minute: Optional[int] = 30,
                           max_requests_per_hour: Optional[int] = 300,
-                          max_workers: int = 1) -> None:
+                          max_workers: Optional[int] = None) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API (async version).
 
@@ -334,10 +335,10 @@ class Server:
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
         :param max_workers: Maximum number of requests processed at the same time per agent, each on a clone
-                            of the agent sharing its model. Only used in stateless mode (a stateful agent has a single
-                            conversation) and only helps when the model runs elsewhere (API or model server): local
-                            Hugging Face models are served one request at a time.
-        :type max_workers: int
+                            of the agent sharing its model (None: 8). Agents with a local Hugging Face model or
+                            inspectors, and stateful agents (a single conversation), serve one request at a time.
+                            With several workers, the agent's tools must be thread-safe.
+        :type max_workers: Optional[int]
         """
         cls._setup_agents(agents, model_names, stateless, debug)
         cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
@@ -377,7 +378,7 @@ class Server:
                        max_messages_per_minute: Optional[int] = 6,
                        max_messages_per_hour: Optional[int] = 60,
                        log_level: str = "info",
-                       max_workers: int = 1) -> None:
+                       max_workers: Optional[int] = None) -> None:
         """
         Serve an SDialog agent via Meta WhatsApp Cloud API webhook.
 
@@ -420,10 +421,10 @@ class Server:
         :param log_level: Logging level for the server.
         :type log_level: str
         :param max_workers: Maximum number of users whose messages are processed at the same time, each on a
-                            clone of the agent sharing its model (a user's messages are always processed one at a
-                            time, in order). Only helps when the model runs elsewhere (API or model server):
-                            local Hugging Face models are served one turn at a time.
-        :type max_workers: int
+                            clone of the agent sharing its model (None: 8; a user's messages are always processed
+                            one at a time, in order). Agents with a local Hugging Face model or inspectors serve one
+                            message at a time. With several workers, the agent's tools must be thread-safe.
+        :type max_workers: Optional[int]
         """
         from .whatsapp import WhatsAppServer, WhatsAppConfig
 
@@ -458,7 +459,7 @@ class Server:
                         log_level: str = "info",
                         max_requests_per_minute: Optional[int] = 30,
                         max_requests_per_hour: Optional[int] = 300,
-                        max_workers: int = 1) -> None:
+                        max_workers: Optional[int] = None) -> None:
         """
         Serve SDialog agents in a separate thread (alternative for Jupyter).
 
@@ -488,10 +489,10 @@ class Server:
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
         :param max_workers: Maximum number of requests processed at the same time per agent, each on a clone
-                            of the agent sharing its model. Only used in stateless mode (a stateful agent has a single
-                            conversation) and only helps when the model runs elsewhere (API or model server): local
-                            Hugging Face models are served one request at a time.
-        :type max_workers: int
+                            of the agent sharing its model (None: 8). Agents with a local Hugging Face model or
+                            inspectors, and stateful agents (a single conversation), serve one request at a time.
+                            With several workers, the agent's tools must be thread-safe.
+        :type max_workers: Optional[int]
         :return: The thread object running the server.
         :rtype: threading.Thread
         """
@@ -525,9 +526,11 @@ class Server:
                                          "minute": (max_requests_per_minute, 60)})
 
     @classmethod
-    def _set_max_workers(cls, max_workers: int) -> None:
+    def _set_max_workers(cls, max_workers: Optional[int]) -> None:
         """Set how many requests each agent may process at the same time (pools are rebuilt on demand)."""
         cls._max_workers = max_workers
+        for pool in cls._pools.values():
+            pool.close()
         cls._pools = {}
 
     @classmethod
@@ -544,11 +547,11 @@ class Server:
         """
         Run the requested agent on a request and return the generated events (empty for ignored requests).
 
-        The agent runs in a worker thread, so the server keeps answering other requests meanwhile,
-        on one of the agents of its pool (the agent itself or a clone).
+        The agent (a fresh clone, or the served agent itself with a single worker) runs in one of the pool's
+        threads, so the server keeps answering other requests meanwhile.
         """
         async with cls._get_pool(request.model).acquire() as agent:
-            return await asyncio.to_thread(cls._generate_events_sync, request, agent)
+            return await cls._get_pool(request.model).run(cls._generate_events_sync, request, agent)
 
     @classmethod
     def _generate_events_sync(cls, request: ChatCompletionRequest, agent: Agent) -> List:
@@ -1063,7 +1066,8 @@ class Server:
         if model_name in cls._agents:
             del cls._agents[model_name]
             del cls._agent_locks[model_name]
-            cls._pools.pop(model_name, None)
+            if model_name in cls._pools:
+                cls._pools.pop(model_name).close()
             logger.info(f"Removed agent '{model_name}' from server")
 
     @classmethod

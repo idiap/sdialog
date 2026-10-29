@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
 from sdialog.agents import Agent, _copy_llm
-from sdialog.agent_pool import AgentPool, uses_local_model
+from sdialog.agent_pool import DEFAULT_MAX_WORKERS, AgentPool, uses_local_model
 from sdialog.orchestrators import ChangeMindOrchestrator
 from sdialog.personas import Persona
 
@@ -99,7 +99,7 @@ def _run_turns(pool, turns):
     async def turn(key, message):
         async with pool.acquire(key) as agent:
             agent.reset()
-            replies.append(await asyncio.to_thread(agent, message))
+            replies.append(await pool.run(agent, message))
 
     async def main():
         await asyncio.gather(*(turn(key, message) for key, message in turns))
@@ -130,10 +130,39 @@ def test_pool_limits_parallel_turns():
     assert elapsed >= 0.8  # The third turn waits for a free worker
 
 
-def test_pool_single_worker_is_the_agent_itself():
+def _lent_agents(pool, n):
+    async def main():
+        lent = []
+        for _ in range(n):
+            async with pool.acquire() as agent:
+                lent.append(agent)
+        return lent
+    return asyncio.run(main())
+
+
+def test_pool_lends_fresh_clones():
     agent = _agent()
-    pool = AgentPool(agent)
-    assert pool._workers == [agent]
+    pool = AgentPool(agent, max_workers=2)
+    lent = _lent_agents(pool, 3)
+    assert len({id(a) for a in lent}) == 3 and agent not in lent
+
+    _run_turns(pool, [("a", "1"), ("b", "2")])
+    assert len(agent.memory) == 1  # The served agent itself is never used
+
+
+def test_pool_single_worker_lends_the_agent_itself():
+    agent = _agent()
+    assert _lent_agents(AgentPool(agent, max_workers=1), 2) == [agent, agent]
+
+
+def test_pool_default_max_workers():
+    assert AgentPool(_agent()).max_workers == DEFAULT_MAX_WORKERS == 8
+
+
+def test_pool_threads_are_not_limited_by_asyncio_default_executor():
+    pool = AgentPool(_agent(latency=0.5), max_workers=40)
+    _, elapsed = _run_turns(pool, [(str(i), str(i)) for i in range(40)])
+    assert elapsed < 1.0  # asyncio's default executor has at most 32 threads (fewer on small machines)
 
 
 @pytest.mark.parametrize("value", [0, -1, 1.5, True, "2"])
@@ -145,6 +174,8 @@ def test_pool_rejects_invalid_max_workers(value):
 def test_pool_uses_one_worker_for_local_models_and_inspectors(caplog):
     local = SimpleNamespace(llm=SimpleNamespace(pipeline=object()), get_name=lambda: "Local")
     assert uses_local_model(local)
+    assert AgentPool(local).max_workers == 1
+    assert caplog.text == ""  # No warning when max_workers was not asked for
     assert AgentPool(local, max_workers=4).max_workers == 1
     assert "runs a local model" in caplog.text
 
@@ -232,6 +263,8 @@ def test_rest_server_stateful_agents_use_one_worker(rest_server):
     rest_server._stateless = True
     rest_server._set_max_workers(4)
     assert rest_server._get_pool("bot:latest").max_workers == 4
+    rest_server._set_max_workers(None)
+    assert rest_server._get_pool("bot:latest").max_workers == DEFAULT_MAX_WORKERS
 
 
 def test_rest_server_rebuilds_pool_for_replaced_agent(rest_server):

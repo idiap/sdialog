@@ -57,8 +57,10 @@ class WhatsAppServer:
         cls._config = config
         cls._store = SQLiteSessionStore(db_path=config.db_path)
         cls._client = MetaWhatsAppClient(config)
-        # Each turn borrows an agent (the given one or a clone) and swaps the user's state in and out of it;
-        # turns of the same user run one at a time and in order, those of different users run in parallel
+        # Each turn gets an agent (a fresh clone, or the given one with a single worker) and loads the user's state
+        # into it; turns of the same user run one at a time and in order, those of different users run in parallel
+        if cls._pool is not None:
+            cls._pool.close()
         cls._pool = AgentPool(agent, max_workers=config.max_workers)
         cls._rate_limiter = RateLimiter({"hour": (config.max_messages_per_hour, 3600),
                                          "minute": (config.max_messages_per_minute, 60)})
@@ -202,9 +204,9 @@ class WhatsAppServer:
                 if state:
                     agent.set_state(state)
 
-                # Run inference in a threadpool so synchronous LLMs don't block the event loop
+                # Run inference in the pool's threads so synchronous LLMs don't block the event loop
                 logger.debug(f"[WhatsApp] Processing turn for user {sender_id}: '{text[:30]}...'")
-                response = await asyncio.to_thread(agent, text)
+                response = await cls._pool.run(agent, text)
 
                 if not response:
                     logger.warning(f"[WhatsApp] Agent returned empty response for {sender_id}")
@@ -242,7 +244,7 @@ class WhatsAppServer:
                 cls._store.reset_session(sender_id)
                 agent.reset()
                 # With no user message, the agent replies with its first_utterance if set, else the LLM greets
-                greeting = await asyncio.to_thread(agent)
+                greeting = await cls._pool.run(agent)
                 if not greeting:
                     return
                 cls._store.save_session(sender_id, agent.get_state())

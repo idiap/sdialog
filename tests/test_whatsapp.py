@@ -87,6 +87,7 @@ def test_config(temp_db):
         session_timeout=3600,
         enforce_signature=True,
         mark_as_read=False,  # avoid real Graph API calls from background tasks
+        max_workers=1,  # serve with the agent itself, so tests can inspect it
     )
 
 
