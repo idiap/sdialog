@@ -10,6 +10,7 @@ All notable changes to SDialog will be documented here.
 - **sdialog.evaluation**:
   - `ConversationalFeatures` (and the scores based on it) and `ReadabilityScore` (and the scores based on it) now ignore the speaker names: they were computed on the "Speaker: text" lines, so `BackChannelRateScore` was always 0 and speaker names were counted as words (e.g. in `LexicalDiversityScore` or `GunningFogScore`).
   - Back-channel turns followed by punctuation (e.g. "Okay." or "Yeah!") are now detected by `BackChannelRateScore`.
+  - `DialogFlowPPL` and `DialogFlowScore` (and `dialog2graph()`) ignored `ai_speaker` (`system_speaker_name`): the speaker of the first turn was always taken as the system, so the speakers were swapped in dialogues started by the user.
   - `StatsEvaluator.plot()` failed with matplotlib >= 3.11 (`boxplot()` no longer accepts `labels`).
   - Dataset evaluators given the path of a dialogue file or folder (e.g. `MeanEvaluator(score)("dialogs/")`) iterated over the characters of the path instead of loading the dialogues.
   - `DatasetComparator` with datasets given as a list (e.g. `comparator([dialogs_a, dialogs_b])`) crashed with a `TypeError` in score and embedding evaluators.

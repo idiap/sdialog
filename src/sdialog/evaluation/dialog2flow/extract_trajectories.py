@@ -155,6 +155,7 @@ def dialog2trajectories(
     global speaker2mame, name2speaker
     log_level = logging.INFO if verbose else logging.DEBUG
 
+    speaker2mame, name2speaker = {}, {}
     if system_speaker_name:
         system_speaker_name = system_speaker_name.lower()
         name2speaker[system_speaker_name] = DEFAULT_SYS_NAME
@@ -195,7 +196,6 @@ def dialog2trajectories(
     if not output_path:
         output_path = ".dialog2flow/"
     dialogues = {}
-    speaker2mame, name2speaker = {}, {}
     if isinstance(input_dialogues, list) and all(isinstance(d, Dialog) for d in input_dialogues):
         for dialog in input_dialogues:
             dialogue = []
