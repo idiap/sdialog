@@ -21,6 +21,10 @@ All notable changes to SDialog will be documented here.
 - **sdialog.rate_limit**:
   - `RateLimiter`, a per-key sliding window rate limiter with several limits at once, used by both the REST API and the WhatsApp servers.
 
+### Changed
+- **sdialog.server**:
+  - The REST API server now rate limits chat requests by default (30/minute and 300/hour per client IP). Scripts that call a served agent in a fast loop (e.g. evaluations) may get HTTP 429 errors; pass `max_requests_per_minute=None, max_requests_per_hour=None` to `serve()` to disable the limits.
+
 ---
 
 ## [0.5.4] 2026-10-26 🩹
