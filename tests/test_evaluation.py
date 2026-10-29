@@ -127,3 +127,9 @@ def test_tool_sequence_validator_order():
     first_event_is_tool = Dialog(turns=[], events=_tool_dialog("search", "book").events[1:])
     assert validator(first_event_is_tool) == 0
     assert validator(Dialog(turns=[])) == 0
+
+
+def test_back_channel_with_punctuation():
+    assert ConversationalFeatures.is_back_channel("Okay.")
+    assert ConversationalFeatures.is_back_channel("Yeah!")
+    assert not ConversationalFeatures.is_back_channel("Okay, let's go.")

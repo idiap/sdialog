@@ -285,7 +285,7 @@ class ConversationalFeatures(BaseDialogScore):
         :return: True if the turn is a back-channel response.
         :rtype: bool
         """
-        text = turn_text.strip().lower()
+        text = turn_text.strip().lower().rstrip(".!?,;… ")  # e.g. "Okay." or "Yeah!"
         back_channel_patterns = [
             r'^(?:yeah|yes|yep|yup|uh-huh|mhm|mm-hmm|okay|ok|right|sure|i see|got it|alright)$',
             r'^(?:oh|ah|hmm|huh)$',
