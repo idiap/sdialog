@@ -602,13 +602,8 @@ class Inspector:
         self.inspect_input = inspect_input
         self._logits_hook = None
 
-        if self.agent is not None and self.target:
-            self.agent._add_activation_hooks(self.target, steering_function=self.steering_function,
-                                             steering_interval=self.steering_interval, inspector=self)
-
-        # Register logits hook if top_k is specified
-        if self.agent is not None and self.top_k is not None:
-            self._register_logits_hook()
+        if self.agent is not None:
+            self.agent.add_inspectors(self)  # as `agent | inspector`: registers the hooks
 
     @property
     def input(self):

@@ -88,3 +88,13 @@ def test_steering_strength_and_steerer(agent):
     assert torch.allclose(_act_after_steering(agent, inspector), base + 2.5 * direction, atol=1e-5)
     steerer - inspector  # noqa: B018
     assert len(inspector.steering_function) == 3
+
+
+def test_inspector_several_layers_and_add_hooks(agent):
+    inspector = Inspector(target={"first": LAYER}, agent=agent)  # attached to the agent right away
+    inspector.add_hooks({"second": LAYER_1})
+    agent("hello")
+    token = inspector[0][0]
+    assert token.act is token  # several layers: indexed by key
+    assert token["first"].shape == token["second"].shape == (1, HIDDEN)
+    assert not torch.equal(token["first"], token["second"])
