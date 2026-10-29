@@ -135,9 +135,7 @@ class DocumentFormatNormalizer(TextNormalizer):
         :rtype: str
         """
 
-        text = text.replace("\n", "").replace("\t", "")
-
-        text = re.sub(r"\s+", " ", text).strip()
+        text = re.sub(r"\s+", " ", text).strip()  # newlines and tabs become spaces, so words stay apart
 
         return text.strip()
 

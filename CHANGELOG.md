@@ -7,6 +7,8 @@ All notable changes to SDialog will be documented here.
 ## [Unreleased]
 
 ### Fixed
+- **sdialog.audio**:
+  - `DocumentFormatNormalizer` removed newlines and tabs instead of replacing them with spaces, gluing words together (e.g. "Hello\nworld" became "Helloworld").
 - **sdialog.evaluation**:
   - `ConversationalFeatures` (and the scores based on it) and `ReadabilityScore` (and the scores based on it) now ignore the speaker names: they were computed on the "Speaker: text" lines, so `BackChannelRateScore` was always 0 and speaker names were counted as words (e.g. in `LexicalDiversityScore` or `GunningFogScore`).
   - Back-channel turns followed by punctuation (e.g. "Okay." or "Yeah!") are now detected by `BackChannelRateScore`.
