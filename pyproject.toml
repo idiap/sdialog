@@ -56,5 +56,9 @@ addopts = [
     "--import-mode=importlib",
 ]
 
+[tool.coverage.run]
+# Vendored third-party code (Nari Labs' Dia2 runtime), also excluded from flake8
+omit = ["src/sdialog/audio/tts/dia2/_dia2/*"]
+
 [tool.flake8]
 max-line-length = 120
