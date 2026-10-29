@@ -16,6 +16,7 @@ All notable changes to SDialog will be documented here.
 - **sdialog.interpretability**:
   - Steering functions added after attaching the inspector to the agent (e.g. `agent | inspector` and then `inspector + direction` or `steerer + inspector`, as in the documentation) were never applied.
   - `Inspector(target, agent=agent)` raised an `AttributeError`; it is now attached like `agent | inspector`.
+  - Adding an inspector to an agent without a local Hugging Face model now raises a clear `RuntimeError` (it raised an `AttributeError`).
 - **sdialog.orchestrators**:
   - `SimpleResponseOrchestrator` with `top_k=1`: the suggested response was split into characters ("(1) W; (2) h; ..."), or failed with an `AttributeError` when responses are given as a dictionary of actions.
 - **sdialog.evaluation**:

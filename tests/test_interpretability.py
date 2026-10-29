@@ -98,3 +98,14 @@ def test_inspector_several_layers_and_add_hooks(agent):
     assert token.act is token  # several layers: indexed by key
     assert token["first"].shape == token["second"].shape == (1, HIDDEN)
     assert not torch.equal(token["first"], token["second"])
+
+
+def test_inspector_requires_a_local_model():
+    class Plain:
+        seed = 0
+
+        def invoke(self, messages):
+            return None
+
+    with pytest.raises(RuntimeError, match="HuggingFace"):
+        Agent(persona=Persona(name="Bot"), model=Plain()) | Inspector(target=LAYER)
