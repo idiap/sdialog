@@ -133,6 +133,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "notice",
+      "name": "kan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/150661?v=4",
+      "profile": "http://www.notice.co.jp/",
+      "contributions": [
+        "audio",
+        "video"
+      ]
     }
   ],
   "contributorsPerLine": 7,
