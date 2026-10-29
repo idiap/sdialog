@@ -563,7 +563,7 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
             desc = f"Computing {self.name} scores for candidate dataset"
         else:
             desc = f"Computing {self.name} scores for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+            desc += str(dataset_name) if isinstance(dataset_name, int) else f"'{dataset_name}'"
         try:
             scores = [self.dialog_score(dialogue)
                       for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)]
@@ -763,7 +763,7 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
             desc = f"Computing {self.name} embeddings for candidate dataset"
         else:
             desc = f"Computing {self.name} embeddings for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+            desc += str(dataset_name) if isinstance(dataset_name, int) else f"'{dataset_name}'"
 
         # Skipping "reference" dataset name
         if dataset_name == "reference" and hasattr(self, "reference_embs"):

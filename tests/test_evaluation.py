@@ -11,8 +11,16 @@ from sdialog.evaluation import (
     ConversationalFeatures,
     GunningFogScore,
     ToolSequenceValidator,
+    DatasetComparator,
 )
+from sdialog.evaluation.base import BaseDialogScore
 from sdialog import Dialog, Turn, Event
+
+
+class LengthScore(BaseDialogScore):
+    def score(self, dialog):
+        return len(dialog)
+
 
 dummy_dialog = Dialog(
     turns=[Turn(text="hello world", speaker="A"),
@@ -133,3 +141,9 @@ def test_back_channel_with_punctuation():
     assert ConversationalFeatures.is_back_channel("Okay.")
     assert ConversationalFeatures.is_back_channel("Yeah!")
     assert not ConversationalFeatures.is_back_channel("Okay, let's go.")
+
+
+def test_dataset_comparator_with_list_of_datasets():
+    comparator = DatasetComparator([StatsEvaluator(LengthScore(), stat="mean")])
+    results = comparator([[dummy_dialog], [dummy_dialog, dummy_dialog]], output="dict")
+    assert set(results) == {1, 2}  # datasets given as a list are numbered from 1
