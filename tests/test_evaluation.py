@@ -13,7 +13,7 @@ from sdialog.evaluation import (
     ToolSequenceValidator,
     DatasetComparator,
 )
-from sdialog.evaluation.base import BaseDialogScore
+from sdialog.evaluation.base import BaseDialogScore, BaseDialogEmbedder
 from sdialog import Dialog, Turn, Event
 
 
@@ -147,3 +147,16 @@ def test_dataset_comparator_with_list_of_datasets():
     comparator = DatasetComparator([StatsEvaluator(LengthScore(), stat="mean")])
     results = comparator([[dummy_dialog], [dummy_dialog, dummy_dialog]], output="dict")
     assert set(results) == {1, 2}  # datasets given as a list are numbered from 1
+
+
+def test_dataset_evaluators_load_dialogues_from_path(tmp_path, monkeypatch):
+    for i, n in enumerate((2, 4)):
+        Dialog(turns=[Turn(speaker="A", text="hi")] * n).to_file(str(tmp_path / f"{i}.json"))
+    assert StatsEvaluator(LengthScore(), stat="mean")(str(tmp_path)) == 3
+
+    class DummyEmbedder(BaseDialogEmbedder):
+        def embed(self, dialog):
+            return np.ones(3) * len(dialog)
+
+    evaluator = ReferenceCentroidEmbeddingEvaluator(DummyEmbedder(), [dummy_dialog])
+    assert evaluator(str(tmp_path)) == pytest.approx(1.0)  # same direction as the centroid

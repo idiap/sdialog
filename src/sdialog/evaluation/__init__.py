@@ -2369,6 +2369,8 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         :return: Frechet distance (>= 0).
         :rtype: float
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         mu_src, sigma_src = np.atleast_1d(self.reference_mu), np.atleast_2d(self.reference_sigma)
         mu_tgt, sigma_tgt = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
 
@@ -2608,6 +2610,8 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
         :return: Max F1 value.
         :rtype: float
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         target_embs = self._encode_utterance_pairs(dialogues, dataset_name)
 
         if len(target_embs) != len(self.reference_embs):

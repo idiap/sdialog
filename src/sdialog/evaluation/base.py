@@ -558,6 +558,8 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :rtype: Union[dict, float, Tuple[Union[dict, float], np.ndarray]]
         :raises KeyboardInterrupt: If user interrupts (partial results saved).
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         dataset_name = dataset_name or "candidate"
         if dataset_name == "candidate":
             desc = f"Computing {self.name} scores for candidate dataset"
@@ -758,6 +760,8 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
         :return: Aggregated evaluation or (results, embeddings) if return_embs.
         :rtype: Union[dict, float, Tuple[Union[dict, float], np.ndarray]]
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         dataset_name = dataset_name or "candidate"
         if dataset_name == "candidate":
             desc = f"Computing {self.name} embeddings for candidate dataset"
