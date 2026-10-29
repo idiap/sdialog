@@ -40,7 +40,7 @@ Documentation = "https://sdialog.readthedocs.io"
 [tool.setuptools.dynamic]
 version = {attr = "sdialog.util.__version__"}
 dependencies = {file = ["requirements.txt"]}
-optional-dependencies = {audio = {file = ["requirements-audio.txt"]}, "audio-legacy" = {file = ["requirements-audio-legacy.txt"]}}
+optional-dependencies = {audio = {file = ["requirements-audio.txt"]}}
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -48,11 +48,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 sdialog = ["**/*.yaml", "**/*.j2", "evaluation/dialog2flow/util/visualization/**",
-           "audio/prompts/*.txt", "audio/tts/dia2/_dia2/LICENSE"]
+           "audio/tts/dia2/_dia2/LICENSE"]
 
 [tool.pytest.ini_options]
 pythonpath = "src/"
-norecursedirs = "tutorials/dscaper"
 addopts = [
     "--import-mode=importlib",
 ]

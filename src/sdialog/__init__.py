@@ -23,7 +23,6 @@ import csv
 import logging
 import importlib
 import tempfile
-import warnings
 
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
@@ -44,7 +43,7 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-# Arguments of the legacy (deprecated) audio pipeline, routed to it by Dialog.to_audio() for compatibility
+# Arguments of the removed legacy audio pipeline, rejected by Dialog.to_audio() with a clear error
 _LEGACY_TO_AUDIO_ARGS = {
     "dir_audio", "dialog_dir_name", "dscaper_data_path", "room_name", "perform_room_acoustics", "tts_engine",
     "persona_to_voice_desc", "dscaper_datasets", "room", "speaker_positions", "background_effect",
@@ -547,25 +546,13 @@ class Dialog(BaseModel):
         :return: The audio and its annotations.
         :rtype: sdialog.audio.DialogAudio
         :raises ImportError: If the audio dependencies are not installed.
+        :raises TypeError: If arguments of the removed legacy audio pipeline are given.
         """
         legacy_args = set(kwargs) & _LEGACY_TO_AUDIO_ARGS
         if legacy_args:
-            warnings.warn(f"dialog.to_audio() arguments {sorted(legacy_args)} belong to the legacy audio pipeline, "
-                          "which is deprecated and will be removed in a future release. See the documentation of "
-                          "sdialog.audio for the new options.", DeprecationWarning, stacklevel=2)
-            try:
-                from sdialog.audio.pipeline import to_audio as legacy_to_audio
-            except ImportError as e:
-                raise ImportError(f"The legacy audio pipeline dependencies are missing ({e}). "
-                                  "Install them with `pip install sdialog[audio-legacy]`.") from e
-            kwargs.pop("perform_tts", None)  # documented but never supported by the legacy pipeline
-            if path is not None:
-                kwargs["dir_audio"] = path
-            if seed is not None:
-                kwargs["seed"] = seed
-            if voices != "db":
-                kwargs["voices"] = voices
-            return legacy_to_audio(self, **kwargs)
+            raise TypeError(f"dialog.to_audio() arguments {sorted(legacy_args)} belonged to the legacy audio "
+                            "pipeline, which was removed. See the documentation of sdialog.audio for the new "
+                            "options (e.g. preset=, reverb=, noise=, channel=).")
 
         try:
             from sdialog.audio.synthesis import to_audio

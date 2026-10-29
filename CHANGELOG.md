@@ -4,6 +4,15 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Removed
+- **sdialog.audio**:
+  - The legacy audio pipeline (`sdialog.audio.pipeline.to_audio` / `AudioPipeline`, dSCAPER-based), deprecated since 0.5.0, with the modules only it used: `dialog` (`AudioDialog`), `turn`, `room`, `room_generator`, `acoustics_simulator`, `room_acoustics_backends`, `impulse_response_database`, `processing`, `dscaper_utils`, `jsalt`, `legacy` and `utils`. `dialog.to_audio()` now raises a `TypeError` for the legacy pipeline's arguments (e.g. `perform_room_acoustics=True`) instead of routing them to it; use its own options (`preset=`, `reverb=`, `noise=`, `channel=`, ...) instead.
+  - The `sdialog[audio-legacy]` extra, and the audio tutorials 1-10 that used the legacy pipeline (`tutorials/01_audio/0.quickstart.ipynb` covers `dialog.to_audio()`).
+
+---
+
 ## [0.6.0] 2026-10-29 💬
 
 ### Added

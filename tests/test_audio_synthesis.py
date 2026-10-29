@@ -408,6 +408,11 @@ def test_dialog_to_audio_method(dialog):
     assert audio.audio.shape[1] == 2 and audio.config["preset"] == "room"
 
 
+def test_dialog_to_audio_rejects_legacy_arguments(dialog):
+    with pytest.raises(TypeError, match="perform_room_acoustics.*legacy audio pipeline"):
+        dialog.to_audio(tts=ToneTTS(), perform_room_acoustics=True)
+
+
 def test_batch(dialog, tmp_path):
     rows = dialogs_to_audio([dialog, dialog], str(tmp_path), devices="cpu", tts_factory=_tone_factory,
                             seed=0, voices="random")

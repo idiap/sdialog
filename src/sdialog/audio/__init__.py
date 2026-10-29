@@ -40,20 +40,8 @@ from .synthesis import to_audio, dialogs_to_audio
 from .voice_database import (BaseVoiceDatabase, HuggingfaceVoiceDatabase, LocalVoiceDatabase,
                              Voice, VoiceDatabase)
 
-# Names kept for backward compatibility, loaded lazily on first access (they require heavy dependencies)
+# TTS engines, loaded lazily on first access (they require heavy dependencies)
 _LAZY = {
-    "generate_utterances_audios": ".legacy",
-    "generate_utterance": ".legacy",
-    "generate_audio_room_accoustic": ".legacy",
-    "device": ".legacy",
-    "AudioDialog": ".dialog",
-    "RoomAcousticsConfig": ".dialog",
-    "Room": ".room",
-    "RoomPosition": ".room",
-    "AcousticsSimulator": ".acoustics_simulator",
-    "SourceVolume": ".utils",
-    "Role": ".utils",
-    "logger": ".utils",
     "BaseTTS": ".tts",
     "BaseDialogTTS": ".tts",
     "PerTurnTTS": ".tts",
