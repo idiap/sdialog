@@ -16,6 +16,10 @@ All notable changes to SDialog will be documented here.
   - New chats start a fresh conversation: when welcome messages are enabled on the phone number, Meta's `request_welcome` event (a user opens a new chat) resets that user's conversation, and the agent greets them.
   - `session_timeout="auto"` (new default): conversations start over after 30 minutes of inactivity, or 24 hours if welcome messages are enabled (detected at startup). `session_timeout=None` disables the timeout.
   - `session_retention_days` (30 by default): conversations of users inactive for longer are deleted from the database.
+- **sdialog.server**:
+  - Per-client (IP address) rate limits of chat requests: `max_requests_per_minute` (30 by default) and `max_requests_per_hour` (300 by default) in `Agent.serve()` and `Server.serve()` / `serve_async()` / `serve_in_thread()`. Extra requests get HTTP 429 with a `Retry-After` header; pass `None` to disable a limit (e.g. for local scripts).
+- **sdialog.rate_limit**:
+  - `RateLimiter`, a per-key sliding window rate limiter with several limits at once, used by both the REST API and the WhatsApp servers.
 
 ---
 

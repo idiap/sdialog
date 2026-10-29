@@ -650,7 +650,9 @@ class Agent:
               port: int = 1333,
               stateless: bool = True,
               debug: bool = False,
-              log_level: str = "info"):
+              log_level: str = "info",
+              max_requests_per_minute: Optional[int] = 30,
+              max_requests_per_hour: Optional[int] = 300):
         """
         Starts a REST API server to interact with the agent.
 
@@ -665,10 +667,18 @@ class Agent:
         :type debug: bool
         :param log_level: Logging level for the server.
         :type log_level: str
+        :param max_requests_per_minute: Per-client (IP address) limit of chat requests per minute, for bursts;
+                                        extra requests get HTTP 429 "Too Many Requests" (None to disable).
+        :type max_requests_per_minute: Optional[int]
+        :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
+                                      (None to disable).
+        :type max_requests_per_hour: Optional[int]
         """
         from .server import Server
 
-        return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level)
+        return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level,
+                            max_requests_per_minute=max_requests_per_minute,
+                            max_requests_per_hour=max_requests_per_hour)
 
     def serve_whatsapp(self,
                        port: int = 1234,

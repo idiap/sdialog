@@ -7,7 +7,7 @@ agent management, and streaming responses.
 import json
 import pytest
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from threading import Lock
 
 # Import to check if FastAPI dependencies are available
@@ -71,6 +71,7 @@ def server_client():
     Server._agent_locks.clear()
     Server._app = None
     Server._debug = False
+    Server._rate_limiter = None
 
     # Create a new app
     Server._create_app()
@@ -508,6 +509,59 @@ class TestConcurrency:
         # Test that the lock can be acquired
         assert lock.acquire(blocking=False)
         lock.release()
+
+
+class TestRateLimits:
+    """Test the per-client limits of chat requests."""
+
+    REQUEST = {"model": "test-model:latest", "messages": [{"role": "user", "content": "Hello"}]}
+
+    def test_openai_endpoint_returns_429(self, server_client, mock_agent):
+        Server.add_agent(mock_agent, "test-model:latest")
+        Server._set_rate_limits(max_requests_per_minute=2, max_requests_per_hour=None)
+
+        assert [server_client.post("/v1/chat/completions", json=self.REQUEST).status_code
+                for _ in range(2)] == [200, 200]
+        response = server_client.post("/v1/chat/completions", json=self.REQUEST)
+        assert response.status_code == 429
+        assert 0 < int(response.headers["Retry-After"]) <= 60
+        assert response.json()["error"]["code"] == "rate_limit_exceeded"
+        assert mock_agent.call_count == 2  # Rejected requests never reach the agent
+
+    def test_ollama_endpoint_returns_429(self, server_client, mock_agent):
+        Server.add_agent(mock_agent, "test-model:latest")
+        Server._set_rate_limits(max_requests_per_minute=None, max_requests_per_hour=1)
+
+        assert server_client.post("/api/chat", json={**self.REQUEST, "stream": False}).status_code == 200
+        response = server_client.post("/api/chat", json={**self.REQUEST, "stream": False})
+        assert response.status_code == 429
+        assert "per hour" in response.json()["error"]
+
+    def test_only_chat_requests_count(self, server_client, mock_agent):
+        Server.add_agent(mock_agent, "test-model:latest")
+        Server._set_rate_limits(max_requests_per_minute=1, max_requests_per_hour=None)
+
+        for _ in range(5):
+            assert server_client.get("/v1/models").status_code == 200
+            assert server_client.get("/health").status_code == 200
+        assert server_client.post("/v1/chat/completions", json=self.REQUEST).status_code == 200
+
+    def test_no_limits_when_disabled(self, server_client, mock_agent):
+        Server.add_agent(mock_agent, "test-model:latest")
+        Server._set_rate_limits(max_requests_per_minute=None, max_requests_per_hour=None)
+
+        assert all(server_client.post("/v1/chat/completions", json=self.REQUEST).status_code == 200
+                   for _ in range(40))
+
+    def test_serve_sets_default_limits(self, mock_agent):
+        Server._agents.clear()
+        with patch("sdialog.server.uvicorn.run"):
+            Server.serve(mock_agent, model_names="test-model")
+        assert [(name, limit) for name, limit, _ in Server._rate_limiter.limits] == [("hour", 300), ("minute", 30)]
+
+        with patch("sdialog.server.uvicorn.run"):
+            Server.serve(mock_agent, model_names="test-model", max_requests_per_minute=None)
+        assert [name for name, _, _ in Server._rate_limiter.limits] == ["hour"]
 
 
 if __name__ == "__main__":

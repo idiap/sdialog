@@ -10,6 +10,7 @@ like Open WebUI.
 # SPDX-License-Identifier: MIT
 import re
 import json
+import math
 import uuid
 import time
 import asyncio
@@ -34,6 +35,7 @@ except ImportError:
     )
 
 from .agents import Agent
+from .rate_limit import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +145,7 @@ class Server:
     _app: Optional[FastAPI] = None
     _stateless: bool = False
     _debug: bool = False
+    _rate_limiter: Optional[RateLimiter] = None  # Per client IP, set when the server starts
 
     @classmethod
     def _setup_agents(cls,
@@ -205,7 +208,9 @@ class Server:
               stateless: bool = True,
               debug: bool = False,
               model_names: Optional[Union[str, List[str]]] = None,
-              log_level: str = "info") -> None:
+              log_level: str = "info",
+              max_requests_per_minute: Optional[int] = 30,
+              max_requests_per_hour: Optional[int] = 300) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API.
 
@@ -229,6 +234,12 @@ class Server:
         :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
+        :param max_requests_per_minute: Per-client (IP address) limit of chat requests per minute, for bursts;
+                                        extra requests get HTTP 429 "Too Many Requests" (None to disable).
+        :type max_requests_per_minute: Optional[int]
+        :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
+                                      (None to disable).
+        :type max_requests_per_hour: Optional[int]
 
 
         Example:
@@ -252,6 +263,7 @@ class Server:
                 # > 2 registered agents: Scientist:latest, Bot:latest
         """
         cls._setup_agents(agents, model_names, stateless, debug)
+        cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"> {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -264,7 +276,8 @@ class Server:
                             "Falling back to threaded server...")
                 # Use the threaded version as fallback
                 # Agents were already added in _setup_agents
-                return cls.serve_in_thread([], host, port, stateless, debug, None, log_level)
+                return cls.serve_in_thread([], host, port, stateless, debug, None, log_level,
+                                           max_requests_per_minute, max_requests_per_hour)
             else:
                 # Re-raise if it's a different RuntimeError
                 raise
@@ -277,7 +290,9 @@ class Server:
                           stateless: bool = True,
                           debug: bool = False,
                           model_names: Optional[Union[str, List[str]]] = None,
-                          log_level: str = "info") -> None:
+                          log_level: str = "info",
+                          max_requests_per_minute: Optional[int] = 30,
+                          max_requests_per_hour: Optional[int] = 300) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API (async version).
 
@@ -299,8 +314,15 @@ class Server:
         :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
+        :param max_requests_per_minute: Per-client (IP address) limit of chat requests per minute, for bursts;
+                                        extra requests get HTTP 429 "Too Many Requests" (None to disable).
+        :type max_requests_per_minute: Optional[int]
+        :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
+                                      (None to disable).
+        :type max_requests_per_hour: Optional[int]
         """
         cls._setup_agents(agents, model_names, stateless, debug)
+        cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"- {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -407,7 +429,9 @@ class Server:
                         stateless: bool = True,
                         debug: bool = False,
                         model_names: Optional[Union[str, List[str]]] = None,
-                        log_level: str = "info") -> None:
+                        log_level: str = "info",
+                        max_requests_per_minute: Optional[int] = 30,
+                        max_requests_per_hour: Optional[int] = 300) -> None:
         """
         Serve SDialog agents in a separate thread (alternative for Jupyter).
 
@@ -430,6 +454,12 @@ class Server:
         :type model_names: Optional[Union[str, List[str]]]
         :param log_level: Logging level for the server.
         :type log_level: str
+        :param max_requests_per_minute: Per-client (IP address) limit of chat requests per minute, for bursts;
+                                        extra requests get HTTP 429 "Too Many Requests" (None to disable).
+        :type max_requests_per_minute: Optional[int]
+        :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
+                                      (None to disable).
+        :type max_requests_per_hour: Optional[int]
         :return: The thread object running the server.
         :rtype: threading.Thread
         """
@@ -441,7 +471,8 @@ class Server:
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                    cls.serve_async(agents, host, port, stateless, debug, model_names, log_level)
+                    cls.serve_async(agents, host, port, stateless, debug, model_names, log_level,
+                                    max_requests_per_minute, max_requests_per_hour)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
@@ -454,6 +485,30 @@ class Server:
 
         logger.info("Server thread started. Use Ctrl+C in the main process to stop.")
         return thread
+
+    @classmethod
+    def _set_rate_limits(cls, max_requests_per_minute: Optional[int], max_requests_per_hour: Optional[int]) -> None:
+        """Set the per-client limits of chat requests (None to disable either)."""
+        cls._rate_limiter = RateLimiter({"hour": (max_requests_per_hour, 3600),
+                                         "minute": (max_requests_per_minute, 60)})
+
+    @classmethod
+    def _rate_limit_response(cls, raw_request: Request, ollama: bool = False) -> Optional[JSONResponse]:
+        """Return an HTTP 429 response if the client exceeded a rate limit, None if the request is allowed."""
+        if cls._rate_limiter is None:
+            return None
+        client = raw_request.client.host if raw_request.client else "unknown"
+        exceeded = cls._rate_limiter.hit(client)
+        if exceeded is None:
+            return None
+
+        unit, retry_after = exceeded
+        message = (f"Rate limit exceeded: too many requests per {unit} from this client. "
+                   f"Please retry in {math.ceil(retry_after)} seconds.")
+        logger.warning(f"Rate limit (per {unit}) exceeded by {client}, request rejected")
+        content = {"error": message} if ollama else {
+            "error": {"message": message, "type": "rate_limit_error", "code": "rate_limit_exceeded"}}
+        return JSONResponse(status_code=429, content=content, headers={"Retry-After": str(math.ceil(retry_after))})
 
     @classmethod
     def _create_app(cls) -> None:
@@ -494,9 +549,9 @@ class Server:
             return {"object": "list", "data": models}
 
         @cls._app.post("/v1/chat/completions")
-        async def chat_completions(request: ChatCompletionRequest):
+        async def chat_completions(request: ChatCompletionRequest, raw_request: Request):
             """Handle chat completion requests."""
-            return await cls._non_stream_response(request)
+            return cls._rate_limit_response(raw_request) or await cls._non_stream_response(request)
 
         @cls._app.get("/health")
         async def health_check():
@@ -590,8 +645,11 @@ class Server:
                 raise HTTPException(status_code=400, detail=str(e))
 
         @cls._app.post("/api/chat")
-        async def ollama_chat(request: OllamaChatRequest):
+        async def ollama_chat(request: OllamaChatRequest, raw_request: Request):
             """Ollama-compatible chat endpoint."""
+            limited = cls._rate_limit_response(raw_request, ollama=True)
+            if limited:
+                return limited
 
             logger.info(f"Ollama chat {'streaming' if request.stream else 'non-streaming'} "
                         f"request for model '{request.model}' with {len(request.messages)} messages")

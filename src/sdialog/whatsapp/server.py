@@ -12,8 +12,7 @@ import asyncio
 import logging
 import threading
 import time
-from collections import deque
-from typing import Optional, Dict, Any, List, Deque, Tuple
+from typing import Optional, Dict, Any, List, Tuple
 
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -22,6 +21,7 @@ import uvicorn
 from .config import WhatsAppConfig, AUTO_SESSION_TIMEOUT, AUTO_SESSION_TIMEOUT_NEW_CHAT
 from .client import MetaWhatsAppClient
 from .session_store import SQLiteSessionStore
+from ..rate_limit import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class WhatsAppServer:
     _store: Optional[SQLiteSessionStore] = None
     _client: Optional[MetaWhatsAppClient] = None
     _agent_lock: Optional[asyncio.Lock] = None
-    _rate_windows: Dict[str, Deque[float]] = {}  # sender ID -> arrival times of accepted messages (last hour)
+    _rate_limiter: Optional[RateLimiter] = None  # Per sender ID
     _rate_notified: Dict[Tuple[str, str], float] = {}  # (sender ID, "minute"/"hour") -> time of last notice
     _new_chat_events: bool = False  # Whether Meta signals new chats (welcome messages enabled on the number)
     _last_cleanup: float = 0.0
@@ -70,7 +70,8 @@ class WhatsAppServer:
         cls._store = SQLiteSessionStore(db_path=config.db_path)
         cls._client = MetaWhatsAppClient(config)
         cls._agent_lock = None
-        cls._rate_windows.clear()
+        cls._rate_limiter = RateLimiter({"hour": (config.max_messages_per_hour, 3600),
+                                         "minute": (config.max_messages_per_minute, 60)})
         cls._rate_notified.clear()
         cls._new_chat_events = False
         cls._last_cleanup = 0.0
@@ -297,30 +298,19 @@ class WhatsAppServer:
         :return: ``(allowed, notice)``, where ``notice`` is the text to send back for the first rejected message
                  in each window (None otherwise), so the user gets a single notice instead of one per message.
         """
-        limits = [(limit, seconds, unit) for limit, seconds, unit in [
-            (cls._config.max_messages_per_hour, 3600, "hour"),
-            (cls._config.max_messages_per_minute, 60, "minute"),
-        ] if limit]
-        if not limits:
+        exceeded = cls._rate_limiter.hit(sender_id)
+        if exceeded is None:
             return True, None
 
+        unit, _ = exceeded
         now = time.monotonic()
-        window = cls._rate_windows.setdefault(sender_id, deque())
-        while window and now - window[0] >= max(seconds for _, seconds, _ in limits):
-            window.popleft()
-
-        for limit, seconds, unit in limits:
-            if sum(1 for t in window if now - t < seconds) >= limit:
-                last_notice = cls._rate_notified.get((sender_id, unit))
-                if last_notice is not None and now - last_notice < seconds:
-                    return False, None
-                cls._rate_notified[(sender_id, unit)] = now
-                if unit == "minute":
-                    return False, "You are sending messages too quickly. Please wait a minute and try again."
-                return False, "You have reached the message limit for now. Please try again later."
-
-        window.append(now)
-        return True, None
+        last_notice = cls._rate_notified.get((sender_id, unit))
+        if last_notice is not None and now - last_notice < (60 if unit == "minute" else 3600):
+            return False, None
+        cls._rate_notified[(sender_id, unit)] = now
+        if unit == "minute":
+            return False, "You are sending messages too quickly. Please wait a minute and try again."
+        return False, "You have reached the message limit for now. Please try again later."
 
     @staticmethod
     def _trim_memory(memory: List[Dict[str, Any]], max_messages: int) -> List[Dict[str, Any]]:

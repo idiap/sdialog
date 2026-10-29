@@ -158,6 +158,28 @@ sdialog.server
 
 ----
 
+sdialog.whatsapp
+----------------
+
+.. automodule:: sdialog.whatsapp
+   :member-order: groupwise
+   :members:
+   :show-inheritance:
+
+
+----
+
+sdialog.rate_limit
+------------------
+
+.. automodule:: sdialog.rate_limit
+   :member-order: groupwise
+   :members:
+   :show-inheritance:
+
+
+----
+
 sdialog.audio
 -------------
 

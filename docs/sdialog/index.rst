@@ -362,6 +362,16 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
     # Serve both agents on port 1333 (select them by name from the GUI)
     Server.serve([agent1, agent2], port=1333)
 
+**Rate limits.** To keep anyone who can reach the server from flooding it or running up LLM costs, each client (IP address) can send up to ``max_requests_per_minute`` chat requests per minute (30 by default) and ``max_requests_per_hour`` per hour (300 by default). Extra requests get an HTTP 429 "Too Many Requests" error with a ``Retry-After`` header, which clients like the OpenAI Python SDK retry automatically after a short wait. Only chat requests count, not model listings or health checks. Some things to keep in mind:
+
+- Clients may send several requests per user message (Open WebUI also asks the agent for a chat title, tags and follow-up suggestions), so the defaults are higher than they may seem to need to be.
+- Behind a reverse proxy on the same machine (e.g. nginx), the real client IP is used, but all users of an app like Open WebUI reach the server from the app's address and share its limits. Raise them if the app serves several people.
+- For local scripts that call the server in a loop (e.g. evaluations or simulated users), disable the limits with ``None``:
+
+.. code-block:: python
+
+    support.serve(port=1333, max_requests_per_minute=None, max_requests_per_hour=None)
+
 .. _serving_agents_whatsapp:
 
 Serving Agents on WhatsApp
