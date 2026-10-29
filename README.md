@@ -25,6 +25,7 @@ It standardizes a Dialog schema and offers persona‑driven multi‑agent simula
 - Composable orchestration for precise control over behavior and flow
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
 - Native mechanistic interpretability (inspect and steer activations)
+- Serve agents to real users through an OpenAI-compatible API (e.g. Open WebUI) or on WhatsApp
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
 - Interoperability across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more.
 
@@ -107,6 +108,8 @@ for ix in range(3):
 # Finally, let's serve our support agent to interact with real users (OpenAI-compatible API)
 #    Point Open WebUI or any OpenAI-compatible client to: http://localhost:1333
 support_agent.serve(port=1333)
+# ...or let them chat with it on WhatsApp (Meta WhatsApp Cloud API)
+# support_agent.serve_whatsapp()
 ```
 > [!TIP]
 > - Choose your [LLMs and backends freely](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer).
@@ -115,6 +118,7 @@ support_agent.serve(port=1333)
 > [!NOTE]
 > - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/7.agents_with_tools_and_thoughts.ipynb) for a more complete example.
 > - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for more details on server options.
+> - See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp) to set up a Meta app and serve agents on WhatsApp.
 
 ### 🧪 Testing remote systems with simulated users
 

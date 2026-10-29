@@ -399,7 +399,7 @@ Some things to keep in mind:
 - Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data. Conversations of users inactive for more than ``session_retention_days`` (30 by default) are deleted.
 - With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.
 
-**Starting new conversations.** WhatsApp has no "new conversation" button, and Meta does not tell the business when a user clears or deletes a chat. If **welcome messages** are enabled on the phone number, though, Meta sends a ``request_welcome`` event when a user opens a chat that does not exist on their phone (the first time, or after they delete it). SDialog then starts a fresh conversation for that user and greets them, with the agent's ``first_utterance`` if it has one, or else a greeting written by the agent. Welcome messages are off by default; to enable them on a phone number:
+**Starting new conversations.** WhatsApp has no "new conversation" button, and Meta does not tell the business when a user clears or deletes a chat. If **welcome messages** are enabled on the phone number, though, Meta sends a ``request_welcome`` event when a user opens a chat with it for the first time. SDialog then starts a fresh conversation for that user and greets them, with the agent's ``first_utterance`` if it has one, or else a greeting written by the agent. Welcome messages are off by default; to enable them on a phone number:
 
 .. code-block:: bash
 
@@ -407,6 +407,10 @@ Some things to keep in mind:
          -H "Authorization: Bearer $WHATSAPP_ACCESS_TOKEN" -d "enable_welcome_message=true"
 
 With the default ``session_timeout="auto"``, SDialog checks this setting at startup (and notices it when the first ``request_welcome`` event arrives): if welcome messages are enabled, conversations start over on new chats or after 24 hours of inactivity, in case a new chat goes unnoticed; otherwise they start over after 30 minutes of inactivity. Pass a number of seconds to always use that timeout, or ``None`` to never time out.
+
+.. note::
+
+    Some Meta documentation says the event is also sent when a user deletes the chat and opens it again, but this is not reliable (in our tests with a Meta test number it was not sent). Users can always send ``/reset`` to start over.
 
 
 ----
