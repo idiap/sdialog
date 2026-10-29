@@ -4,36 +4,41 @@ All notable changes to SDialog will be documented here.
 
 ---
 
-## [Unreleased]
+## [0.6.0] 2026-10-29 💬
 
 ### Added
+- **sdialog.whatsapp** (#135, contributed by @amitbhakt):
+  - `Agent.serve_whatsapp()` (and `Server.serve_whatsapp()`) to let real users chat with agents over WhatsApp through the Meta WhatsApp Cloud API. Each user (phone number) has their own conversation, saved in SQLite and restored on their next message. See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp).
+  - Webhook requests are verified with the app secret (required), duplicate deliveries from Meta are ignored, and non-text messages get a short "not supported" notice.
+  - Per-user rate limits: `max_messages_per_minute` (6 by default) and `max_messages_per_hour` (60 by default); extra messages are dropped without calling the LLM, with a single notice.
+  - Up to `max_workers` users (8 by default) are served at the same time, each on a clone of the agent; a user's messages are always processed one at a time, in order.
+  - Conversations start over when the user sends `/reset`, after `session_timeout` seconds of inactivity, or, if welcome messages are enabled on the phone number, when a user opens a chat for the first time (Meta's `request_welcome` event; the agent greets them). With the default `session_timeout="auto"`, the timeout is 30 minutes, or 24 hours if welcome messages are enabled (detected at startup); `None` disables it.
+  - `session_retention_days` (30 by default): conversations of users inactive for longer are deleted from the database.
 - **sdialog.agents**:
-  - `Agent.serve_whatsapp()` (and `Server.serve_whatsapp()`) to chat with agents over WhatsApp through the Meta WhatsApp Cloud API, with one conversation per user saved in SQLite (#135, contributed by @amitbhakt). See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp).
   - `Agent.get_state()` / `Agent.set_state()` to save a conversation (memory, finished flag and orchestrator state) and restore it later, e.g. on a fresh or reset agent.
   - `Agent.clone()` to copy an agent with its own conversation (memory, orchestrators, LLM settings such as the seed) that shares its language model, so weights and API clients are not duplicated.
 - **sdialog.agent_pool**:
-  - `AgentPool` to run up to `max_workers` conversation turns of an agent at a time (8 by default), each on a fresh clone, with turns of the same conversation kept in order. Agents with a local Hugging Face model or inspectors run one turn at a time.
-- **Parallel serving**: `max_workers` in `Agent.serve()`, `Server.serve()` / `serve_async()` / `serve_in_thread()` and `serve_whatsapp()` to serve several users at the same time (see Changed).
+  - `AgentPool` to run up to `max_workers` conversation turns of an agent at a time (8 by default), each on a fresh clone, with turns of the same conversation kept in order. Agents with a local Hugging Face model or inspectors run one turn at a time. Used by both servers.
+- **sdialog.server**:
+  - `max_workers` in `Agent.serve()` and `Server.serve()` / `serve_async()` / `serve_in_thread()` to process several requests at the same time (see Changed).
+  - Per-client (IP address) rate limits of chat requests: `max_requests_per_minute` (30 by default) and `max_requests_per_hour` (300 by default). Extra requests get HTTP 429 with a `Retry-After` header; pass `None` to disable a limit (e.g. for local scripts).
 - **sdialog.orchestrators**:
   - `get_state()` / `set_state()` hooks for stateful orchestrators; `ChangeMindOrchestrator` saves its trigger counter.
-- **sdialog.whatsapp**:
-  - New chats start a fresh conversation: when welcome messages are enabled on the phone number, Meta's `request_welcome` event (a user opens a new chat) resets that user's conversation, and the agent greets them.
-  - `session_timeout="auto"` (new default): conversations start over after 30 minutes of inactivity, or 24 hours if welcome messages are enabled (detected at startup). `session_timeout=None` disables the timeout.
-  - `session_retention_days` (30 by default): conversations of users inactive for longer are deleted from the database.
-- **sdialog.server**:
-  - Per-client (IP address) rate limits of chat requests: `max_requests_per_minute` (30 by default) and `max_requests_per_hour` (300 by default) in `Agent.serve()` and `Server.serve()` / `serve_async()` / `serve_in_thread()`. Extra requests get HTTP 429 with a `Retry-After` header; pass `None` to disable a limit (e.g. for local scripts).
 - **sdialog.rate_limit**:
-  - `RateLimiter`, a per-key sliding window rate limiter with several limits at once, used by both the REST API and the WhatsApp servers.
+  - `RateLimiter`, a per-key sliding window rate limiter with several limits at once, used by both servers.
+
+### Changed
+- **sdialog.server**:
+  - Served agents now process up to 8 requests at the same time (stateless mode, the default) instead of one, each on a clone of the agent. The agent's tools and custom functions (e.g. `postprocess_fn`) may therefore run concurrently and must be thread-safe; pass `max_workers=1` for the previous behavior. Agents with a local Hugging Face model or inspectors, and stateful agents, still process one request at a time.
+  - Chat requests are now rate limited by default (30/minute and 300/hour per client IP). Scripts that call a served agent in a fast loop (e.g. evaluations) may get HTTP 429 errors; pass `max_requests_per_minute=None, max_requests_per_hour=None` to `serve()` to disable the limits.
+
+### Deprecated
+- **sdialog.audio**:
+  - The legacy audio pipeline (`sdialog.audio.pipeline.to_audio` / `AudioPipeline`, dSCAPER-based), deprecated since 0.5.0, and the `sdialog[audio-legacy]` extra will be removed in an upcoming release, together with the tutorials that use them. Use `dialog.to_audio()` instead.
 
 ### Fixed
 - **sdialog.server**:
   - The REST API server no longer blocks while an agent generates a reply: generation runs in a worker thread, so other requests (e.g. `/health`, `/v1/models`) are answered meanwhile instead of waiting for it.
-
-### Changed
-- **sdialog.server**:
-  - The REST API server now rate limits chat requests by default (30/minute and 300/hour per client IP). Scripts that call a served agent in a fast loop (e.g. evaluations) may get HTTP 429 errors; pass `max_requests_per_minute=None, max_requests_per_hour=None` to `serve()` to disable the limits.
-- **sdialog.server** and **sdialog.whatsapp**:
-  - Served agents now process up to 8 requests (REST, stateless mode) or users (WhatsApp) at the same time instead of one, each on a clone of the agent. The agent's tools and custom functions (e.g. `postprocess_fn`) may therefore run concurrently and must be thread-safe; pass `max_workers=1` for the previous behavior. Agents with a local Hugging Face model or inspectors, and stateful REST agents, still run one at a time.
 
 ---
 
