@@ -10,6 +10,10 @@ All notable changes to SDialog will be documented here.
 - **sdialog.agents**:
   - `Agent.serve_whatsapp()` (and `Server.serve_whatsapp()`) to chat with agents over WhatsApp through the Meta WhatsApp Cloud API, with one conversation per user saved in SQLite (#135, contributed by @amitbhakt). See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp).
   - `Agent.get_state()` / `Agent.set_state()` to save a conversation (memory, finished flag and orchestrator state) and restore it later, e.g. on a fresh or reset agent.
+  - `Agent.clone()` to copy an agent with its own conversation (memory, orchestrators, LLM settings such as the seed) that shares its language model, so weights and API clients are not duplicated.
+- **sdialog.agent_pool**:
+  - `AgentPool`, a pool of an agent and its clones to run up to `max_workers` conversation turns at a time, with turns of the same conversation kept in order. Limited to one worker for local Hugging Face models and agents with inspectors.
+- **Parallel serving**: `max_workers` in `Agent.serve()`, `Server.serve()` / `serve_async()` / `serve_in_thread()` (stateless mode) and `serve_whatsapp()` (1 by default, i.e. one request at a time as before) to serve several users at the same time.
 - **sdialog.orchestrators**:
   - `get_state()` / `set_state()` hooks for stateful orchestrators; `ChangeMindOrchestrator` saves its trigger counter.
 - **sdialog.whatsapp**:
@@ -20,6 +24,10 @@ All notable changes to SDialog will be documented here.
   - Per-client (IP address) rate limits of chat requests: `max_requests_per_minute` (30 by default) and `max_requests_per_hour` (300 by default) in `Agent.serve()` and `Server.serve()` / `serve_async()` / `serve_in_thread()`. Extra requests get HTTP 429 with a `Retry-After` header; pass `None` to disable a limit (e.g. for local scripts).
 - **sdialog.rate_limit**:
   - `RateLimiter`, a per-key sliding window rate limiter with several limits at once, used by both the REST API and the WhatsApp servers.
+
+### Fixed
+- **sdialog.server**:
+  - The REST API server no longer blocks while an agent generates a reply: generation runs in a worker thread, so other requests (e.g. `/health`, `/v1/models`) are answered meanwhile instead of waiting for it.
 
 ### Changed
 - **sdialog.server**:

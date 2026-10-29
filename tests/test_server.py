@@ -72,6 +72,8 @@ def server_client():
     Server._app = None
     Server._debug = False
     Server._rate_limiter = None
+    Server._pools = {}
+    Server._max_workers = 1
 
     # Create a new app
     Server._create_app()

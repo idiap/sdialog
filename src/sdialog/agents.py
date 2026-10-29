@@ -8,6 +8,7 @@ hooks for token- and layer-level analysis and optional representation steering.
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import re
+import copy
 import json
 import random
 import logging
@@ -33,6 +34,18 @@ from .interpretability import ResponseHook, ActivationHook, Inspector
 from .util import get_llm_model, is_amazon_model_name, is_huggingface_model_name, set_generator_seed, get_universal_id
 
 logger = logging.getLogger(__name__)
+
+
+def _copy_llm(llm):
+    """
+    Shallow copy of a LangChain model so that settings changed per conversation (e.g. ``seed``, or
+    ``num_predict`` during Ollama's reset workaround) are not shared, while clients and model weights are.
+    """
+    if hasattr(llm, "bound") and hasattr(llm, "model_copy"):  # e.g. a model with bound tools
+        return llm.model_copy(update={"bound": _copy_llm(llm.bound)})
+    if hasattr(llm, "model_copy"):
+        return llm.model_copy()
+    return llm
 
 
 def final_response_tool(func=None):
@@ -555,6 +568,49 @@ class Agent:
 
         return response, events
 
+    def clone(self) -> "Agent":
+        """
+        Create a copy of this agent with its own conversation that shares its language model.
+
+        The clone shares the model weights and API clients (nothing is loaded again), and everything else
+        that does not change during a conversation (persona, tools, prompts). It gets its own memory,
+        finished flag, LLM settings (e.g. the seed set on reset) and copies of the orchestrators: shallow copies,
+        so heavy resources such as sentence encoders are shared, while e.g. their counters are not.
+        Inspectors are not copied, since their hooks are attached to the shared model.
+
+        Useful to run several conversations with the same agent in parallel
+        (see :class:`~sdialog.agent_pool.AgentPool`).
+
+        Example:
+
+            .. code-block:: python
+
+                from sdialog.agents import Agent
+
+                support = Agent(name="Support")
+                support_2 = support.clone()  # Same LLM, separate memory
+
+                support("Hi, I'm Alice")
+                support_2("Hi, I'm Bob")  # Does not know about Alice
+
+        :return: The cloned agent.
+        :rtype: Agent
+        """
+        clone = copy.copy(self)
+        clone.llm = _copy_llm(self.llm)
+        clone.model_info = dict(self.model_info)
+        clone._memory = [message.model_copy() for message in self._memory]
+        clone._stateless_memory = None
+        clone._orchestrators = None
+        clone.add_orchestrators([copy.copy(orchestrator) for orchestrator in self._orchestrators or []])
+        clone._inspectors = None
+        clone._hook_response_data = None
+        clone._hook_acts = []
+        clone._hook_logits = []
+        clone._hook_response_act = defaultdict(lambda: defaultdict(list))
+        clone._hook_response_logit = defaultdict(list)
+        return clone
+
     def __or__(self, other):
         """
         Overloaded | operator to attach orchestration or interpretability components.
@@ -652,7 +708,8 @@ class Agent:
               debug: bool = False,
               log_level: str = "info",
               max_requests_per_minute: Optional[int] = 30,
-              max_requests_per_hour: Optional[int] = 300):
+              max_requests_per_hour: Optional[int] = 300,
+              max_workers: int = 1):
         """
         Starts a REST API server to interact with the agent.
 
@@ -673,12 +730,16 @@ class Agent:
         :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
+        :param max_workers: Maximum number of requests processed at the same time, each on a clone of the agent
+                            sharing its model. Only used when ``stateless=True`` and only helps when the model runs
+                            elsewhere (API or model server): local Hugging Face models are served one request at a time.
+        :type max_workers: int
         """
         from .server import Server
 
         return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level,
                             max_requests_per_minute=max_requests_per_minute,
-                            max_requests_per_hour=max_requests_per_hour)
+                            max_requests_per_hour=max_requests_per_hour, max_workers=max_workers)
 
     def serve_whatsapp(self,
                        port: int = 1234,
@@ -695,7 +756,8 @@ class Agent:
                        auto_setup: bool = False,
                        max_messages_per_minute: Optional[int] = 6,
                        max_messages_per_hour: Optional[int] = 60,
-                       log_level: str = "info"):
+                       log_level: str = "info",
+                       max_workers: int = 1):
         """
         Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
 
@@ -735,6 +797,11 @@ class Agent:
         :type max_messages_per_hour: Optional[int]
         :param log_level: Logging level for the server.
         :type log_level: str
+        :param max_workers: Maximum number of users whose messages are processed at the same time, each on a
+                            clone of the agent sharing its model (a user's messages are always processed one at a
+                            time, in order). Only helps when the model runs elsewhere (API or model server):
+                            local Hugging Face models are served one turn at a time.
+        :type max_workers: int
         """
         from .whatsapp import WhatsAppServer, WhatsAppConfig
 
@@ -753,7 +820,8 @@ class Agent:
             auto_setup=auto_setup,
             max_messages_per_minute=max_messages_per_minute,
             max_messages_per_hour=max_messages_per_hour,
-            log_level=log_level
+            log_level=log_level,
+            max_workers=max_workers,
         )
         return WhatsAppServer.serve(agent=self, config=config)
 

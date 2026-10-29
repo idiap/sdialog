@@ -19,6 +19,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
 from threading import Lock
+from contextlib import nullcontext
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
@@ -35,6 +36,7 @@ except ImportError:
     )
 
 from .agents import Agent
+from .agent_pool import AgentPool
 from .rate_limit import RateLimiter
 
 logger = logging.getLogger(__name__)
@@ -146,6 +148,8 @@ class Server:
     _stateless: bool = False
     _debug: bool = False
     _rate_limiter: Optional[RateLimiter] = None  # Per client IP, set when the server starts
+    _max_workers: int = 1
+    _pools: Dict[str, AgentPool] = {}  # model name -> pool of the agent and its clones, created on first request
 
     @classmethod
     def _setup_agents(cls,
@@ -189,6 +193,7 @@ class Server:
             agent._can_finish = False  # Disable internal end-of-dialog detection; turn-taking is client-driven
             cls._agents[model_name] = agent
             cls._agent_locks[model_name] = Lock()
+            cls._pools.pop(model_name, None)  # Rebuilt for the new agent on its first request
 
         if stateless is not None:
             cls._stateless = stateless
@@ -210,7 +215,8 @@ class Server:
               model_names: Optional[Union[str, List[str]]] = None,
               log_level: str = "info",
               max_requests_per_minute: Optional[int] = 30,
-              max_requests_per_hour: Optional[int] = 300) -> None:
+              max_requests_per_hour: Optional[int] = 300,
+              max_workers: int = 1) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API.
 
@@ -240,6 +246,11 @@ class Server:
         :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
+        :param max_workers: Maximum number of requests processed at the same time per agent, each on a clone
+                            of the agent sharing its model. Only used in stateless mode (a stateful agent has a single
+                            conversation) and only helps when the model runs elsewhere (API or model server): local
+                            Hugging Face models are served one request at a time.
+        :type max_workers: int
 
 
         Example:
@@ -264,6 +275,7 @@ class Server:
         """
         cls._setup_agents(agents, model_names, stateless, debug)
         cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
+        cls._set_max_workers(max_workers)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"> {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -277,7 +289,7 @@ class Server:
                 # Use the threaded version as fallback
                 # Agents were already added in _setup_agents
                 return cls.serve_in_thread([], host, port, stateless, debug, None, log_level,
-                                           max_requests_per_minute, max_requests_per_hour)
+                                           max_requests_per_minute, max_requests_per_hour, max_workers)
             else:
                 # Re-raise if it's a different RuntimeError
                 raise
@@ -292,7 +304,8 @@ class Server:
                           model_names: Optional[Union[str, List[str]]] = None,
                           log_level: str = "info",
                           max_requests_per_minute: Optional[int] = 30,
-                          max_requests_per_hour: Optional[int] = 300) -> None:
+                          max_requests_per_hour: Optional[int] = 300,
+                          max_workers: int = 1) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API (async version).
 
@@ -320,9 +333,15 @@ class Server:
         :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
+        :param max_workers: Maximum number of requests processed at the same time per agent, each on a clone
+                            of the agent sharing its model. Only used in stateless mode (a stateful agent has a single
+                            conversation) and only helps when the model runs elsewhere (API or model server): local
+                            Hugging Face models are served one request at a time.
+        :type max_workers: int
         """
         cls._setup_agents(agents, model_names, stateless, debug)
         cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
+        cls._set_max_workers(max_workers)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"- {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -357,7 +376,8 @@ class Server:
                        auto_setup: bool = False,
                        max_messages_per_minute: Optional[int] = 6,
                        max_messages_per_hour: Optional[int] = 60,
-                       log_level: str = "info") -> None:
+                       log_level: str = "info",
+                       max_workers: int = 1) -> None:
         """
         Serve an SDialog agent via Meta WhatsApp Cloud API webhook.
 
@@ -399,6 +419,11 @@ class Server:
         :type max_messages_per_hour: Optional[int]
         :param log_level: Logging level for the server.
         :type log_level: str
+        :param max_workers: Maximum number of users whose messages are processed at the same time, each on a
+                            clone of the agent sharing its model (a user's messages are always processed one at a
+                            time, in order). Only helps when the model runs elsewhere (API or model server):
+                            local Hugging Face models are served one turn at a time.
+        :type max_workers: int
         """
         from .whatsapp import WhatsAppServer, WhatsAppConfig
 
@@ -417,7 +442,8 @@ class Server:
             auto_setup=auto_setup,
             max_messages_per_minute=max_messages_per_minute,
             max_messages_per_hour=max_messages_per_hour,
-            log_level=log_level
+            log_level=log_level,
+            max_workers=max_workers,
         )
         return WhatsAppServer.serve(agent=agent, config=config)
 
@@ -431,7 +457,8 @@ class Server:
                         model_names: Optional[Union[str, List[str]]] = None,
                         log_level: str = "info",
                         max_requests_per_minute: Optional[int] = 30,
-                        max_requests_per_hour: Optional[int] = 300) -> None:
+                        max_requests_per_hour: Optional[int] = 300,
+                        max_workers: int = 1) -> None:
         """
         Serve SDialog agents in a separate thread (alternative for Jupyter).
 
@@ -460,6 +487,11 @@ class Server:
         :param max_requests_per_hour: Per-client (IP address) limit of chat requests per hour, for sustained use
                                       (None to disable).
         :type max_requests_per_hour: Optional[int]
+        :param max_workers: Maximum number of requests processed at the same time per agent, each on a clone
+                            of the agent sharing its model. Only used in stateless mode (a stateful agent has a single
+                            conversation) and only helps when the model runs elsewhere (API or model server): local
+                            Hugging Face models are served one request at a time.
+        :type max_workers: int
         :return: The thread object running the server.
         :rtype: threading.Thread
         """
@@ -472,7 +504,7 @@ class Server:
             try:
                 loop.run_until_complete(
                     cls.serve_async(agents, host, port, stateless, debug, model_names, log_level,
-                                    max_requests_per_minute, max_requests_per_hour)
+                                    max_requests_per_minute, max_requests_per_hour, max_workers)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
@@ -491,6 +523,45 @@ class Server:
         """Set the per-client limits of chat requests (None to disable either)."""
         cls._rate_limiter = RateLimiter({"hour": (max_requests_per_hour, 3600),
                                          "minute": (max_requests_per_minute, 60)})
+
+    @classmethod
+    def _set_max_workers(cls, max_workers: int) -> None:
+        """Set how many requests each agent may process at the same time (pools are rebuilt on demand)."""
+        cls._max_workers = max_workers
+        cls._pools = {}
+
+    @classmethod
+    def _get_pool(cls, model_name: str) -> AgentPool:
+        """Get the pool of the given agent, creating it if needed."""
+        if model_name not in cls._pools:
+            # A stateful agent keeps a single conversation in its memory, so it serves one request at a time
+            cls._pools[model_name] = AgentPool(cls._agents[model_name],
+                                               max_workers=cls._max_workers if cls._stateless else 1)
+        return cls._pools[model_name]
+
+    @classmethod
+    async def _generate_events(cls, request: ChatCompletionRequest) -> List:
+        """
+        Run the requested agent on a request and return the generated events (empty for ignored requests).
+
+        The agent runs in a worker thread, so the server keeps answering other requests meanwhile,
+        on one of the agents of its pool (the agent itself or a clone).
+        """
+        async with cls._get_pool(request.model).acquire() as agent:
+            return await asyncio.to_thread(cls._generate_events_sync, request, agent)
+
+    @classmethod
+    def _generate_events_sync(cls, request: ChatCompletionRequest, agent: Agent) -> List:
+        # The served agent itself (not its clones) may also be reset from another thread (see reset_agent())
+        is_served_agent = agent is cls._agents.get(request.model)
+        with cls._agent_locks[request.model] if is_served_agent else nullcontext():
+            user_input = cls._get_input_from_request(agent, request)
+
+            # If Open WebUI task message, ignore
+            if user_input is None:
+                logger.info("Open WebUI task message detected [ignored]")
+                return []
+            return agent(user_input, return_events=True, return_tool_errors=cls._debug)
 
     @classmethod
     def _rate_limit_response(cls, raw_request: Request, ollama: bool = False) -> Optional[JSONResponse]:
@@ -761,22 +832,9 @@ class Server:
                 detail=f"Model '{request.model}' not found. Available models: {list(cls._agents.keys())}"
             )
 
-        agent = cls._agents[request.model]
-        agent_lock = cls._agent_locks[request.model]
-
         try:
-            with agent_lock:
-                user_input = cls._get_input_from_request(agent, request)
-
-                # If Open WebUI task message, ignore
-                if user_input is None:
-                    logger.info("Open WebUI task message detected [ignored]")
-                    events = []
-                else:
-                    # Generate response with events
-                    events = agent(user_input, return_events=True, return_tool_errors=cls._debug)
-
-                return cls._create_response(request, events)
+            events = await cls._generate_events(request)
+            return cls._create_response(request, events)
 
         except Exception as e:
             if type(e) is HTTPException and e.status_code == 400:
@@ -838,156 +896,144 @@ class Server:
             yield json.dumps(error_response) + "\n"
             return
 
-        agent = cls._agents[request.model]
-        agent_lock = cls._agent_locks[request.model]
-
         try:
-            with agent_lock:
-                user_input = cls._get_input_from_request(agent, request)
+            events = await cls._generate_events(request)
 
-                # If Open WebUI task message, ignore
-                if user_input is None:
-                    logger.info("Open WebUI task message detected [ignored]")
-                    events = []
-                else:
-                    # Generate response with events
-                    events = agent(user_input, return_events=True, return_tool_errors=cls._debug)
+            # Pre-index tool outputs by call_id for quick lookup when we see the corresponding call event
+            outputs_by_call_id = {}
+            for e in events:
+                if hasattr(e, 'action') and e.action == "tool" and getattr(e, 'actionLabel', None) == "output":
+                    try:
+                        content = e.content if isinstance(e.content, dict) else {}
+                        call_id = content.get("call_id")
+                        if call_id is not None:
+                            outputs_by_call_id[call_id] = content.get("output")
+                    except Exception:
+                        # Be resilient to any malformed event content
+                        pass
 
-                # Pre-index tool outputs by call_id for quick lookup when we see the corresponding call event
-                outputs_by_call_id = {}
-                for e in events:
-                    if hasattr(e, 'action') and e.action == "tool" and getattr(e, 'actionLabel', None) == "output":
+            def _to_markdown_code_block(value: Any) -> str:
+                """Pretty print value as a Markdown fenced code block.
+                Uses json formatting if possible; falls back to text.
+                """
+                # Try to detect dict/list directly
+                try:
+                    if isinstance(value, (dict, list)):
+                        return f"```json\n{json.dumps(value, indent=2, ensure_ascii=False)}\n```"
+                    # Try to parse strings as JSON
+                    if isinstance(value, str):
                         try:
-                            content = e.content if isinstance(e.content, dict) else {}
-                            call_id = content.get("call_id")
-                            if call_id is not None:
-                                outputs_by_call_id[call_id] = content.get("output")
+                            parsed = json.loads(value)
+                            return f"```json\n{json.dumps(parsed, indent=2, ensure_ascii=False)}\n```"
                         except Exception:
-                            # Be resilient to any malformed event content
-                            pass
+                            # Not JSON, return as plain text block
+                            return f"```\n{value}\n```"
+                    # Fallback for other types
+                    return f"```\n{str(value)}\n```"
+                except Exception:
+                    return f"```\n{str(value)}\n```"
 
-                def _to_markdown_code_block(value: Any) -> str:
-                    """Pretty print value as a Markdown fenced code block.
-                    Uses json formatting if possible; falls back to text.
-                    """
-                    # Try to detect dict/list directly
-                    try:
-                        if isinstance(value, (dict, list)):
-                            return f"```json\n{json.dumps(value, indent=2, ensure_ascii=False)}\n```"
-                        # Try to parse strings as JSON
-                        if isinstance(value, str):
-                            try:
-                                parsed = json.loads(value)
-                                return f"```json\n{json.dumps(parsed, indent=2, ensure_ascii=False)}\n```"
-                            except Exception:
-                                # Not JSON, return as plain text block
-                                return f"```\n{value}\n```"
-                        # Fallback for other types
-                        return f"```\n{str(value)}\n```"
-                    except Exception:
-                        return f"```\n{str(value)}\n```"
-
-                def _to_call_signature(name: str, args: Any) -> str:
-                    """Format a function-style call: name(k1=v1, k2=v2, ...)."""
-                    try:
-                        if isinstance(args, dict):
-                            parts = []
-                            for k, v in args.items():
-                                if isinstance(v, (dict, list)):
-                                    v_str = json.dumps(v, ensure_ascii=False)
-                                elif isinstance(v, str):
-                                    v_str = '"' + v.replace('"', '\\"') + '"'
-                                else:
-                                    v_str = str(v)
-                                parts.append(f"{k}={v_str}")
-                            call = f"{name}(" + ", ".join(parts) + ")"
-                        else:
-                            # Non-dict args: best effort serialize inside single positional arg
-                            if not isinstance(args, str):
-                                v_str = json.dumps(args, ensure_ascii=False)
+            def _to_call_signature(name: str, args: Any) -> str:
+                """Format a function-style call: name(k1=v1, k2=v2, ...)."""
+                try:
+                    if isinstance(args, dict):
+                        parts = []
+                        for k, v in args.items():
+                            if isinstance(v, (dict, list)):
+                                v_str = json.dumps(v, ensure_ascii=False)
+                            elif isinstance(v, str):
+                                v_str = '"' + v.replace('"', '\\"') + '"'
                             else:
-                                v_str = '"' + args.replace('"', '\\"') + '"'
-                            call = f"{name}({v_str})"
-                    except Exception:
-                        call = f"{name}()"
-
-                    return f"```python\n{call}\n```"
-
-                def _send_chunk(content: str = None, thinking: str = None,
-                                tool_calls: List[Dict] = None, tool_call_id: str = None,
-                                done: bool = False):
-                    """Helper to create and yield a response chunk."""
-                    chunk = {
-                        "model": request.model,
-                        "created_at": datetime.now().isoformat() + "Z",
-                        "message": {
-                            "role": "assistant",
-                        },
-                        "done": done
-                    }
-                    if content is not None:
-                        chunk["message"]["content"] = content
-                    if thinking is not None:
-                        chunk["message"]["thinking"] = thinking
-                    if tool_calls is not None:
-                        chunk["message"]["tool_calls"] = tool_calls
-                    if tool_call_id is not None:
-                        chunk["message"]["role"] = "tool"  # Not supported by Open WebUI
-                        chunk["message"]["tool_call_id"] = tool_call_id
-                    return json.dumps(chunk) + "\n"
-
-                # Stream events in Ollama format with structured reasoning and tool support
-                for event in events:
-                    content = ""
-
-                    if event.action == "think":
-                        # Reasoning/thinking events with structured format
-                        # yield _send_chunk(thinking=event.content)
-                        content = f"<think>\n{event.content}\n</think>"
-                    elif event.action.startswith("instruct"):
-                        # Orchestration instructions (one-time or persistent)
-                        scope = "persistent" if "persist" in event.action else "one-time"
-                        content = (f"<think>\n* **Orchestration ({event.actionLabel}):** _({scope} instruction)_\n"
-                                   f"{event.content}\n</think>")
-                        # yield _send_chunk(thinking=content)
-                    elif event.action == "tool" and event.actionLabel == "call":
-                        # Tool events with structured format
-                        call_info = event.content if isinstance(event.content, dict) else {}
-                        tool_name = call_info.get('name', 'unknown')
-                        tool_args = call_info.get('args', {})
-                        call_id = call_info.get('id')
-                        # Find matching output for this call id, if any
-                        out_value = outputs_by_call_id.get(call_id)
-                        if out_value is not None:
-                            out_block = _to_markdown_code_block(out_value)
+                                v_str = str(v)
+                            parts.append(f"{k}={v_str}")
+                        call = f"{name}(" + ", ".join(parts) + ")"
+                    else:
+                        # Non-dict args: best effort serialize inside single positional arg
+                        if not isinstance(args, str):
+                            v_str = json.dumps(args, ensure_ascii=False)
                         else:
-                            out_block = "_(no output)_"
-                        content = (f"<think>\n{_to_call_signature(tool_name, tool_args)}\n"
-                                   f"* **Output:**\n{out_block}\n</think>")
-                        # # Tool call message (role=assistant) with call info
-                        # _send_chunk(tool_calls=[{
-                        #     "id": call_id,
-                        #     "index": tool_call_ix,
-                        #     "function": {
-                        #         "name": tool_name,
-                        #         "arguments": tool_args
-                        #     },
-                        # }])
-                        # tool_call_ix += 1
-                        # # Tool result message (role=tool) with output
-                        # _send_chunk(content=out_value, tool_call_id=call_id)
-                    elif event.action == "utter":
-                        # Main utterance - stream word by word
-                        content = event.content
+                            v_str = '"' + args.replace('"', '\\"') + '"'
+                        call = f"{name}({v_str})"
+                except Exception:
+                    call = f"{name}()"
 
-                    if content:
-                        # Stream while preserving original whitespace separators (spaces, newlines, tabs)
-                        for match in re.finditer(r'\S+\s*', content):
-                            yield _send_chunk(content=match.group(0))
-                            time.sleep(0.001)  # Adjust delay as needed
+                return f"```python\n{call}\n```"
 
-                # Send final chunk
-                yield _send_chunk(content="", done=True)
+            def _send_chunk(content: str = None, thinking: str = None,
+                            tool_calls: List[Dict] = None, tool_call_id: str = None,
+                            done: bool = False):
+                """Helper to create and yield a response chunk."""
+                chunk = {
+                    "model": request.model,
+                    "created_at": datetime.now().isoformat() + "Z",
+                    "message": {
+                        "role": "assistant",
+                    },
+                    "done": done
+                }
+                if content is not None:
+                    chunk["message"]["content"] = content
+                if thinking is not None:
+                    chunk["message"]["thinking"] = thinking
+                if tool_calls is not None:
+                    chunk["message"]["tool_calls"] = tool_calls
+                if tool_call_id is not None:
+                    chunk["message"]["role"] = "tool"  # Not supported by Open WebUI
+                    chunk["message"]["tool_call_id"] = tool_call_id
+                return json.dumps(chunk) + "\n"
+
+            # Stream events in Ollama format with structured reasoning and tool support
+            for event in events:
+                content = ""
+
+                if event.action == "think":
+                    # Reasoning/thinking events with structured format
+                    # yield _send_chunk(thinking=event.content)
+                    content = f"<think>\n{event.content}\n</think>"
+                elif event.action.startswith("instruct"):
+                    # Orchestration instructions (one-time or persistent)
+                    scope = "persistent" if "persist" in event.action else "one-time"
+                    content = (f"<think>\n* **Orchestration ({event.actionLabel}):** _({scope} instruction)_\n"
+                               f"{event.content}\n</think>")
+                    # yield _send_chunk(thinking=content)
+                elif event.action == "tool" and event.actionLabel == "call":
+                    # Tool events with structured format
+                    call_info = event.content if isinstance(event.content, dict) else {}
+                    tool_name = call_info.get('name', 'unknown')
+                    tool_args = call_info.get('args', {})
+                    call_id = call_info.get('id')
+                    # Find matching output for this call id, if any
+                    out_value = outputs_by_call_id.get(call_id)
+                    if out_value is not None:
+                        out_block = _to_markdown_code_block(out_value)
+                    else:
+                        out_block = "_(no output)_"
+                    content = (f"<think>\n{_to_call_signature(tool_name, tool_args)}\n"
+                               f"* **Output:**\n{out_block}\n</think>")
+                    # # Tool call message (role=assistant) with call info
+                    # _send_chunk(tool_calls=[{
+                    #     "id": call_id,
+                    #     "index": tool_call_ix,
+                    #     "function": {
+                    #         "name": tool_name,
+                    #         "arguments": tool_args
+                    #     },
+                    # }])
+                    # tool_call_ix += 1
+                    # # Tool result message (role=tool) with output
+                    # _send_chunk(content=out_value, tool_call_id=call_id)
+                elif event.action == "utter":
+                    # Main utterance - stream word by word
+                    content = event.content
+
+                if content:
+                    # Stream while preserving original whitespace separators (spaces, newlines, tabs)
+                    for match in re.finditer(r'\S+\s*', content):
+                        yield _send_chunk(content=match.group(0))
+                        time.sleep(0.001)  # Adjust delay as needed
+
+            # Send final chunk
+            yield _send_chunk(content="", done=True)
 
         except Exception as e:
             error_response = {"error": f"Internal server error: {str(e)}"}
@@ -1017,6 +1063,7 @@ class Server:
         if model_name in cls._agents:
             del cls._agents[model_name]
             del cls._agent_locks[model_name]
+            cls._pools.pop(model_name, None)
             logger.info(f"Removed agent '{model_name}' from server")
 
     @classmethod

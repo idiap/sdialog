@@ -141,7 +141,7 @@ Subclassing patterns:
 * Evaluators / Judges: Inherit `BaseDialogScore`, `BaseDialogFlowScore`, `BaseLLMJudge`, or dataset evaluator bases.
 * Interpretability: Implement new `Steerer` or extend `Inspector` logic carefully—avoid heavy work inside hook functions.
 
-Composition syntax: `agent = agent | orchestrator_or_inspector` returns a cloned agent with the component attached.
+Composition syntax: `agent = agent | orchestrator_or_inspector` attaches the component to the agent and returns it (use `agent.clone()` for a copy that shares the model).
 
 When adding new components:
 1. Provide docstring with Example section.

@@ -372,6 +372,8 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
 
     support.serve(port=1333, max_requests_per_minute=None, max_requests_per_hour=None)
 
+**Parallel requests.** By default, each agent processes one request at a time (the server keeps answering other requests, such as model listings, meanwhile). With ``max_workers=N``, up to N requests per agent are processed at the same time, each on a clone of the agent sharing its model (:meth:`~sdialog.agents.Agent.clone`), e.g. ``support.serve(port=1333, max_workers=4)``. This only applies in stateless mode (the default), since a stateful agent keeps a single conversation, and only helps when the model runs elsewhere (an API, or a model server such as Ollama): agents with a local Hugging Face model or with inspectors are always served one request at a time.
+
 .. _serving_agents_whatsapp:
 
 Serving Agents on WhatsApp
@@ -404,7 +406,7 @@ Then send a WhatsApp message to the test number from your phone.
 Some things to keep in mind:
 
 - Only text messages are supported; users sending other media get a short notice.
-- A single agent serves all users, so messages are processed one at a time (like :meth:`~sdialog.agents.Agent.serve`).
+- By default, messages are processed one at a time. With ``max_workers=N``, up to N users are served at the same time, each on a clone of the agent sharing its model (:meth:`~sdialog.agents.Agent.clone`); a user's own messages are still processed one at a time, in order. This only helps when the model runs elsewhere (an API, or a model server such as Ollama): agents with a local Hugging Face model or with inspectors are always served one turn at a time.
 - Each user can send up to ``max_messages_per_minute`` messages per minute (6 by default, enough for a few quick messages in a row) and ``max_messages_per_hour`` per hour (60 by default). Extra messages are dropped without calling the LLM, and the user gets a single notice; set either limit to ``None`` to disable it.
 - Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data. Conversations of users inactive for more than ``session_retention_days`` (30 by default) are deleted.
 - With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.

@@ -169,6 +169,17 @@ sdialog.whatsapp
 
 ----
 
+sdialog.agent_pool
+------------------
+
+.. automodule:: sdialog.agent_pool
+   :member-order: groupwise
+   :members:
+   :show-inheritance:
+
+
+----
+
 sdialog.rate_limit
 ------------------
 
