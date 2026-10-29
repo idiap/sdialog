@@ -539,12 +539,10 @@ class Paraphraser:
         with open(config["prompts"]["paraphraser_system"], encoding="utf-8") as f:
             system_message = Template(f.read()).render(only_turn=turn_by_turn)
 
-        if turn_by_turn:
-            with open(config["prompts"]["paraphraser_turn"], encoding="utf-8") as f:
-                self.instruction_template = Template(f.read())
-        else:
-            with open(config["prompts"]["paraphraser"], encoding="utf-8") as f:
-                self.instruction_template = Template(f.read())
+        path_template = config["prompts"]["paraphraser_turn" if turn_by_turn else "paraphraser"]
+        with open(path_template, encoding="utf-8") as f:
+            self._instruction_template_text = f.read()
+        self.instruction_template = Template(self._instruction_template_text)
 
         self.messages = [SystemMessage(system_message), HumanMessage("")]
 
@@ -620,4 +618,4 @@ class Paraphraser:
         :return: Combined prompt preview.
         :rtype: str
         """
-        return f"{self.messages[0].content}\n\n{self.instruction_template}"
+        return f"{self.messages[0].content}\n\n{self._instruction_template_text}"

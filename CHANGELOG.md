@@ -11,6 +11,7 @@ All notable changes to SDialog will be documented here.
   - `Qwen3TTS` and `Qwen3TTSVoiceClone` no longer modify the `tts_pipeline_kwargs` dictionary they are given (e.g. `PerTurnTTS`'s `tts_kwargs`), nor their shared default one: the language, sampling and reference audio of one call were left in it.
   - `DocumentFormatNormalizer` removed newlines and tabs instead of replacing them with spaces, gluing words together (e.g. "Hello\nworld" became "Helloworld").
 - **sdialog.generators**:
+  - `Paraphraser.prompt()` returned `"<Template memory:...>"` instead of the instruction template.
   - `PersonaGenerator` with a persona class whose fields are required (no default): `int`, `float` and `bool` fields were never generated, keeping the `0` or `False` placeholder.
 - **sdialog.orchestrators**:
   - `SimpleResponseOrchestrator` with `top_k=1`: the suggested response was split into characters ("(1) W; (2) h; ..."), or failed with an `AttributeError` when responses are given as a dictionary of actions.
