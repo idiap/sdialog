@@ -34,6 +34,17 @@ class EchoChatModel(BaseChatModel):
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content="echo: " + " | ".join(said)))])
 
 
+_BARRIER = {"wait": None}
+
+
+class BarrierChatModel(EchoChatModel):
+    """Echo model whose calls only return once ``_BARRIER["wait"].parties`` of them are running at the same time."""
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        _BARRIER["wait"].wait()  # Raises BrokenBarrierError on timeout
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+
 def _agent(latency=0.0, **kwargs):
     return Agent(persona=Persona(name="Bot"), name="Bot", model=EchoChatModel(latency=latency), **kwargs)
 
@@ -160,9 +171,12 @@ def test_pool_default_max_workers():
 
 
 def test_pool_threads_are_not_limited_by_asyncio_default_executor():
-    pool = AgentPool(_agent(latency=0.5), max_workers=40)
-    _, elapsed = _run_turns(pool, [(str(i), str(i)) for i in range(40)])
-    assert elapsed < 1.0  # asyncio's default executor has at most 32 threads (fewer on small machines)
+    # The 40 calls only return once all of them run at the same time, which asyncio's default executor (at most
+    # 32 threads, fewer on small machines) would not allow: without the pool's own threads this times out
+    _BARRIER["wait"] = threading.Barrier(40, timeout=10)
+    agent = Agent(persona=Persona(name="Bot"), name="Bot", model=BarrierChatModel())
+    replies, _ = _run_turns(AgentPool(agent, max_workers=40), [(str(i), str(i)) for i in range(40)])
+    assert sorted(replies) == sorted(f"echo: {i}" for i in range(40))
 
 
 @pytest.mark.parametrize("value", [0, -1, 1.5, True, "2"])
