@@ -21,6 +21,7 @@ import uvicorn
 from .config import WhatsAppConfig, AUTO_SESSION_TIMEOUT, AUTO_SESSION_TIMEOUT_NEW_CHAT
 from .client import MetaWhatsAppClient
 from .session_store import SQLiteSessionStore
+from ..agent_pool import AgentPool
 from ..rate_limit import RateLimiter
 
 logger = logging.getLogger(__name__)
@@ -38,24 +39,11 @@ class WhatsAppServer:
     _agent: Any = None
     _store: Optional[SQLiteSessionStore] = None
     _client: Optional[MetaWhatsAppClient] = None
-    _agent_lock: Optional[asyncio.Lock] = None
+    _pool: Optional[AgentPool] = None
     _rate_limiter: Optional[RateLimiter] = None  # Per sender ID
     _rate_notified: Dict[Tuple[str, str], float] = {}  # (sender ID, "minute"/"hour") -> time of last notice
     _new_chat_events: bool = False  # Whether Meta signals new chats (welcome messages enabled on the number)
     _last_cleanup: float = 0.0
-
-    @classmethod
-    def get_agent_lock(cls) -> asyncio.Lock:
-        """
-        Get the lock guarding the shared agent.
-
-        A single agent instance serves all users, swapping each user's state in and out of its memory,
-        so turns must be processed one at a time. The lock is FIFO, so messages from the same user are
-        still processed in arrival order. Created lazily so it binds to the server's event loop.
-        """
-        if cls._agent_lock is None:
-            cls._agent_lock = asyncio.Lock()
-        return cls._agent_lock
 
     @classmethod
     def create_app(cls, agent: Any, config: WhatsAppConfig) -> FastAPI:
@@ -69,7 +57,11 @@ class WhatsAppServer:
         cls._config = config
         cls._store = SQLiteSessionStore(db_path=config.db_path)
         cls._client = MetaWhatsAppClient(config)
-        cls._agent_lock = None
+        # Each turn gets an agent (a fresh clone, or the given one with a single worker) and loads the user's state
+        # into it; turns of the same user run one at a time and in order, those of different users run in parallel
+        if cls._pool is not None:
+            cls._pool.close()
+        cls._pool = AgentPool(agent, max_workers=config.max_workers)
         cls._rate_limiter = RateLimiter({"hour": (config.max_messages_per_hour, 3600),
                                          "minute": (config.max_messages_per_minute, 60)})
         cls._rate_notified.clear()
@@ -184,12 +176,12 @@ class WhatsAppServer:
 
     @classmethod
     async def _handle_user_turn(cls, sender_id: str, text: str, wamid: str) -> None:
-        """Process incoming user utterance under the agent lock and reply via WhatsApp."""
+        """Process an incoming user message on a pooled agent and reply via WhatsApp."""
         # Mark message as read (blue checkmark) if configured
         if cls._config.mark_as_read and cls._client:
             await cls._client.mark_as_read(wamid)
 
-        async with cls.get_agent_lock():
+        async with cls._pool.acquire(sender_id) as agent:
             try:
                 # Check for explicit session reset commands
                 if text.lower() in ("/reset", "/clear", "/restart"):
@@ -208,20 +200,20 @@ class WhatsAppServer:
                     state = None
 
                 # Reset agent memory and restore user session state
-                cls._agent.reset()
+                agent.reset()
                 if state:
-                    cls._agent.set_state(state)
+                    agent.set_state(state)
 
-                # Run inference in a threadpool so synchronous LLMs don't block the event loop
+                # Run inference in the pool's threads so synchronous LLMs don't block the event loop
                 logger.debug(f"[WhatsApp] Processing turn for user {sender_id}: '{text[:30]}...'")
-                response = await asyncio.to_thread(cls._agent, text)
+                response = await cls._pool.run(agent, text)
 
                 if not response:
                     logger.warning(f"[WhatsApp] Agent returned empty response for {sender_id}")
                     return
 
                 # Save updated user state to SQLite
-                new_state = cls._agent.get_state()
+                new_state = agent.get_state()
                 new_state["memory"] = cls._trim_memory(new_state["memory"], cls._config.max_history_turns)
                 cls._store.save_session(sender_id, new_state)
 
@@ -247,15 +239,15 @@ class WhatsAppServer:
                 logger.info("[WhatsApp] Meta signals new chats, so conversations now start over when the user "
                             f"opens a new chat (or after {AUTO_SESSION_TIMEOUT_NEW_CHAT}s of inactivity)")
 
-        async with cls.get_agent_lock():
+        async with cls._pool.acquire(sender_id) as agent:
             try:
                 cls._store.reset_session(sender_id)
-                cls._agent.reset()
+                agent.reset()
                 # With no user message, the agent replies with its first_utterance if set, else the LLM greets
-                greeting = await asyncio.to_thread(cls._agent)
+                greeting = await cls._pool.run(agent)
                 if not greeting:
                     return
-                cls._store.save_session(sender_id, cls._agent.get_state())
+                cls._store.save_session(sender_id, agent.get_state())
                 await cls._client.send_text_message(to=sender_id, text=greeting)
             except Exception as e:
                 logger.error(f"[WhatsApp] Error greeting {sender_id} on a new chat: {e}", exc_info=True)

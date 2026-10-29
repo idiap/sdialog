@@ -49,6 +49,9 @@ class WhatsAppConfig:
     # Per-user rate limits (None to disable): bursts of quick messages, and sustained use
     max_messages_per_minute: Optional[int] = 6
     max_messages_per_hour: Optional[int] = 60
+    # Messages of different users processed at the same time, each on a clone of the agent sharing its model
+    # (None: 8, or 1 for local models and agents with inspectors); a user's messages are always processed in order
+    max_workers: Optional[int] = None
     enforce_signature: bool = True  # Reject webhook requests not signed with app_secret
     mark_as_read: bool = True
     log_level: str = "info"

@@ -372,6 +372,8 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
 
     support.serve(port=1333, max_requests_per_minute=None, max_requests_per_hour=None)
 
+**Parallel requests.** Each agent processes up to ``max_workers`` requests at the same time (8 by default), each on a fresh clone of the agent that shares its model (:meth:`~sdialog.agents.Agent.clone`), e.g. ``support.serve(port=1333, max_workers=16)``. Stateful agents (``stateless=False``) keep a single conversation, so they process one request at a time, and so do agents with a local Hugging Face model or with inspectors, since parallel calls would not be faster. With several workers, the agent's tools and custom functions (e.g. ``postprocess_fn``) may run at the same time for different requests, so they must be thread-safe; pass ``max_workers=1`` otherwise.
+
 .. _serving_agents_whatsapp:
 
 Serving Agents on WhatsApp
@@ -404,9 +406,9 @@ Then send a WhatsApp message to the test number from your phone.
 Some things to keep in mind:
 
 - Only text messages are supported; users sending other media get a short notice.
-- A single agent serves all users, so messages are processed one at a time (like :meth:`~sdialog.agents.Agent.serve`).
+- Up to ``max_workers`` users (8 by default) are served at the same time, each message on a fresh clone of the agent that shares its model (:meth:`~sdialog.agents.Agent.clone`); a user's own messages are still processed one at a time, in order. Agents with a local Hugging Face model or with inspectors are served one message at a time, since parallel calls would not be faster. With several workers, the agent's tools and custom functions (e.g. ``postprocess_fn``) may run at the same time for different users, so they must be thread-safe; pass ``max_workers=1`` otherwise.
 - Each user can send up to ``max_messages_per_minute`` messages per minute (6 by default, enough for a few quick messages in a row) and ``max_messages_per_hour`` per hour (60 by default). Extra messages are dropped without calling the LLM, and the user gets a single notice; set either limit to ``None`` to disable it.
-- Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data. Conversations of users inactive for more than ``session_retention_days`` (30 by default) are deleted.
+- Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data. Conversations of users inactive for more than ``session_retention_days`` (30 by default) are deleted. Keep ``db_path`` on a local disk (SQLite does not work reliably on network filesystems such as NFS), and use one server process per database file: message ordering, duplicate detection and rate limits are kept per process.
 - With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.
 
 **Starting new conversations.** WhatsApp has no "new conversation" button, and Meta does not tell the business when a user clears or deletes a chat. If **welcome messages** are enabled on the phone number, though, Meta sends a ``request_welcome`` event when a user opens a chat with it for the first time. SDialog then starts a fresh conversation for that user and greets them, with the agent's ``first_utterance`` if it has one, or else a greeting written by the agent. Welcome messages are off by default; to enable them on a phone number:

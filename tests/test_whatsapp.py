@@ -52,6 +52,9 @@ class MockWhatsAppAgent:
         self.memory[:] = self.memory[:1]
         self._finished = False
 
+    def clone(self):
+        return MockWhatsAppAgent(name=self.name, latency=self.latency)
+
     def get_state(self):
         return {"version": 1, "memory": messages_to_dict(self.memory[1:]),
                 "finished": self._finished, "orchestrators": []}
@@ -84,6 +87,7 @@ def test_config(temp_db):
         session_timeout=3600,
         enforce_signature=True,
         mark_as_read=False,  # avoid real Graph API calls from background tasks
+        max_workers=1,  # serve with the agent itself, so tests can inspect it
     )
 
 
@@ -532,6 +536,55 @@ def test_concurrent_users_do_not_share_memory(test_config):
         ["Alice secret", "Bot reply to: Alice secret"]
     assert [m["data"]["content"] for m in store.load_session("2222")["memory"]] == \
         ["Bob says hi", "Bot reply to: Bob says hi"]
+
+
+def test_parallel_workers_serve_users_concurrently(test_config):
+    """With max_workers > 1, users are served at the same time, still without sharing memory."""
+    import asyncio
+
+    test_config.max_workers = 2
+    WhatsAppServer.create_app(MockWhatsAppAgent(latency=0.5), test_config)
+    sent = {}
+
+    async def fake_send(to, text):
+        sent[to] = text
+
+    async def _test():
+        await asyncio.gather(
+            WhatsAppServer._handle_user_turn(sender_id="1111", text="Alice secret", wamid="wamid.a"),
+            WhatsAppServer._handle_user_turn(sender_id="2222", text="Bob says hi", wamid="wamid.b"),
+        )
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", side_effect=fake_send), \
+         patch.object(MetaWhatsAppClient, "mark_as_read", new_callable=AsyncMock):
+        start = time.monotonic()
+        asyncio.run(_test())
+        elapsed = time.monotonic() - start
+
+    assert sent == {"1111": "Bot reply to: Alice secret", "2222": "Bot reply to: Bob says hi"}
+    assert elapsed < 0.9  # One at a time would take 1s
+
+
+def test_parallel_workers_keep_each_user_in_order(test_config):
+    """Quick messages from the same user are processed one at a time, each seeing the previous ones."""
+    import asyncio
+
+    test_config.max_workers = 3
+    WhatsAppServer.create_app(MockWhatsAppAgent(latency=0.1), test_config)
+    sent = []
+
+    async def fake_send(to, text):
+        sent.append(text)
+
+    async def _test():
+        await asyncio.gather(*(
+            WhatsAppServer._handle_user_turn(sender_id="1111", text=f"m{i}", wamid=f"wamid.{i}") for i in range(3)))
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", side_effect=fake_send), \
+         patch.object(MetaWhatsAppClient, "mark_as_read", new_callable=AsyncMock):
+        asyncio.run(_test())
+
+    assert sent == ["Bot reply to: m0", "Bot reply to: m0 | m1", "Bot reply to: m0 | m1 | m2"]
 
 
 def test_finished_session_starts_over(test_config):
