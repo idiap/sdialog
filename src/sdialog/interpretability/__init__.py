@@ -345,6 +345,8 @@ class ActivationHook(BaseHook):
 
         # Extract the main tensor from output if it's a tuple or list
         activations = input if self.inspector.inspect_input else output
+        # The inspector's current steering functions, so that those added after attaching it are applied too
+        steering_function = self.inspector.steering_function if self.inspector is not None else self.steering_function
         activation_tensor = activations[0] if isinstance(activations, (tuple, list)) else activations
 
         # Ensure activation_tensor is a torch.Tensor before proceeding
@@ -392,13 +394,13 @@ class ActivationHook(BaseHook):
                     start_system_steer = end_system_steer = 0
 
                 # Apply steering function if specified and range is valid
-                if self.steering_function is not None and start_system_steer < end_system_steer:
+                if steering_function is not None and start_system_steer < end_system_steer:
                     for i in range(start_system_steer, end_system_steer):
-                        if type(self.steering_function) is list:
-                            for func in self.steering_function:
+                        if type(steering_function) is list:
+                            for func in steering_function:
                                 activation_tensor[:, i, :] = func(activation_tensor[:, i, :])
-                        elif callable(self.steering_function):
-                            activation_tensor[:, i, :] = self.steering_function(activation_tensor[:, i, :])
+                        elif callable(steering_function):
+                            activation_tensor[:, i, :] = steering_function(activation_tensor[:, i, :])
 
                 # Store all activations
                 self.agent._hook_response_act[response_index][self.cache_key].extend(
@@ -424,12 +426,12 @@ class ActivationHook(BaseHook):
 
                 if steer_this_token:
                     # Now apply the steering function, if it exists
-                    if self.steering_function is not None:
-                        if type(self.steering_function) is list:
-                            for func in self.steering_function:
+                    if steering_function is not None:
+                        if type(steering_function) is list:
+                            for func in steering_function:
                                 activation_tensor[:, -1, :] = func(activation_tensor[:, -1, :])
-                        elif callable(self.steering_function):
-                            activation_tensor[:, -1, :] = self.steering_function(activation_tensor[:, -1, :])
+                        elif callable(steering_function):
+                            activation_tensor[:, -1, :] = steering_function(activation_tensor[:, -1, :])
 
                 self._token_counter_steering += 1
 
