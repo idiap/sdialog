@@ -326,7 +326,7 @@ class SimpleResponseOrchestrator(BaseOrchestrator):
                         timestamp=int(time()))]
 
         sims = self.sent_encoder.similarity(self.sent_encoder.encode(response), self.resp_utt_embs)[0]
-        top_k_ixs = sims.argsort(descending=True)[:self.top_k]
+        top_k_ixs = sims.argsort(descending=True)[:self.top_k].cpu().numpy()  # (numpy indices, also for top_k=1)
 
         if self.resp_acts is None:
             instruction = ("If applicable, try to pick your next response from the following list: "

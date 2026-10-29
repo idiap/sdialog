@@ -10,6 +10,8 @@ All notable changes to SDialog will be documented here.
 - **sdialog.audio**:
   - `Qwen3TTS` and `Qwen3TTSVoiceClone` no longer modify the `tts_pipeline_kwargs` dictionary they are given (e.g. `PerTurnTTS`'s `tts_kwargs`), nor their shared default one: the language, sampling and reference audio of one call were left in it.
   - `DocumentFormatNormalizer` removed newlines and tabs instead of replacing them with spaces, gluing words together (e.g. "Hello\nworld" became "Helloworld").
+- **sdialog.orchestrators**:
+  - `SimpleResponseOrchestrator` with `top_k=1`: the suggested response was split into characters ("(1) W; (2) h; ..."), or failed with an `AttributeError` when responses are given as a dictionary of actions.
 - **sdialog.evaluation**:
   - `ConversationalFeatures` (and the scores based on it) and `ReadabilityScore` (and the scores based on it) now ignore the speaker names: they were computed on the "Speaker: text" lines, so `BackChannelRateScore` was always 0 and speaker names were counted as words (e.g. in `LexicalDiversityScore` or `GunningFogScore`).
   - Back-channel turns followed by punctuation (e.g. "Okay." or "Yeah!") are now detected by `BackChannelRateScore`.
