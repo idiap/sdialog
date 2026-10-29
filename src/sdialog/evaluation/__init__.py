@@ -1044,7 +1044,7 @@ class ToolSequenceValidator(BaseDialogScore):
                        - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
                        - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be
                          called before the next required tool in the sequence, though it may be called
-                         after or omitted entirely.
+                         after or omitted entirely (at the end of the list: must not be called at all).
     :type tool_names: List[str]
     :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
     :type name: str
@@ -1101,33 +1101,24 @@ class ToolSequenceValidator(BaseDialogScore):
             else:
                 event_name_list.append(event.action)
 
-        # Process tool names and check ordering constraints
-        try:
-            indices = []
-            for i, tool in enumerate(self.tool_names):
-                if tool.startswith("not:"):
-                    # Tool must NOT be called before subsequent tools
-                    actual_tool_name = tool.split(":", 1)[1]
-                    try:
-                        tool_index = event_name_list.index(actual_tool_name)
-                        # If this tool exists, check it comes after the previous tool (if any)
-                        if indices and tool_index <= indices[-1]:
-                            return 0  # Tool was called before the previous one
-                        indices.append(tool_index)
-                    except ValueError:
-                        # Tool not found - this is OK for "not:" prefixed tools
-                        # Use a placeholder that won't break ordering (previous index or -1)
-                        indices.append(indices[-1] if indices else -1)
-                else:
-                    # Tool must be called
-                    tool_index = event_name_list.index(tool)
-                    indices.append(tool_index)
-
-            # Check tools are in correct order and first tool comes after utterance
-            return 1 if indices == sorted(indices) and (not indices or indices[0] > 0 or indices[0] == -1) else 0
-        except ValueError:
-            # One or more required tools not found
+        # Required tools must all be called (first call), in the given order, after at least one other event
+        indices = []
+        for tool in self.tool_names:
+            if not tool.startswith("not:"):
+                if tool not in event_name_list:
+                    return 0
+                indices.append(event_name_list.index(tool))
+        if indices != sorted(indices) or (indices and indices[0] == 0):
             return 0
+
+        # "not:" tools must not be called before the next required tool (or at all, if none follows)
+        for i, tool in enumerate(self.tool_names):
+            if tool.startswith("not:"):
+                next_required = next((event_name_list.index(t) for t in self.tool_names[i + 1:]
+                                      if not t.startswith("not:")), len(event_name_list))
+                if tool.split(":", 1)[1] in event_name_list[:next_required]:
+                    return 0
+        return 1
 
 
 class DialogFlowPPL(BaseDialogFlowScore):

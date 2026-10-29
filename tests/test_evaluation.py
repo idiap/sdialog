@@ -10,8 +10,9 @@ from sdialog.evaluation import (
     StatsEvaluator,
     ConversationalFeatures,
     GunningFogScore,
+    ToolSequenceValidator,
 )
-from sdialog import Dialog, Turn
+from sdialog import Dialog, Turn, Event
 
 dummy_dialog = Dialog(
     turns=[Turn(text="hello world", speaker="A"),
@@ -96,3 +97,33 @@ def test_conversational_features_ignore_speaker_names():
 def test_readability_ignores_speaker_names():
     dialog = Dialog(turns=[Turn(speaker="Extraordinarily", text="I see."), Turn(speaker="B", text="Me too.")])
     assert GunningFogScore()(dialog) == pytest.approx(0.4 * 2)  # 4 words, 2 sentences, no complex words
+
+
+def _tool_dialog(*tools):
+    """Dialog whose events are a user utterance followed by the given tool calls."""
+    events = [Event(agent="User", action="utter", content="hi", timestamp=0)]
+    events += [Event(agent="Bot", action="tool", actionLabel="call", content={"name": t, "args": {}}, timestamp=0)
+               for t in tools]
+    return Dialog(turns=[], events=events)
+
+
+@pytest.mark.parametrize("tools, expected", [
+    (("charge_payment", "send_receipt"), 1),  # receipt after the charge: allowed
+    (("charge_payment",), 1),  # no receipt: allowed
+    (("send_receipt", "charge_payment"), 0),  # receipt before the charge: not allowed
+    ((), 0),  # required tool missing
+])
+def test_tool_sequence_validator_not_prefix(tools, expected):
+    validator = ToolSequenceValidator(["not:send_receipt", "charge_payment"])
+    assert validator(_tool_dialog(*tools)) == expected
+
+
+def test_tool_sequence_validator_order():
+    validator = ToolSequenceValidator(["search", "book", "not:cancel"])
+    assert validator(_tool_dialog("search", "book")) == 1
+    assert validator(_tool_dialog("book", "search")) == 0
+    assert validator(_tool_dialog("search", "book", "cancel")) == 0  # "not:" at the end: never allowed
+    assert validator(_tool_dialog("search", "cancel", "book")) == 0
+    first_event_is_tool = Dialog(turns=[], events=_tool_dialog("search", "book").events[1:])
+    assert validator(first_event_is_tool) == 0
+    assert validator(Dialog(turns=[])) == 0
