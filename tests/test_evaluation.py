@@ -160,3 +160,11 @@ def test_dataset_evaluators_load_dialogues_from_path(tmp_path, monkeypatch):
 
     evaluator = ReferenceCentroidEmbeddingEvaluator(DummyEmbedder(), [dummy_dialog])
     assert evaluator(str(tmp_path)) == pytest.approx(1.0)  # same direction as the centroid
+
+
+def test_stats_evaluator_plot(tmp_path):
+    evaluator = StatsEvaluator(LengthScore())
+    evaluator([dummy_dialog], dataset_name="a")
+    evaluator([dummy_dialog, dummy_dialog], dataset_name="b")
+    evaluator.plot(show=False, save_path=str(tmp_path / "stats.png"))  # box plot
+    assert (tmp_path / "stats.png").exists()

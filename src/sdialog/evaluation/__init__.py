@@ -45,6 +45,8 @@ _STD_EPSILON = 1e-10  # Threshold for treating std as effectively zero
 # Configure matplotlib for publication-quality figures
 mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['savefig.dpi'] = 300
+# boxplot()'s "labels" was renamed "tick_labels" in matplotlib 3.9 (and removed in 3.11)
+_BOXPLOT_LABELS = "tick_labels" if tuple(int(v) for v in mpl.__version__.split(".")[:2]) >= (3, 9) else "labels"
 mpl.rcParams['font.family'] = 'serif'
 mpl.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif']
 mpl.rcParams['font.size'] = 14
@@ -2716,7 +2718,7 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
                   '#e377c2', '#bcbd22', '#17becf']
 
         bp = plot.boxplot(list(dialog_scores.values()),
-                          labels=list(dialog_scores.keys()),
+                          **{_BOXPLOT_LABELS: list(dialog_scores.keys())},
                           patch_artist=True,
                           widths=0.6,
                           medianprops=dict(color='red', linewidth=1.5),
