@@ -243,7 +243,7 @@ Before opening PR:
 
 Commit message format (recommendation):
 ```
-[sdialog] <short imperative summary>
+<short imperative summary>
 
 Optional body explaining rationale, tradeoffs, migration notes.
 ```
