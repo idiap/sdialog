@@ -64,11 +64,12 @@ class SQLiteSessionStore:
                 ON processed_messages(received_at);
             """)
 
-    def load_session(self, wa_id: str, timeout_seconds: int = 1800) -> Optional[Dict[str, Any]]:
+    def load_session(self, wa_id: str, timeout_seconds: Optional[int] = 1800) -> Optional[Dict[str, Any]]:
         """
         Load session state for a user.
 
-        Returns None if session does not exist or has exceeded timeout_seconds of inactivity.
+        Returns None if session does not exist or has exceeded timeout_seconds of inactivity
+        (sessions never expire if timeout_seconds is None).
         """
         with self._get_connection() as conn:
             cursor = conn.execute(
@@ -93,7 +94,7 @@ class SQLiteSessionStore:
 
             # Check timeout
             elapsed = (datetime.now() - last_active).total_seconds()
-            if elapsed > timeout_seconds:
+            if timeout_seconds is not None and elapsed > timeout_seconds:
                 logger.info(f"[WhatsApp] Session for user {wa_id} expired ({elapsed:.0f}s > {timeout_seconds}s)")
                 self.reset_session(wa_id)
                 return None
@@ -149,9 +150,20 @@ class SQLiteSessionStore:
                 (wamid, now_str)
             )
 
-    def cleanup_old_records(self, retention_days: int = 7) -> None:
-        """Purge idempotency records older than retention_days."""
-        # received_at is stored in local time, so compute the cutoff the same way (SQLite's 'now' is UTC)
-        cutoff = (datetime.now() - timedelta(days=retention_days)).strftime("%Y-%m-%d %H:%M:%S")
+    def cleanup_old_records(self, retention_days: int = 7, session_retention_days: Optional[int] = None) -> None:
+        """
+        Purge idempotency records older than retention_days and, if session_retention_days is set,
+        the sessions of users inactive for longer than that.
+        """
+        # Timestamps are stored in local time, so compute the cutoffs the same way (SQLite's 'now' is UTC)
+        def cutoff(days: int) -> str:
+            return (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+
         with self._get_connection() as conn:
-            conn.execute("DELETE FROM processed_messages WHERE received_at < ?", (cutoff,))
+            conn.execute("DELETE FROM processed_messages WHERE received_at < ?", (cutoff(retention_days),))
+            if session_retention_days is not None:
+                deleted = conn.execute("DELETE FROM whatsapp_sessions WHERE last_active < ?",
+                                       (cutoff(session_retention_days),)).rowcount
+                if deleted:
+                    logger.info(f"[WhatsApp] Deleted {deleted} session(s) inactive for over "
+                                f"{session_retention_days} days")

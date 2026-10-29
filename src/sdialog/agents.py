@@ -679,7 +679,8 @@ class Agent:
                        app_secret: Optional[str] = None,
                        db_path: str = "whatsapp_sessions.db",
                        webhook_path: str = "/webhook",
-                       session_timeout: int = 1800,
+                       session_timeout: Union[int, str, None] = "auto",
+                       session_retention_days: Optional[int] = 30,
                        tunnel: bool = False,
                        auto_setup: bool = False,
                        max_messages_per_minute: Optional[int] = 6,
@@ -704,8 +705,13 @@ class Agent:
         :type db_path: str
         :param webhook_path: Webhook URL path.
         :type webhook_path: str
-        :param session_timeout: Seconds of inactivity before a user session resets.
-        :type session_timeout: int
+        :param session_timeout: Seconds of inactivity before a user's conversation starts over (None: never).
+                                ``"auto"`` uses 30 minutes, or 24 hours if welcome messages are enabled on the
+                                phone number, since then conversations also start over when the user opens a new chat.
+        :type session_timeout: Union[int, str, None]
+        :param session_retention_days: Delete the conversations of users inactive for longer than this
+                                       (None to keep them).
+        :type session_retention_days: Optional[int]
         :param tunnel: If True, attempts to spawn a public ngrok tunnel.
         :type tunnel: bool
         :param auto_setup: If True (with tunnel=True), overwrites the Meta webhook URL of the WhatsApp
@@ -732,6 +738,7 @@ class Agent:
             db_path=db_path,
             webhook_path=webhook_path,
             session_timeout=session_timeout,
+            session_retention_days=session_retention_days,
             tunnel=tunnel,
             auto_setup=auto_setup,
             max_messages_per_minute=max_messages_per_minute,

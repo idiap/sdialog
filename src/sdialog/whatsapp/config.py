@@ -9,7 +9,12 @@ Configuration models for SDialog WhatsApp server.
 import os
 import secrets
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
+
+# session_timeout="auto": idle seconds before a conversation starts over, depending on whether Meta signals
+# new chats (welcome messages enabled on the phone number, see WhatsAppServer._handle_new_chat)
+AUTO_SESSION_TIMEOUT = 1800  # 30 minutes
+AUTO_SESSION_TIMEOUT_NEW_CHAT = 86400  # 24 hours, a fallback in case a new chat goes unnoticed
 
 
 @dataclass
@@ -33,7 +38,10 @@ class WhatsAppConfig:
     api_version: str = "v21.0"
     db_path: str = "whatsapp_sessions.db"
     webhook_path: str = "/webhook"
-    session_timeout: int = 1800  # 30 minutes idle timeout
+    # Idle seconds before a user's conversation starts over (None: never). "auto" uses 30 minutes, or 24 hours
+    # if welcome messages are enabled, since then conversations also start over whenever the user opens a new chat
+    session_timeout: Union[int, str, None] = "auto"
+    session_retention_days: Optional[int] = 30  # Delete conversations inactive for longer (None: keep them)
     tunnel: bool = False
     # Overwrites the webhook URL of the business account and phone number, use only with test accounts
     auto_setup: bool = False
@@ -60,7 +68,12 @@ class WhatsAppConfig:
             self.verify_token = secrets.token_urlsafe(24)
 
     def validate(self, dry_run: bool = False) -> None:
-        """Validate that required credentials are set when not in dry_run mode."""
+        """Validate the settings, and that required credentials are set when not in dry_run mode."""
+        if self.session_timeout != "auto" and self.session_timeout is not None and \
+           (isinstance(self.session_timeout, bool) or not isinstance(self.session_timeout, int)
+                or self.session_timeout <= 0):
+            raise ValueError(f"session_timeout must be a positive number of seconds, None or \"auto\", "
+                             f"got {self.session_timeout!r}")
         if self.enforce_signature and not self.app_secret:
             raise ValueError(
                 "WhatsApp app_secret is required to verify that webhook requests come from Meta. "

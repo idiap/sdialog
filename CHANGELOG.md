@@ -12,6 +12,10 @@ All notable changes to SDialog will be documented here.
   - `Agent.get_state()` / `Agent.set_state()` to save a conversation (memory, finished flag and orchestrator state) and restore it later, e.g. on a fresh or reset agent.
 - **sdialog.orchestrators**:
   - `get_state()` / `set_state()` hooks for stateful orchestrators; `ChangeMindOrchestrator` saves its trigger counter.
+- **sdialog.whatsapp**:
+  - New chats start a fresh conversation: when welcome messages are enabled on the phone number, Meta's `request_welcome` event (a user opens a new chat) resets that user's conversation, and the agent greets them.
+  - `session_timeout="auto"` (new default): conversations start over after 30 minutes of inactivity, or 24 hours if welcome messages are enabled (detected at startup). `session_timeout=None` disables the timeout.
+  - `session_retention_days` (30 by default): conversations of users inactive for longer are deleted from the database.
 
 ---
 

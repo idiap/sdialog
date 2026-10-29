@@ -19,11 +19,13 @@ from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException, 
 from fastapi.responses import JSONResponse
 import uvicorn
 
-from .config import WhatsAppConfig
+from .config import WhatsAppConfig, AUTO_SESSION_TIMEOUT, AUTO_SESSION_TIMEOUT_NEW_CHAT
 from .client import MetaWhatsAppClient
 from .session_store import SQLiteSessionStore
 
 logger = logging.getLogger(__name__)
+
+CLEANUP_INTERVAL = 86400  # Seconds between purges of old idempotency records and inactive sessions
 
 
 class WhatsAppServer:
@@ -39,6 +41,8 @@ class WhatsAppServer:
     _agent_lock: Optional[asyncio.Lock] = None
     _rate_windows: Dict[str, Deque[float]] = {}  # sender ID -> arrival times of accepted messages (last hour)
     _rate_notified: Dict[Tuple[str, str], float] = {}  # (sender ID, "minute"/"hour") -> time of last notice
+    _new_chat_events: bool = False  # Whether Meta signals new chats (welcome messages enabled on the number)
+    _last_cleanup: float = 0.0
 
     @classmethod
     def get_agent_lock(cls) -> asyncio.Lock:
@@ -64,11 +68,13 @@ class WhatsAppServer:
         cls._agent = agent
         cls._config = config
         cls._store = SQLiteSessionStore(db_path=config.db_path)
-        cls._store.cleanup_old_records()
         cls._client = MetaWhatsAppClient(config)
         cls._agent_lock = None
         cls._rate_windows.clear()
         cls._rate_notified.clear()
+        cls._new_chat_events = False
+        cls._last_cleanup = 0.0
+        cls._cleanup_if_due()
 
         app = FastAPI(
             title="SDialog WhatsApp Agent Server",
@@ -106,6 +112,8 @@ class WhatsAppServer:
                 if not cls._verify_signature(raw_body, sig_header, config.app_secret):
                     logger.warning("[WhatsApp] Rejected request with invalid HMAC signature")
                     raise HTTPException(status_code=401, detail="Invalid signature")
+
+            cls._cleanup_if_due()
 
             # 2. Parse payload
             try:
@@ -152,6 +160,9 @@ class WhatsAppServer:
                             text=text_body,
                             wamid=wamid,
                         )
+                elif msg_type == "request_welcome":
+                    # The user opened a new chat (only sent if welcome messages are enabled on the number)
+                    background_tasks.add_task(cls._handle_new_chat, sender_id=sender_id)
                 else:
                     # Non-text media (audio, image, document, location, etc.)
                     background_tasks.add_task(
@@ -189,9 +200,7 @@ class WhatsAppServer:
                     return
 
                 # Load user state from SQLite
-                state = cls._store.load_session(
-                    sender_id, timeout_seconds=cls._config.session_timeout
-                )
+                state = cls._store.load_session(sender_id, timeout_seconds=cls._session_timeout())
 
                 # A finished conversation (agent said goodbye) starts over on the next message
                 if state and state.get("finished"):
@@ -229,6 +238,28 @@ class WhatsAppServer:
                     pass
 
     @classmethod
+    async def _handle_new_chat(cls, sender_id: str) -> None:
+        """Start a fresh conversation when the user opens a new chat, and greet them."""
+        if not cls._new_chat_events:
+            cls._new_chat_events = True
+            if cls._config.session_timeout == "auto":
+                logger.info("[WhatsApp] Meta signals new chats, so conversations now start over when the user "
+                            f"opens a new chat (or after {AUTO_SESSION_TIMEOUT_NEW_CHAT}s of inactivity)")
+
+        async with cls.get_agent_lock():
+            try:
+                cls._store.reset_session(sender_id)
+                cls._agent.reset()
+                # With no user message, the agent replies with its first_utterance if set, else the LLM greets
+                greeting = await asyncio.to_thread(cls._agent)
+                if not greeting:
+                    return
+                cls._store.save_session(sender_id, cls._agent.get_state())
+                await cls._client.send_text_message(to=sender_id, text=greeting)
+            except Exception as e:
+                logger.error(f"[WhatsApp] Error greeting {sender_id} on a new chat: {e}", exc_info=True)
+
+    @classmethod
     async def _handle_unsupported_media(cls, sender_id: str, msg_type: str) -> None:
         """Notify user that non-text media messages are currently unsupported."""
         logger.info(f"[WhatsApp] Received unsupported message type '{msg_type}' from {sender_id}")
@@ -237,6 +268,25 @@ class WhatsAppServer:
                 to=sender_id,
                 text="I currently only support text messages. Please send your query as text.",
             )
+
+    @classmethod
+    def _session_timeout(cls) -> Optional[int]:
+        """Idle seconds before a conversation starts over (None: never), resolving session_timeout=\"auto\"."""
+        if cls._config.session_timeout == "auto":
+            return AUTO_SESSION_TIMEOUT_NEW_CHAT if cls._new_chat_events else AUTO_SESSION_TIMEOUT
+        return cls._config.session_timeout
+
+    @classmethod
+    def _cleanup_if_due(cls) -> None:
+        """Purge old idempotency records and inactive sessions, at most once every CLEANUP_INTERVAL seconds."""
+        now = time.monotonic()
+        if cls._last_cleanup and now - cls._last_cleanup < CLEANUP_INTERVAL:
+            return
+        cls._last_cleanup = now
+        try:
+            cls._store.cleanup_old_records(session_retention_days=cls._config.session_retention_days)
+        except Exception as e:
+            logger.warning(f"[WhatsApp] Cleanup of old records failed: {e}")
 
     @classmethod
     def _check_rate_limit(cls, sender_id: str) -> Tuple[bool, Optional[str]]:
@@ -357,6 +407,23 @@ class WhatsAppServer:
                 logger.warning(f"[WhatsApp] Auto-configuration encountered an error: {e}")
 
         app = cls.create_app(agent, config)
+
+        # 4. Check whether Meta signals new chats, so "auto" sessions can start over on them
+        if config.session_timeout == "auto":
+            from .discovery import MetaDiscoveryClient
+            try:
+                enabled = asyncio.run(MetaDiscoveryClient(config.access_token).is_welcome_message_enabled(
+                    config.phone_number_id))
+            except Exception as e:
+                logger.debug(f"[WhatsApp] Welcome message detection failed: {e}")
+                enabled = None
+            if enabled:
+                cls._new_chat_events = True
+                logger.info("[WhatsApp] Welcome messages are enabled: conversations start over when the user opens "
+                            f"a new chat (or after {AUTO_SESSION_TIMEOUT_NEW_CHAT}s of inactivity)")
+            else:
+                logger.info(f"[WhatsApp] Conversations start over after {AUTO_SESSION_TIMEOUT}s of inactivity "
+                            "(enable welcome messages on the phone number to start over on new chats instead)")
 
         logger.info(f"[WhatsApp] Starting server on {config.host}:{config.port}")
         logger.info(f"[WhatsApp] Webhook endpoint: {config.webhook_path}")

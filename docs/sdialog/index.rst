@@ -367,7 +367,7 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
 Serving Agents on WhatsApp
 --------------------------
 
-Agents can also chat with real users over WhatsApp, through the Meta WhatsApp Cloud API, with :meth:`~sdialog.agents.Agent.serve_whatsapp`. Meta sends each incoming message to a webhook served by SDialog, the agent replies, and the reply is sent back through Meta's API. Each user (phone number) has their own conversation, saved in a local SQLite database and restored on their next message with :meth:`~sdialog.agents.Agent.get_state` / :meth:`~sdialog.agents.Agent.set_state`. Conversations reset after ``session_timeout`` seconds of inactivity (30 minutes by default), or when the user sends ``/reset``.
+Agents can also chat with real users over WhatsApp, through the Meta WhatsApp Cloud API, with :meth:`~sdialog.agents.Agent.serve_whatsapp`. Meta sends each incoming message to a webhook served by SDialog, the agent replies, and the reply is sent back through Meta's API. Each user (phone number) has their own conversation, saved in a local SQLite database and restored on their next message with :meth:`~sdialog.agents.Agent.get_state` / :meth:`~sdialog.agents.Agent.set_state`. A user's conversation starts over when they send ``/reset``, when they open a new chat (see below), or after ``session_timeout`` seconds of inactivity.
 
 To try it with a free Meta test account:
 
@@ -396,8 +396,17 @@ Some things to keep in mind:
 - Only text messages are supported; users sending other media get a short notice.
 - A single agent serves all users, so messages are processed one at a time (like :meth:`~sdialog.agents.Agent.serve`).
 - Each user can send up to ``max_messages_per_minute`` messages per minute (6 by default, enough for a few quick messages in a row) and ``max_messages_per_hour`` per hour (60 by default). Extra messages are dropped without calling the LLM, and the user gets a single notice; set either limit to ``None`` to disable it.
-- Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data.
+- Conversations are stored in plain text in ``db_path`` (``whatsapp_sessions.db`` by default), so treat that file as personal data. Conversations of users inactive for more than ``session_retention_days`` (30 by default) are deleted.
 - With ``auto_setup=True`` (and ``tunnel=True``), SDialog overwrites the webhook URL of your WhatsApp Business Account and phone number with the tunnel URL. Use it only with test accounts.
+
+**Starting new conversations.** WhatsApp has no "new conversation" button, and Meta does not tell the business when a user clears or deletes a chat. If **welcome messages** are enabled on the phone number, though, Meta sends a ``request_welcome`` event when a user opens a chat that does not exist on their phone (the first time, or after they delete it). SDialog then starts a fresh conversation for that user and greets them, with the agent's ``first_utterance`` if it has one, or else a greeting written by the agent. Welcome messages are off by default; to enable them on a phone number:
+
+.. code-block:: bash
+
+    curl -X POST "https://graph.facebook.com/v21.0/$WHATSAPP_PHONE_NUMBER_ID/conversational_automation" \
+         -H "Authorization: Bearer $WHATSAPP_ACCESS_TOKEN" -d "enable_welcome_message=true"
+
+With the default ``session_timeout="auto"``, SDialog checks this setting at startup (and notices it when the first ``request_welcome`` event arrives): if welcome messages are enabled, conversations start over on new chats or after 24 hours of inactivity, in case a new chat goes unnoticed; otherwise they start over after 30 minutes of inactivity. Pass a number of seconds to always use that timeout, or ``None`` to never time out.
 
 
 ----

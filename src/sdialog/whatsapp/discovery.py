@@ -15,6 +15,7 @@ This module automates the onboarding process for WhatsApp Cloud API agents:
 1. Token inspection (extracts App ID, WABA ID, permissions)
 2. Automatic discovery of Phone Number ID and WABA ID
 3. 3-Tier Webhook synchronization (App-level, WABA-level, and Phone-number-level)
+4. Detection of welcome messages (``request_welcome`` webhooks on new chats)
 """
 
 import logging
@@ -98,6 +99,23 @@ class MetaDiscoveryClient:
             logger.info(f"[WhatsApp] Auto-discovered Phone Number ID: {phone_id} ({display_num})")
             return phone_id
         return None
+
+    async def is_welcome_message_enabled(self, phone_number_id: str) -> Optional[bool]:
+        """
+        Check whether welcome messages are enabled on a phone number, in which case Meta sends a
+        ``request_welcome`` webhook whenever a user opens a new chat with it.
+
+        Returns None if the setting could not be read.
+        """
+        url = f"{GRAPH_BASE_URL}/{phone_number_id}"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=self._headers, params={"fields": "conversational_automation"})
+            if resp.status_code != 200:
+                logger.debug(f"[WhatsApp] Could not read conversational_automation: {resp.text}")
+                return None
+            # The field is omitted when nothing was ever configured on the number
+            automation = resp.json().get("conversational_automation", {})
+            return bool(automation.get("enable_welcome_message", False))
 
     async def configure_webhooks(
         self,

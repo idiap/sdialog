@@ -37,13 +37,14 @@ class MockWhatsAppAgent:
         self.last_input = None
         self._finished = False
 
-    def __call__(self, message: str, **kwargs) -> str:
+    def __call__(self, message: str = "", **kwargs) -> str:
         self.call_count += 1
         self.last_input = message
-        self.memory.append(HumanMessage(content=message))
+        if message:
+            self.memory.append(HumanMessage(content=message))
         time.sleep(self.latency)
         seen = [m.content for m in self.memory if isinstance(m, HumanMessage)]
-        reply = f"Bot reply to: {' | '.join(seen)}"
+        reply = f"Bot reply to: {' | '.join(seen)}" if seen else "Bot greeting"
         self.memory.append(AIMessage(content=reply))
         return reply
 
@@ -94,7 +95,8 @@ def test_whatsapp_config_defaults():
     config = WhatsAppConfig(verify_token="custom_token")
     assert config.port == 1234
     assert config.verify_token == "custom_token"
-    assert config.session_timeout == 1800
+    assert config.session_timeout == "auto"
+    assert config.session_retention_days == 30
     assert config.max_history_turns == 40
 
 
@@ -320,8 +322,11 @@ def test_webhook_verification_failure(test_config):
 # Test 5: Inbound Messages & HMAC (POST /webhook)
 # ---------------------------------------------------------------------------
 
-def _create_meta_payload(sender="15551234567", text="Hello agent", wamid="wamid.123"):
+def _create_meta_payload(sender="15551234567", text="Hello agent", wamid="wamid.123", msg_type="text"):
     """Helper to create a standard Meta WhatsApp webhook payload."""
+    message = {"from": sender, "id": wamid, "timestamp": "1700000000", "type": msg_type}
+    if msg_type == "text":
+        message["text"] = {"body": text}
     return {
         "object": "whatsapp_business_account",
         "entry": [
@@ -342,15 +347,7 @@ def _create_meta_payload(sender="15551234567", text="Hello agent", wamid="wamid.
                                     "wa_id": sender,
                                 }
                             ],
-                            "messages": [
-                                {
-                                    "from": sender,
-                                    "id": wamid,
-                                    "timestamp": "1700000000",
-                                    "type": "text",
-                                    "text": {"body": text},
-                                }
-                            ],
+                            "messages": [message],
                         },
                     }
                 ],
@@ -700,3 +697,146 @@ def test_rate_limit_drops_messages_without_calling_agent(test_config):
     assert agent.call_count == 2
     notices = [c for c in mock_send.await_args_list if "too quickly" in c.kwargs["text"]]
     assert len(notices) == 1
+
+
+# ---------------------------------------------------------------------------
+# Test 8: Session lifetime (new chats, "auto" timeout, retention)
+# ---------------------------------------------------------------------------
+
+def _post_signed(client, payload, secret):
+    body = json.dumps(payload).encode()
+    return client.post("/webhook", content=body, headers={
+        "Content-Type": "application/json",
+        "X-Hub-Signature-256": _compute_hmac(body, secret),
+    })
+
+
+def _set_last_active(db_path, wa_id, last_active):
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    with conn:
+        conn.execute("UPDATE whatsapp_sessions SET last_active = ? WHERE wa_id = ?", (last_active, wa_id))
+    conn.close()
+
+
+@pytest.mark.parametrize("value", [0, -5, "30m", True, 1.5])
+def test_whatsapp_config_rejects_invalid_session_timeout(value):
+    config = WhatsAppConfig(phone_number_id="123", access_token="token", app_secret="secret", session_timeout=value)
+    with pytest.raises(ValueError, match="session_timeout"):
+        config.validate()
+
+
+@pytest.mark.parametrize("value", ["auto", None, 60])
+def test_whatsapp_config_accepts_valid_session_timeout(value):
+    WhatsAppConfig(phone_number_id="123", access_token="token", app_secret="secret",
+                   session_timeout=value).validate()
+
+
+def test_session_store_no_timeout(temp_db):
+    store = SQLiteSessionStore(db_path=temp_db)
+    store.save_session("1111", {"version": 1, "memory": []})
+    _set_last_active(temp_db, "1111", "2000-01-01 00:00:00")
+
+    assert store.load_session("1111", timeout_seconds=None) == {"version": 1, "memory": []}
+    assert store.load_session("1111", timeout_seconds=1800) is None
+
+
+def test_session_store_cleanup_inactive_sessions(temp_db):
+    store = SQLiteSessionStore(db_path=temp_db)
+    store.save_session("old", {"version": 1, "memory": []})
+    store.save_session("recent", {"version": 1, "memory": []})
+    _set_last_active(temp_db, "old", "2000-01-01 00:00:00")
+
+    store.cleanup_old_records()  # Sessions are kept unless a retention period is given
+    assert store.load_session("old", timeout_seconds=None) is not None
+
+    store.cleanup_old_records(session_retention_days=30)
+    assert store.load_session("old", timeout_seconds=None) is None
+    assert store.load_session("recent", timeout_seconds=None) is not None
+
+
+def test_cleanup_runs_at_most_once_per_interval(test_config):
+    from sdialog.whatsapp import server as server_module
+
+    WhatsAppServer.create_app(MockWhatsAppAgent(), test_config)
+    with patch.object(SQLiteSessionStore, "cleanup_old_records") as mock_cleanup:
+        WhatsAppServer._cleanup_if_due()
+        assert mock_cleanup.call_count == 0  # Already ran in create_app
+
+        WhatsAppServer._last_cleanup -= server_module.CLEANUP_INTERVAL
+        WhatsAppServer._cleanup_if_due()
+        WhatsAppServer._cleanup_if_due()
+        mock_cleanup.assert_called_once_with(session_retention_days=test_config.session_retention_days)
+
+
+def test_new_chat_resets_conversation_and_greets(test_config):
+    """A request_welcome webhook (user opened a new chat) starts a fresh conversation with a greeting."""
+    agent = MockWhatsAppAgent()
+    client = TestClient(WhatsAppServer.create_app(agent, test_config))
+    store = SQLiteSessionStore(db_path=test_config.db_path)
+    store.save_session("1111", {"version": 1, "finished": False, "orchestrators": [],
+                                "memory": messages_to_dict([HumanMessage(content="Old"), AIMessage(content="Old!")])})
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock) as mock_send:
+        resp = _post_signed(client, _create_meta_payload(sender="1111", wamid="wamid.w", msg_type="request_welcome"),
+                            test_config.app_secret)
+        assert resp.status_code == 200
+        mock_send.assert_awaited_once_with(to="1111", text="Bot greeting")
+
+        _post_signed(client, _create_meta_payload(sender="1111", text="Hi", wamid="wamid.t"), test_config.app_secret)
+        assert mock_send.await_args.kwargs["text"] == "Bot reply to: Hi"  # The old conversation is gone
+
+    memory = messages_from_dict(store.load_session("1111")["memory"])
+    assert [m.content for m in memory] == ["Bot greeting", "Hi", "Bot reply to: Hi"]
+
+
+def test_auto_session_timeout_switches_on_new_chat_events(test_config):
+    from sdialog.whatsapp.config import AUTO_SESSION_TIMEOUT, AUTO_SESSION_TIMEOUT_NEW_CHAT
+
+    test_config.session_timeout = "auto"
+    client = TestClient(WhatsAppServer.create_app(MockWhatsAppAgent(), test_config))
+    assert WhatsAppServer._session_timeout() == AUTO_SESSION_TIMEOUT
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock):
+        _post_signed(client, _create_meta_payload(sender="1111", msg_type="request_welcome"), test_config.app_secret)
+    assert WhatsAppServer._session_timeout() == AUTO_SESSION_TIMEOUT_NEW_CHAT
+
+    # Explicit values are used as given
+    for value in (60, None):
+        test_config.session_timeout = value
+        assert WhatsAppServer._session_timeout() == value
+
+
+def test_meta_discovery_welcome_message_detection():
+    import asyncio
+    from sdialog.whatsapp.discovery import MetaDiscoveryClient
+
+    client = MetaDiscoveryClient(access_token="test_token")
+    cases = [
+        (200, {"id": "phone_1", "conversational_automation": {"enable_welcome_message": True}}, True),
+        (200, {"id": "phone_1"}, False),  # Field omitted when never configured
+        (400, {"error": {"message": "Unsupported"}}, None),
+    ]
+    for status, body, expected in cases:
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = MagicMock(status_code=status, json=MagicMock(return_value=body), text="")
+            assert asyncio.run(client.is_welcome_message_enabled("phone_1")) is expected
+            assert mock_get.call_args.kwargs["params"] == {"fields": "conversational_automation"}
+
+
+@pytest.mark.parametrize("enabled", [True, False, None])
+def test_serve_detects_welcome_messages(test_config, enabled):
+    from sdialog.whatsapp.config import AUTO_SESSION_TIMEOUT, AUTO_SESSION_TIMEOUT_NEW_CHAT
+    from sdialog.whatsapp.discovery import MetaDiscoveryClient
+
+    test_config.session_timeout = "auto"
+    with patch.object(MetaDiscoveryClient, "is_welcome_message_enabled", new_callable=AsyncMock,
+                      return_value=enabled) as mock_detect, \
+         patch("sdialog.whatsapp.server.uvicorn.run") as mock_run:
+        WhatsAppServer.serve(MockWhatsAppAgent(), test_config)
+
+    mock_detect.assert_awaited_once_with(test_config.phone_number_id)
+    mock_run.assert_called_once()
+    expected = AUTO_SESSION_TIMEOUT_NEW_CHAT if enabled else AUTO_SESSION_TIMEOUT
+    assert WhatsAppServer._session_timeout() == expected
