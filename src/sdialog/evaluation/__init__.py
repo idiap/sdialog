@@ -1775,12 +1775,30 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
         with open(config["prompts"]["evaluation"]["llm_judge"]["yesno"]["persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
-        prompt_template = prompt_template.render(persona=persona, speaker=speaker)
-
         super().__init__(prompt_template,
                          model=model,
                          reason=reason,
                          **llm_kwargs)
+        self.persona = persona
+        self.speaker = speaker
+
+    def judge(self,
+              dialogs: Union[Dialog, List[Dialog]],
+              reason: bool = None,
+              **template_kwargs) -> LLMJudgeYesNoOutput:
+        """
+        Judge whether the speaker matches the persona in one or multiple dialogues.
+
+        :param dialogs: A dialogue or list of dialogues.
+        :type dialogs: Union[Dialog, List[Dialog]]
+        :param reason: Override whether to ask for a reason.
+        :type reason: Optional[bool]
+        :return: Structured yes/no output.
+        :rtype: LLMJudgeYesNoOutput
+        """
+        persona = self.persona.prompt() if isinstance(self.persona, BasePersona) else self.persona
+        template_kwargs = {"persona": persona, "speaker": self.speaker, **template_kwargs}
+        return super().judge(dialogs, reason=reason, **template_kwargs)
 
 
 class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):

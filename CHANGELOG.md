@@ -10,6 +10,7 @@ All notable changes to SDialog will be documented here.
 - **sdialog.evaluation**:
   - `ConversationalFeatures` (and the scores based on it) and `ReadabilityScore` (and the scores based on it) now ignore the speaker names: they were computed on the "Speaker: text" lines, so `BackChannelRateScore` was always 0 and speaker names were counted as words (e.g. in `LexicalDiversityScore` or `GunningFogScore`).
   - `ToolSequenceValidator` with `"not:"` tools: the check was inverted (e.g. with `["not:send_receipt", "charge_payment"]`, sending the receipt after the charge failed and sending it before passed). A `"not:"` tool now must not be called before the next required tool, or at all if none follows.
+  - `LLMJudgePersonaAttributes` could not be created (`AttributeError`: its prompt template was rendered as a string). The persona and speaker are now passed to the prompt when judging.
 
 ### Removed
 - **sdialog.audio**:
