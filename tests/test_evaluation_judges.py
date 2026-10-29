@@ -1,7 +1,11 @@
 """Tests for the LLM judges of sdialog.evaluation, with a fake structured-output model."""
+import pytest
+
+from pydantic import ValidationError
+
 from sdialog import Dialog, Turn
 from sdialog.personas import Persona
-from sdialog.evaluation import LLMJudgePersonaAttributes
+from sdialog.evaluation import LLMJudgeScore, LLMJudgePersonaAttributes
 
 
 class FakeJudgeLLM:
@@ -34,3 +38,13 @@ def test_persona_attributes_judge():
     assert "the following dialogue" in prompt  # rendered for one dialogue
     judge.judge([DIALOG, OTHER])
     assert "the following dialogues" in llm.prompts[-1]
+
+
+def test_score_judge_several_dialogues():
+    llm = FakeJudgeLLM({"score": [2, 5], "reason": ["rude", "polite"]})
+    judge = LLMJudgeScore("How polite?", min_score=1, max_score=5, model=llm, reason=True)
+    output = judge.judge([DIALOG, OTHER])
+    assert output.score == [2, 5] and output.reason == ["rude", "polite"]
+    assert "a list of scores" in llm.prompts[-1]
+    with pytest.raises(ValidationError):  # each score must be in the range
+        LLMJudgeScore("How polite?", max_score=5, model=FakeJudgeLLM({"score": [2, 6]})).judge([DIALOG, OTHER])

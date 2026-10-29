@@ -60,13 +60,13 @@ class LLMJudgeScoreOutput(BaseModel):
     """
     Structured output used by numeric score LLM judgments.
 
-    :param score: Numeric score (int or float).
-    :type score: Union[int, float]
-    :param reason: Optional explanatory reason.
-    :type reason: Optional[str]
+    :param score: Numeric score (int or float), or list of scores (one per dialogue).
+    :type score: Union[int, float, List[Union[int, float]]]
+    :param reason: Optional explanatory reason (string or list).
+    :type reason: Optional[Union[str, List[str]]]
     """
-    reason: Optional[str] = None
-    score: Union[int, float] = None
+    reason: Optional[Union[str, List[str]]] = None
+    score: Union[int, float, List[Union[int, float]]] = None
 
 
 class BaseDialogEmbedder(ABC):

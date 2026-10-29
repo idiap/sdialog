@@ -19,7 +19,7 @@ import warnings
 from tqdm.auto import tqdm
 from math import exp, log, sqrt
 from pydantic import Field, create_model
-from typing import Optional, Literal, Union, List, Dict, Tuple
+from typing import Annotated, Optional, Literal, Union, List, Dict, Tuple
 
 from scipy import linalg
 from scipy.stats import norm, gaussian_kde
@@ -1481,10 +1481,12 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             )
 
         # Build the model dynamically with the user provided score_type and range (min_score, max_score)
+        # One score, or a list of scores when several dialogues are judged at once
+        bounded_score = Annotated[score_type, Field(ge=min_score, le=max_score)]
         LLMJudgeScoreRangeOutput = create_model(
             "LLMJudgeScoreRangeOutput",
             __base__=LLMJudgeScoreOutput,
-            score=(score_type, Field(ge=min_score, le=max_score)),
+            score=(Union[bounded_score, List[bounded_score]], ...),
         )
 
         with open(config["prompts"]["evaluation"]["llm_judge"]["score"]["base"], encoding="utf-8") as f:
