@@ -14,7 +14,7 @@ All notable changes to SDialog will be documented here.
   - `Paraphraser.prompt()` returned `"<Template memory:...>"` instead of the instruction template.
   - `PersonaGenerator` with a persona class whose fields are required (no default): `int`, `float` and `bool` fields were never generated (nor set by `generated_attributes` rules such as `"{{20-25}}"`), keeping their `0` or `False` placeholder.
 - **sdialog.interpretability**:
-  - Steering functions added after attaching the inspector to the agent (e.g. `agent | inspector` and then `inspector + direction` or `steerer + inspector`, as in the documentation) were never applied.
+  - Steering added to an inspector after attaching it to the agent (e.g. `agent = agent | inspector`, then `inspector + direction` or `steerer + inspector`, as in the `DirectionSteerer` example) was ignored when the inspector had no steering function yet. Adding it before attaching (`agent | inspector + direction`, as in the tutorials) already worked.
   - `Inspector(target, agent=agent)` raised an `AttributeError`; it is now attached like `agent | inspector`.
   - Adding an inspector to an agent without a local Hugging Face model now raises a clear `RuntimeError` (it raised an `AttributeError`).
 - **sdialog.orchestrators**:
@@ -22,13 +22,13 @@ All notable changes to SDialog will be documented here.
 - **sdialog.evaluation**:
   - `ConversationalFeatures` (and the scores based on it) and `ReadabilityScore` (and the scores based on it) now ignore the speaker names: they were computed on the "Speaker: text" lines, so `BackChannelRateScore` was always 0 and speaker names were counted as words (e.g. in `LexicalDiversityScore` or `GunningFogScore`).
   - Back-channel turns followed by punctuation (e.g. "Okay." or "Yeah!") are now detected by `BackChannelRateScore`.
-  - `DialogFlowPPL` and `DialogFlowScore` (and `dialog2graph()`) ignored `ai_speaker` (`system_speaker_name`): the speaker of the first turn was always taken as the system, so the speakers were swapped in dialogues started by the user.
+  - `DialogFlowPPL` and `DialogFlowScore` (and `dialog2graph()`) ignored `ai_speaker` (`system_speaker_name`): the speaker of the first turn was always taken as the system, so the speakers were swapped in dialogues started by the user. With `use_only_ai_speaker=True`, the graph was then built from the user's turns and scoring failed with a `KeyError`.
   - `StatsEvaluator.plot()` failed with matplotlib >= 3.11 (`boxplot()` no longer accepts `labels`).
   - Dataset evaluators given the path of a dialogue file or folder (e.g. `MeanEvaluator(score)("dialogs/")`) iterated over the characters of the path instead of loading the dialogues.
   - `DatasetComparator` with datasets given as a list (e.g. `comparator([dialogs_a, dialogs_b])`) crashed with a `TypeError` in score and embedding evaluators.
   - `ToolSequenceValidator` with `"not:"` tools: the check was inverted (e.g. with `["not:send_receipt", "charge_payment"]`, sending the receipt after the charge failed and sending it before passed). A `"not:"` tool now must not be called before the next required tool, or at all if none follows.
   - `LLMJudgePersonaAttributes` could not be created (`AttributeError`: its prompt template was rendered as a string). The persona and speaker are now passed to the prompt when judging.
-  - `LLMJudgeScore.judge()` with several dialogues: the prompt asks for one score per dialogue, but the output schema only accepted a single score, so the reply always failed validation. Lists of scores (and reasons) are now accepted, each score within `[min_score, max_score]`.
+  - `LLMJudgeScore.judge()` with several dialogues: the prompt asks for one score per dialogue, but the output schema only accepted a single score, so models with structured output returned one score for all the dialogues (and a list failed validation). Lists of scores (and reasons) are now accepted, each score within `[min_score, max_score]`.
 
 ### Removed
 - **sdialog.audio**:
