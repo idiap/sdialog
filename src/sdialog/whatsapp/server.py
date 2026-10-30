@@ -135,7 +135,17 @@ class WhatsAppServer:
 
                 cls._store.mark_message_processed(wamid)
 
-                # 5. Per-user rate limit, so one user can't flood the (serialized) agent or run up costs
+                # 5. Drop stale messages: Meta retries webhooks it could not deliver for days, so a message can
+                # arrive long after it was sent, and its reply would be out of context
+                age = cls._message_age(msg)
+                if age is not None:
+                    logger.debug(f"[WhatsApp] Message {wamid} received {age:.0f}s after it was sent")
+                    if cls._config.max_message_age is not None and age > cls._config.max_message_age:
+                        logger.info(f"[WhatsApp] Message {wamid} from {sender_id} ignored: sent {age:.0f}s ago "
+                                    f"(max_message_age={cls._config.max_message_age}s)")
+                        continue
+
+                # 6. Per-user rate limit, so one user can't flood the (serialized) agent or run up costs
                 allowed, notice = cls._check_rate_limit(sender_id)
                 if not allowed:
                     logger.warning(f"[WhatsApp] Rate limit exceeded for {sender_id}, message {wamid} dropped")
@@ -143,7 +153,7 @@ class WhatsAppServer:
                         background_tasks.add_task(cls._client.send_text_message, to=sender_id, text=notice)
                     continue
 
-                # 6. Route by message type
+                # 7. Route by message type
                 if msg_type == "text":
                     text_body = msg.get("text", {}).get("body", "").strip()
                     if text_body:
@@ -329,6 +339,14 @@ class WhatsAppServer:
             digestmod=hashlib.sha256,
         ).hexdigest()
         return hmac.compare_digest(computed_hash, expected_hash)
+
+    @staticmethod
+    def _message_age(msg: Dict[str, Any]) -> Optional[float]:
+        """Seconds since the user sent the message (from its Unix ``timestamp``), or None if unknown."""
+        try:
+            return max(0.0, time.time() - int(msg["timestamp"]))  # Small clock differences can make it negative
+        except (KeyError, TypeError, ValueError):
+            return None
 
     @staticmethod
     def _extract_messages(payload: Dict[str, Any]):

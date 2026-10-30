@@ -4,6 +4,14 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **sdialog.whatsapp**:
+  - Messages that reach the server long after they were sent are now ignored instead of answered out of context. Meta retries webhooks it could not deliver (e.g. while the server or tunnel was down) for days, so users could get replies to hours-old messages. The threshold is `max_message_age` in `serve_whatsapp()` (120 seconds by default; `None` to answer all messages).
+
+---
+
 ## [0.6.0] 2026-10-29 💬
 
 ### Added
