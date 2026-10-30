@@ -4,7 +4,7 @@ All notable changes to SDialog will be documented here.
 
 ---
 
-## [Unreleased]
+## [0.7.0] 2026-10-30 🧪
 
 ### Added
 - **sdialog.evaluation**:
