@@ -855,7 +855,6 @@ class BaseLLMJudge(ABC):
 
             from sdialog.evaluation.base import BaseLLMJudge
             from sdialog import Dialog, Turn
-import os
 
             class MagicJudge(BaseLLMJudge):
                 def judge(self, dialog):

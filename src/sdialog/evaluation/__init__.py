@@ -1053,6 +1053,7 @@ class ToolSequenceValidator(BaseDialogScore):
             print(f"{percentage * 100:.1f}% of dialogues follow correct sequence")
 
     :param tool_names: List of tool names defining the expected sequence. Each tool name can be:
+
                        - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
                        - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be
                          called between the previous and the next required tools (the start and the end

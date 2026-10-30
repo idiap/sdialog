@@ -6,7 +6,7 @@
 
 
 SDialog: A Python Toolkit for End-to-End Dialogue Generation, Agent Building, Simulation, and Evaluation
-=======================================================================================================
+========================================================================================================
 
 SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge **agent construction → dialog generation → evaluation → (optionally) interpretability** in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
 
