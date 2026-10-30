@@ -758,7 +758,8 @@ class Agent:
                        max_messages_per_minute: Optional[int] = 6,
                        max_messages_per_hour: Optional[int] = 60,
                        log_level: str = "info",
-                       max_workers: Optional[int] = None):
+                       max_workers: Optional[int] = None,
+                       max_message_age: Optional[int] = 120):
         """
         Starts a Meta WhatsApp Cloud API webhook server to interact with the agent.
 
@@ -803,6 +804,10 @@ class Agent:
                             one at a time, in order). Agents with a local Hugging Face model or inspectors serve one
                             message at a time. With several workers, the agent's tools must be thread-safe.
         :type max_workers: Optional[int]
+        :param max_message_age: Ignore messages sent longer ago than this many seconds (None to answer all).
+                                Meta retries webhooks it could not deliver (e.g. while the server was down) for
+                                days, and late replies would be out of context.
+        :type max_message_age: Optional[int]
         """
         from .whatsapp import WhatsAppServer, WhatsAppConfig
 
@@ -823,6 +828,7 @@ class Agent:
             max_messages_per_hour=max_messages_per_hour,
             log_level=log_level,
             max_workers=max_workers,
+            max_message_age=max_message_age,
         )
         return WhatsAppServer.serve(agent=self, config=config)
 

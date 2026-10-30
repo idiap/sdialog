@@ -33,6 +33,8 @@ All notable changes to SDialog will be documented here.
   - `ToolSequenceValidator` with `"not:"` tools: the check was inverted (e.g. with `["not:send_receipt", "charge_payment"]`, sending the receipt after the charge failed and sending it before passed). A `"not:"` tool now must not be called at its position in the sequence, between the previous and the next required tools: `["not:x", "a"]` means no `x` before `a`, `["a", "not:x"]` no `x` after `a`, and `["not:x", "a", "not:x"]` no `x` at all.
   - `LLMJudgePersonaAttributes` could not be created (`AttributeError`: its prompt template was rendered as a string). The persona and speaker are now passed to the prompt when judging.
   - `LLMJudgeScore.judge()` with several dialogues: the prompt asks for one score per dialogue, but the output schema only accepted a single score, so models with structured output returned one score for all the dialogues (and a list failed validation). Lists of scores (and reasons) are now accepted, each score within `[min_score, max_score]`.
+- **sdialog.whatsapp**:
+  - Messages that reach the server long after they were sent are now ignored instead of answered out of context. Meta retries webhooks it could not deliver (e.g. while the server or tunnel was down) for days, so users could get replies to hours-old messages. The threshold is `max_message_age` in `serve_whatsapp()` (120 seconds by default; `None` to answer all messages).
 
 ### Removed
 - **sdialog.audio**:

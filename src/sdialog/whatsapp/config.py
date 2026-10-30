@@ -52,6 +52,9 @@ class WhatsAppConfig:
     # Messages of different users processed at the same time, each on a clone of the agent sharing its model
     # (None: 8, or 1 for local models and agents with inspectors); a user's messages are always processed in order
     max_workers: Optional[int] = None
+    # Ignore messages sent longer ago than this many seconds (None: answer all). Meta keeps retrying webhooks it
+    # could not deliver (e.g. while the server was down) for days, which would otherwise be answered out of context
+    max_message_age: Optional[int] = 120
     enforce_signature: bool = True  # Reject webhook requests not signed with app_secret
     mark_as_read: bool = True
     log_level: str = "info"
@@ -77,6 +80,11 @@ class WhatsAppConfig:
                 or self.session_timeout <= 0):
             raise ValueError(f"session_timeout must be a positive number of seconds, None or \"auto\", "
                              f"got {self.session_timeout!r}")
+        if self.max_message_age is not None and \
+           (isinstance(self.max_message_age, bool) or not isinstance(self.max_message_age, int)
+                or self.max_message_age <= 0):
+            raise ValueError(f"max_message_age must be a positive number of seconds or None, "
+                             f"got {self.max_message_age!r}")
         if self.enforce_signature and not self.app_secret:
             raise ValueError(
                 "WhatsApp app_secret is required to verify that webhook requests come from Meta. "

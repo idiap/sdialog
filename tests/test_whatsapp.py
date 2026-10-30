@@ -326,9 +326,10 @@ def test_webhook_verification_failure(test_config):
 # Test 5: Inbound Messages & HMAC (POST /webhook)
 # ---------------------------------------------------------------------------
 
-def _create_meta_payload(sender="15551234567", text="Hello agent", wamid="wamid.123", msg_type="text"):
+def _create_meta_payload(sender="15551234567", text="Hello agent", wamid="wamid.123", msg_type="text",
+                         sent_seconds_ago=0):
     """Helper to create a standard Meta WhatsApp webhook payload."""
-    message = {"from": sender, "id": wamid, "timestamp": "1700000000", "type": msg_type}
+    message = {"from": sender, "id": wamid, "timestamp": str(int(time.time() - sent_seconds_ago)), "type": msg_type}
     if msg_type == "text":
         message["text"] = {"body": text}
     return {
@@ -893,3 +894,66 @@ def test_serve_detects_welcome_messages(test_config, enabled):
     mock_run.assert_called_once()
     expected = AUTO_SESSION_TIMEOUT_NEW_CHAT if enabled else AUTO_SESSION_TIMEOUT
     assert WhatsAppServer._session_timeout() == expected
+
+
+# ---------------------------------------------------------------------------
+# Test 9: Stale messages (late webhook retries from Meta)
+# ---------------------------------------------------------------------------
+
+def test_stale_messages_are_ignored(test_config):
+    """A message delivered long after it was sent (Meta retry) is not answered, and not answered on later retries."""
+    agent = MockWhatsAppAgent()
+    client = TestClient(WhatsAppServer.create_app(agent, test_config))
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock) as mock_send:
+        stale = _create_meta_payload(sender="1111", text="Old", wamid="wamid.old", sent_seconds_ago=3600)
+        for _ in range(2):  # The original late delivery, then a later retry of it
+            assert _post_signed(client, stale, test_config.app_secret).status_code == 200
+        for msg_type in ("audio", "request_welcome"):  # Not just text messages
+            _post_signed(client, _create_meta_payload(sender="1111", wamid=f"wamid.{msg_type}", msg_type=msg_type,
+                                                      sent_seconds_ago=3600), test_config.app_secret)
+        mock_send.assert_not_awaited()
+        assert agent.call_count == 0
+
+        recent = _create_meta_payload(sender="1111", text="New", wamid="wamid.new", sent_seconds_ago=30)
+        _post_signed(client, recent, test_config.app_secret)
+    mock_send.assert_awaited_once_with(to="1111", text="Bot reply to: New")
+    assert WhatsAppServer._store.is_message_processed("wamid.old")
+
+
+def test_stale_messages_do_not_count_towards_rate_limits(test_config):
+    test_config.max_messages_per_minute = 1
+    agent = MockWhatsAppAgent()
+    client = TestClient(WhatsAppServer.create_app(agent, test_config))
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock):
+        for i in range(3):
+            _post_signed(client, _create_meta_payload(sender="1111", wamid=f"wamid.old{i}", sent_seconds_ago=600),
+                         test_config.app_secret)
+        _post_signed(client, _create_meta_payload(sender="1111", wamid="wamid.new"), test_config.app_secret)
+    assert agent.call_count == 1
+
+
+def test_max_message_age_none_answers_all(test_config):
+    test_config.max_message_age = None
+    agent = MockWhatsAppAgent()
+    client = TestClient(WhatsAppServer.create_app(agent, test_config))
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", new_callable=AsyncMock):
+        _post_signed(client, _create_meta_payload(sender="1111", sent_seconds_ago=86400), test_config.app_secret)
+    assert agent.call_count == 1
+
+
+def test_message_age():
+    now = time.time()
+    assert WhatsAppServer._message_age({"timestamp": str(int(now - 90))}) == pytest.approx(90, abs=2)
+    assert WhatsAppServer._message_age({"timestamp": str(int(now + 30))}) == 0  # Clocks slightly out of sync
+    assert WhatsAppServer._message_age({}) is None  # Missing or invalid timestamps: the message is answered
+    assert WhatsAppServer._message_age({"timestamp": "soon"}) is None
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, True, "2m"])
+def test_whatsapp_config_rejects_invalid_max_message_age(value):
+    config = WhatsAppConfig(phone_number_id="123", access_token="token", app_secret="secret", max_message_age=value)
+    with pytest.raises(ValueError, match="max_message_age"):
+        config.validate()
