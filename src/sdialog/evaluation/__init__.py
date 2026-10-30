@@ -997,8 +997,9 @@ class ToolSequenceValidator(BaseDialogScore):
     This validator checks whether the agent called the specified tools in the expected order
     based on the dialogue's event history. It returns 1 if the sequence is valid, 0 otherwise.
 
-    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called
-    before subsequent tools in the list. This allows for flexible validation of tool usage patterns.
+    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called at that
+    position of the sequence, that is, between the previous and the next tools in the list (from the start or
+    until the end of the dialogue if there are none). This allows for flexible validation of tool usage patterns.
 
     Example 1: Basic sequence validation
 
@@ -1045,8 +1046,10 @@ class ToolSequenceValidator(BaseDialogScore):
     :param tool_names: List of tool names defining the expected sequence. Each tool name can be:
                        - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
                        - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be
-                         called before the next required tool in the sequence, though it may be called
-                         after or omitted entirely (at the end of the list: must not be called at all).
+                         called between the previous and the next required tools (the start and the end
+                         of the dialogue if there are none), though it may be called elsewhere or omitted.
+                         E.g. ``["not:x", "a"]``: no ``x`` before ``a``; ``["a", "not:x"]``: no ``x`` after
+                         ``a``; ``["not:x", "a", "not:x"]``: no ``x`` at all.
     :type tool_names: List[str]
     :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
     :type name: str
@@ -1076,7 +1079,7 @@ class ToolSequenceValidator(BaseDialogScore):
         Extracts tool calls from the dialogue's event history and validates that:
         1. All required tools (without ``"not:"`` prefix) are present.
         2. Tools appear in the specified order.
-        3. Tools with ``"not:"`` prefix do not appear before subsequent tools.
+        3. Tools with ``"not:"`` prefix do not appear between the previous and the next required tools.
         4. The first tool call comes after at least one user utterance.
 
         :param dialog: Dialogue instance to validate.
@@ -1089,7 +1092,7 @@ class ToolSequenceValidator(BaseDialogScore):
             - The dialogue has no events or tool_names is empty.
             - A required tool is missing from the event history.
             - Tools appear in incorrect order.
-            - A ``"not:"`` prefixed tool appears before subsequent tools.
+            - A ``"not:"`` prefixed tool appears between the previous and the next required tools.
         """
         # Check if all tools were used in that order from the event list.
         if not dialog.events or not self.tool_names:
@@ -1113,12 +1116,15 @@ class ToolSequenceValidator(BaseDialogScore):
         if indices != sorted(indices) or (indices and indices[0] == 0):
             return 0
 
-        # "not:" tools must not be called before the next required tool (or at all, if none follows)
+        # "not:" tools must not be called between the previous and the next required tools
+        # (the start and the end of the dialogue if there are none)
         for i, tool in enumerate(self.tool_names):
             if tool.startswith("not:"):
+                prev_required = next((event_name_list.index(t) for t in reversed(self.tool_names[:i])
+                                      if not t.startswith("not:")), -1)
                 next_required = next((event_name_list.index(t) for t in self.tool_names[i + 1:]
                                       if not t.startswith("not:")), len(event_name_list))
-                if tool.split(":", 1)[1] in event_name_list[:next_required]:
+                if tool.split(":", 1)[1] in event_name_list[prev_required + 1:next_required]:
                     return 0
         return 1
 
