@@ -186,3 +186,22 @@ def test_stats_evaluator_plot(tmp_path):
     evaluator([dummy_dialog, dummy_dialog], dataset_name="b")
     evaluator.plot(show=False, save_path=str(tmp_path / "stats.png"))  # box plot
     assert (tmp_path / "stats.png").exists()
+
+
+@pytest.mark.parametrize("tools, expected", [
+    (("plans",), 1),
+    (("verify", "plans"), 0),
+    (("plans", "verify"), 0),
+    (("verify",), 0),
+])
+def test_tool_sequence_validator_forbidden_tools(tools, expected):
+    validator = ToolSequenceValidator(["plans"], forbidden_tools=["verify"])
+    assert validator(_tool_dialog(*tools)) == expected
+
+
+def test_tool_sequence_validator_only_forbidden_tools():
+    validator = ToolSequenceValidator([], forbidden_tools=["delete_account"])
+    assert validator(_tool_dialog("search")) == 1
+    assert validator(_tool_dialog("search", "delete_account")) == 0
+    assert validator(Dialog(turns=[])) == 0  # no events to check
+    assert ToolSequenceValidator([])(_tool_dialog("search")) == 0  # nothing to validate

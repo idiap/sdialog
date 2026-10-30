@@ -1030,7 +1030,17 @@ class ToolSequenceValidator(BaseDialogScore):
 
             score = validator(dialog)
 
-    Example 3: With evaluators
+    Example 3: Forbidden tools (anywhere in the dialogue, regardless of the order)
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator
+
+            # Plans must be retrieved, and the account must never be verified
+            validator = ToolSequenceValidator(["get_service_plans"], forbidden_tools=["verify_account"])
+            score = validator(dialog)
+
+    Example 4: With evaluators
 
         .. code-block:: python
 
@@ -1053,6 +1063,8 @@ class ToolSequenceValidator(BaseDialogScore):
     :type tool_names: List[str]
     :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
     :type name: str
+    :param forbidden_tools: Tools that must not be called anywhere in the dialogue, regardless of the order.
+    :type forbidden_tools: Optional[List[str]]
 
     .. note::
         - Tools must appear in the specified order within the dialogue's event history.
@@ -1060,7 +1072,10 @@ class ToolSequenceValidator(BaseDialogScore):
         - If a required tool (without ``"not:"`` prefix) is missing, the score is 0.
         - Tools with ``"not:"`` prefix that don't appear in the dialogue are ignored.
     """
-    def __init__(self, tool_names: List[str], name: str = "tool-sequence-validator"):
+    def __init__(self,
+                 tool_names: List[str],
+                 name: str = "tool-sequence-validator",
+                 forbidden_tools: Optional[List[str]] = None):
         """
         Initialize the tool sequence validator.
 
@@ -1068,9 +1083,12 @@ class ToolSequenceValidator(BaseDialogScore):
         :type tool_names: List[str]
         :param name: Score name for reporting.
         :type name: str
+        :param forbidden_tools: Tools that must not be called anywhere in the dialogue.
+        :type forbidden_tools: Optional[List[str]]
         """
         super().__init__(name=name)
         self.tool_names = tool_names
+        self.forbidden_tools = forbidden_tools or []
 
     def score(self, dialog: Dialog) -> int:
         """
@@ -1081,6 +1099,7 @@ class ToolSequenceValidator(BaseDialogScore):
         2. Tools appear in the specified order.
         3. Tools with ``"not:"`` prefix do not appear between the previous and the next required tools.
         4. The first tool call comes after at least one user utterance.
+        5. Forbidden tools (``forbidden_tools``) are not called at all.
 
         :param dialog: Dialogue instance to validate.
         :type dialog: Dialog
@@ -1089,13 +1108,14 @@ class ToolSequenceValidator(BaseDialogScore):
 
         .. note::
             Returns 0 if:
-            - The dialogue has no events or tool_names is empty.
+            - The dialogue has no events, or both tool_names and forbidden_tools are empty.
             - A required tool is missing from the event history.
             - Tools appear in incorrect order.
             - A ``"not:"`` prefixed tool appears between the previous and the next required tools.
+            - A forbidden tool is called.
         """
         # Check if all tools were used in that order from the event list.
-        if not dialog.events or not self.tool_names:
+        if not dialog.events or not (self.tool_names or self.forbidden_tools):
             return 0
 
         # Extract tool calls from events in order
@@ -1126,6 +1146,9 @@ class ToolSequenceValidator(BaseDialogScore):
                                       if not t.startswith("not:")), len(event_name_list))
                 if tool.split(":", 1)[1] in event_name_list[prev_required + 1:next_required]:
                     return 0
+
+        if any(tool in event_name_list for tool in self.forbidden_tools):
+            return 0
         return 1
 
 

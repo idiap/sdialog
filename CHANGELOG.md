@@ -6,6 +6,10 @@ All notable changes to SDialog will be documented here.
 
 ## [Unreleased]
 
+### Added
+- **sdialog.evaluation**:
+  - `forbidden_tools` argument of `ToolSequenceValidator`: tools that must not be called anywhere in the dialogue, regardless of the order (e.g. `ToolSequenceValidator(["get_service_plans"], forbidden_tools=["verify_account"])`).
+
 ### Fixed
 - **sdialog.audio**:
   - `Qwen3TTS` and `Qwen3TTSVoiceClone` no longer modify the `tts_pipeline_kwargs` dictionary they are given (e.g. `PerTurnTTS`'s `tts_kwargs`), nor their shared default one: the language, sampling and reference audio of one call were left in it.
