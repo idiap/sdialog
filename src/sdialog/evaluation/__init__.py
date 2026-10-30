@@ -8,6 +8,7 @@ This module provides classes for evaluating dialogues, including LLM judges, met
 # SPDX-License-Identifier: MIT
 import os
 import re
+import inspect
 import logging
 import syllables
 import numpy as np
@@ -45,8 +46,6 @@ _STD_EPSILON = 1e-10  # Threshold for treating std as effectively zero
 # Configure matplotlib for publication-quality figures
 mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['savefig.dpi'] = 300
-# boxplot()'s "labels" was renamed "tick_labels" in matplotlib 3.9 (and removed in 3.11)
-_BOXPLOT_LABELS = "tick_labels" if tuple(int(v) for v in mpl.__version__.split(".")[:2]) >= (3, 9) else "labels"
 mpl.rcParams['font.family'] = 'serif'
 mpl.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif']
 mpl.rcParams['font.size'] = 14
@@ -2746,8 +2745,10 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
                   '#e377c2', '#bcbd22', '#17becf']
 
+        # boxplot()'s "labels" was renamed "tick_labels" in matplotlib 3.9 (and removed in 3.11)
+        labels_arg = "tick_labels" if "tick_labels" in inspect.signature(plot.boxplot).parameters else "labels"
         bp = plot.boxplot(list(dialog_scores.values()),
-                          **{_BOXPLOT_LABELS: list(dialog_scores.keys())},
+                          **{labels_arg: list(dialog_scores.keys())},
                           patch_artist=True,
                           widths=0.6,
                           medianprops=dict(color='red', linewidth=1.5),
