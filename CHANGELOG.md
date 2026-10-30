@@ -12,7 +12,7 @@ All notable changes to SDialog will be documented here.
   - `DocumentFormatNormalizer` removed newlines and tabs instead of replacing them with spaces, gluing words together (e.g. "Hello\nworld" became "Helloworld").
 - **sdialog.generators**:
   - `Paraphraser.prompt()` returned `"<Template memory:...>"` instead of the instruction template.
-  - `PersonaGenerator` with a persona class whose fields are required (no default): `int`, `float` and `bool` fields were never generated, keeping the `0` or `False` placeholder.
+  - `PersonaGenerator` with a persona class whose fields are required (no default): `int`, `float` and `bool` fields were never generated (nor set by `generated_attributes` rules such as `"{{20-25}}"`), keeping their `0` or `False` placeholder.
 - **sdialog.interpretability**:
   - Steering functions added after attaching the inspector to the agent (e.g. `agent | inspector` and then `inspector + direction` or `steerer + inspector`, as in the documentation) were never applied.
   - `Inspector(target, agent=agent)` raised an `AttributeError`; it is now attached like `agent | inspector`.

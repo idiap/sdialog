@@ -81,3 +81,24 @@ def test_persona_generator_with_required_fields():
     generator = PersonaGenerator(RequiredPersona, model=FakeStructuredLLM(output))
     persona = generator.generate(seed=0)
     assert persona.model_dump() == {**output, "pair": (1, 2), "city": "Martigny"}  # the default city is kept
+
+
+class SimpleRequiredPersona(BasePersona):
+    name: str
+    age: int
+    married: bool
+
+
+def test_persona_generator_required_fields_not_generated():
+    # Required fields that are not generated keep their placeholder value instead of failing validation
+    generator = PersonaGenerator(SimpleRequiredPersona, generated_attributes=["name"],
+                                 model=FakeStructuredLLM({"name": "Bo"}))
+    persona = generator.generate(seed=0)
+    assert persona.name == "Bo" and persona.age == 0 and persona.married is False
+
+
+def test_persona_generator_required_fields_with_rules():
+    generator = PersonaGenerator(SimpleRequiredPersona, generated_attributes={"age": "{{20-25}}", "name": "Bo"},
+                                 model=FakeStructuredLLM({}))
+    persona = generator.generate(seed=0)
+    assert persona.name == "Bo" and 20 <= persona.age <= 25
