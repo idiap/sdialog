@@ -109,6 +109,7 @@ class BaseAttributeModelGenerator(ABC):
             self._check_attributes(generated_attributes)
 
         self._rnd_attributes = generated_attributes if isinstance(generated_attributes, dict) else {}
+        self._placeholder_attributes = set()  # set by subclasses that fill required fields with placeholders
         self.generated_attributes = generated_attributes
         self.llm_model = model if model is not None else config["llm"]["model"]
         self.llm_kwargs = llm_kwargs
@@ -248,6 +249,8 @@ class BaseAttributeModelGenerator(ABC):
         output_object = None
         random_objects_dict = [{} for _ in range(n)]
         target_model_dict = self._attribute_model.__dict__
+        # Required attributes holding a placeholder value (e.g. 0 or False) instead of one set by the user
+        placeholder_attributes = set(self._placeholder_attributes)
 
         for attempt in range(max_attempts):
             for random_object_dict in random_objects_dict:
@@ -255,7 +258,7 @@ class BaseAttributeModelGenerator(ABC):
                 llm_attribute_instructions = {}
 
                 for key, value in target_model_dict.items():
-                    if value or value == 0:
+                    if (value or value == 0) and key not in placeholder_attributes:
                         random_object_dict[key] = value
                     elif key in self._rnd_attributes:
                         spec = self._rnd_attributes[key]
@@ -312,6 +315,8 @@ class BaseAttributeModelGenerator(ABC):
                     elif self.generated_attributes and (self.generated_attributes == "all"
                                                         or key in self.generated_attributes):
                         random_object_dict[key] = None
+                    elif key in placeholder_attributes:
+                        random_object_dict[key] = value  # required but not generated: keep its placeholder
 
                 for key, value in list(random_object_dict.items()):
                     if callable(value):
@@ -462,6 +467,7 @@ class BaseAttributeModelGenerator(ABC):
                         k: v if k in missing_attributes else random_objects_dict[0][k]
                         for k, v in target_model_dict.items()
                     }
+                    placeholder_attributes &= set(missing_attributes)  # the others were filled
 
         if output_object is None:
             logger.warning("Generated object still has missing attributes after max attempts.")

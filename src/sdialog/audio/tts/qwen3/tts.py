@@ -103,6 +103,7 @@ class Qwen3TTS(BaseTTS):
         if self.text_normalizers is not None and len(self.text_normalizers) > 0:
             text = normalize_text(text, self.text_normalizers)
 
+        tts_pipeline_kwargs = dict(tts_pipeline_kwargs)  # don't modify the caller's (or the default) dict
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
 
@@ -202,6 +203,7 @@ class Qwen3TTSVoiceClone(BaseVoiceCloneTTS):
         if self.text_normalizers is not None and len(self.text_normalizers) > 0:
             text = normalize_text(text, self.text_normalizers)
 
+        tts_pipeline_kwargs = dict(tts_pipeline_kwargs)  # don't modify the caller's (or the default) dict
         if "language" not in tts_pipeline_kwargs:
             tts_pipeline_kwargs["language"] = "English"
 

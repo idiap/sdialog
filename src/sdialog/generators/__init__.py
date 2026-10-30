@@ -428,6 +428,7 @@ class PersonaGenerator(BaseAttributeModelGenerator):
                  model: str = None,
                  **llm_kwargs):
         """Initialize a PersonaGenerator."""
+        placeholder_attributes = set()
         if isinstance(persona, BasePersona):
             persona_instance = persona
         elif isinstance(persona, type) and issubclass(persona, BasePersona):
@@ -437,6 +438,7 @@ class PersonaGenerator(BaseAttributeModelGenerator):
                 # Build an instance with placeholders so required fields without defaults
                 # do not break generator initialization.
                 persona_instance = persona.model_construct(**self._build_persona_init_data(persona))
+                placeholder_attributes = {name for name, info in persona.model_fields.items() if info.is_required()}
         else:
             raise ValueError("persona must be a BasePersona instance or subclass.")
         system_prompt = "You are an expert at generating persona JSON objects for synthetic dialogue generation."
@@ -452,6 +454,8 @@ class PersonaGenerator(BaseAttributeModelGenerator):
                          llm_prompt=llm_prompt,
                          llm_prompt_n=llm_prompt_n,
                          **llm_kwargs)
+        # Their placeholder values (e.g. 0 or False) are not values to keep: they are generated if requested
+        self._placeholder_attributes = placeholder_attributes
 
 
 class ContextGenerator(BaseAttributeModelGenerator):
@@ -582,12 +586,10 @@ class Paraphraser:
         with open(config["prompts"]["paraphraser_system"], encoding="utf-8") as f:
             system_message = Template(f.read()).render(only_turn=turn_by_turn)
 
-        if turn_by_turn:
-            with open(config["prompts"]["paraphraser_turn"], encoding="utf-8") as f:
-                self.instruction_template = Template(f.read())
-        else:
-            with open(config["prompts"]["paraphraser"], encoding="utf-8") as f:
-                self.instruction_template = Template(f.read())
+        path_template = config["prompts"]["paraphraser_turn" if turn_by_turn else "paraphraser"]
+        with open(path_template, encoding="utf-8") as f:
+            self._instruction_template_text = f.read()
+        self.instruction_template = Template(self._instruction_template_text)
 
         self.messages = [SystemMessage(system_message), HumanMessage("")]
 
@@ -663,4 +665,4 @@ class Paraphraser:
         :return: Combined prompt preview.
         :rtype: str
         """
-        return f"{self.messages[0].content}\n\n{self.instruction_template}"
+        return f"{self.messages[0].content}\n\n{self._instruction_template_text}"

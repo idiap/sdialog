@@ -15,10 +15,9 @@ Tutorials are organized into two main folders:
   - Integration with Copilot
 
 - **`01_audio/`** - Audio generation tutorials using the `sdialog.audio` submodule:
-  - Text-to-speech conversion (`dialog.to_audio()`)
-  - Acoustic simulation and room effects
-  - Voice databases and voice assignment
-  - Advanced audio pipeline control
+  - Audio generation with ground-truth annotations (`dialog.to_audio()`)
+  - Voices, pauses and overlaps, room reverberation, noise and telephone channels
+  - Scene presets and parallel batch generation
 
 > [!NOTE]
 > Audio tutorials require additional dependencies. Install with: `pip install sdialog[audio]`

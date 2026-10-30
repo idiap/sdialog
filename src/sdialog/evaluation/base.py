@@ -60,13 +60,13 @@ class LLMJudgeScoreOutput(BaseModel):
     """
     Structured output used by numeric score LLM judgments.
 
-    :param score: Numeric score (int or float).
-    :type score: Union[int, float]
-    :param reason: Optional explanatory reason.
-    :type reason: Optional[str]
+    :param score: Numeric score (int or float), or list of scores (one per dialogue).
+    :type score: Union[int, float, List[Union[int, float]]]
+    :param reason: Optional explanatory reason (string or list).
+    :type reason: Optional[Union[str, List[str]]]
     """
-    reason: Optional[str] = None
-    score: Union[int, float] = None
+    reason: Optional[Union[str, List[str]]] = None
+    score: Union[int, float, List[Union[int, float]]] = None
 
 
 class BaseDialogEmbedder(ABC):
@@ -558,12 +558,14 @@ class BaseDatasetScoreEvaluator(BaseDatasetEvaluator):
         :rtype: Union[dict, float, Tuple[Union[dict, float], np.ndarray]]
         :raises KeyboardInterrupt: If user interrupts (partial results saved).
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         dataset_name = dataset_name or "candidate"
         if dataset_name == "candidate":
             desc = f"Computing {self.name} scores for candidate dataset"
         else:
             desc = f"Computing {self.name} scores for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+            desc += str(dataset_name) if isinstance(dataset_name, int) else f"'{dataset_name}'"
         try:
             scores = [self.dialog_score(dialogue)
                       for dialogue in tqdm(dialogues, desc=desc, leave=self.verbose)]
@@ -758,12 +760,14 @@ class BaseDatasetEmbeddingEvaluator(BaseDatasetEvaluator):
         :return: Aggregated evaluation or (results, embeddings) if return_embs.
         :rtype: Union[dict, float, Tuple[Union[dict, float], np.ndarray]]
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         dataset_name = dataset_name or "candidate"
         if dataset_name == "candidate":
             desc = f"Computing {self.name} embeddings for candidate dataset"
         else:
             desc = f"Computing {self.name} embeddings for dataset "
-            desc += dataset_name if isinstance(dataset_name, int) else f"'{dataset_name}'"
+            desc += str(dataset_name) if isinstance(dataset_name, int) else f"'{dataset_name}'"
 
         # Skipping "reference" dataset name
         if dataset_name == "reference" and hasattr(self, "reference_embs"):

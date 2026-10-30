@@ -51,12 +51,14 @@ Example:
 # SPDX-License-Identifier: MIT
 import os
 import random
+import logging
 from pydantic import BaseModel
 from typing import List, Union, Any
 from collections import defaultdict, Counter
 
-from sdialog.audio.utils import logger
 from sdialog.util import dict_to_table
+
+logger = logging.getLogger(__name__)
 
 
 def is_a_audio_file(file: str) -> bool:

@@ -19,7 +19,7 @@ import warnings
 from tqdm.auto import tqdm
 from math import exp, log, sqrt
 from pydantic import Field, create_model
-from typing import Optional, Literal, Union, List, Dict, Tuple
+from typing import Annotated, Optional, Literal, Union, List, Dict, Tuple
 
 from scipy import linalg
 from scipy.stats import norm, gaussian_kde
@@ -45,6 +45,8 @@ _STD_EPSILON = 1e-10  # Threshold for treating std as effectively zero
 # Configure matplotlib for publication-quality figures
 mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['savefig.dpi'] = 300
+# boxplot()'s "labels" was renamed "tick_labels" in matplotlib 3.9 (and removed in 3.11)
+_BOXPLOT_LABELS = "tick_labels" if tuple(int(v) for v in mpl.__version__.split(".")[:2]) >= (3, 9) else "labels"
 mpl.rcParams['font.family'] = 'serif'
 mpl.rcParams['font.serif'] = ['Times New Roman', 'DejaVu Serif']
 mpl.rcParams['font.size'] = 14
@@ -285,7 +287,7 @@ class ConversationalFeatures(BaseDialogScore):
         :return: True if the turn is a back-channel response.
         :rtype: bool
         """
-        text = turn_text.strip().lower()
+        text = turn_text.strip().lower().rstrip(".!?,;… ")  # e.g. "Okay." or "Yeah!"
         back_channel_patterns = [
             r'^(?:yeah|yes|yep|yup|uh-huh|mhm|mm-hmm|okay|ok|right|sure|i see|got it|alright)$',
             r'^(?:oh|ah|hmm|huh)$',
@@ -343,7 +345,7 @@ class ConversationalFeatures(BaseDialogScore):
             dialog = dialog.filter(speaker=self.speaker)
 
         results = {}
-        all_text = str(dialog)
+        all_text = "\n".join(turn.text for turn in dialog)  # without the "Speaker:" prefixes
         turn_lengths = [len(turn) for turn in dialog]
         total_words = sum(turn_lengths)
 
@@ -366,7 +368,7 @@ class ConversationalFeatures(BaseDialogScore):
             results["lexical_diversity"] = (unique_words / max(1, len(words))) if words else 0.0
 
         if not self.feature or "back-channel-rate" in self.feature:
-            back_channel_turns = sum(1 for turn in dialog if self.is_back_channel(str(turn)))
+            back_channel_turns = sum(1 for turn in dialog if self.is_back_channel(turn.text))
             results["back_channel_rate"] = (back_channel_turns / max(1, len(dialog)) * 100)
 
         if not self.feature or "filler-word-density" in self.feature:
@@ -617,7 +619,7 @@ class ReadabilityScore(BaseDialogScore):
             dialog = dialog.filter(speaker=self.speaker)
 
         results = {}
-        all_text = str(dialog)
+        all_text = "\n".join(turn.text for turn in dialog)  # without the "Speaker:" prefixes
         if not self.feature or "gunning-fog" in self.feature:
             results["gunning_fog"] = self.calculate_gunning_fog(all_text)
         if not self.feature or "flesch-reading-ease" in self.feature:
@@ -995,8 +997,9 @@ class ToolSequenceValidator(BaseDialogScore):
     This validator checks whether the agent called the specified tools in the expected order
     based on the dialogue's event history. It returns 1 if the sequence is valid, 0 otherwise.
 
-    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called
-    before subsequent tools in the list. This allows for flexible validation of tool usage patterns.
+    Tool names can be prefixed with ``"not:"`` to indicate that the tool must NOT be called at that
+    position of the sequence, that is, between the previous and the next tools in the list (from the start or
+    until the end of the dialogue if there are none). This allows for flexible validation of tool usage patterns.
 
     Example 1: Basic sequence validation
 
@@ -1027,7 +1030,17 @@ class ToolSequenceValidator(BaseDialogScore):
 
             score = validator(dialog)
 
-    Example 3: With evaluators
+    Example 3: Forbidden tools (anywhere in the dialogue, regardless of the order)
+
+        .. code-block:: python
+
+            from sdialog.evaluation import ToolSequenceValidator
+
+            # Plans must be retrieved, and the account must never be verified
+            validator = ToolSequenceValidator(["get_service_plans"], forbidden_tools=["verify_account"])
+            score = validator(dialog)
+
+    Example 4: With evaluators
 
         .. code-block:: python
 
@@ -1043,11 +1056,15 @@ class ToolSequenceValidator(BaseDialogScore):
     :param tool_names: List of tool names defining the expected sequence. Each tool name can be:
                        - A plain string (e.g., ``"search_flights"``): tool must be called in sequence.
                        - Prefixed with ``"not:"`` (e.g., ``"not:verify_account"``): tool must NOT be
-                         called before the next required tool in the sequence, though it may be called
-                         after or omitted entirely.
+                         called between the previous and the next required tools (the start and the end
+                         of the dialogue if there are none), though it may be called elsewhere or omitted.
+                         E.g. ``["not:x", "a"]``: no ``x`` before ``a``; ``["a", "not:x"]``: no ``x`` after
+                         ``a``; ``["not:x", "a", "not:x"]``: no ``x`` at all.
     :type tool_names: List[str]
     :param name: Custom score name (defaults to ``"tool-sequence-validator"``).
     :type name: str
+    :param forbidden_tools: Tools that must not be called anywhere in the dialogue, regardless of the order.
+    :type forbidden_tools: Optional[List[str]]
 
     .. note::
         - Tools must appear in the specified order within the dialogue's event history.
@@ -1055,7 +1072,10 @@ class ToolSequenceValidator(BaseDialogScore):
         - If a required tool (without ``"not:"`` prefix) is missing, the score is 0.
         - Tools with ``"not:"`` prefix that don't appear in the dialogue are ignored.
     """
-    def __init__(self, tool_names: List[str], name: str = "tool-sequence-validator"):
+    def __init__(self,
+                 tool_names: List[str],
+                 name: str = "tool-sequence-validator",
+                 forbidden_tools: Optional[List[str]] = None):
         """
         Initialize the tool sequence validator.
 
@@ -1063,9 +1083,12 @@ class ToolSequenceValidator(BaseDialogScore):
         :type tool_names: List[str]
         :param name: Score name for reporting.
         :type name: str
+        :param forbidden_tools: Tools that must not be called anywhere in the dialogue.
+        :type forbidden_tools: Optional[List[str]]
         """
         super().__init__(name=name)
         self.tool_names = tool_names
+        self.forbidden_tools = forbidden_tools or []
 
     def score(self, dialog: Dialog) -> int:
         """
@@ -1074,8 +1097,9 @@ class ToolSequenceValidator(BaseDialogScore):
         Extracts tool calls from the dialogue's event history and validates that:
         1. All required tools (without ``"not:"`` prefix) are present.
         2. Tools appear in the specified order.
-        3. Tools with ``"not:"`` prefix do not appear before subsequent tools.
+        3. Tools with ``"not:"`` prefix do not appear between the previous and the next required tools.
         4. The first tool call comes after at least one user utterance.
+        5. Forbidden tools (``forbidden_tools``) are not called at all.
 
         :param dialog: Dialogue instance to validate.
         :type dialog: Dialog
@@ -1084,13 +1108,14 @@ class ToolSequenceValidator(BaseDialogScore):
 
         .. note::
             Returns 0 if:
-            - The dialogue has no events or tool_names is empty.
+            - The dialogue has no events, or both tool_names and forbidden_tools are empty.
             - A required tool is missing from the event history.
             - Tools appear in incorrect order.
-            - A ``"not:"`` prefixed tool appears before subsequent tools.
+            - A ``"not:"`` prefixed tool appears between the previous and the next required tools.
+            - A forbidden tool is called.
         """
         # Check if all tools were used in that order from the event list.
-        if not dialog.events or not self.tool_names:
+        if not dialog.events or not (self.tool_names or self.forbidden_tools):
             return 0
 
         # Extract tool calls from events in order
@@ -1101,33 +1126,30 @@ class ToolSequenceValidator(BaseDialogScore):
             else:
                 event_name_list.append(event.action)
 
-        # Process tool names and check ordering constraints
-        try:
-            indices = []
-            for i, tool in enumerate(self.tool_names):
-                if tool.startswith("not:"):
-                    # Tool must NOT be called before subsequent tools
-                    actual_tool_name = tool.split(":", 1)[1]
-                    try:
-                        tool_index = event_name_list.index(actual_tool_name)
-                        # If this tool exists, check it comes after the previous tool (if any)
-                        if indices and tool_index <= indices[-1]:
-                            return 0  # Tool was called before the previous one
-                        indices.append(tool_index)
-                    except ValueError:
-                        # Tool not found - this is OK for "not:" prefixed tools
-                        # Use a placeholder that won't break ordering (previous index or -1)
-                        indices.append(indices[-1] if indices else -1)
-                else:
-                    # Tool must be called
-                    tool_index = event_name_list.index(tool)
-                    indices.append(tool_index)
-
-            # Check tools are in correct order and first tool comes after utterance
-            return 1 if indices == sorted(indices) and (not indices or indices[0] > 0 or indices[0] == -1) else 0
-        except ValueError:
-            # One or more required tools not found
+        # Required tools must all be called (first call), in the given order, after at least one other event
+        indices = []
+        for tool in self.tool_names:
+            if not tool.startswith("not:"):
+                if tool not in event_name_list:
+                    return 0
+                indices.append(event_name_list.index(tool))
+        if indices != sorted(indices) or (indices and indices[0] == 0):
             return 0
+
+        # "not:" tools must not be called between the previous and the next required tools
+        # (the start and the end of the dialogue if there are none)
+        for i, tool in enumerate(self.tool_names):
+            if tool.startswith("not:"):
+                prev_required = next((event_name_list.index(t) for t in reversed(self.tool_names[:i])
+                                      if not t.startswith("not:")), -1)
+                next_required = next((event_name_list.index(t) for t in self.tool_names[i + 1:]
+                                      if not t.startswith("not:")), len(event_name_list))
+                if tool.split(":", 1)[1] in event_name_list[prev_required + 1:next_required]:
+                    return 0
+
+        if any(tool in event_name_list for tool in self.forbidden_tools):
+            return 0
+        return 1
 
 
 class DialogFlowPPL(BaseDialogFlowScore):
@@ -1490,10 +1512,12 @@ class LLMJudgeScore(BaseDialogScore, BaseLLMJudge):
             )
 
         # Build the model dynamically with the user provided score_type and range (min_score, max_score)
+        # One score, or a list of scores when several dialogues are judged at once
+        bounded_score = Annotated[score_type, Field(ge=min_score, le=max_score)]
         LLMJudgeScoreRangeOutput = create_model(
             "LLMJudgeScoreRangeOutput",
             __base__=LLMJudgeScoreOutput,
-            score=(score_type, Field(ge=min_score, le=max_score)),
+            score=(Union[bounded_score, List[bounded_score]], ...),
         )
 
         with open(config["prompts"]["evaluation"]["llm_judge"]["score"]["base"], encoding="utf-8") as f:
@@ -1784,12 +1808,30 @@ class LLMJudgePersonaAttributes(LLMJudgeYesNo):
         with open(config["prompts"]["evaluation"]["llm_judge"]["yesno"]["persona_attributes"], encoding="utf-8") as f:
             prompt_template = f.read()
 
-        prompt_template = prompt_template.render(persona=persona, speaker=speaker)
-
         super().__init__(prompt_template,
                          model=model,
                          reason=reason,
                          **llm_kwargs)
+        self.persona = persona
+        self.speaker = speaker
+
+    def judge(self,
+              dialogs: Union[Dialog, List[Dialog]],
+              reason: bool = None,
+              **template_kwargs) -> LLMJudgeYesNoOutput:
+        """
+        Judge whether the speaker matches the persona in one or multiple dialogues.
+
+        :param dialogs: A dialogue or list of dialogues.
+        :type dialogs: Union[Dialog, List[Dialog]]
+        :param reason: Override whether to ask for a reason.
+        :type reason: Optional[bool]
+        :return: Structured yes/no output.
+        :rtype: LLMJudgeYesNoOutput
+        """
+        persona = self.persona.prompt() if isinstance(self.persona, BasePersona) else self.persona
+        template_kwargs = {"persona": persona, "speaker": self.speaker, **template_kwargs}
+        return super().judge(dialogs, reason=reason, **template_kwargs)
 
 
 class SentenceTransformerDialogEmbedder(BaseDialogEmbedder):
@@ -2358,6 +2400,8 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
         :return: Frechet distance (>= 0).
         :rtype: float
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         mu_src, sigma_src = np.atleast_1d(self.reference_mu), np.atleast_2d(self.reference_sigma)
         mu_tgt, sigma_tgt = self._get_multidim_gaussian_mu_sigma(dialogues, dataset_name=dataset_name)
 
@@ -2597,6 +2641,8 @@ class PrecisionRecallDistanceEvaluator(BaseDatasetEvaluator):
         :return: Max F1 value.
         :rtype: float
         """
+        if isinstance(dialogues, str):
+            dialogues = Dialog.from_file(dialogues)
         target_embs = self._encode_utterance_pairs(dialogues, dataset_name)
 
         if len(target_embs) != len(self.reference_embs):
@@ -2701,7 +2747,7 @@ class StatsEvaluator(BaseDatasetScoreEvaluator):
                   '#e377c2', '#bcbd22', '#17becf']
 
         bp = plot.boxplot(list(dialog_scores.values()),
-                          labels=list(dialog_scores.keys()),
+                          **{_BOXPLOT_LABELS: list(dialog_scores.keys())},
                           patch_artist=True,
                           widths=0.6,
                           medianprops=dict(color='red', linewidth=1.5),

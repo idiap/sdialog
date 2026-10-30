@@ -894,6 +894,9 @@ class Agent:
                 return
         else:
             raise TypeError("inspectors must be an Inspector or a list of Inspectors")
+        if self.base_model is self.llm:
+            raise RuntimeError("Inspectors need a local Hugging Face model: base model not found or not a "
+                               "HuggingFace pipeline.")
 
         self._inspectors.extend(inspectors)
         self._set_hook_response_data()

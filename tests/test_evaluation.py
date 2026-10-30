@@ -8,8 +8,19 @@ from sdialog.evaluation import (
     SentenceTransformerDialogEmbedder,
     ReferenceCentroidEmbeddingEvaluator,
     StatsEvaluator,
+    ConversationalFeatures,
+    GunningFogScore,
+    ToolSequenceValidator,
+    DatasetComparator,
 )
-from sdialog import Dialog, Turn
+from sdialog.evaluation.base import BaseDialogScore, BaseDialogEmbedder
+from sdialog import Dialog, Turn, Event
+
+
+class LengthScore(BaseDialogScore):
+    def score(self, dialog):
+        return len(dialog)
+
 
 dummy_dialog = Dialog(
     turns=[Turn(text="hello world", speaker="A"),
@@ -81,3 +92,116 @@ def test_stats_evaluator():
     stats = evaluator(dialogs)
     assert "mean" in stats
     assert stats["mean"] == 1.0
+
+
+def test_conversational_features_ignore_speaker_names():
+    dialog = Dialog(turns=[Turn(speaker="Hmm", text="Do you like it?"), Turn(speaker="B", text="yeah")])
+    features = ConversationalFeatures()(dialog)
+    assert features["back_channel_rate"] == 50.0  # "yeah" is a back-channel turn
+    assert features["hesitation_rate"] == 0.0  # the speaker name "Hmm" is not a hesitation
+    assert features["lexical_diversity"] == 1.0  # speaker names are not counted as words
+
+
+def test_readability_ignores_speaker_names():
+    dialog = Dialog(turns=[Turn(speaker="Extraordinarily", text="I see."), Turn(speaker="B", text="Me too.")])
+    assert GunningFogScore()(dialog) == pytest.approx(0.4 * 2)  # 4 words, 2 sentences, no complex words
+
+
+def _tool_dialog(*tools):
+    """Dialog whose events are a user utterance followed by the given tool calls."""
+    events = [Event(agent="User", action="utter", content="hi", timestamp=0)]
+    events += [Event(agent="Bot", action="tool", actionLabel="call", content={"name": t, "args": {}}, timestamp=0)
+               for t in tools]
+    return Dialog(turns=[], events=events)
+
+
+@pytest.mark.parametrize("tools, expected", [
+    (("charge_payment", "send_receipt"), 1),  # receipt after the charge: allowed
+    (("charge_payment",), 1),  # no receipt: allowed
+    (("send_receipt", "charge_payment"), 0),  # receipt before the charge: not allowed
+    ((), 0),  # required tool missing
+])
+def test_tool_sequence_validator_not_prefix(tools, expected):
+    validator = ToolSequenceValidator(["not:send_receipt", "charge_payment"])
+    assert validator(_tool_dialog(*tools)) == expected
+
+
+def test_tool_sequence_validator_order():
+    validator = ToolSequenceValidator(["search", "book", "not:cancel"])
+    assert validator(_tool_dialog("search", "book")) == 1
+    assert validator(_tool_dialog("book", "search")) == 0
+    assert validator(_tool_dialog("search", "book", "cancel")) == 0  # "not:" at the end: not after "book"
+    assert validator(_tool_dialog("search", "cancel", "book")) == 1  # cancelling before booking is fine
+    first_event_is_tool = Dialog(turns=[], events=_tool_dialog("search", "book").events[1:])
+    assert validator(first_event_is_tool) == 0
+    assert validator(Dialog(turns=[])) == 0
+
+
+@pytest.mark.parametrize("tools, after, never", [
+    (("plans",), 1, 1),
+    (("verify", "plans"), 1, 0),
+    (("plans", "verify"), 0, 0),
+])
+def test_tool_sequence_validator_not_position(tools, after, never):
+    # The position of "not:" in the list matters: ["a", "not:x"] forbids x after a, ["not:x", "a", "not:x"] always
+    dialog = _tool_dialog(*tools)
+    assert ToolSequenceValidator(["plans", "not:verify"])(dialog) == after
+    assert ToolSequenceValidator(["not:verify", "plans", "not:verify"])(dialog) == never
+
+
+def test_tool_sequence_validator_not_between_tools():
+    validator = ToolSequenceValidator(["a", "not:x", "b"])
+    assert validator(_tool_dialog("x", "a", "b", "x")) == 1  # x only outside the a..b segment
+    assert validator(_tool_dialog("a", "x", "b")) == 0
+
+
+def test_back_channel_with_punctuation():
+    assert ConversationalFeatures.is_back_channel("Okay.")
+    assert ConversationalFeatures.is_back_channel("Yeah!")
+    assert not ConversationalFeatures.is_back_channel("Okay, let's go.")
+
+
+def test_dataset_comparator_with_list_of_datasets():
+    comparator = DatasetComparator([StatsEvaluator(LengthScore(), stat="mean")])
+    results = comparator([[dummy_dialog], [dummy_dialog, dummy_dialog]], output="dict")
+    assert set(results) == {1, 2}  # datasets given as a list are numbered from 1
+
+
+def test_dataset_evaluators_load_dialogues_from_path(tmp_path, monkeypatch):
+    for i, n in enumerate((2, 4)):
+        Dialog(turns=[Turn(speaker="A", text="hi")] * n).to_file(str(tmp_path / f"{i}.json"))
+    assert StatsEvaluator(LengthScore(), stat="mean")(str(tmp_path)) == 3
+
+    class DummyEmbedder(BaseDialogEmbedder):
+        def embed(self, dialog):
+            return np.ones(3) * len(dialog)
+
+    evaluator = ReferenceCentroidEmbeddingEvaluator(DummyEmbedder(), [dummy_dialog])
+    assert evaluator(str(tmp_path)) == pytest.approx(1.0)  # same direction as the centroid
+
+
+def test_stats_evaluator_plot(tmp_path):
+    evaluator = StatsEvaluator(LengthScore())
+    evaluator([dummy_dialog], dataset_name="a")
+    evaluator([dummy_dialog, dummy_dialog], dataset_name="b")
+    evaluator.plot(show=False, save_path=str(tmp_path / "stats.png"))  # box plot
+    assert (tmp_path / "stats.png").exists()
+
+
+@pytest.mark.parametrize("tools, expected", [
+    (("plans",), 1),
+    (("verify", "plans"), 0),
+    (("plans", "verify"), 0),
+    (("verify",), 0),
+])
+def test_tool_sequence_validator_forbidden_tools(tools, expected):
+    validator = ToolSequenceValidator(["plans"], forbidden_tools=["verify"])
+    assert validator(_tool_dialog(*tools)) == expected
+
+
+def test_tool_sequence_validator_only_forbidden_tools():
+    validator = ToolSequenceValidator([], forbidden_tools=["delete_account"])
+    assert validator(_tool_dialog("search")) == 1
+    assert validator(_tool_dialog("search", "delete_account")) == 0
+    assert validator(Dialog(turns=[])) == 0  # no events to check
+    assert ToolSequenceValidator([])(_tool_dialog("search")) == 0  # nothing to validate
