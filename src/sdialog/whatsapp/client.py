@@ -73,8 +73,12 @@ class MetaWhatsAppClient:
 
         return success
 
-    async def mark_as_read(self, message_id: str) -> bool:
-        """Mark an incoming WhatsApp message as read (blue double check)."""
+    async def mark_as_read(self, message_id: str, typing_indicator: bool = False) -> bool:
+        """
+        Mark an incoming WhatsApp message as read (blue double check).
+
+        With ``typing_indicator=True``, also show "typing..." to the user, until the next reply or for 25 seconds.
+        """
         if not message_id:
             return False
 
@@ -83,6 +87,8 @@ class MetaWhatsAppClient:
             "status": "read",
             "message_id": message_id,
         }
+        if typing_indicator:
+            payload["typing_indicator"] = {"type": "text"}
 
         async with httpx.AsyncClient(timeout=5.0) as client:
             try:

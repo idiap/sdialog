@@ -406,6 +406,7 @@ Then send a WhatsApp message to the test number from your phone.
 Some things to keep in mind:
 
 - Only text messages are supported; users sending other media get a short notice.
+- Incoming messages are marked as read, and users see "typing..." until the reply arrives (``WhatsAppConfig(mark_as_read=False)`` and ``typing_indicator=False`` disable them).
 - Messages sent more than ``max_message_age`` seconds ago (2 minutes by default) are ignored. Meta keeps retrying webhooks it could not deliver (e.g. while the server or tunnel was down) for days, and answering them hours later would be out of context. Set it to ``None`` to answer all messages.
 - Up to ``max_workers`` users (8 by default) are served at the same time, each message on a fresh clone of the agent that shares its model (:meth:`~sdialog.agents.Agent.clone`); a user's own messages are still processed one at a time, in order. Agents with a local Hugging Face model or with inspectors are served one message at a time, since parallel calls would not be faster. With several workers, the agent's tools and custom functions (e.g. ``postprocess_fn``) may run at the same time for different users, so they must be thread-safe; pass ``max_workers=1`` otherwise.
 - Each user can send up to ``max_messages_per_minute`` messages per minute (6 by default, enough for a few quick messages in a row) and ``max_messages_per_hour`` per hour (60 by default). Extra messages are dropped without calling the LLM, and the user gets a single notice; set either limit to ``None`` to disable it.

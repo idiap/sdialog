@@ -57,6 +57,9 @@ class WhatsAppConfig:
     max_message_age: Optional[int] = 120
     enforce_signature: bool = True  # Reject webhook requests not signed with app_secret
     mark_as_read: bool = True
+    # Show "typing..." to the user while the reply is generated (only with mark_as_read: Meta shows it along with
+    # the read receipt)
+    typing_indicator: bool = True
     log_level: str = "info"
 
     def __post_init__(self):

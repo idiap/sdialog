@@ -4,6 +4,14 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **sdialog.whatsapp**:
+  - Users now see "typing..." while the agent writes its reply, refreshed every 20 seconds for long replies (Meta hides it after 25). Disable it with `WhatsAppConfig(typing_indicator=False)`; like the read receipt it comes with, it is only shown with `mark_as_read=True` (the default).
+
+---
+
 ## [0.7.0] 2026-10-30 🧪
 
 ### Added

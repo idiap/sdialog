@@ -12,7 +12,8 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Optional, Dict, Any, List, Tuple
+from contextlib import asynccontextmanager
+from typing import Optional, Dict, Any, AsyncIterator, List, Tuple
 
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -27,6 +28,7 @@ from ..rate_limit import RateLimiter
 logger = logging.getLogger(__name__)
 
 CLEANUP_INTERVAL = 86400  # Seconds between purges of old idempotency records and inactive sessions
+TYPING_INDICATOR_REFRESH = 20  # Seconds between refreshes of the typing indicator, which Meta hides after 25
 
 
 class WhatsAppServer:
@@ -187,11 +189,14 @@ class WhatsAppServer:
     @classmethod
     async def _handle_user_turn(cls, sender_id: str, text: str, wamid: str) -> None:
         """Process an incoming user message on a pooled agent and reply via WhatsApp."""
-        # Mark message as read (blue checkmark) if configured
+        # Mark message as read (blue checkmark) and show "typing..." if configured
         if cls._config.mark_as_read and cls._client:
-            await cls._client.mark_as_read(wamid)
+            await cls._client.mark_as_read(wamid, typing_indicator=cls._config.typing_indicator)
+        queued_at = time.monotonic()
 
         async with cls._pool.acquire(sender_id) as agent:
+            # A turn that waited (e.g. for an earlier one of the user, whose reply hid "typing...") shows it again
+            waited = time.monotonic() - queued_at > 0.1
             try:
                 # Check for explicit session reset commands
                 if text.lower() in ("/reset", "/clear", "/restart"):
@@ -216,7 +221,8 @@ class WhatsAppServer:
 
                 # Run inference in the pool's threads so synchronous LLMs don't block the event loop
                 logger.debug(f"[WhatsApp] Processing turn for user {sender_id}: '{text[:30]}...'")
-                response = await cls._pool.run(agent, text)
+                async with cls._typing(wamid, now=waited):
+                    response = await cls._pool.run(agent, text)
 
                 if not response:
                     logger.warning(f"[WhatsApp] Agent returned empty response for {sender_id}")
@@ -239,6 +245,27 @@ class WhatsAppServer:
                     )
                 except Exception:
                     pass
+
+    @classmethod
+    @asynccontextmanager
+    async def _typing(cls, wamid: str, now: bool = False) -> AsyncIterator[None]:
+        """Keep showing "typing..." while the reply is generated (Meta hides it after 25 seconds)."""
+        if not (cls._config.mark_as_read and cls._config.typing_indicator and cls._client):
+            yield
+            return
+
+        async def refresh():
+            if now:
+                await cls._client.mark_as_read(wamid, typing_indicator=True)
+            while True:
+                await asyncio.sleep(TYPING_INDICATOR_REFRESH)
+                await cls._client.mark_as_read(wamid, typing_indicator=True)
+
+        task = asyncio.create_task(refresh())
+        try:
+            yield
+        finally:
+            task.cancel()  # Before the reply is sent, so a late refresh can't show "typing..." after it
 
     @classmethod
     async def _handle_new_chat(cls, sender_id: str) -> None:

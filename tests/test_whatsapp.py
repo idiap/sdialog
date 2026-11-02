@@ -282,6 +282,22 @@ def test_client_send_text_mocked(test_config):
     asyncio.run(_test())
 
 
+@pytest.mark.parametrize("typing_indicator", [False, True])
+def test_client_mark_as_read_typing_indicator(test_config, typing_indicator):
+    import asyncio
+    client = MetaWhatsAppClient(test_config)
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = MagicMock(status_code=200)
+        assert asyncio.run(client.mark_as_read("wamid.x", typing_indicator=typing_indicator)) is True
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["status"] == "read" and payload["message_id"] == "wamid.x"
+    assert ("typing_indicator" in payload) == typing_indicator
+    if typing_indicator:
+        assert payload["typing_indicator"] == {"type": "text"}
+
+
 # ---------------------------------------------------------------------------
 # Test 4: Webhook Verification (GET /webhook)
 # ---------------------------------------------------------------------------
@@ -603,6 +619,58 @@ def test_finished_session_starts_over(test_config):
         asyncio.run(WhatsAppServer._handle_user_turn(sender_id="1111", text="Hi again", wamid="wamid.x"))
 
     mock_send.assert_awaited_once_with(to="1111", text="Bot reply to: Hi again")
+
+
+def _run_turns_recording_typing(test_config, monkeypatch, agent, *texts):
+    """Run turns of the same user at the same time, recording read receipts and replies in order."""
+    import asyncio
+
+    monkeypatch.setattr("sdialog.whatsapp.server.TYPING_INDICATOR_REFRESH", 0.1)
+    test_config.mark_as_read = True
+    WhatsAppServer.create_app(agent, test_config)
+    calls = []
+
+    async def fake_read(message_id, typing_indicator=False):
+        calls.append(("read", message_id, typing_indicator))
+
+    async def fake_send(to, text):
+        calls.append(("send", text))
+
+    async def _test():
+        await asyncio.gather(*(WhatsAppServer._handle_user_turn(sender_id="1111", text=text, wamid=f"wamid.{text}")
+                               for text in texts))
+        await asyncio.sleep(0.3)  # No refreshes after the reply
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", side_effect=fake_send), \
+         patch.object(MetaWhatsAppClient, "mark_as_read", side_effect=fake_read):
+        asyncio.run(_test())
+    return calls
+
+
+def test_typing_indicator_refreshed_until_reply(test_config, monkeypatch):
+    """"typing..." is shown with the read receipt and refreshed while the agent replies, but not after."""
+    calls = _run_turns_recording_typing(test_config, monkeypatch, MockWhatsAppAgent(latency=0.35), "hi")
+
+    assert calls[0] == ("read", "wamid.hi", True)
+    assert calls[-1] == ("send", "Bot reply to: hi")
+    refreshes = calls[1:-1]
+    assert len(refreshes) >= 2 and set(refreshes) == {("read", "wamid.hi", True)}
+
+
+def test_typing_indicator_shown_again_for_queued_turn(test_config, monkeypatch):
+    """A message waiting for the reply to an earlier one shows "typing..." again once that reply hid it."""
+    calls = _run_turns_recording_typing(test_config, monkeypatch, MockWhatsAppAgent(latency=0.3), "m0", "m1")
+
+    first_reply = calls.index(("send", "Bot reply to: m0"))
+    assert calls[first_reply + 1] == ("read", "wamid.m1", True)
+    assert calls[-1] == ("send", "Bot reply to: m0 | m1")
+
+
+def test_typing_indicator_disabled(test_config, monkeypatch):
+    test_config.typing_indicator = False
+    calls = _run_turns_recording_typing(test_config, monkeypatch, MockWhatsAppAgent(latency=0.35), "hi")
+
+    assert calls == [("read", "wamid.hi", False), ("send", "Bot reply to: hi")]
 
 
 def test_agent_serve_whatsapp_method_signature():
