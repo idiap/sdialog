@@ -13,11 +13,17 @@ import os
 import tempfile
 import time
 import pytest
+from typing import Optional
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from fastapi.testclient import TestClient
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, messages_to_dict, messages_from_dict
 
+from sdialog.agents import Agent
+from sdialog.orchestrators import SimpleReflexOrchestrator
+from sdialog.personas import Persona
 from sdialog.whatsapp import (
     WhatsAppConfig,
     WhatsAppServer,
@@ -62,6 +68,20 @@ class MockWhatsAppAgent:
     def set_state(self, state):
         self.memory[:] = self.memory[:1] + messages_from_dict(state["memory"])
         self._finished = state["finished"]
+
+
+class FixedChatModel(BaseChatModel):
+    """Chat model always giving the same reply, to serve real Agents."""
+
+    seed: Optional[int] = None
+    reply: str = "Noted."
+
+    @property
+    def _llm_type(self) -> str:
+        return "fixed"
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=self.reply))])
 
 
 @pytest.fixture
@@ -671,6 +691,65 @@ def test_typing_indicator_disabled(test_config, monkeypatch):
     calls = _run_turns_recording_typing(test_config, monkeypatch, MockWhatsAppAgent(latency=0.35), "hi")
 
     assert calls == [("read", "wamid.hi", False), ("send", "Bot reply to: hi")]
+
+
+def _run_turns_recording_events(test_config, on_event, *texts):
+    """Serve a real agent with a "safety" reflex on "help", recording replies and on_event calls in order."""
+    import asyncio
+
+    calls = []
+    test_config.on_event = lambda user_id, event: (calls.append(("event", user_id, event.action, event.actionLabel)),
+                                                   on_event(user_id, event))
+    agent = Agent(persona=Persona(name="Bot"), model=FixedChatModel()) | SimpleReflexOrchestrator(
+        condition=lambda utterance: "help" in utterance, instruction="Take it seriously.", event_label="safety")
+    WhatsAppServer.create_app(agent, test_config)
+
+    async def fake_send(to, text):
+        calls.append(("send", text))
+
+    async def _test():
+        for i, text in enumerate(texts):
+            await WhatsAppServer._handle_user_turn(sender_id="1111", text=text, wamid=f"wamid.{i}")
+
+    with patch.object(MetaWhatsAppClient, "send_text_message", side_effect=fake_send):
+        asyncio.run(_test())
+    return calls
+
+
+def test_on_event_receives_turn_events_after_reply(test_config):
+    calls = _run_turns_recording_events(test_config, lambda user_id, event: None, "hello", "I need help")
+
+    assert calls == [
+        ("send", "Noted."), ("event", "1111", "utter", None),
+        ("send", "Noted."), ("event", "1111", "instruct", "safety"), ("event", "1111", "utter", None),
+    ]
+    store = SQLiteSessionStore(db_path=test_config.db_path)
+    assert [m["data"]["content"] for m in store.load_session("1111")["memory"]] == \
+        ["hello", "Noted.", "I need help", "Noted."]
+
+
+def test_on_event_errors_do_not_break_the_turn(test_config, caplog):
+    def failing(user_id, event):
+        raise RuntimeError("SMTP down")
+
+    calls = _run_turns_recording_events(test_config, failing, "I need help", "thanks")
+
+    # Every event is still dispatched, and the conversation goes on
+    assert calls == [
+        ("send", "Noted."), ("event", "1111", "instruct", "safety"), ("event", "1111", "utter", None),
+        ("send", "Noted."), ("event", "1111", "utter", None),
+    ]
+    assert "on_event failed (instruct event): SMTP down" in caplog.text
+
+
+def test_serve_whatsapp_passes_on_event(test_config):
+    def on_event(user_id, event):
+        pass
+
+    agent = Agent(persona=Persona(name="Bot"), model=FixedChatModel())
+    with patch.object(WhatsAppServer, "serve") as mock_serve:
+        agent.serve_whatsapp(on_event=on_event)
+    assert mock_serve.call_args.kwargs["config"].on_event is on_event
 
 
 def test_agent_serve_whatsapp_method_signature():

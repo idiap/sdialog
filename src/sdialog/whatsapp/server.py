@@ -22,6 +22,7 @@ import uvicorn
 from .config import WhatsAppConfig, AUTO_SESSION_TIMEOUT, AUTO_SESSION_TIMEOUT_NEW_CHAT
 from .client import MetaWhatsAppClient
 from .session_store import SQLiteSessionStore
+from .. import Event
 from ..agent_pool import AgentPool
 from ..rate_limit import RateLimiter
 
@@ -197,6 +198,7 @@ class WhatsAppServer:
         async with cls._pool.acquire(sender_id) as agent:
             # A turn that waited (e.g. for an earlier one of the user, whose reply hid "typing...") shows it again
             waited = time.monotonic() - queued_at > 0.1
+            events = []
             try:
                 # Check for explicit session reset commands
                 if text.lower() in ("/reset", "/clear", "/restart"):
@@ -222,7 +224,11 @@ class WhatsAppServer:
                 # Run inference in the pool's threads so synchronous LLMs don't block the event loop
                 logger.debug(f"[WhatsApp] Processing turn for user {sender_id}: '{text[:30]}...'")
                 async with cls._typing(wamid, now=waited):
-                    response = await cls._pool.run(agent, text)
+                    if cls._config.on_event:
+                        events = await cls._pool.run(lambda: agent(text, return_events=True)) or []
+                        response = next((e.content for e in reversed(events) if e.action == "utter"), "")
+                    else:
+                        response = await cls._pool.run(agent, text)
 
                 if not response:
                     logger.warning(f"[WhatsApp] Agent returned empty response for {sender_id}")
@@ -245,6 +251,23 @@ class WhatsAppServer:
                     )
                 except Exception:
                     pass
+            finally:
+                await cls._dispatch_events(sender_id, events)
+
+    @classmethod
+    async def _dispatch_events(cls, sender_id: str, events: List[Event]) -> None:
+        """Pass the events of a turn to the on_event callback, in the pool's threads since it may block."""
+        if not events:
+            return
+
+        def dispatch():
+            for event in events:
+                try:
+                    cls._config.on_event(sender_id, event)
+                except Exception as e:
+                    logger.error(f"[WhatsApp] on_event failed ({event.action} event): {e}", exc_info=True)
+
+        await cls._pool.run(dispatch)
 
     @classmethod
     @asynccontextmanager

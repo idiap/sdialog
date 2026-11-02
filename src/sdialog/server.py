@@ -17,7 +17,7 @@ import asyncio
 import logging
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union
+from typing import Callable, Dict, List, Optional, Any, Union
 from threading import Lock
 from contextlib import nullcontext
 
@@ -35,6 +35,7 @@ except ImportError:
         "Please install them with: pip install fastapi uvicorn"
     )
 
+from . import Event
 from .agents import Agent
 from .agent_pool import AgentPool
 from .rate_limit import RateLimiter
@@ -379,7 +380,8 @@ class Server:
                        max_messages_per_hour: Optional[int] = 60,
                        log_level: str = "info",
                        max_workers: Optional[int] = None,
-                       max_message_age: Optional[int] = 120) -> None:
+                       max_message_age: Optional[int] = 120,
+                       on_event: Optional[Callable[[str, Event], None]] = None) -> None:
         """
         Serve an SDialog agent via Meta WhatsApp Cloud API webhook.
 
@@ -430,6 +432,13 @@ class Server:
                                 Meta retries webhooks it could not deliver (e.g. while the server was down) for
                                 days, and late replies would be out of context.
         :type max_message_age: Optional[int]
+        :param on_event: Function called as ``on_event(user_id, event)`` with each :class:`~sdialog.Event` of a
+                         user's turn, in order, once the reply is sent: orchestrator instructions (with the
+                         orchestrator's ``event_label`` as ``actionLabel``), tool calls, and the reply. The user ID
+                         is their phone number. It runs in the server's threads, so it may block (e.g. to send an
+                         email), but it may run at the same time for different users, so it must be thread-safe.
+                         Errors are logged and ignored.
+        :type on_event: Optional[Callable[[str, Event], None]]
         """
         from .whatsapp import WhatsAppServer, WhatsAppConfig
 
@@ -451,6 +460,7 @@ class Server:
             log_level=log_level,
             max_workers=max_workers,
             max_message_age=max_message_age,
+            on_event=on_event,
         )
         return WhatsAppServer.serve(agent=agent, config=config)
 

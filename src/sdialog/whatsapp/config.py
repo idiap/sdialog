@@ -9,7 +9,9 @@ Configuration models for SDialog WhatsApp server.
 import os
 import secrets
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Callable, Optional, Union
+
+from .. import Event
 
 # session_timeout="auto": idle seconds before a conversation starts over, depending on whether Meta signals
 # new chats (welcome messages enabled on the phone number, see WhatsAppServer._handle_new_chat)
@@ -60,6 +62,9 @@ class WhatsAppConfig:
     # Show "typing..." to the user while the reply is generated (only with mark_as_read: Meta shows it along with
     # the read receipt)
     typing_indicator: bool = True
+    # Called as on_event(user_id, event) with each Event of a user's turn (e.g. orchestrator instructions, tool calls
+    # and the reply), after the reply is sent; runs in the pool's threads, so it may block but must be thread-safe
+    on_event: Optional[Callable[[str, Event], None]] = None
     log_level: str = "info"
 
     def __post_init__(self):

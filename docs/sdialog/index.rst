@@ -426,6 +426,23 @@ With the default ``session_timeout="auto"``, SDialog checks this setting at star
 
     Some Meta documentation says the event is also sent when a user deletes the chat and opens it again, but this is not reliable (in our tests with a Meta test number it was not sent). Users can always send ``/reset`` to start over.
 
+**Reacting to events.** To act on what happens in a conversation, e.g. to alert a person when a safety orchestrator fires, pass an ``on_event`` function. It is called as ``on_event(user_id, event)`` with each :class:`~sdialog.Event` of a user's turn, in order, once the reply is sent: orchestrator instructions (with the orchestrator's ``event_label`` as ``actionLabel``), tool calls, and the reply (``action="utter"``). ``user_id`` is the user's phone number.
+
+.. code-block:: python
+
+    safety = SimpleReflexOrchestrator(condition=lambda utterance: "help" in utterance.lower(),
+                                      instruction="Take it seriously and point to emergency services.",
+                                      event_label="safety")
+    agent = agent | safety
+
+    def on_event(user_id, event):
+        if event.actionLabel == "safety":
+            send_alert("Safety orchestrator triggered in a WhatsApp conversation")  # e.g. an email or a push notification
+
+    agent.serve_whatsapp(on_event=on_event)
+
+``on_event`` runs in the server's threads, so it can block (e.g. to send an email) without holding up other users, but it may run at the same time for different users, so it must be thread-safe. Errors raised by it are logged and do not affect the conversation. Events contain the conversation's text and ``user_id`` is personal data, so pass on only what is needed (e.g. that an alert was triggered rather than the messages).
+
 
 ----
 
