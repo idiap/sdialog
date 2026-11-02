@@ -174,15 +174,17 @@ def test_set_persona_generator_prompt():
     assert config["prompts"]["persona_generator"] == rel_path
 
 
-def test_set_dialog_generator_prompt():
+def test_set_dialog_generator_prompt(monkeypatch):
     from sdialog.config import config, set_dialog_generator_prompt
+    monkeypatch.setitem(config["prompts"], "dialog_generator", config["prompts"]["dialog_generator"])  # Restored after
     rel_path = "../prompts/test_dialog.j2"
     set_dialog_generator_prompt(rel_path)
     assert config["prompts"]["dialog_generator"] == rel_path
 
 
-def test_set_persona_agent_prompt():
+def test_set_persona_agent_prompt(monkeypatch):
     from sdialog.config import config, set_persona_agent_prompt
+    monkeypatch.setitem(config["prompts"], "persona_agent", config["prompts"]["persona_agent"])  # Restored after
     rel_path = "../prompts/test_agent.j2"
     set_persona_agent_prompt(rel_path)
     assert config["prompts"]["persona_agent"] == rel_path
