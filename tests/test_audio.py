@@ -267,11 +267,11 @@ def test_huggingface_voice_database_decodes_audio_on_use(tmp_path):
     datasets.DatasetDict({"train": dataset}).save_to_disk(str(tmp_path / "db"))
 
     decoded = []
-    decode_example = datasets.Audio.decode_example
 
-    def counting_decode(self, value, *args, **kwargs):
+    def counting_decode(self, value, *args, **kwargs):  # (independent of the decoding backend of each version)
         decoded.append(value.get("path"))
-        return decode_example(self, value, *args, **kwargs)
+        ix = int(os.path.basename(value["path"])[len("voice"):-len(".wav")])
+        return {"path": value["path"], "array": np.full(1600, 0.1 * (ix + 1)), "sampling_rate": 16000}
 
     with patch.object(datasets.Audio, "decode_example", counting_decode):
         db = HuggingfaceVoiceDatabase(str(tmp_path / "db"))

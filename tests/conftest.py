@@ -112,6 +112,7 @@ def _install_torchcodec_stub() -> None:
     torchcodec_module = types.ModuleType("torchcodec")
     decoders_module = types.ModuleType("torchcodec.decoders")
     decoders_module.AudioDecoder = _FakeAudioDecoder
+    decoders_module.VideoDecoder = type("_FakeVideoDecoder", (), {})  # imported by datasets>=4
     torchcodec_module.decoders = decoders_module
     torchcodec_module.__spec__ = importlib.machinery.ModuleSpec("torchcodec", loader=None)
     decoders_module.__spec__ = importlib.machinery.ModuleSpec("torchcodec.decoders", loader=None)

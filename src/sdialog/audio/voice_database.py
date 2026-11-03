@@ -139,6 +139,10 @@ class Voice(BaseModel):
 
 def _audio_to_voice(audio: dict) -> Any:
     """Returns the voice data of a dataset's audio entry: an ``(array, sampling_rate)`` tuple or a file path."""
+    if hasattr(audio, "get_all_samples"):  # datasets>=4 decodes audio as a torchcodec AudioDecoder
+        samples = audio.get_all_samples()
+        array = samples.data.cpu().numpy()
+        return (array.mean(axis=0) if array.ndim > 1 else array, samples.sample_rate)
     if "array" in audio and "sampling_rate" in audio:
         return (audio["array"], audio["sampling_rate"])
     if "path" in audio and audio["path"] is not None:
