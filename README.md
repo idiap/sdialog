@@ -311,7 +311,7 @@ dialogs_to_audio(dialogs, "audios/", preset="room")
 </details>
 
 > [!TIP]
-> See the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation) for more details. For usage examples including acoustic simulation, room generation, and voice databases, check out the [audio tutorials](https://github.com/idiap/sdialog/tree/main/tutorials/01_audio).
+> See the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation) for more details. For a hands-on introduction (voices, presets, reverberation, noise and batch generation), check out the [audio quickstart tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/0.quickstart.ipynb).
 
 
 ## 📖 Documentation and tutorials

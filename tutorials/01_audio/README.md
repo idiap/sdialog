@@ -1,10 +1,8 @@
 # 🔊 Audio Generation Tutorials for `sdialog`
 
-This directory contains a series of tutorials demonstrating the audio generation capabilities of the `sdialog` library. Each notebook covers a specific aspect of the audio pipeline, from basic text-to-speech synthesis to advanced acoustic simulations.
+This directory contains a tutorial on the audio generation capabilities of the `sdialog` library: turning dialogues into realistic audio with ground-truth annotations. For all the options (e.g. custom rooms), see the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation).
 
 ## Tutorials
-
-Here is a breakdown of the tutorials available in this directory:
 
 ### 0. Quickstart (`0.quickstart.ipynb`)
 **Start here.** One-line audio generation with `dialog.to_audio()`. It covers:
