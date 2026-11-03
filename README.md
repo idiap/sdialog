@@ -38,16 +38,6 @@ If you are building conversational systems, benchmarking dialog models, producin
 pip install sdialog
 ```
 
-Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies is available on Hugging Face and can be downloaded [here](https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif).
-
-```bash
-apptainer exec --nv sdialog.sif python3 -c "import sdialog; print(sdialog.__version__)"
-```
-
-> [!NOTE]
-> This Apptainer image also has the Ollama server preinstalled.
-
-
 ## 🏁 Quickstart tour
 
 Here's a short, hands‑on example: a support agent helps a customer disputing a double charge. We add a small refund rule and two simple tools, generate three dialogs for evaluation, then serve the agent on port 1333 for Open WebUI or any OpenAI‑compatible client.

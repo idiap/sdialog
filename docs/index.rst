@@ -52,15 +52,6 @@ Installation
    
        pip install sdialog[audio]
 
-Alternatively, a ready-to-use Apptainer image (.sif) with SDialog and all dependencies is available on `Hugging Face <https://huggingface.co/datasets/sdialog/apptainer/resolve/main/sdialog.sif>`_.
-
-.. code-block:: bash
-
-    apptainer exec --nv sdialog.sif python3 -c "import sdialog; print(sdialog.__version__)"
-
-.. note::
-   This Apptainer image also has the Ollama server preinstalled.
-
 
 🏁 Quickstart Tour
 ------------------
