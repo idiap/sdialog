@@ -481,6 +481,17 @@ def test_batch(dialog, tmp_path):
     np.testing.assert_allclose(sf.read(rows[1]["audio"])[0], single.audio, atol=1e-4)
 
 
+def test_batch_repeated_ids_do_not_overwrite(dialog, tmp_path):
+    """Dialogues with the same id used to be saved to the same files, each one overwriting the previous."""
+    other = dialog.clone()
+    rows = dialogs_to_audio([dialog, dialog, other], str(tmp_path), devices="cpu", tts_factory=_tone_factory,
+                            seed=0, voices="random")
+    paths = [r["audio"] for r in rows]
+    assert len(set(paths)) == 3 and all(os.path.exists(p) for p in paths)
+    assert os.path.basename(paths[0]) == f"{dialog.id}_0.wav" and os.path.basename(paths[1]) == f"{dialog.id}_1.wav"
+    assert os.path.basename(paths[2]) == f"{other.id}.wav"  # unique ids keep their name
+
+
 def test_batch_random_seeds_are_saved(dialog, tmp_path):
     rows = dialogs_to_audio([dialog, dialog], str(tmp_path), devices="cpu", tts_factory=_tone_factory,
                             voices="random")

@@ -12,6 +12,7 @@ All notable changes to SDialog will be documented here.
 - **sdialog.evaluation**:
   - `dialog2graph()` failed to label the graph nodes with the default LLM set with the documented provider prefix (e.g. `sdialog.config.llm("ollama:qwen3:14b")` or `"openai:gpt-4.1"`): the model name was sent as-is to Ollama or OpenAI, and models of other providers (e.g. `anthropic:`) were sent to Ollama. Node labels are now generated like any other LLM call in SDialog, so any supported model works, with or without prefix, including LangChain model instances (`node_llm_labels_model=`). The labeling prompt no longer pre-fills the model's answer (not supported by all providers), so labels may differ slightly from previous versions.
 - **sdialog.audio**:
+  - `dialogs_to_audio()` saved dialogues with the same id (e.g. `[dialog] * 3`) to the same files, each one silently overwriting the previous. Their files are now named `<dialog_id>_<position>` (dialogues with a unique id keep the `<dialog_id>` name).
   - `HuggingfaceVoiceDatabase` (used by `dialog.to_audio()`'s default `voices="db"`) decoded the audio of every voice when loaded, taking about 18 GB of RAM with the default `sdialog/voices-libritts` database (enough to crash a free Colab runtime or a laptop). It now reads the voices' metadata only, and decodes a voice's audio the first time it is used: loading takes about 2 seconds and almost no memory.
 
 ---

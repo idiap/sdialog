@@ -923,6 +923,7 @@ Each dialogue gets its own seed. With ``seed`` set, the seed is derived from it 
 
     rows = dialogs_to_audio(dialogs, "audios/", preset="call_center", stereo=True)
     # audios/<dialog_id>.wav/.json/.rttm and audios/index.jsonl
+    # (<dialog_id>_<position> for dialogues whose id appears more than once in the list)
 
 Using Other TTS Engines
 -----------------------

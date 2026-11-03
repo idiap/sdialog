@@ -29,6 +29,7 @@ import json
 import logging
 import numpy as np
 
+from collections import Counter
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 from . import effects
@@ -353,6 +354,13 @@ def _output_name(dialog, index: int) -> str:
     return "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
 
 
+def _output_names(dialogs: Sequence) -> List[str]:
+    """Output file names of a batch: the dialogue ids, plus the dialogue's position when an id is repeated."""
+    names = [_output_name(dialog, ix) for ix, dialog in enumerate(dialogs)]
+    counts = Counter(names)
+    return [f"{name}_{ix}" if counts[name] > 1 else name for ix, name in enumerate(names)]
+
+
 def _run_jobs(jobs, out_dir, device, tts_factory, kwargs, results=None):
     try:
         if tts_factory is not None:
@@ -365,8 +373,8 @@ def _run_jobs(jobs, out_dir, device, tts_factory, kwargs, results=None):
         logger.error(f"Could not create the TTS engine on '{device}': {e}")
         tts, tts_error = None, e
     rows = []
-    for index, dialog, seed in jobs:
-        path = os.path.join(out_dir, _output_name(dialog, index))
+    for index, dialog, seed, name in jobs:
+        path = os.path.join(out_dir, name)
         try:
             if tts_error is not None:
                 raise tts_error
@@ -416,7 +424,8 @@ def dialogs_to_audio(dialogs: Sequence,
     """
     Converts many dialogues to audio in parallel, with one TTS model per worker process.
 
-    Every dialogue is saved under ``out_dir`` (``<dialog_id>.wav``, ``.json`` and ``.rttm``) and an
+    Every dialogue is saved under ``out_dir`` (``<dialog_id>.wav``, ``.json`` and ``.rttm``; ``<dialog_id>_<position>``
+    for dialogues whose id appears more than once in ``dialogs``) and an
     ``index.jsonl`` file lists all the outputs. Each dialogue gets its own seed (derived from ``seed`` and its
     position in ``dialogs``, or drawn at random if ``seed`` is not given), which is saved in its annotations
     and in ``index.jsonl``; results do not depend on the number of workers.
@@ -443,7 +452,8 @@ def dialogs_to_audio(dialogs: Sequence,
     """
     devices = _resolve_devices(devices)
     os.makedirs(out_dir, exist_ok=True)
-    jobs = [(ix, dialog, _dialog_seed(seed, ix)) for ix, dialog in enumerate(dialogs)]
+    names = _output_names(dialogs)
+    jobs = [(ix, dialog, _dialog_seed(seed, ix), names[ix]) for ix, dialog in enumerate(dialogs)]
     workers = [d for d in devices for _ in range(max(1, workers_per_device))]
     workers = workers[:max(1, len(jobs))]
 
