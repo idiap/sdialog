@@ -745,6 +745,8 @@ Setup and Installation
 
 The default TTS engine, `Dia2 <https://github.com/nari-labs/dia2>`_, requires **Python >= 3.10**, and a GPU is strongly recommended. It is installed with ``sdialog[audio]``, and its weights are downloaded from Hugging Face on first use. On Python 3.9, ``sdialog[audio]`` installs without Dia2; use another engine instead (see `Using Other TTS Engines`_).
 
+If Dia2 fails while capturing CUDA graphs on your GPU (seen on H100 GPUs with PyTorch builds for CUDA 13), pass ``tts=Dia2TTS(use_cuda_graph=False)``: generation is slower, but works.
+
 Quick Start
 -----------
 

@@ -548,6 +548,22 @@ class TestDia2Windows:
         tts._generate = fake_generate
         return tts
 
+    def test_cuda_graph_capture_failure_is_explained(self):
+        """On some GPUs (e.g. H100 with CUDA 13 PyTorch) capturing the CUDA graphs fails with cryptic errors."""
+        from sdialog.audio.tts.dia2 import Dia2TTS
+
+        class FailingModel:
+            def generate(self, *args, **kwargs):
+                raise RuntimeError("CUDA error: operation failed due to a previous error during capture")
+
+        tts = Dia2TTS()
+        tts._model, tts._config = FailingModel(), None
+        with pytest.raises(RuntimeError, match=r"use_cuda_graph=False"):
+            tts._generate("[S1] hello", None, None, 0)
+        tts.use_cuda_graph = False  # without CUDA graphs, other errors are not reinterpreted
+        with pytest.raises(RuntimeError, match="previous error during capture"):
+            tts._generate("[S1] hello", None, None, 0)
+
     def test_window_cut_points(self):
         tts = self._tts()
         turns = [(0, "one two three"), (1, "four five"), (0, "six")]

@@ -15,6 +15,7 @@ All notable changes to SDialog will be documented here.
   - `dialogs_to_audio()` saved dialogues with the same id (e.g. `[dialog] * 3`) to the same files, each one silently overwriting the previous. Their files are now named `<dialog_id>_<position>` (dialogues with a unique id keep the `<dialog_id>` name).
   - `HuggingfaceVoiceDatabase` (used by `dialog.to_audio()`'s default `voices="db"`) decoded the audio of every voice when loaded, taking about 18 GB of RAM with the default `sdialog/voices-libritts` database (enough to crash a free Colab runtime or a laptop). It now reads the voices' metadata only, and decodes a voice's audio the first time it is used: loading takes about 2 seconds and almost no memory. It also works with `datasets>=4`, which decodes audio as `torchcodec` decoders instead of arrays.
 
+  - When Dia2 fails while capturing CUDA graphs (e.g. H100 GPUs with PyTorch builds for CUDA 13), `Dia2TTS` now says so and points to `Dia2TTS(use_cuda_graph=False)`, instead of raising cryptic cuDNN errors.
 ---
 
 ## [0.8.0] 2026-11-03 🏠

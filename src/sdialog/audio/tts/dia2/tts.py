@@ -136,10 +136,19 @@ class Dia2TTS(BaseDialogTTS):
         """Runs one Dia2 call; returns the waveform, its sample rate and the word timestamps."""
         if prefix_1 is None:  # Dia2 requires speaker 1's prefix to use speaker 2's
             prefix_2 = None
-        result = self._model.generate(script, config=self._config,
-                                      prefix_speaker_1=self._reference(prefix_1),
-                                      prefix_speaker_2=self._reference(prefix_2),
-                                      include_prefix=False, verbose=False, seed=seed)
+        try:
+            result = self._model.generate(script, config=self._config,
+                                          prefix_speaker_1=self._reference(prefix_1),
+                                          prefix_speaker_2=self._reference(prefix_2),
+                                          include_prefix=False, verbose=False, seed=seed)
+        except Exception as e:
+            # On some GPU / PyTorch combinations (e.g. H100 with CUDA 13 builds) capturing the CUDA graphs fails,
+            # leaving the GPU unusable for this process: point to the setting that avoids it
+            if self.use_cuda_graph and ("capture" in str(e).lower() or "CUDNN_STATUS" in str(e)):
+                raise RuntimeError("Dia2 failed while capturing CUDA graphs on this GPU. Create the engine with "
+                                   "Dia2TTS(use_cuda_graph=False) (slower but works), in a new Python process: "
+                                   "the failure leaves the GPU unusable for this one.") from e
+            raise
         wav = result.waveform.detach().float().cpu().numpy().reshape(-1)
         return wav, int(result.sample_rate), list(result.timestamps)
 
