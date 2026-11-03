@@ -8,7 +8,8 @@ Dia2 dialogue TTS model by default and lets you control:
   - Voices: matched to the personas from a voice database, designed from the persona description, random,
     or given explicitly.
   - Timing: natural pauses, sampled pauses and overlapping speech.
-  - Acoustics: room reverberation, background noise, telephone channel, loudness differences.
+  - Acoustics: room reverberation (random rooms or a :class:`~sdialog.audio.room.Room` of your choice),
+    background noise, telephone channel, loudness differences.
   - Output: mono or stereo (one channel per speaker), sample rate.
   - Presets: "clean", "conversational", "room", "call_center", "far_field", "hard" (or your own).
 
@@ -36,6 +37,7 @@ import importlib
 
 from .presets import register_preset, list_presets
 from .result import DialogAudio, Segment
+from .room import Room
 from .synthesis import to_audio, dialogs_to_audio
 from .voice_database import (BaseVoiceDatabase, HuggingfaceVoiceDatabase, LocalVoiceDatabase,
                              Voice, VoiceDatabase)
@@ -63,6 +65,7 @@ __all__ = [
     "dialogs_to_audio",
     "DialogAudio",
     "Segment",
+    "Room",
     "register_preset",
     "list_presets",
     "Voice",

@@ -15,7 +15,7 @@ pytest.importorskip("scipy")
 pytest.importorskip("soundfile")
 
 from sdialog import Dialog, Turn  # noqa: E402
-from sdialog.audio import effects, list_presets, register_preset  # noqa: E402
+from sdialog.audio import Room, effects, list_presets, register_preset  # noqa: E402
 from sdialog.audio.presets import PRESETS, resolve_scene  # noqa: E402
 from sdialog.audio.synthesis import _resolve_devices, dialogs_to_audio, to_audio  # noqa: E402
 from sdialog.audio.timeline import place_turns  # noqa: E402
@@ -268,6 +268,63 @@ def test_reverb_per_speaker(dialog):
     pytest.importorskip("pyroomacoustics")
     audio = _render(dialog, reverb={"Caller": "small"}, stereo=True)
     assert audio.config["room"][0] is None and audio.config["room"][1]["size"] == "small"
+
+
+def test_room_positions_and_directivity():
+    pytest.importorskip("pyroomacoustics")
+    room = Room(dimensions=(6, 4, 3), rt60=0.5, mic=(3, 2, 1.5), mic_pattern="cardioid", mic_direction="A",
+                speakers={"A": (2, 2, 1.5), 1: (4, 2, 1.5)})  # by name or index, 1 m from the mic on each side
+    rirs, info = room.compute_rirs(["A", "B"], SR)
+    assert info["type"] == "room" and info["sources"] == [[2, 2, 1.5], [4, 2, 1.5]]
+    assert info["microphone"] == [3, 2, 1.5] and info["mic_direction"] == [180, 90]
+    assert np.max(np.abs(rirs[0])) > 1.5 * np.max(np.abs(rirs[1]))  # B is behind the cardioid microphone
+    omni, _ = room.model_copy(update={"mic_pattern": "omni", "mic_direction": None}).compute_rirs(["A", "B"], SR)
+    assert np.max(np.abs(omni[0])) == pytest.approx(np.max(np.abs(omni[1])), rel=0.05)
+
+
+def test_room_random_positions_and_mic():
+    pytest.importorskip("pyroomacoustics")
+    room = Room(dimensions=(5, 4, 2.8), materials={"walls": "brickwork", "floor": 0.3})
+    _, info = room.compute_rirs(["A", "B"], SR, np.random.default_rng(0))
+    assert info == room.compute_rirs(["A", "B"], SR, np.random.default_rng(0))[1]  # reproducible
+    assert info["microphone"] == [2.5, 2, 2.7] and info["materials"] == {"walls": "brickwork", "floor": 0.3}
+    a, b, mic = (np.array(p) for p in info["sources"] + [info["microphone"]])
+    assert all(0 < p[i] < room.dimensions[i] for p in (a, b) for i in range(3))
+    assert min(np.linalg.norm(a - b), np.linalg.norm(a - mic), np.linalg.norm(b - mic)) >= 0.5
+    _, info = Room(dimensions=(5, 4, 2.8), mic="B", speakers={"B": (1, 1, 1.5)}).compute_rirs(["A", "B"], SR)
+    assert info["microphone"] == [1, 1, 1.2]  # on B's chest
+    _, info = Room(dimensions=(5, 4, 2.8), mic="between_speakers",
+                   speakers={0: (1, 1, 1.5), 1: (3, 2, 1.5)}).compute_rirs(["A", "B"], SR)
+    assert info["microphone"] == [2, 1.5, 1.2]
+
+
+def test_room_invalid_values():
+    for kwargs in [{"rt60": 0.5, "materials": "brickwork"}, {"speakers": {"A": (6, 1, 1)}}, {"mic": (1, 1, 4)},
+                   {"mic_pattern": "shotgun"}, {"mic_direction": "A"}, {"materials": {"roof": "brickwork"}}]:
+        with pytest.raises(ValueError):
+            Room(dimensions=(5, 4, 3), **kwargs)
+    pytest.importorskip("pyroomacoustics")
+    with pytest.raises(ValueError, match="RT60"):
+        Room(dimensions=(20, 15, 6), rt60=0.1).compute_rirs(["A", "B"], SR)
+    with pytest.raises(ValueError, match="Carol"):
+        Room(dimensions=(5, 4, 3), mic="Carol").compute_rirs(["A", "B"], SR)
+
+
+def test_reverb_room(dialog, tmp_path):
+    pytest.importorskip("pyroomacoustics")
+    room = Room(dimensions=(6, 4, 3), rt60=0.6, speakers={"Agent": (2, 2, 1.5)})
+    audio = _render(dialog, reverb=room)
+    assert audio.config["room"]["type"] == "room" and audio.config["room"]["speakers"] == ["Agent", "Caller"]
+    assert audio.config["room"]["sources"][0] == [2, 2, 1.5]
+    assert np.array_equal(audio.audio, _render(dialog, reverb=room).audio)  # same seed, same random positions
+    audio.save(str(tmp_path / "d"))
+    with open(tmp_path / "d.json") as f:
+        assert json.load(f)["config"]["scene"]["reverb"]["dimensions"] == [6, 4, 3]
+
+    # Each speaker in their own room (a list means "pick one at random")
+    audio = _render(dialog, reverb={"Agent": Room(dimensions=(3, 3, 2.5)), "Caller": [Room(dimensions=(10, 8, 4))]},
+                    stereo=True)
+    assert [r["dimensions"] for r in audio.config["room"]] == [[3, 3, 2.5], [10, 8, 4]]
 
 
 def test_level_jitter(dialog):

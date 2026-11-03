@@ -223,6 +223,14 @@ sdialog.audio.presets
    :members:
    :show-inheritance:
 
+sdialog.audio.room
+^^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.room
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
 sdialog.audio.effects
 ^^^^^^^^^^^^^^^^^^^^^
 

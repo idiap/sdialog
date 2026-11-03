@@ -10,6 +10,9 @@ All notable changes to SDialog will be documented here.
 - **sdialog.whatsapp**:
   - Users now see "typing..." while the agent writes its reply, refreshed every 20 seconds for long replies (Meta hides it after 25). Disable it with `WhatsAppConfig(typing_indicator=False)`; like the read receipt it comes with, it is only shown with `mark_as_read=True` (the default).
   - `on_event` argument of `serve_whatsapp()`: a function called as `on_event(user_id, event)` with each event of a user's turn (orchestrator instructions, tool calls and the reply) once the reply is sent, e.g. to alert a person when a safety orchestrator fires.
+- **sdialog.audio**:
+  - `Room`, to choose the room simulated by `dialog.to_audio(reverb=Room(...))`, as the legacy pipeline's `Room` allowed (removed in 0.7.0): dimensions, RT60 or surface materials, microphone position (coordinates, ceiling, wall, between the speakers or on a speaker's chest), microphone directivity (cardioid, figure-eight, ...) and where it points, and speaker positions (random when not given). Rooms can also be given per speaker (e.g. `reverb={"Agent": Room(...), "Caller": Room(...)}`), and `room.compute_rirs()` returns the impulse responses. See [Custom Rooms](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#custom-rooms).
+  - Documentation: [Coming from the Legacy Audio Pipeline](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#coming-from-the-legacy-audio-pipeline), with the old API's equivalents in `dialog.to_audio()` and how to install the last versions that include it (`sdialog<0.7`).
 
 ---
 

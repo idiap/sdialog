@@ -34,6 +34,7 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from . import effects
 from .presets import resolve_scene
 from .result import DialogAudio, Segment
+from .room import Room
 from .timeline import place_turns
 from .tts.base import BaseTTS, BaseVoiceCloneTTS
 from .tts.dialog_tts import BaseDialogTTS, PerTurnTTS
@@ -93,6 +94,17 @@ def _pick(value: Any, rng: np.random.Generator) -> Any:
     return value[int(rng.integers(len(value)))] if isinstance(value, list) else value
 
 
+def _jsonable(value: Any) -> Any:
+    """Converts a scene value to JSON-friendly types (tuples to lists, rooms to dictionaries)."""
+    if isinstance(value, Room):
+        return value.model_dump()
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    return value
+
+
 def _is_off(value: Any) -> bool:
     return value is None or value is False
 
@@ -126,11 +138,13 @@ def _apply_channel(x: np.ndarray, sr: int, value: Any, rng: np.random.Generator)
 
 
 def _speaker_rirs(values: List[Any], shared: bool, rng: np.random.Generator,
-                  sr: int) -> Tuple[List[Optional[np.ndarray]], Any]:
+                  sr: int, speakers: List[str]) -> Tuple[List[Optional[np.ndarray]], Any]:
     """Returns the impulse response of each speaker (``None`` = no reverb) and a description of the room(s)."""
     def one(value, n_sources):
         if isinstance(value, np.ndarray):
             return [value] * n_sources, {"type": "user"}
+        if isinstance(value, Room):  # all the speakers are placed in the room; the caller keeps the ones it needs
+            return value.compute_rirs(speakers, sr, rng)
         if value is True:
             value = "medium"
         if value in effects.ROOM_SIZES:
@@ -146,14 +160,14 @@ def _speaker_rirs(values: List[Any], shared: bool, rng: np.random.Generator,
             return [None] * len(values), None
         return one(value, len(values))
     rirs, info = [], []
-    for value in values:
+    for ix, value in enumerate(values):
         value = _pick(value, rng)
         if _is_off(value):
             rirs.append(None)
             info.append(None)
         else:
             rir, room = one(value, 1)
-            rirs.append(rir[0])
+            rirs.append(rir[ix] if isinstance(value, Room) else rir[0])
             info.append(room)
     return rirs, info
 
@@ -215,8 +229,10 @@ def to_audio(dialog,
                    ``(min, max)`` range in seconds (uniform).
     :param overlap: Probability (0-1) that a turn starts before the previous one ends.
     :param max_overlap: Maximum overlap, as a fraction of the previous turn's duration (default 0.3).
-    :param reverb: Room reverberation: True or "small"/"medium"/"large" (simulated room), a path to an
-                   impulse response file or folder of files, or an impulse response array.
+    :param reverb: Room reverberation: True or "small"/"medium"/"large" (simulated room of random size and
+                   positions), a :class:`~sdialog.audio.Room` (room of your choice: dimensions, materials or RT60,
+                   microphone and speaker positions, microphone directivity), a path to an impulse response file
+                   or folder of files, or an impulse response array.
     :param noise: Background noise: an SNR in dB, a ``(min, max)`` SNR range, a noise type ("white", "pink",
                   "brown") or audio file/folder path, or a dict ``{"type": ..., "snr": ...}``.
     :param channel: Telephone channel codec: "telephone" (= "g711"), "g711", "g729", "amr" or "amr-wb".
@@ -271,7 +287,7 @@ def to_audio(dialog,
 
     # 4. Per-speaker effects: reverberation (same room if shared), then speaker-specific noise and channel
     reverbs, reverb_shared = _per_speaker(scene["reverb"], speakers)
-    rirs, room_info = _speaker_rirs(reverbs, not reverb_shared, rng, sample_rate)
+    rirs, room_info = _speaker_rirs(reverbs, not reverb_shared, rng, sample_rate, speakers)
     tracks = [effects.apply_rir(t, rir, sample_rate) if rir is not None else t for t, rir in zip(tracks, rirs)]
     length = max(len(t) for t in tracks)
     tracks = [np.pad(t, (0, length - len(t))) for t in tracks]
@@ -308,7 +324,7 @@ def to_audio(dialog,
     config = {
         "seed": seed,
         "preset": preset,
-        "scene": {k: (v if not isinstance(v, tuple) else list(v)) for k, v in scene.items()},
+        "scene": {k: _jsonable(v) for k, v in scene.items()},
         "stereo": stereo,
         "sample_rate": sample_rate,
         "tts": tts.json(),

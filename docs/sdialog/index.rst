@@ -771,6 +771,10 @@ The returned object holds the audio and its annotations:
 
 Pass ``seed=`` to get the same audio every time. Without it, a random seed is used and saved in ``audio.config["seed"]``. The sections below cover the options for advanced use.
 
+.. note::
+
+    Looking for the ``AudioPipeline`` and room API described in the SDialog paper? See `Coming from the Legacy Audio Pipeline`_.
+
 Voices
 ------
 
@@ -802,7 +806,7 @@ Timing and Acoustics
    * - ``overlap``
      - Probability (0-1) that a turn starts before the previous one ends. ``max_overlap`` caps the overlap as a fraction of the previous turn (default 0.3). A speaker never overlaps themselves.
    * - ``reverb``
-     - ``"small"``, ``"medium"``, ``"large"`` (or ``True``): a simulated room (pyroomacoustics) with a random size, RT60 and speaker positions. Alternatively, a path to an impulse-response file or folder of measured RIRs. Speech onsets are kept aligned, so the annotations stay valid.
+     - ``"small"``, ``"medium"``, ``"large"`` (or ``True``): a simulated room (pyroomacoustics) with a random size, RT60 and speaker positions. A ``Room``: a room of your choice (see `Custom Rooms`_). Alternatively, a path to an impulse-response file or folder of measured RIRs. Speech onsets are kept aligned, so the annotations stay valid.
    * - ``noise``
      - An SNR in dB, a ``(min, max)`` SNR range, a noise type (``"white"``, ``"pink"``, ``"brown"``) or a noise audio file/folder, or ``{"type": ..., "snr": ...}``.
    * - ``channel``
@@ -827,6 +831,36 @@ Timing and Acoustics
                             overlap=0.15, stereo=True)
 
 Effects for a single speaker are applied to that speaker's own track. Shared effects are applied to the recording: the mono mix, or each stereo channel.
+
+Custom Rooms
+------------
+
+For full control over the room, pass a ``Room`` as ``reverb``. It describes a shoebox room simulated with pyroomacoustics (image source method):
+
+- ``dimensions``: width (x), length (y) and height (z), in meters.
+- Absorption: either a target ``rt60`` in seconds, or ``materials``: a pyroomacoustics material name (e.g. ``"brickwork"``, ``"plasterboard"``, ``"carpet_thin"``) or absorption coefficient for every surface, or a dictionary by surface (``"walls"``, ``"floor"``, ``"ceiling"``, or a single wall: ``"east"``, ``"west"``, ``"north"``, ``"south"``). The default is wooden walls, a carpet and an absorbing ceiling.
+- ``mic``: ``(x, y, z)`` coordinates, ``"ceiling"`` (center of the ceiling, the default), ``"wall"``, ``"between_speakers"`` (e.g. a table microphone), or a speaker name or index (a lapel microphone on that speaker's chest).
+- ``mic_pattern``: ``"omni"`` (default), ``"cardioid"``, ``"subcardioid"``, ``"hypercardioid"`` or ``"figure8"``, and ``mic_direction``: a speaker name or index, ``"speakers"`` (their midpoint, the default) or ``(azimuth, colatitude)`` in degrees.
+- ``speakers``: ``(x, y, z)`` positions by speaker name or index. Speakers without a position are placed at random, from the ``to_audio`` seed.
+- ``air_absorption`` and ``ray_tracing`` (more realistic late reverberation, but slower) are off by default.
+
+.. code-block:: python
+
+    from sdialog.audio import Room
+
+    room = Room(dimensions=(5, 4, 2.8),
+                materials={"walls": "plasterboard", "floor": "linoleum_on_concrete"},
+                mic="between_speakers", mic_pattern="cardioid", mic_direction="Doctor",
+                speakers={"Doctor": (1.5, 2, 1.2), "Patient": (3.5, 2, 1.2)})
+    audio = dialog.to_audio(reverb=room, noise=30)
+    print(audio.config["room"])   # the simulated room, with the microphone and speaker positions
+
+    # Each speaker in their own room, e.g. both ends of a phone call
+    audio = dialog.to_audio(reverb={"Agent": Room(dimensions=(3, 3, 2.5), mic="Agent"),
+                                    "Caller": Room(dimensions=(8, 6, 3), rt60=0.9)},
+                            channel={"Caller": "g711"}, stereo=True)
+
+To get the impulse responses only (e.g. to use them elsewhere), call ``room.compute_rirs(["Alice", "Bob"], sample_rate=16000)``.
 
 Presets
 -------
@@ -993,6 +1027,46 @@ SDialog supports multiple voice database types for flexible voice selection:
 
     # Unavailable voice for this language (an error will be raised)
     female_voice_spanish = quick_voices.get_voice(gender="female", age=25, lang="spanish")
+
+Coming from the Legacy Audio Pipeline
+-------------------------------------
+
+The audio pipeline described in the `SDialog paper <https://aclanthology.org/2026.eacl-demo.23/>`_ (``AudioPipeline``, ``AudioDialog``, ``perform_room_acoustics=True``, room generators, dSCAPER background and foreground effects) was deprecated in v0.5.0 and removed in v0.7.0. It is still available in earlier versions, with its `documentation <https://sdialog.readthedocs.io/en/v0.5.0/sdialog/index.html#legacy-audio-pipeline-deprecated>`_:
+
+.. code-block:: bash
+
+    pip install "sdialog[audio,audio-legacy]<0.7"   # v0.6.0 is the last version with the legacy pipeline
+
+``dialog.to_audio()`` covers the same use cases without dSCAPER or system packages:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - Legacy pipeline
+     - ``dialog.to_audio()``
+   * - ``to_audio(dialog, perform_room_acoustics=True, room=room)``
+     - ``dialog.to_audio(reverb=Room(...))`` (see `Custom Rooms`_)
+   * - ``Room(dimensions=Dimensions3D(...), materials=RoomMaterials(...))`` or ``reverberation_time_ratio=``
+     - ``Room(dimensions=(w, l, h), materials={...})`` or ``Room(..., rt60=...)``
+   * - ``room.place_speaker(...)``, ``mic_position=MicrophonePosition.CUSTOM``
+     - ``Room(speakers={name: (x, y, z)}, mic=(x, y, z))``
+   * - ``MicrophonePosition.CEILING_CENTERED``, ``WALL_MOUNTED``, ``MIDDLE_SPEAKERS``, ``CHEST_POCKET_SPEAKER_1``
+     - ``mic="ceiling"``, ``"wall"``, ``"between_speakers"``, or the speaker's name or index
+   * - ``room.set_directivity(DirectivityType.SPEAKER_1)``
+     - ``Room(mic_pattern="cardioid", mic_direction=0)``
+   * - ``BasicRoomGenerator().generate({"room_size": ...})``, ``MedicalRoomGenerator``
+     - ``reverb="small"``, ``"medium"`` or ``"large"`` (random rooms), or a list of ``Room`` objects to pick from
+   * - Background and foreground effects (dSCAPER)
+     - ``noise=`` with a noise type or a folder of noise files, and an SNR
+   * - Impulse response databases (microphone simulation)
+     - ``reverb="path/to/irs/"`` (a file or folder of impulse responses)
+   * - Telecommunications backend (two rooms and a phone line)
+     - Per-speaker ``reverb={...}`` (one ``Room`` each) and ``channel=``
+   * - ``AudioDialog`` with per-step audio files
+     - ``DialogAudio`` with the waveform, the annotations (``segments``, RTTM) and ``config``
+
+Furniture, room images (``room.to_image()``) and speaker placement around furniture have no equivalent: set the positions directly, as furniture did not change the acoustics.
 
 ----
 

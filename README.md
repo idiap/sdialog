@@ -274,7 +274,7 @@ SDialog turns any two-speaker dialog into audio with a single call. Each turn is
 
 * **Dialogue TTS**: [Dia2](https://github.com/nari-labs/dia2) is the default engine. It generates whole conversations with natural turn-taking. Other engines (Kokoro, Qwen3-TTS, ...) are also supported.
 * **Voices**: matched to the personas (gender, age) from a voice database, designed from the persona description, random, or set by you.
-* **Realism controls**: pauses, overlapping speech, room reverberation, background noise, telephone codecs (G.711, G.729, AMR), and loudness differences between speakers.
+* **Realism controls**: pauses, overlapping speech, room reverberation (random rooms, or your own room: size, materials, microphone and speaker positions, microphone directivity), background noise, telephone codecs (G.711, G.729, AMR), and loudness differences between speakers.
 * **Presets**: `clean`, `conversational`, `room`, `call_center`, `far_field` and `hard`, or your own.
 * **Output**: mono or stereo (one channel per speaker), any sample rate, saved as WAV plus JSON and RTTM annotations.
 
