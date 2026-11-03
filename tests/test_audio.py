@@ -250,6 +250,44 @@ def test_huggingface_voice_database_populate_with_mock():
         assert voice3.gender in ["male", "female"]
 
 
+def test_huggingface_voice_database_decodes_audio_on_use(tmp_path):
+    """Audio is decoded only for the voices that are used (decoding all of them took ~18 GB of RAM)."""
+    datasets = pytest.importorskip("datasets")
+    sf = pytest.importorskip("soundfile")
+    from sdialog.audio.voice_database import HuggingfaceVoiceDatabase
+
+    files = []
+    for ix in range(3):
+        files.append(str(tmp_path / f"voice{ix}.wav"))
+        sf.write(files[-1], np.full(1600, 0.1 * (ix + 1), dtype=np.float32), 16000)
+    dataset = datasets.Dataset.from_dict({
+        "audio": files, "gender": ["female", "male", "female"], "age": [30, 40, 50],
+        "identifier": ["v0", "v1", "v2"], "language": ["english"] * 3,
+    }).cast_column("audio", datasets.Audio(sampling_rate=16000))
+    datasets.DatasetDict({"train": dataset}).save_to_disk(str(tmp_path / "db"))
+
+    decoded = []
+    decode_example = datasets.Audio.decode_example
+
+    def counting_decode(self, value, *args, **kwargs):
+        decoded.append(value.get("path"))
+        return decode_example(self, value, *args, **kwargs)
+
+    with patch.object(datasets.Audio, "decode_example", counting_decode):
+        db = HuggingfaceVoiceDatabase(str(tmp_path / "db"))
+        assert decoded == []  # populating reads the metadata only
+        assert sum(len(voices) for voices in db.get_data()["english"].values()) == 3
+
+        voice = db.get_voice_by_identifier("v1", "english")
+        array, sampling_rate = voice.voice
+        assert sampling_rate == 16000 and np.allclose(array, 0.2, atol=1e-3)
+        assert len(decoded) == 1  # only the voice used
+
+        assert db.get_voice_by_identifier("v1", "english").voice[1] == 16000
+        assert db.get_voice(gender="female", age=50, lang="english", seed=0).voice[1] == 16000
+        assert len(decoded) <= 2  # a voice is decoded once, then kept
+
+
 def test_local_voice_database_linter(tmp_path):
     """Tests the LocalVoiceDatabase with different metadata files."""
     from sdialog.audio.voice_database import LocalVoiceDatabase

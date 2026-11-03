@@ -137,6 +137,37 @@ class Voice(BaseModel):
     language_code: str = "a"
 
 
+def _audio_to_voice(audio: dict) -> Any:
+    """Returns the voice data of a dataset's audio entry: an ``(array, sampling_rate)`` tuple or a file path."""
+    if "array" in audio and "sampling_rate" in audio:
+        return (audio["array"], audio["sampling_rate"])
+    if "path" in audio and audio["path"] is not None:
+        return audio["path"]
+    raise ValueError("Audio field found but does not contain valid audio data "
+                     "(missing 'array'/'sampling_rate' or 'path')")
+
+
+class _LazyAudio:
+    """
+    Audio of a dataset entry, decoded only when its voice is used: decoding every voice of a large database
+    at once takes too much memory (e.g. about 18 GB for ``sdialog/voices-libritts``).
+    """
+
+    def __init__(self, dataset, index: int):
+        self.dataset = dataset
+        self.index = index
+
+    def load(self) -> Any:
+        return _audio_to_voice(self.dataset[self.index]["audio"])
+
+
+def _loaded(voice: "Voice") -> "Voice":
+    """Decodes the voice's audio if it was not yet (then keeps it, so it is decoded only once)."""
+    if isinstance(voice.voice, _LazyAudio):
+        voice.voice = voice.voice.load()
+    return voice
+
+
 class BaseVoiceDatabase:
     """
     Abstract base class for voice database implementations.
@@ -505,7 +536,7 @@ class BaseVoiceDatabase:
 
                         self._used_voices[lang].append(voice.identifier)
 
-                    return voice
+                    return _loaded(voice)
 
         raise ValueError(f"Voice with identifier {identifier} not found in the database")
         return None
@@ -626,7 +657,7 @@ class BaseVoiceDatabase:
         if not keep_duplicate:
             self._used_voices[lang].append(final_voice.identifier)
 
-        return final_voice
+        return _loaded(final_voice)
 
 
 class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
@@ -716,11 +747,20 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
         else:
             dataset = load_dataset(self.dataset_name)[self.subset]
 
+        # Read the metadata without the audio column: iterating over it would decode every voice's audio.
+        # Audio is decoded only when its voice is used (see _LazyAudio).
+        lazy_audio = hasattr(dataset, "remove_columns") and "audio" in dataset.column_names
+        if lazy_audio:
+            has_audio = dataset.data.column("audio").is_valid().to_pylist()  # without decoding the audio
+            rows = dataset.remove_columns("audio")
+        else:
+            rows = dataset
+
         counter = 0
 
         self._data = {}
 
-        for d in dataset:
+        for index, d in enumerate(rows):
 
             if "language" in d and d["language"] is not None:
                 lang = d["language"].lower()
@@ -759,14 +799,10 @@ class HuggingfaceVoiceDatabase(BaseVoiceDatabase):
                     f"a random identifier ({identifier}) has been considered by default"
                 )
 
-            if "audio" in d and d["audio"] is not None:
-                if "array" in d["audio"] and "sampling_rate" in d["audio"]:
-                    _voice = (d["audio"]["array"], d["audio"]["sampling_rate"])
-                elif "path" in d["audio"] and d["audio"]["path"] is not None:
-                    _voice = d["audio"]["path"]
-                else:
-                    raise ValueError("Audio field found but does not contain valid audio data "
-                                     "(missing 'array'/'sampling_rate' or 'path')")
+            if lazy_audio and has_audio[index]:
+                _voice = _LazyAudio(dataset, index)
+            elif "audio" in d and d["audio"] is not None:
+                _voice = _audio_to_voice(d["audio"])
             elif "voice" in d and d["voice"] is not None:
                 _voice = d["voice"]
             else:

@@ -4,6 +4,14 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **sdialog.audio**:
+  - `HuggingfaceVoiceDatabase` (used by `dialog.to_audio()`'s default `voices="db"`) decoded the audio of every voice when loaded, taking about 18 GB of RAM with the default `sdialog/voices-libritts` database (enough to crash a free Colab runtime or a laptop). It now reads the voices' metadata only, and decodes a voice's audio the first time it is used: loading takes about 2 seconds and almost no memory.
+
+---
+
 ## [0.8.0] 2026-11-03 🏠
 
 ### Added
