@@ -419,7 +419,10 @@ def get_llm_model(model_name: str,
         logger.info(f"Loading Ollama model: {model_name}")
 
         ollama_check_and_pull_model(model_name)  # Ensure the model is available locally
-        llm = ChatOllama(model=model_name, reasoning=think, **llm_kwargs)
+        # gpt-oss models always reason: asking them not to (think=False) together with a structured output
+        # makes Ollama return an empty answer, so use their lowest reasoning level instead
+        reasoning = "low" if not think and model_name.split("/")[-1].startswith("gpt-oss") else think
+        llm = ChatOllama(model=model_name, reasoning=reasoning, **llm_kwargs)
     else:
         if model_name.startswith("huggingface:"):
             model_name = model_name.split(":", 1)[-1]
@@ -504,8 +507,12 @@ def set_generator_seed(generator, seed):
 
         num_predict = base_model.num_predict
         base_model.num_predict = 1
-        base_model.invoke(messages)
-        base_model.num_predict = num_predict
+        try:
+            base_model.invoke(messages)
+        except Exception as e:  # e.g. reasoning models (gpt-oss) may produce no text in one token
+            logger.debug(f"Ollama cache warm-up call failed (ignored): {e}")
+        finally:
+            base_model.num_predict = num_predict
 
     return seed
 

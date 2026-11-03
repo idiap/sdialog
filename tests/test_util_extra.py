@@ -74,6 +74,25 @@ def test_get_llm_model_ollama(monkeypatch):
     assert params == {"temperature": 0.1, "num_ctx": 2048}  # secrets are not returned
 
 
+@pytest.mark.parametrize("name, think, reasoning", [
+    ("ollama:gpt-oss:20b", False, "low"), ("gpt-oss:120b", False, "low"), ("ollama:gpt-oss:20b", True, True),
+    ("ollama:qwen3:8b", False, False),
+])
+def test_get_llm_model_ollama_reasoning(monkeypatch, name, think, reasoning):
+    """gpt-oss cannot stop reasoning: think=False with a structured output made Ollama return an empty answer."""
+    created = {}
+
+    class FakeChatOllama:
+        def __init__(self, **kwargs):
+            created.update(kwargs)
+
+    monkeypatch.setattr(util, "ChatOllama", FakeChatOllama)
+    monkeypatch.setattr(util, "ollama_check_and_pull_model", lambda name: True)
+    monkeypatch.setattr(util, "get_llm_default_params", lambda name, params: params)
+    get_llm_model(name, think=think)
+    assert created["reasoning"] == reasoning
+
+
 def test_get_llm_model_instance_structured_output_and_tools():
     model = FixedChatModel()
     assert get_llm_model(model) is model
@@ -164,6 +183,17 @@ def test_set_generator_seed_ollama_warmup(monkeypatch):
     set_generator_seed(SimpleNamespace(llm=llm, messages=["m"]), 1)
     set_generator_seed(SimpleNamespace(llm=llm, memory=["memory"]), 2)
     assert calls == [(1, ["m"]), (1, ["memory"])] and llm.num_predict == 64
+
+
+def test_set_generator_seed_ollama_warmup_failure():
+    """With gpt-oss, the one-token warm-up returns no text and langchain-ollama raises: agents failed to start."""
+    class EmptyOllama(util.ChatOllama):
+        def invoke(self, messages, *args, **kwargs):
+            raise ValueError("No data received from Ollama stream.")
+
+    llm = EmptyOllama(model="gpt-oss:20b", num_predict=64)
+    assert set_generator_seed(SimpleNamespace(llm=llm, memory=["hi"]), 9) == 9
+    assert llm.num_predict == 64 and llm.seed == 9  # restored even when the call fails
 
 
 def test_dialogs_to_utt_pairs():
