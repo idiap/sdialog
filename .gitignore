@@ -29,6 +29,7 @@ build
 # Audio tutorials: downloaded example dialogue and generated audio/annotations
 tutorials/audio/demo_dialog_doctor_patient.json
 tutorials/audio/output/
+tutorials/agents/output/
 ./src/sdialog/sdialog
 
 # SQLite
