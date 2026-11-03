@@ -131,7 +131,7 @@ Here's a short, hands-on example: a support agent helps a customer disputing a d
    - Personas and context can be `automatically generated <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators>`_ (e.g. generate different customer profiles!).
 
 .. note::
-   - See `"agents with tools and thoughts" tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/core/7.agents_with_tools_and_thoughts.ipynb>`_ for a more complete example.
+   - See `"agents with tools and thoughts" tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/1.agents_with_tools_and_thoughts.ipynb>`_ for a more complete example.
    - See `Serving Agents via REST API <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents>`_ for more details on server options.
 
 
@@ -218,7 +218,7 @@ Score dialogs with built-in metrics and LLM judges, and compare datasets with ag
     comparator.plot()
 
 .. tip::
-   See `evaluation tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/core/5.evaluation.ipynb>`_.
+   See `evaluation tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/dialog_generation/5.evaluation.ipynb>`_.
 
 
 Mechanistic Interpretability
@@ -255,7 +255,7 @@ Steering intervention:
     agent_steered("You are an extremely upset assistant")  # Agent "can't get angry anymore" :)
 
 .. tip::
-   See `the tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/core/6.agent%2Binspector_refusal.ipynb>`_ on using SDialog to remove the refusal capability from LLaMA 3.2.
+   See `the tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/interpretability/1.agent%2Binspector_refusal.ipynb>`_ on using SDialog to remove the refusal capability from LLaMA 3.2.
 
 
 Audio Generation
