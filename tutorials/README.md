@@ -24,6 +24,7 @@ New to SDialog? Start with the [**demo**](demo.ipynb) [![Open In Colab](https://
 | Tutorial | What you will learn | |
 |---|---|---|
 | [0. Audio generation quickstart](audio/0.quickstart.ipynb) | Turn dialogues into audio with annotations: voices, presets, reverberation, noise, telephone channels, batch generation | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/audio/0.quickstart.ipynb) |
+| [1. Rooms and acoustics](audio/1.rooms_and_acoustics.ipynb) | Choose the room: size, RT60 or materials, microphone and speaker positions, directional microphones, a room per speaker, measured impulse responses | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/audio/1.rooms_and_acoustics.ipynb) |
 
 > [!NOTE]
 > Audio tutorials require additional dependencies. Install with: `pip install sdialog[audio]` (a GPU is recommended).

@@ -862,7 +862,7 @@ A ``Room`` sets:
                                     "Caller": Room(dimensions=(8, 6, 3), rt60=0.9)},
                             channel={"Caller": "g711"}, stereo=True)
 
-To get the impulse responses only (e.g. to use them elsewhere), call ``room.compute_rirs(["Alice", "Bob"], sample_rate=16000)``.
+To get the impulse responses only (e.g. to use them elsewhere), call ``room.compute_rirs(["Alice", "Bob"], sample_rate=16000)``. The `rooms and acoustics tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/1.rooms_and_acoustics.ipynb>`_ compares rooms, microphones and directivities by ear, with plots of the room and its impulse responses.
 
 Presets
 -------

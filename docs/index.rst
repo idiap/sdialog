@@ -275,7 +275,7 @@ Want it to sound like a phone call, or a noisy room? Use a preset:
     audio = dialog.to_audio(preset="call_center")  # also: "room", "far_field", "hard", ...
 
 .. tip::
-   Voices, pauses, overlaps, noise, stereo output, batch generation and more: see the `audio quickstart tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/0.quickstart.ipynb>`_ and the `Audio Generation <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation>`_ documentation.
+   Voices, pauses, overlaps, noise, stereo output, batch generation and more: see the `audio quickstart tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/0.quickstart.ipynb>`_; to choose the room (size, materials, microphone and speaker positions), the `rooms and acoustics tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/1.rooms_and_acoustics.ipynb>`_; and the `Audio Generation <https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation>`_ documentation.
 
 
 Project Vision & Community Call
