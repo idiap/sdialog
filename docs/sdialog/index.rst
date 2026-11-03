@@ -325,6 +325,9 @@ Serving Agents via REST API
 
 You can expose any Agent over an OpenAI/Ollama-compatible REST API using the :meth:`~sdialog.agents.Agent.serve` method to talk to it from tools like Open WebUI, Ollama GUI, or simple HTTP clients.
 
+.. tip::
+   The `serving tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/3.serving.ipynb>`_ serves an agent from a notebook, talks to it with the OpenAI client, and puts it on WhatsApp.
+
 .. code-block:: python
 
     from sdialog.agents import Agent
