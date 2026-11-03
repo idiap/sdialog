@@ -835,7 +835,9 @@ Effects for a single speaker are applied to that speaker's own track. Shared eff
 Custom Rooms
 ------------
 
-For full control over the room, pass a ``Room`` as ``reverb``. It describes a shoebox room simulated with pyroomacoustics (image source method):
+For full control over the room, pass a ``Room`` as ``reverb``. It describes a shoebox room simulated with pyroomacoustics (image source method). It is the legacy pipeline's ``Room`` (see `Coming from the Legacy Audio Pipeline`_), reworked to run without the legacy pipeline's dependencies: pyroomacoustics is already installed with ``sdialog[audio]``, so nothing else is needed.
+
+A ``Room`` sets:
 
 - ``dimensions``: width (x), length (y) and height (z), in meters.
 - Absorption: either a target ``rt60`` in seconds, or ``materials``: a pyroomacoustics material name (e.g. ``"brickwork"``, ``"plasterboard"``, ``"carpet_thin"``) or absorption coefficient for every surface, or a dictionary by surface (``"walls"``, ``"floor"``, ``"ceiling"``, or a single wall: ``"east"``, ``"west"``, ``"north"``, ``"south"``). The default is wooden walls, a carpet and an absorbing ceiling.
@@ -1037,7 +1039,7 @@ The audio pipeline described in the `SDialog paper <https://aclanthology.org/202
 
     pip install "sdialog[audio,audio-legacy]<0.7"   # v0.6.0 is the last version with the legacy pipeline
 
-``dialog.to_audio()`` covers the same use cases without dSCAPER or system packages:
+``dialog.to_audio()`` covers the same use cases without dSCAPER or system packages (``sdialog[audio]`` is all you need, custom rooms included):
 
 .. list-table::
    :header-rows: 1

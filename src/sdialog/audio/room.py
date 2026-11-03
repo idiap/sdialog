@@ -3,8 +3,9 @@ Room specification for the reverberation of :func:`sdialog.audio.synthesis.to_au
 
 A :class:`Room` describes a shoebox room (dimensions, absorption, microphone and speaker positions, microphone
 directivity) and computes the impulse response from each speaker to the microphone with ``pyroomacoustics``
-(image source method). Pass it as ``reverb`` to ``dialog.to_audio()``; anything not given (e.g. the speaker
-positions) is drawn at random from the ``to_audio`` seed.
+(image source method), installed with ``sdialog[audio]``, so no other dependency is needed. Pass it as ``reverb``
+to ``dialog.to_audio()``; anything not given (e.g. the speaker positions) is drawn at random from the ``to_audio``
+seed.
 
 Example:
 
