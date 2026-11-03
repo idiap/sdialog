@@ -9,6 +9,10 @@ from sdialog import Dialog, Turn
 from sdialog.evaluation import DialogFlowPPL, DialogFlowScore
 from sdialog.evaluation.dialog2flow import dialog2graph, DEFAULT_TOKEN_START
 from sdialog.evaluation.dialog2flow.extract_trajectories import dialog2trajectories
+from sdialog.evaluation.dialog2flow.util import get_cluster_label, init_gpt
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 
 
 class FakeEncoder:
@@ -69,6 +73,52 @@ def test_dialog2graph(tmp_path):
     assert nodes["_metadata"]["speakers"] == {"bot": "system", "customer": "user"}
     for info in (nodes[n] for n in node_ids):
         assert len(info["centroid-embedding"]) == 32
+
+
+class FakeLabelsLLM(BaseChatModel):
+    """Chat model answering every cluster with the same canonical form, as the labeling prompt asks."""
+    calls: list = []
+
+    @property
+    def _llm_type(self):
+        return "fake-labels"
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.calls.append(messages)
+        answer = AIMessage(content='Canonical form is: "ask order number"')
+        return ChatResult(generations=[ChatGeneration(message=answer)])
+
+
+def test_cluster_label_with_model_instance():
+    llm = FakeLabelsLLM(calls=[])
+    init_gpt(llm)
+    assert get_cluster_label.func(["what is your order number", "your order number please"], "fake") == \
+        "Ask order number"
+    assert "what is your order number" in llm.calls[0][-1].content  # the utterances are in the prompt
+
+
+@pytest.mark.parametrize("model_name", ["ollama:qwen3:14b", "qwen3:14b", "openai:gpt-4.1", "gpt-4.1",
+                                        "anthropic:claude-sonnet-4-5"])
+def test_cluster_label_model_names(model_name, monkeypatch):
+    """Node labels used to send the model name as-is to Ollama or OpenAI: provider prefixes broke them."""
+    created = []
+
+    def fake_get_llm_model(name, **kwargs):
+        created.append((name, kwargs))
+        return FakeLabelsLLM(calls=[])
+
+    monkeypatch.setattr("sdialog.util.get_llm_model", fake_get_llm_model)
+    init_gpt(model_name, seed=7)
+    assert created[0][0] == model_name  # sdialog resolves the provider, as for any other model
+    assert get_cluster_label.func(["what is your order number"], model_name) == "Ask order number"
+
+
+def test_dialog2graph_with_llm_labels(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # labels are cached in ./__cache__
+    _, nodes = dialog2graph(REFERENCE, system_speaker_name="Bot", node_llm_labels_model=FakeLabelsLLM(calls=[]),
+                            out_png=False, **flow_kwargs(tmp_path))
+    names = {nodes[n]["name"] for n in nodes if not n.startswith("_")}
+    assert names == {"Ask order number"}
 
 
 def test_dialog2graph_system_speaker_not_first(tmp_path):

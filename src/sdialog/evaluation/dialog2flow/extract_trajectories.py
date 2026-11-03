@@ -345,8 +345,10 @@ def dialog2trajectories(
             # Saving cluster information for later use (centroid embeddings and top-k utterances of each cluster)
             if labels_enabled:
                 init_gpt(labels_model)
+                # (cache key: the model name, or a description of the model instance)
+                labels_model_key = labels_model if isinstance(labels_model, str) else repr(labels_model)
                 for cluster in tqdm(cluster_topk_utts, desc=f"Cluster labels ({speaker.title()}):"):
-                    cluster["name"] = get_cluster_label(cluster["utterances"], labels_model)
+                    cluster["name"] = get_cluster_label(cluster["utterances"], labels_model_key)
 
             if multi_domain:
                 output_path_clusters = os.path.join(output_path_clusters_folder, domain)

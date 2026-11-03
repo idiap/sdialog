@@ -11,7 +11,6 @@ import re
 import numpy as np
 import pandas as pd
 
-from ollama import chat
 from joblib import Memory
 from openai import OpenAI
 from tqdm.autonotebook import trange
@@ -23,7 +22,7 @@ STR_MODEL_COLUMN = "Model"
 STR_AVERAGE_COLUMN = "AVG."
 
 memory = Memory('__cache__/llm_labels', verbose=0)
-gpt_client = None
+labels_llm = None  # LLM used to label the clusters (see init_gpt)
 cluster_label_prompt = """Your task is to annotate conversational utterances with the intent expressed as canonical forms. A canonical form is a short summary representing the intent of a set of utterances - it is neither too verbose nor too short.
 Be aware that required canonical forms should avoid containing specific names or quantities, only represent the intent in abstract terms.
 For example, for:
@@ -80,20 +79,8 @@ class CaselessDict(dict):
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
-def get_openai_response(client, messages: list, model="gpt-4o", seed=42):
-    if isinstance(gpt_client, OpenAI):
-        response = client.chat.completions.create(
-            seed=seed,
-            model=model,
-            messages=messages
-        )
-        return response.choices[0].message.content
-    else:
-        response = chat(
-            model=model,
-            messages=messages,
-            options={"seed": seed, "stop": ['"']})
-        return response['message']['content']
+def get_llm_response(messages: list) -> str:
+    return labels_llm.invoke(messages).content
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
@@ -107,32 +94,35 @@ def get_openai_embedding(client, docs: list, model="text-embedding-3-large", dim
 
 
 def init_gpt(model_name="gpt-4.1", seed=42):
-    global gpt_client, gpt_model, gpt_seed
-    normalized_model_name = model_name.strip().lower()
-    is_openai_api_model = (
-        "gpt" in normalized_model_name
-        and "ollama" not in normalized_model_name
-        and not normalized_model_name.startswith("gpt-oss")
-    )
-    gpt_client = OpenAI() if is_openai_api_model else None
-    gpt_model = model_name
-    gpt_seed = seed
+    """
+    Sets the LLM used to label the clusters.
+
+    :param model_name: Any model supported by SDialog: a model name, with or without its provider prefix
+                       (e.g. "ollama:qwen3:14b", "openai:gpt-4.1" or "qwen3:14b"), or a LangChain model instance.
+    :param seed: Seed used by the backends that support it (OpenAI and Ollama).
+    """
+    global labels_llm
+    from sdialog.config import config
+    from sdialog.util import get_llm_model, is_ollama_model_name, is_openai_model_name
+
+    llm_kwargs = {k: v for k, v in config["llm"].items() if k != "model" and v is not None}
+    if isinstance(model_name, str) and (is_openai_model_name(model_name) or is_ollama_model_name(model_name)):
+        llm_kwargs.setdefault("seed", seed)
+    labels_llm = get_llm_model(model_name, **llm_kwargs)
 
 
 @memory.cache
 def get_cluster_label(utterances, llm_model_name):
     messages = [
         {"role": "system", "content": cluster_label_prompt},
-        {"role": "user", "content": ("Give the following list of utterance provide a single canonical "
-                                     "name that represent all of them:\n{utts}").replace(
+        {"role": "user", "content": ("Given the following list of utterances, provide a single canonical "
+                                     "name that represents all of them:\n{utts}\n\n"
+                                     'Answer only with the canonical form, as in the examples: '
+                                     'Canonical form is: "..."').replace(
                                          "{utts}",
                                          "\n".join(f"{ix + 1}. {utt}" for ix, utt in enumerate(utterances)))},
-        {"role": "assistant", "content": 'Canonical form is: "'}
     ]
-    response = get_openai_response(gpt_client,
-                                   messages,
-                                   model=gpt_model,
-                                   seed=gpt_seed)
+    response = get_llm_response(messages)
     m = re.match(r'.+?:\s*"(.+?)".*', response)
     if m:
         response = m.group(1)
