@@ -116,7 +116,7 @@ support_agent.serve(port=1333)
 > - Personas and context can be [automatically generated](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) (e.g. generate different customer profiles!).
 
 > [!NOTE]
-> - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/7.agents_with_tools_and_thoughts.ipynb) for a more complete example.
+> - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/core/7.agents_with_tools_and_thoughts.ipynb) for a more complete example.
 > - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for more details on server options.
 > - See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp) to set up a Meta app and serve agents on WhatsApp.
 
@@ -224,7 +224,7 @@ comparator.plot()
 </details>
 
 > [!TIP]
-> See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/5.evaluation.ipynb).
+> See [evaluation tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/core/5.evaluation.ipynb).
 
 ## 🧠 Mechanistic interpretability
 
@@ -262,7 +262,7 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 </details>
 
 > [!TIP]
-> See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/00_overview/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
+> See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/core/6.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
 
 
 ## 🔊 Audio generation
@@ -311,7 +311,7 @@ dialogs_to_audio(dialogs, "audios/", preset="room")
 </details>
 
 > [!TIP]
-> See the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation) for more details. For a hands-on introduction (voices, presets, reverberation, noise and batch generation), check out the [audio quickstart tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/01_audio/0.quickstart.ipynb).
+> See the [Audio Generation documentation](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#audio-generation) for more details. For a hands-on introduction (voices, presets, reverberation, noise and batch generation), check out the [audio quickstart tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/audio/0.quickstart.ipynb).
 
 
 ## 📖 Documentation and tutorials

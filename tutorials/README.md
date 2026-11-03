@@ -2,25 +2,31 @@
 :point_right: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/idiap/sdialog/)
 
 
-## Tutorial Organization
+## Tutorials
 
-Tutorials are organized into two main folders:
+New to SDialog? Start with the [**demo**](demo.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/demo.ipynb), a tour of the main features. Then:
 
-- **`00_overview/`** - General and introductory tutorials covering core SDialog concepts:
-  - Dialog generation (single-agent and multi-agent)
-  - Orchestration and control flow
-  - Dialog analysis and evaluation
-  - Mechanistic interpretability with inspectors
-  - Agents with tools and thoughts
-  - Integration with Copilot
+### [`core/`](core/): building, simulating and evaluating dialogues
 
-- **`01_audio/`** - Audio generation tutorials using the `sdialog.audio` submodule:
-  - Audio generation with ground-truth annotations (`dialog.to_audio()`)
-  - Voices, pauses and overlaps, room reverberation, noise and telephone channels
-  - Scene presets and parallel batch generation
+| Tutorial | What you will learn | |
+|---|---|---|
+| [1. Dialogue generation with a single LLM](core/1.single_llm_full_generation.ipynb) | Generate dialogues with a single LLM, from a description or by role-playing (use case: the STAR dataset) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/1.single_llm_full_generation.ipynb) |
+| [2. Multi-agent generation](core/2.multi-agent_generation.ipynb) | Simulate dialogues between persona-driven agents | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/2.multi-agent_generation.ipynb) |
+| [3. Multi-agent generation with orchestration](core/3.multi-agent%2Borchestrator_generation.ipynb) | Steer agents during the conversation with orchestrators | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/3.multi-agent%2Borchestrator_generation.ipynb) |
+| [4. Dialogue analysis](core/4.dialog_analysis.ipynb) | Compare the conversation flows (dialogue graphs) of the dialogues generated in tutorials 1-3 with the original STAR dialogues | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/4.dialog_analysis.ipynb) |
+| [5. Evaluation](core/5.evaluation.ipynb) | Compare generated dialogues with a real dataset (STAR) using an LLM judge and metrics | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/5.evaluation.ipynb) |
+| [6. Mechanistic interpretability](core/6.agent%2Binspector_refusal.ipynb) | Find and remove an LLM's refusal direction with inspectors; needs a local Hugging Face model | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/6.agent%2Binspector_refusal.ipynb) |
+| [7. Agents with tools and thoughts](core/7.agents_with_tools_and_thoughts.ipynb) | Build agents with hidden thinking and tool calling | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/7.agents_with_tools_and_thoughts.ipynb) |
+| [8. RAG via tool calling](core/8.rag_tool_integration.ipynb) | Connect an external knowledge base (RAG) to an agent through tool calling | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/core/8.rag_tool_integration.ipynb) |
+
+### [`audio/`](audio/): turning dialogues into audio
+
+| Tutorial | What you will learn | |
+|---|---|---|
+| [0. Audio generation quickstart](audio/0.quickstart.ipynb) | Turn dialogues into audio with annotations: voices, presets, reverberation, noise, telephone channels, batch generation | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/idiap/sdialog/blob/main/tutorials/audio/0.quickstart.ipynb) |
 
 > [!NOTE]
-> Audio tutorials require additional dependencies. Install with: `pip install sdialog[audio]`
+> Audio tutorials require additional dependencies. Install with: `pip install sdialog[audio]` (a GPU is recommended).
 
 ---
 

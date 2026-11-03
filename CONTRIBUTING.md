@@ -81,7 +81,7 @@ python -m twine upload dist/*
 
 ## Adding tutorials / notebooks
 
-Place new notebooks under `tutorials/` and keep naming numeric + descriptive (e.g., `8.new_feature_example.ipynb`). Ensure they run top-to-bottom in Colab. Use lightweight models or small number of elements to keep runtime short.
+Place new notebooks under `tutorials/core/` (or `tutorials/audio/` for audio generation), keep naming numeric + descriptive (e.g., `9.new_feature_example.ipynb`), and add them to the index in `tutorials/README.md`. Ensure they run top-to-bottom in Colab. Use lightweight models or small number of elements to keep runtime short.
 
 ## Opening an issue
 Provide:

@@ -26,28 +26,10 @@ dscaper_data/
 old.git
 build
 
-# Audio ignore files
-tutorials/01_audio/demo_dialog_doctor_patient.json
-tutorials/01_audio/demo_dialog_doctor_patient_no_age_no_gender.json
-tutorials/01_audio/customer_support_dialogue.json
-tutorials/01_audio/=0.9.4
-tutorials/01_audio/dscaper
-tutorials/01_audio/dscaper_data
-tutorials/01_audio/dscaper_data_customer_support
-tutorials/01_audio/audio_outputs
-tutorials/01_audio/audio_outputs_customer_support
-tutorials/01_audio/dscaper_data_impulse_response
-tutorials/01_audio/audio_outputs_impulse_response
-tutorials/01_audio/my_custom_voices
-tutorials/01_audio/my_custom_ir
-tutorials/01_audio/room.png
-tutorials/01_audio/outputs_annotations/*
-tutorials/01_audio/outputs_annotations_asr/*
-tutorials/01_audio/outputs_to_audio/*
-tutorials/01_audio/dscaper_data_impulse_response/*
-*audio_dialog.json
+# Audio tutorials: downloaded example dialogue and generated audio/annotations
+tutorials/audio/demo_dialog_doctor_patient.json
+tutorials/audio/output/
 ./src/sdialog/sdialog
-tutorials/01_audio/*.png
 
 # SQLite
 *.db
