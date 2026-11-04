@@ -3,6 +3,7 @@ Turn placement (pauses and overlapping speech) for :func:`sdialog.audio.synthesi
 """
 
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
+# SPDX-FileContributor: Yanis Labrak <yanis.labrak@univ-avignon.fr>, Séverin Baroudi <severin.baroudi@lis-lab.fr>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
 import numpy as np
