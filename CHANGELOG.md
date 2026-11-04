@@ -4,13 +4,13 @@ All notable changes to SDialog will be documented here.
 
 ---
 
-## [Unreleased]
+## [0.8.1] 2026-11-04 🩹
 
 ### Fixed
 - **Dependencies**:
   - Local Hugging Face models (e.g. for interpretability) failed to load unless `accelerate` was installed. It is now installed with SDialog ([cd23cb3](https://github.com/idiap/sdialog/commit/cd23cb3)).
 - **sdialog.agents**:
-  - An agent without persona or system prompt that speaks first (e.g. in `talk_with()`) now raises a clear `ValueError` when its model can't generate from an empty input (e.g. OpenAI, Ollama), instead of an unclear error or an empty answer.
+  - An agent without persona or system prompt that speaks first (e.g. in `talk_with()`) now raises a clear `ValueError` when its model can't generate from an empty input (e.g. OpenAI, Ollama), instead of an unclear error or an empty answer ([cab5e44](https://github.com/idiap/sdialog/commit/cab5e44)).
 - **LLMs**:
   - Ollama `gpt-oss` models returned empty answers for structured outputs (e.g. `DialogGenerator`, `PersonaGenerator`, LLM judges), and agents using them failed to start. Both now work ([64117b2](https://github.com/idiap/sdialog/commit/64117b2)).
 - **sdialog.evaluation**:
