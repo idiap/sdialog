@@ -8,16 +8,17 @@ All notable changes to SDialog will be documented here.
 
 ### Fixed
 - **Dependencies**:
-  - `accelerate` is now installed with SDialog: local Hugging Face models (e.g. `sdialog.config.llm("meta-llama/Llama-3.2-3B-Instruct")`, used for interpretability) are loaded with `device_map="auto"`, which requires it, so they failed to load unless it was already installed (e.g. outside Colab).
+  - Local Hugging Face models (e.g. for interpretability) failed to load unless `accelerate` was installed. It is now installed with SDialog ([cd23cb3](https://github.com/idiap/sdialog/commit/cd23cb3)).
+- **sdialog.agents**:
+  - An agent without persona or system prompt that speaks first (e.g. in `talk_with()`) now raises a clear `ValueError` when its model can't generate from an empty input (e.g. OpenAI, Ollama), instead of an unclear error or an empty answer.
 - **LLMs**:
-  - Ollama `gpt-oss` models returned empty answers when SDialog asked for a structured output (e.g. `DialogGenerator`, `PersonaGenerator`, LLM judges): these models always reason, and asking them not to (SDialog's default, `think=False`) together with a JSON schema made Ollama return nothing. They now use their lowest reasoning level instead.
-  - Agents failed to start with some Ollama models (e.g. `gpt-oss`): the one-token call used to reset Ollama's prompt cache with the new seed returned no text and raised an error. It is now best effort.
+  - Ollama `gpt-oss` models returned empty answers for structured outputs (e.g. `DialogGenerator`, `PersonaGenerator`, LLM judges), and agents using them failed to start. Both now work ([64117b2](https://github.com/idiap/sdialog/commit/64117b2)).
 - **sdialog.evaluation**:
-  - `dialog2graph()` failed to label the graph nodes with the default LLM set with the documented provider prefix (e.g. `sdialog.config.llm("ollama:qwen3:14b")` or `"openai:gpt-4.1"`): the model name was sent as-is to Ollama or OpenAI, and models of other providers (e.g. `anthropic:`) were sent to Ollama. Node labels are now generated like any other LLM call in SDialog, so any supported model works, with or without prefix, including LangChain model instances (`node_llm_labels_model=`). The labeling prompt no longer pre-fills the model's answer (not supported by all providers), so labels may differ slightly from previous versions.
+  - `dialog2graph()` failed to label nodes when the model name had a provider prefix (e.g. `"ollama:qwen3:14b"`, `"openai:gpt-4.1"`). Any model supported by SDialog now works; labels may differ slightly from previous versions ([cd23cb3](https://github.com/idiap/sdialog/commit/cd23cb3)).
 - **sdialog.audio**:
-  - When Dia2 fails while capturing CUDA graphs (e.g. H100 GPUs with PyTorch builds for CUDA 13), `Dia2TTS` now says so and points to `Dia2TTS(use_cuda_graph=False)`, instead of raising cryptic cuDNN errors.
-  - `dialogs_to_audio()` saved dialogues with the same id (e.g. `[dialog] * 3`) to the same files, each one silently overwriting the previous. Their files are now named `<dialog_id>_<position>` (dialogues with a unique id keep the `<dialog_id>` name).
-  - `HuggingfaceVoiceDatabase` (used by `dialog.to_audio()`'s default `voices="db"`) decoded the audio of every voice when loaded, taking about 18 GB of RAM with the default `sdialog/voices-libritts` database (enough to crash a free Colab runtime or a laptop). It now reads the voices' metadata only, and decodes a voice's audio the first time it is used: loading takes about 2 seconds and almost no memory. It also works with `datasets>=4`, which decodes audio as `torchcodec` decoders instead of arrays.
+  - `HuggingfaceVoiceDatabase`, the default voices of `dialog.to_audio()`, took about 18 GB of RAM to load. It now decodes each voice only when used and loads in about 2 seconds; it also supports `datasets>=4` ([5e16407](https://github.com/idiap/sdialog/commit/5e16407), [f52c710](https://github.com/idiap/sdialog/commit/f52c710)).
+  - `dialogs_to_audio()` overwrote the files of dialogues with the same id (e.g. `[dialog] * 3`). They are now saved as `<dialog_id>_<position>` ([4121dea](https://github.com/idiap/sdialog/commit/4121dea)).
+  - When Dia2 fails capturing CUDA graphs (e.g. on H100 GPUs), `Dia2TTS` now suggests `Dia2TTS(use_cuda_graph=False)` instead of raising cryptic cuDNN errors ([e3817bf](https://github.com/idiap/sdialog/commit/e3817bf)).
 
 ---
 

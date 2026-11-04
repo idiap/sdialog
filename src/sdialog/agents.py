@@ -414,22 +414,35 @@ class Agent:
             if self._inspectors:
                 self._hook_response_data.response_begin(self.memory_dump())
 
-            if (is_huggingface_model_name(self._model_uri) or is_amazon_model_name(self._model_uri)) and \
-               (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
-                # Ensure that the last message is a HumanMessage to avoid
-                # "A conversation must start with a user message" (aws)
-                # or "Last message must be a HumanMessage!" (huggingface)
-                # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
-                # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
-                response, response_events = self._get_llm_response(self.memory + [HumanMessage(
-                    content="" if is_huggingface_model_name(self._model_uri) else "."
-                )], return_tool_errors=return_tool_errors)
-                logger.warning(
-                    "For HuggingFace or AWS LLMs, the last message in the conversation history must be a HumanMessage. "
-                    "A dummy HumanMessage was appended to memory to satisfy this requirement and prevent errors."
-                )
-            else:
-                response, response_events = self._get_llm_response(self.memory, return_tool_errors=return_tool_errors)
+            # No persona, system prompt or messages: some backends can still generate from nothing (e.g. local
+            # Hugging Face models), others fail or return an empty answer (e.g. OpenAI, Ollama), explained below
+            no_input = not self.memory
+            try:
+                if (is_huggingface_model_name(self._model_uri) or is_amazon_model_name(self._model_uri)) and \
+                   (not self.memory or not isinstance(self.memory[-1], HumanMessage)):
+                    # Ensure that the last message is a HumanMessage to avoid
+                    # "A conversation must start with a user message" (aws)
+                    # or "Last message must be a HumanMessage!" (huggingface)
+                    # from langchain_huggingface (which makes no sense, for ollama is OK but for hugging face is not?)
+                    # https://github.com/langchain-ai/langchain/blob/6d71b6b6ee7433716a59e73c8e859737800a0a86/libs/partners/huggingface/langchain_huggingface/chat_models/huggingface.py#L726
+                    response, response_events = self._get_llm_response(self.memory + [HumanMessage(
+                        content="" if is_huggingface_model_name(self._model_uri) else "."
+                    )], return_tool_errors=return_tool_errors)
+                    logger.warning(
+                        "For HuggingFace or AWS LLMs, the last message in the conversation history must be a "
+                        "HumanMessage. A dummy HumanMessage was appended to memory to satisfy this requirement "
+                        "and prevent errors."
+                    )
+                else:
+                    response, response_events = self._get_llm_response(self.memory,
+                                                                       return_tool_errors=return_tool_errors)
+            except Exception as e:
+                if no_input:
+                    raise ValueError(self._no_input_error_message()) from e
+                raise
+            if no_input and (not response.content
+                             or (isinstance(response.content, str) and not response.content.strip())):
+                raise ValueError(self._no_input_error_message())
 
             if self._inspectors:
                 self._hook_response_data.response_end()
@@ -462,6 +475,12 @@ class Agent:
             return events
         else:
             return response if response else ""
+
+    def _no_input_error_message(self) -> str:
+        """Error message for an agent asked to speak with nothing to respond to (see ``__call__``)."""
+        return (f"Agent '{self.get_name(default='Agent')}' has nothing to respond to: it has no persona, system "
+                "prompt or messages, and its model cannot generate from an empty input. "
+                "Give it a `persona`, a `system_prompt` or a `first_utterance`, or let the other agent speak first.")
 
     def _get_llm_response(self, messages,
                           update_tool_memory: bool = False,

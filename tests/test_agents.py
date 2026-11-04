@@ -1,3 +1,7 @@
+import pytest
+
+from langchain_core.messages import AIMessage
+
 from sdialog import Dialog, Context
 from sdialog.agents import Agent
 from sdialog.personas import Persona
@@ -171,3 +175,68 @@ def test_agent_set_state_keeps_current_system_prompt_and_handles_mismatch(caplog
 
     with pytest.raises(ValueError):
         target.set_state({"version": 99, "memory": []})
+
+
+class RecordingLLM:
+    """Fake LLM that records the messages it receives and answers ``answer`` (or raises ``error``)."""
+    seed = 0
+    num_predict = 1
+
+    def __init__(self, answer="Hi", error=None):
+        self.answer = answer
+        self.error = error
+        self.calls = []
+
+    def invoke(self, messages):
+        self.calls.append([type(m).__name__ for m in messages])
+        if self.error:
+            raise self.error
+        return AIMessage(content=self.answer)
+
+    def __str__(self):
+        return "recording"
+
+
+def test_agent_without_persona_cannot_speak_first_with_empty_answer():
+    # e.g. Ollama answers an empty request with an empty answer
+    agent = Agent(name="Alice", model=RecordingLLM(answer=""))
+    with pytest.raises(ValueError, match="nothing to respond to"):
+        agent()
+    assert agent.llm.calls[-1] == []
+
+
+def test_agent_without_persona_cannot_speak_first_with_failing_model():
+    # e.g. OpenAI rejects an empty request
+    agent = Agent(name="Alice", model=RecordingLLM(error=RuntimeError("messages must not be empty")))
+    with pytest.raises(ValueError, match="nothing to respond to") as error:
+        agent()
+    assert isinstance(error.value.__cause__, RuntimeError)
+
+
+def test_agent_without_persona_speaks_first_if_model_can():
+    agent = Agent(name="Alice", model=RecordingLLM(answer="Once upon a time"))
+    assert agent() == "Once upon a time"
+    assert agent.llm.calls[-1] == []
+
+
+def test_agent_without_persona_speaks_first_with_first_utterance():
+    agent = Agent(name="Alice", model=RecordingLLM(answer=""), first_utterance="Hello!")
+    assert agent() == "Hello!"
+
+
+def test_agent_without_persona_responds_with_raw_messages():
+    agent = Agent(name="Alice", model=RecordingLLM())
+    assert agent("Hello") == "Hi"
+    assert agent.llm.calls[-1] == ["HumanMessage"]  # no system prompt added
+
+
+def test_agent_with_persona_speaks_first():
+    agent = Agent(Persona(name="Alice"), model=RecordingLLM())
+    assert agent() == "Hi"
+    assert agent.llm.calls[-1] == ["SystemMessage"]
+
+
+def test_agent_failure_with_input_is_not_replaced():
+    agent = Agent(name="Alice", model=RecordingLLM(error=RuntimeError("boom")))
+    with pytest.raises(RuntimeError, match="boom"):
+        agent("Hello")
