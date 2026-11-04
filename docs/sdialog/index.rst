@@ -14,6 +14,9 @@ SDialog is a modular Python toolkit for generating, steering, evaluating, and an
 
 If you are building controlled conversational simulations, benchmarking dialog models, producing synthetic training corpora, or probing internal model behavior, SDialog provides an end-to-end workflow.
 
+.. tip::
+   New to SDialog? The `tutorials <https://github.com/idiap/sdialog/tree/main/tutorials/>`__ are grouped by goal (generating text or speech data, building agents, inspecting models), starting with a `demo <https://github.com/idiap/sdialog/blob/main/tutorials/demo.ipynb>`__ of the main features.
+
 Architecture at a Glance
 ------------------------
 
@@ -234,6 +237,9 @@ Key Methods:
 - :meth:`~sdialog.agents.Agent.prompt`: get the underlying system prompt used by the agent.
 - :meth:`~sdialog.agents.Agent.json`: export the agent as a JSON object.
 
+.. tip::
+   The `agents with tools and thoughts tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/1.agents_with_tools_and_thoughts.ipynb>`__ builds agents with hidden thinking and tool calling, and the `RAG tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/2.rag_tool_integration.ipynb>`__ connects an agent to a knowledge base through a tool.
+
 
 Orchestration
 -------------
@@ -318,6 +324,9 @@ This simple example shows the minimal pattern: return an instruction once when a
     recap_orch = EarlyRecapOrchestrator(question_threshold=3)
     agent = agent | recap_orch
 
+.. tip::
+   The `orchestration tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/dialog_generation/3.multi-agent%2Borchestrator_generation.ipynb>`__ steers agents with orchestrators while generating dialogues for the STAR dataset.
+
 .. _serving_agents:
 
 Serving Agents via REST API
@@ -383,6 +392,9 @@ Serving Agents on WhatsApp
 --------------------------
 
 Agents can also chat with real users over WhatsApp, through the Meta WhatsApp Cloud API, with :meth:`~sdialog.agents.Agent.serve_whatsapp`. Meta sends each incoming message to a webhook served by SDialog, the agent replies, and the reply is sent back through Meta's API. Each user (phone number) has their own conversation, saved in a local SQLite database and restored on their next message with :meth:`~sdialog.agents.Agent.get_state` / :meth:`~sdialog.agents.Agent.set_state`. A user's conversation starts over when they send ``/reset``, when they open a new chat (see below), or after ``session_timeout`` seconds of inactivity.
+
+.. tip::
+   The `serving tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/3.serving.ipynb>`__ ends by putting an agent on WhatsApp, and `whatsapp_bot.py <https://github.com/idiap/sdialog/blob/main/tutorials/agents/whatsapp_bot.py>`__ is a ready-to-run script.
 
 To try it with a free Meta test account:
 
@@ -456,6 +468,9 @@ Generation Components
 ---------------------
 
 The generation system in SDialog provides powerful tools for creating synthetic content at different levels of complexity. Whether you need to generate individual personas, contextual settings, or complete dialogues, these components work together to produce diverse and realistic outputs.
+
+.. tip::
+   The `dialogue generation tutorials <https://github.com/idiap/sdialog/tree/main/tutorials/dialog_generation>`__ generate dialogues for the STAR dataset with a single LLM (tutorial 1) and with persona-driven agents (tutorials 2 and 3).
 
 Attribute Generators
 ~~~~~~~~~~~~~~~~~~~~
@@ -604,6 +619,10 @@ Evaluation & Interpretability
 
 Evaluation Suite
 ----------------
+
+.. tip::
+   The `evaluation tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/dialog_generation/5.evaluation.ipynb>`__ compares generated dialogues with the real STAR dialogues using LLM judges and metrics, the `dialogue analysis tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/dialog_generation/4.dialog_analysis.ipynb>`__ compares their conversation flows, and the `simulated users tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/4.testing_with_simulated_users.ipynb>`__ tests an agent with tool-call checks and LLM judges.
+
 Categories:
 
 1. **Linguistic / Readability**: :class:`~sdialog.evaluation.LinguisticFeatureScore`
@@ -663,6 +682,9 @@ Interpretability & Steering
 ---------------------------
 
 SDialog provides advanced tools for mechanistic interpretability and activation steering to understand and control model behavior during dialogue generation.
+
+.. tip::
+   The `refusal tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/interpretability/1.agent%2Binspector_refusal.ipynb>`__ finds and removes an LLM's refusal direction with inspectors and steering.
 
 **Activation Inspection:**
 
@@ -738,6 +760,9 @@ Audio Generation
 =============================
 
 SDialog turns any two-speaker dialogue into realistic audio with a single call, ``dialog.to_audio()``, and returns the audio together with its **ground-truth annotations**: who speaks when, what is said, and word timestamps. With control over voices, timing and acoustics, the same text dialogues can produce audio at different levels of difficulty, for ASR, speaker diarization, speech LLMs, call-center analytics and other speech tasks.
+
+.. tip::
+   The `audio quickstart <https://github.com/idiap/sdialog/blob/main/tutorials/audio/0.quickstart.ipynb>`__ covers voices, presets, acoustics and batch generation, and the `rooms and acoustics tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/1.rooms_and_acoustics.ipynb>`__ the simulated and measured rooms.
 
 Setup and Installation
 ----------------------
@@ -1185,6 +1210,9 @@ For instance, you can set a default model globally that fits your GPU via ``sdia
 Tools & Function Calling
 ------------------------
 Provide a list of Python callables to an Agent via ``tools=[fn_a, fn_b]``. For backends that expose tool/function-calling semantics, outputs may be (a) executed and inserted into memory, (b) used to refine final completions depending on backend support. Ensure return values are JSON-serializable.
+
+.. tip::
+   The `agents with tools and thoughts tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/agents/1.agents_with_tools_and_thoughts.ipynb>`__ covers tool calling and thinking segments.
 
 Thinking Segments
 -----------------
