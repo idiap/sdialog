@@ -895,7 +895,7 @@ Then pass that folder to ``ButReverbDB``. For each dialogue, a room and a microp
     # Only the caller in a measured room, with its room noise (e.g. a call center recording)
     audio = dialog.to_audio(preset="call_center", reverb={"Caller": but}, noise={"Caller": "room"})
 
-``noise="room"`` needs the reverb of the same speakers to be a ``ButReverbDB``: a shared noise needs a shared reverb, and a speaker's noise needs that speaker's reverb. Otherwise it raises an error rather than leaving the audio without noise. The presets only use simulated rooms, so they work without downloading anything.
+``noise="room"`` needs the reverb of the same speakers to be a ``ButReverbDB``: a shared noise needs a shared reverb, and a speaker's noise needs that speaker's reverb. Otherwise it raises an error rather than leaving the audio without noise. The presets only use simulated rooms, so they work without downloading anything. The `rooms and acoustics tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/1.rooms_and_acoustics.ipynb>`__ compares BUT ReverbDB rooms by ear, next to simulated ones.
 
 BUT ReverbDB is released under the CC BY 4.0 license. When publishing results obtained with it, please cite:
 
