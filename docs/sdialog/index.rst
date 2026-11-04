@@ -950,7 +950,7 @@ Annotations
 Batch Generation
 ----------------
 
-``dialogs_to_audio`` converts many dialogues in parallel, with one TTS model per worker process. By default it uses every available GPU (or the CPU if there is none). ``devices`` can also be ``"cpu"``, ``"cuda"``, a single device like ``"cuda:1"``, or a list of devices.
+``dialogs_to_audio`` converts many dialogues in parallel, with one TTS model per worker process. By default it uses every available GPU (or the CPU if there is none). With a single worker (e.g. one GPU), it runs in the current process and reuses the default model if ``to_audio()`` already loaded it there. ``devices`` can also be ``"cpu"``, ``"cuda"``, a single device like ``"cuda:1"``, or a list of devices.
 
 Each dialogue gets its own seed. With ``seed`` set, the seed is derived from it and the dialogue's position, so the whole batch is reproducible and results don't depend on the number of workers. Without it, a random seed is used. Either way, the seed of every dialogue is saved in its annotations and in ``index.jsonl``:
 

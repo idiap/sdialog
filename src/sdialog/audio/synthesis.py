@@ -381,11 +381,27 @@ def _output_names(dialogs: Sequence) -> List[str]:
     return [f"{name}_{ix}" if counts[name] > 1 else name for ix, name in enumerate(names)]
 
 
-def _run_jobs(jobs, out_dir, device, tts_factory, kwargs, results=None):
+def _default_tts_on(device: str) -> Optional[BaseDialogTTS]:
+    """Returns the default TTS engine if this process already created it for ``device`` (to reuse it), else None."""
+    if _default_tts is None:
+        return None
     try:
-        if tts_factory is not None:
+        import torch
+
+        def normalize(name):
+            name = name if name is not None else ("cuda" if torch.cuda.is_available() else "cpu")
+            d = torch.device(name)
+            return torch.device("cuda", torch.cuda.current_device()) if d.type == "cuda" and d.index is None else d
+        return _default_tts if normalize(getattr(_default_tts, "device", None)) == normalize(device) else None
+    except Exception:
+        return None
+
+
+def _run_jobs(jobs, out_dir, device, tts_factory, kwargs, results=None, tts=None):
+    try:
+        if tts is None and tts_factory is not None:
             tts = tts_factory(device)
-        else:
+        elif tts is None:
             from .tts.dia2 import Dia2TTS
             tts = Dia2TTS(device=device)
         tts_error = None
@@ -477,8 +493,9 @@ def dialogs_to_audio(dialogs: Sequence,
     workers = [d for d in devices for _ in range(max(1, workers_per_device))]
     workers = workers[:max(1, len(jobs))]
 
-    if len(workers) == 1:
-        rows = _run_jobs(jobs, out_dir, workers[0], tts_factory, kwargs)
+    if len(workers) == 1:  # in this process: reuse the default model if to_audio() already loaded it there
+        tts = _default_tts_on(workers[0]) if tts_factory is None else None
+        rows = _run_jobs(jobs, out_dir, workers[0], tts_factory, kwargs, tts=tts)
     else:
         import multiprocessing as mp
         ctx = mp.get_context("spawn")  # required for CUDA in child processes

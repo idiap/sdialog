@@ -597,6 +597,30 @@ def _tone_factory(device):
     return ToneTTS()
 
 
+def test_batch_reuses_the_loaded_default_tts(dialog, tmp_path, monkeypatch):
+    # dialog.to_audio() loads the default model once per process: a batch running in the same process and on the
+    # same device must reuse it instead of loading a second copy (two Dia2 models do not fit on many GPUs)
+    import sdialog.audio.tts.dia2 as dia2
+    from sdialog.audio import synthesis
+    created = []
+
+    class NewDia2(ToneTTS):
+        def __init__(self, device=None):
+            super().__init__()
+            created.append(device)
+
+    monkeypatch.setattr(dia2, "Dia2TTS", NewDia2)
+    loaded = ToneTTS()
+    loaded.device = "cpu"
+    monkeypatch.setattr(synthesis, "_default_tts", loaded)
+    rows = dialogs_to_audio([dialog, dialog], str(tmp_path / "a"), devices="cpu", voices="random", seed=0)
+    assert all("error" not in row for row in rows) and len(loaded.calls) == 2 and created == []
+
+    loaded.device = "cuda:1"  # loaded on another device: the batch loads its own model
+    rows = dialogs_to_audio([dialog], str(tmp_path / "b"), devices="cpu", voices="random", seed=0)
+    assert "error" not in rows[0] and created == ["cpu"]
+
+
 # --------------------------------------------------------------------------------------------------------------- Dia2
 def test_dia2_requires_python_310(monkeypatch):
     from sdialog.audio.tts.dia2 import tts as dia2_tts
