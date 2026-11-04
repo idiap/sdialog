@@ -34,6 +34,7 @@ from collections import Counter
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 from . import effects
+from .but import ButReverbDB
 from .presets import resolve_scene
 from .result import DialogAudio, Segment
 from .room import Room
@@ -100,6 +101,8 @@ def _jsonable(value: Any) -> Any:
     """Converts a scene value to JSON-friendly types (tuples to lists, rooms to dictionaries)."""
     if isinstance(value, Room):
         return value.model_dump()
+    if isinstance(value, ButReverbDB):
+        return value.json()
     if isinstance(value, (list, tuple)):
         return [_jsonable(v) for v in value]
     if isinstance(value, dict):
@@ -112,7 +115,7 @@ def _is_off(value: Any) -> bool:
 
 
 def _noise_params(value: Any, rng: np.random.Generator) -> Optional[dict]:
-    """Normalizes a noise spec (SNR number, (min, max) range, or {"type", "snr"} dict)."""
+    """Normalizes a noise spec (SNR number, (min, max) range, noise type or path, or {"type", "snr"} dict)."""
     if _is_off(value):
         return None
     if isinstance(value, dict):
@@ -124,10 +127,20 @@ def _noise_params(value: Any, rng: np.random.Generator) -> Optional[dict]:
     raise ValueError(f"Invalid noise value: {value}")
 
 
-def _apply_noise(x: np.ndarray, sr: int, value: Any, rng: np.random.Generator) -> Tuple[np.ndarray, Optional[dict]]:
+def _apply_noise(x: np.ndarray, sr: int, value: Any, rng: np.random.Generator,
+                 room: Optional[dict] = None) -> Tuple[np.ndarray, Optional[dict]]:
+    """Adds the noise ``value`` to ``x``; ``room`` describes the reverb of ``x``, for ``noise="room"``."""
     params = _noise_params(value, rng)
     if params is None or not np.any(x):
         return x, None
+    if params["kind"] == "room":  # the background noise recorded in the measured room used for the reverb
+        if not room or not room.get("noise"):
+            raise ValueError('noise="room" needs the reverb of the same speaker(s) to be a measured room with '
+                             'recorded background noise, e.g. reverb=ButReverbDB(...) (shared noise needs a '
+                             'shared reverb; a speaker\'s noise needs that speaker\'s reverb). '
+                             f'Got reverb: {room["type"] if room else None}')
+        x, info = effects.add_noise(x, sr, rng, snr_db=params["snr_db"], kind=room["noise"])
+        return x, {**info, "type": "room"}
     return effects.add_noise(x, sr, rng, snr_db=params["snr_db"], kind=params["kind"])
 
 
@@ -147,6 +160,8 @@ def _speaker_rirs(values: List[Any], shared: bool, rng: np.random.Generator,
             return [value] * n_sources, {"type": "user"}
         if isinstance(value, Room):  # all the speakers are placed in the room; the caller keeps the ones it needs
             return value.compute_rirs(speakers, sr, rng)
+        if isinstance(value, ButReverbDB):
+            return value.compute_rirs(n_sources, sr, rng)
         if value is True:
             value = "medium"
         if value in effects.ROOM_SIZES:
@@ -233,10 +248,12 @@ def to_audio(dialog,
     :param max_overlap: Maximum overlap, as a fraction of the previous turn's duration (default 0.3).
     :param reverb: Room reverberation: True or "small"/"medium"/"large" (simulated room of random size and
                    positions), a :class:`~sdialog.audio.Room` (room of your choice: dimensions, materials or RT60,
-                   microphone and speaker positions, microphone directivity), a path to an impulse response file
-                   or folder of files, or an impulse response array.
+                   microphone and speaker positions, microphone directivity), a
+                   :class:`~sdialog.audio.ButReverbDB` (rooms measured in BUT ReverbDB), a path to an impulse
+                   response file or folder of files, or an impulse response array.
     :param noise: Background noise: an SNR in dB, a ``(min, max)`` SNR range, a noise type ("white", "pink",
-                  "brown") or audio file/folder path, or a dict ``{"type": ..., "snr": ...}``.
+                  "brown", or "room": the noise recorded in the measured room of ``reverb=ButReverbDB(...)``)
+                  or audio file/folder path, or a dict ``{"type": ..., "snr": ...}``.
     :param channel: Telephone channel codec: "telephone" (= "g711"), "g711", "g729", "amr" or "amr-wb".
     :param level_jitter_db: Maximum random loudness difference (dB) between speakers.
     :param stereo: If True, output one channel per speaker (in order of appearance); otherwise mono.
@@ -299,7 +316,8 @@ def to_audio(dialog,
     noise_info, channel_info = {}, {}
     for ix, name in enumerate(speakers):
         if noise_specific:
-            tracks[ix], noise_info[name] = _apply_noise(tracks[ix], sample_rate, noises[ix], rng)
+            room = room_info[ix] if reverb_shared else room_info
+            tracks[ix], noise_info[name] = _apply_noise(tracks[ix], sample_rate, noises[ix], rng, room)
         if channel_specific:
             tracks[ix], channel_info[name] = _apply_channel(tracks[ix], sample_rate, channels[ix], rng)
 
@@ -308,7 +326,8 @@ def to_audio(dialog,
     shared_noise = None if noise_specific else noises[0]
     shared_channel = None if channel_specific else _pick(channels[0], rng)
     for ix in range(len(outputs)):
-        outputs[ix], info = _apply_noise(outputs[ix], sample_rate, shared_noise, rng)
+        outputs[ix], info = _apply_noise(outputs[ix], sample_rate, shared_noise, rng,
+                                         None if reverb_shared else room_info)
         if info is not None:
             noise_info["all" if not stereo else speakers[ix]] = info
         outputs[ix], codec = _apply_channel(outputs[ix], sample_rate, shared_channel, rng)

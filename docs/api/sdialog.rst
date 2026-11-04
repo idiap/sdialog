@@ -231,6 +231,14 @@ sdialog.audio.room
    :members:
    :show-inheritance:
 
+sdialog.audio.but
+^^^^^^^^^^^^^^^^^
+
+.. automodule:: sdialog.audio.but
+   :member-order: bysource
+   :members:
+   :show-inheritance:
+
 sdialog.audio.effects
 ^^^^^^^^^^^^^^^^^^^^^
 

@@ -15,7 +15,7 @@ pytest.importorskip("scipy")
 pytest.importorskip("soundfile")
 
 from sdialog import Dialog, Turn  # noqa: E402
-from sdialog.audio import Room, effects, list_presets, register_preset  # noqa: E402
+from sdialog.audio import ButReverbDB, Room, effects, list_presets, register_preset  # noqa: E402
 from sdialog.audio.presets import PRESETS, resolve_scene  # noqa: E402
 from sdialog.audio.synthesis import _resolve_devices, dialogs_to_audio, to_audio  # noqa: E402
 from sdialog.audio.timeline import place_turns  # noqa: E402
@@ -325,6 +325,86 @@ def test_reverb_room(dialog, tmp_path):
     audio = _render(dialog, reverb={"Agent": Room(dimensions=(3, 3, 2.5)), "Caller": [Room(dimensions=(10, 8, 4))]},
                     stereo=True)
     assert [r["dimensions"] for r in audio.config["room"]] == [[3, 3, 2.5], [10, 8, 4]]
+
+
+def _fake_but(root):
+    """A tiny folder with the BUT ReverbDB layout: room A (2 loudspeakers x 2 mics), room B (1 x 1), no RIR in C."""
+    import soundfile as sf
+    rng = np.random.default_rng(0)
+    layout = {"RoomA": {"SpkID01_2017_S": ["01", "02"], "SpkID02_2017_S": ["01", "02"]},
+              "RoomB": {"SpkID01_2018_S": ["01"]}}
+    for room, speakers in layout.items():
+        for speaker, mics in speakers.items():
+            for mic in mics:
+                folder = root / room / "MicID01" / speaker / mic
+                (folder / "RIR").mkdir(parents=True)
+                (folder / "silence").mkdir()
+                rir = np.zeros(SR // 8, dtype=np.float32)
+                rir[50], rir[600] = 1.0, 0.3
+                sf.write(folder / "RIR" / "IR_sweep.v00.wav", rir, SR)
+                sf.write(folder / "silence" / "silence.v00.wav", (rng.standard_normal(SR // 2) * 0.01), SR)
+    (root / "RoomC" / "MicID01").mkdir(parents=True)  # a room without measurements is ignored
+    (root / "read_me.txt").write_text("BUT ReverbDB")
+    return root
+
+
+def test_but_reverb_db_scan(tmp_path):
+    but = ButReverbDB(str(_fake_but(tmp_path / "but")))
+    assert but.rooms == ["RoomA", "RoomB"] and len(but) == 5
+    assert ButReverbDB(str(tmp_path / "but"), rooms=["RoomB"]).rooms == ["RoomB"]
+    assert but.json() == {"type": "but", "path": str(tmp_path / "but"), "rooms": ["RoomA", "RoomB"]}
+    with pytest.raises(ValueError, match="RoomZ"):
+        ButReverbDB(str(tmp_path / "but"), rooms=["RoomZ"])
+    with pytest.raises(FileNotFoundError):
+        ButReverbDB(str(tmp_path / "missing"))
+    (tmp_path / "other" / "a").mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="layout|RIR"):
+        ButReverbDB(str(tmp_path / "other"))
+
+
+def test_but_reverb_db_positions(tmp_path):
+    but = ButReverbDB(str(_fake_but(tmp_path / "but")), rooms=["RoomA"])
+    rirs, info = but.compute_rirs(2, SR, np.random.default_rng(0))
+    assert len(rirs) == 2 and info["type"] == "but" and info["room"] == "RoomA"
+    assert len(set(info["speakers"])) == 2  # two loudspeaker positions, recorded by the same microphone
+    mic = info["microphone"].split("/")[1]
+    assert all(f.split(os.sep)[-3] == mic for f in info["rir_files"])
+    assert os.path.basename(os.path.dirname(info["noise"])) == mic and info["noise"].endswith("silence")
+    assert info == but.compute_rirs(2, SR, np.random.default_rng(0))[1]  # reproducible
+    # A room with a single loudspeaker position: the position is reused
+    _, info = ButReverbDB(str(tmp_path / "but"), rooms=["RoomB"]).compute_rirs(2, SR, np.random.default_rng(0))
+    assert info["speakers"] == ["SpkID01_2018_S", "SpkID01_2018_S"]
+
+
+def test_reverb_but_with_room_noise(dialog, tmp_path):
+    but = ButReverbDB(str(_fake_but(tmp_path / "but")))
+    audio = _render(dialog, reverb=but, noise={"type": "room", "snr": (10, 20)})
+    room, noise = audio.config["room"], audio.config["noise"]["all"]
+    assert room["type"] == "but" and noise["type"] == "room" and 10 <= noise["snr_db"] <= 20
+    assert os.path.dirname(noise["file"]) == room["noise"]  # the noise of the same room and microphone
+    assert np.array_equal(audio.audio, _render(dialog, reverb=but, noise={"type": "room", "snr": (10, 20)}).audio)
+    audio.save(str(tmp_path / "d"))
+    with open(tmp_path / "d.json") as f:
+        assert json.load(f)["config"]["scene"]["reverb"]["type"] == "but"
+
+    # Only the caller in a measured room, with its own room noise (e.g. a phone call)
+    audio = _render(dialog, reverb={"Caller": but}, noise={"Caller": "room"}, stereo=True)
+    assert audio.config["room"][0] is None and audio.config["room"][1]["type"] == "but"
+    assert os.path.dirname(audio.config["noise"]["Caller"]["file"]) == audio.config["room"][1]["noise"]
+
+
+def test_room_noise_needs_a_measured_room(dialog, tmp_path):
+    import soundfile as sf
+    rir = np.zeros(SR // 8, dtype=np.float32)
+    rir[0] = 1.0
+    sf.write(tmp_path / "rir.wav", rir, SR)
+    but = ButReverbDB(str(_fake_but(tmp_path / "but")))
+    for kwargs in [{"noise": "room"},                                            # no reverb
+                   {"reverb": str(tmp_path / "rir.wav"), "noise": "room"},      # an impulse response file
+                   {"reverb": {"Caller": but}, "noise": "room"},                # shared noise, per-speaker reverb
+                   {"reverb": {"Caller": but}, "noise": {"Agent": "room"}}]:    # the agent has no measured room
+        with pytest.raises(ValueError, match='noise="room" needs'):
+            _render(dialog, **kwargs)
 
 
 def test_level_jitter(dialog):

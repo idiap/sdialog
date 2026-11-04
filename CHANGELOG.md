@@ -4,6 +4,14 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **sdialog.audio**:
+  - `ButReverbDB`, to reverberate dialogues with real rooms measured in [BUT ReverbDB](https://speech.fit.vut.cz/software/but-speech-fit-reverb-database) (downloaded separately), e.g. `dialog.to_audio(reverb=ButReverbDB(path), noise="room")`. With `noise="room"`, the background noise is the one recorded by the same microphone in the same room. See [Measured Rooms](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#measured-rooms-but-reverbdb).
+
+---
+
 ## [0.8.1] 2026-11-04 🩹
 
 ### Fixed

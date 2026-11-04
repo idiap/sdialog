@@ -811,9 +811,9 @@ Timing and Acoustics
    * - ``overlap``
      - Probability (0-1) that a turn starts before the previous one ends. ``max_overlap`` caps the overlap as a fraction of the previous turn (default 0.3). A speaker never overlaps themselves.
    * - ``reverb``
-     - ``"small"``, ``"medium"``, ``"large"`` (or ``True``): a simulated room (pyroomacoustics) with a random size, RT60 and speaker positions. A ``Room``: a room of your choice (see `Custom Rooms`_). Alternatively, a path to an impulse-response file or folder of measured RIRs. Speech onsets are kept aligned, so the annotations stay valid.
+     - ``"small"``, ``"medium"``, ``"large"`` (or ``True``): a simulated room (pyroomacoustics) with a random size, RT60 and speaker positions. A ``Room``: a room of your choice (see `Custom Rooms`_). A ``ButReverbDB``: real rooms measured in BUT ReverbDB (see `Measured Rooms (BUT ReverbDB)`_). Alternatively, a path to an impulse-response file or folder of measured RIRs. Speech onsets are kept aligned, so the annotations stay valid.
    * - ``noise``
-     - An SNR in dB, a ``(min, max)`` SNR range, a noise type (``"white"``, ``"pink"``, ``"brown"``) or a noise audio file/folder, or ``{"type": ..., "snr": ...}``.
+     - An SNR in dB, a ``(min, max)`` SNR range, a noise type (``"white"``, ``"pink"``, ``"brown"``, or ``"room"``: the noise recorded in the measured room of ``reverb=ButReverbDB(...)``) or a noise audio file/folder, or ``{"type": ..., "snr": ...}``.
    * - ``channel``
      - A telephone codec: ``"telephone"`` (= ``"g711"``), ``"g711"``, ``"g729"``, ``"amr"``, ``"amr-wb"``.
    * - ``level_jitter_db``
@@ -868,6 +868,38 @@ A ``Room`` sets:
                             channel={"Caller": "g711"}, stereo=True)
 
 To get the impulse responses only (e.g. to use them elsewhere), call ``room.compute_rirs(["Alice", "Bob"], sample_rate=16000)``. The `rooms and acoustics tutorial <https://github.com/idiap/sdialog/blob/main/tutorials/audio/1.rooms_and_acoustics.ipynb>`_ compares rooms, microphones and directivities by ear, with plots of the room and its impulse responses.
+
+Measured Rooms (BUT ReverbDB)
+-----------------------------
+
+Simulated rooms are empty shoeboxes. For the reverberation of real rooms, with their furniture, shapes and real microphones, use impulse responses measured in `BUT ReverbDB <https://speech.fit.vut.cz/software/but-speech-fit-reverb-database>`_: 9 rooms (offices, meeting and lecture rooms, hotel rooms) recorded from several loudspeaker positions by 31 microphones, with each room's own background noise recorded at every microphone.
+
+SDialog does not include the database. Download the impulse responses with their background noise and metadata from the `BUT ReverbDB website <https://speech.fit.vut.cz/software/but-speech-fit-reverb-database>`__ (``BUT_ReverbDB_rel_19_06_RIR-Only.tgz``, 8.7 GB; the retransmitted LibriSpeech part is not needed) and extract it into a folder of its own, as the archive has no top folder:
+
+.. code-block:: bash
+
+    wget http://merlin.fit.vutbr.cz/ReverbDB/BUT_ReverbDB_rel_19_06_RIR-Only.tgz
+    mkdir BUT_ReverbDB && tar xzf BUT_ReverbDB_rel_19_06_RIR-Only.tgz -C BUT_ReverbDB
+    # BUT_ReverbDB/VUT_FIT_L207/MicID01/SpkID01_20171223_S/01/{RIR,silence}/..., one folder per room
+
+Then pass that folder to ``ButReverbDB``. For each dialogue, a room and a microphone are drawn at random (from the ``to_audio`` seed) and each speaker gets a different loudspeaker position in that room. With ``noise="room"``, the background noise is the one recorded by that same microphone, so reverberation and noise match, as in a real recording:
+
+.. code-block:: python
+
+    from sdialog.audio import ButReverbDB
+
+    but = ButReverbDB("/path/to/BUT_ReverbDB")    # or rooms=["VUT_FIT_L207", ...]; but.rooms lists them
+    audio = dialog.to_audio(reverb=but, noise={"type": "room", "snr": (10, 20)})
+    print(audio.config["room"])   # room, microphone, loudspeaker positions and files used
+
+    # Only the caller in a measured room, with its room noise (e.g. a call center recording)
+    audio = dialog.to_audio(preset="call_center", reverb={"Caller": but}, noise={"Caller": "room"})
+
+``noise="room"`` needs the reverb of the same speakers to be a ``ButReverbDB``: a shared noise needs a shared reverb, and a speaker's noise needs that speaker's reverb. Otherwise it raises an error rather than leaving the audio without noise. The presets only use simulated rooms, so they work without downloading anything.
+
+BUT ReverbDB is released under the CC BY 4.0 license. When publishing results obtained with it, please cite:
+
+    I. Szöke, M. Skácel, L. Mošner, J. Paliesek and J. Černocký, "Building and Evaluation of a Real Room Impulse Response Dataset", *IEEE Journal of Selected Topics in Signal Processing*, 13(4), 863-876, 2019. `doi:10.1109/JSTSP.2019.2917582 <https://doi.org/10.1109/JSTSP.2019.2917582>`_
 
 Presets
 -------
