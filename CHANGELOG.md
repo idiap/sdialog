@@ -4,18 +4,18 @@ All notable changes to SDialog will be documented here.
 
 ---
 
-## [Unreleased]
+## [0.8.3] 2026-11-08 🎧
 
 ### Added
 - **sdialog.audio**:
-  - `ButReverbDB(path, download=True)` downloads BUT ReverbDB (8.7 GB) and extracts it into `path` the first time.
-  - `audio_format="flac"` in `to_audio()` and `dialogs_to_audio()`, to save lossless FLAC files (about half the size of WAV) instead of WAV.
+  - `ButReverbDB(path, download=True)` downloads BUT ReverbDB (8.7 GB) and extracts it into `path` the first time ([d917170](https://github.com/idiap/sdialog/commit/d917170)).
+  - `audio_format="flac"` in `to_audio()` and `dialogs_to_audio()`, to save lossless FLAC files (about half the size of WAV) instead of WAV ([d917170](https://github.com/idiap/sdialog/commit/d917170)).
 - **Tutorials**:
-  - The audio tutorials keep their audio players, so they can be listened to without running them.
+  - The audio tutorials keep their audio players, so they can be listened to without running them ([c6ef098](https://github.com/idiap/sdialog/commit/c6ef098)).
 
 ### Changed
 - **sdialog.audio**:
-  - `DialogAudio.display()` embeds the audio in the notebook as MP3, about 7 times smaller than WAV, so notebooks saved with their outputs stay small. `display(audio_format="wav")` embeds the exact samples, as before.
+  - `DialogAudio.display()` embeds the audio in the notebook as MP3, about 7 times smaller than WAV, so notebooks saved with their outputs stay small. `display(audio_format="wav")` embeds the exact samples, as before ([d917170](https://github.com/idiap/sdialog/commit/d917170)).
 
 ---
 
