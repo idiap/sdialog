@@ -26,7 +26,7 @@ src/sdialog/            The package (published to PyPI as "sdialog")
   util.py               LLM loading (get_llm_model), helpers, and __version__
 tests/                  pytest suite (conftest.py stubs optional audio deps)
 docs/                   Sphinx docs (ReadTheDocs); API reference modules listed by hand in docs/api/sdialog.rst
-tutorials/              Notebooks (keep outputs cleared)
+tutorials/              Notebooks (keep outputs cleared, except tutorials that keep them on purpose, e.g. audio)
 ```
 
 ## Setup

@@ -10,6 +10,8 @@ All notable changes to SDialog will be documented here.
 - **sdialog.audio**:
   - `ButReverbDB(path, download=True)` downloads BUT ReverbDB (8.7 GB) and extracts it into `path` the first time.
   - `audio_format="flac"` in `to_audio()` and `dialogs_to_audio()`, to save lossless FLAC files (about half the size of WAV) instead of WAV.
+- **Tutorials**:
+  - The audio tutorials keep their audio players, so they can be listened to without running them.
 
 ### Changed
 - **sdialog.audio**:
