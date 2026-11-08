@@ -139,7 +139,8 @@ class ButReverbDB:
         def report(blocks, block_size, total):
             done = blocks * block_size
             if total > 0 and done >= progress["next"]:
-                logger.info(f"BUT ReverbDB: downloaded {min(done, total) / 1e9:.1f} of {total / 1e9:.1f} GB")
+                gb = 2 ** 30  # binary GB, as the 8.7 GB announced for the archive
+                logger.info(f"BUT ReverbDB: downloaded {min(done, total) / gb:.1f} of {total / gb:.1f} GB")
                 progress["next"] += total // 10
 
         logger.info(f"Downloading BUT ReverbDB (8.7 GB) from {url} ...")
