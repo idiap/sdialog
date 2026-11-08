@@ -220,7 +220,8 @@ def to_audio(dialog,
              level_jitter_db: Optional[float] = None,
              stereo: bool = False,
              sample_rate: int = 16000,
-             seed: Optional[int] = None) -> DialogAudio:
+             seed: Optional[int] = None,
+             audio_format: str = "wav") -> DialogAudio:
     """
     Converts a two-speaker dialogue into audio, with ground-truth annotations.
 
@@ -230,7 +231,7 @@ def to_audio(dialog,
     recording (all speakers). A list of values means "pick one at random".
 
     :param dialog: The :class:`~sdialog.Dialog` to convert (exactly two speakers).
-    :param path: If given, saves ``<path>.wav``, ``<path>.json`` and ``<path>.rttm``.
+    :param path: If given, saves ``<path>.<audio_format>``, ``<path>.json`` and ``<path>.rttm``.
     :param preset: Named scene preset: "clean", "conversational", "room", "call_center", "far_field", "hard",
                    or any preset added with :func:`sdialog.audio.register_preset`.
     :param voices: "db" (voice database matching the personas), "design" (designed from the persona
@@ -260,6 +261,8 @@ def to_audio(dialog,
     :param sample_rate: Output sample rate (Hz).
     :param seed: Random seed; the same seed reproduces the same audio (a random seed is drawn and saved in
                  the annotations when not given).
+    :param audio_format: Format of the audio file saved to ``path``: "wav" (default) or "flac" (lossless, about
+                         half the size).
     :return: A :class:`~sdialog.audio.DialogAudio` with the waveform and the annotations.
     :raises ValueError: If the dialogue does not have exactly two speakers or a parameter is invalid.
     """
@@ -358,7 +361,7 @@ def to_audio(dialog,
                          speakers=speakers, voices=voice_info, config=config,
                          dialog_id=None if dialog.id is None else str(dialog.id))
     if path is not None:
-        result.save(path)
+        result.save(path, audio_format=audio_format)
     return result
 
 
@@ -415,7 +418,8 @@ def _run_jobs(jobs, out_dir, device, tts_factory, kwargs, results=None, tts=None
             if tts_error is not None:
                 raise tts_error
             audio = to_audio(dialog, path=path, tts=tts, seed=seed, **kwargs)
-            row = {"index": index, "dialog_id": audio.dialog_id, "audio": f"{path}.wav", "json": f"{path}.json",
+            audio_file = f"{path}.{kwargs.get('audio_format', 'wav')}"
+            row = {"index": index, "dialog_id": audio.dialog_id, "audio": audio_file, "json": f"{path}.json",
                    "rttm": f"{path}.rttm", "duration": round(audio.duration, 3), "seed": audio.config["seed"]}
         except Exception as e:  # keep going: one bad dialogue should not stop a large batch
             logger.error(f"Dialog {index} failed: {e}")
@@ -460,9 +464,9 @@ def dialogs_to_audio(dialogs: Sequence,
     """
     Converts many dialogues to audio in parallel, with one TTS model per worker process.
 
-    Every dialogue is saved under ``out_dir`` (``<dialog_id>.wav``, ``.json`` and ``.rttm``; ``<dialog_id>_<position>``
-    for dialogues whose id appears more than once in ``dialogs``) and an
-    ``index.jsonl`` file lists all the outputs. Each dialogue gets its own seed (derived from ``seed`` and its
+    Every dialogue is saved under ``out_dir`` (``<dialog_id>.wav``, or ``.flac`` with ``audio_format="flac"``,
+    ``.json`` and ``.rttm``; ``<dialog_id>_<position>`` for dialogues whose id appears more than once in ``dialogs``)
+    and an ``index.jsonl`` file lists all the outputs. Each dialogue gets its own seed (derived from ``seed`` and its
     position in ``dialogs``, or drawn at random if ``seed`` is not given), which is saved in its annotations
     and in ``index.jsonl``; results do not depend on the number of workers.
 
@@ -475,7 +479,7 @@ def dialogs_to_audio(dialogs: Sequence,
                         ``Dia2TTS(device=device)``). Must be a top-level (picklable) function when using
                         several workers.
     :param seed: Base random seed, to make the whole batch reproducible.
-    :param kwargs: Any other :func:`to_audio` argument (preset, voices, stereo, ...).
+    :param kwargs: Any other :func:`to_audio` argument (preset, voices, stereo, audio_format, ...).
     :return: The rows of ``index.jsonl`` (one per dialogue, with output paths and seed, or an "error" field).
 
     Example:

@@ -5,12 +5,16 @@ Result of ``dialog.to_audio()``: the dialogue audio together with its ground-tru
 # SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
 # SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
 # SPDX-License-Identifier: MIT
+import io
 import os
 import json
+import logging
 import numpy as np
 
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -132,10 +136,34 @@ class DialogAudio:
             f.write(self.to_rttm(file_id=os.path.basename(path)))
         return paths
 
-    def display(self):
-        """Shows an audio player (in Jupyter notebooks)."""
+    def display(self, audio_format: str = "mp3"):
+        """
+        Shows an audio player (in Jupyter notebooks), with the audio normalized to full scale.
+
+        The audio is embedded in the notebook as MP3 by default, about 7 times smaller than WAV, so that notebooks
+        saved with their outputs stay small enough to share. Saved files (:meth:`save`) are not affected.
+
+        :param audio_format: "mp3" (default) or "wav" (the exact samples, as before). MP3 falls back to WAV if the
+                             installed soundfile cannot write MP3 (libsndfile < 1.1).
+        :type audio_format: str
+        """
+        import soundfile as sf
         from IPython.display import Audio, display
-        display(Audio(self.audio.T if self.audio.ndim == 2 else self.audio, rate=self.sample_rate))
+        if audio_format not in ("mp3", "wav"):
+            raise ValueError(f'audio_format must be "mp3" or "wav", got {audio_format!r}')
+        if audio_format == "mp3" and "MP3" not in sf.available_formats():
+            logger.warning("This soundfile build cannot write MP3 (libsndfile < 1.1): showing WAV instead")
+            audio_format = "wav"
+        if audio_format == "wav":
+            display(Audio(self.audio.T if self.audio.ndim == 2 else self.audio, rate=self.sample_rate))
+            return
+        peak = float(np.max(np.abs(self.audio))) if self.audio.size else 0.0
+        audio = self.audio * (0.98 / peak) if peak > 0 else self.audio  # normalized, as Audio() does for WAV
+        buffer = io.BytesIO()
+        sf.write(buffer, audio, self.sample_rate, format="MP3")
+        player = Audio(data=buffer.getvalue())
+        player.mimetype = "audio/mpeg"  # Audio() assumes WAV for raw bytes
+        display(player)
 
     def _repr_html_(self):
         return (f"<b>DialogAudio</b>: {self.duration:.1f} s, {self.sample_rate} Hz, {self.channels} channel(s), "

@@ -519,7 +519,7 @@ class Dialog(BaseModel):
 
         Uses the Dia2 dialogue TTS model by default. See :func:`sdialog.audio.synthesis.to_audio` for all the
         options (``voice_database``, ``tts``, ``pauses``, ``overlap``, ``max_overlap``, ``reverb``, ``noise``,
-        ``channel``, ``level_jitter_db``, ...).
+        ``channel``, ``level_jitter_db``, ``audio_format``, ...).
 
         Example:
 
@@ -530,7 +530,8 @@ class Dialog(BaseModel):
                 audio = dialog.to_audio(voices="random", reverb="large", noise=10, overlap=0.2, seed=0)
                 audio.save("output/dialog")                                 # .wav + .json + .rttm
 
-        :param path: If given, saves ``<path>.wav``, ``<path>.json`` (annotations) and ``<path>.rttm``.
+        :param path: If given, saves ``<path>.wav`` (``.flac`` with ``audio_format="flac"``), ``<path>.json``
+                     (annotations) and ``<path>.rttm``.
         :type path: str
         :param preset: Scene preset: "clean", "conversational", "room", "call_center", "far_field" or "hard".
         :type preset: str

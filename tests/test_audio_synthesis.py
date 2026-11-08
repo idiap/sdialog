@@ -115,6 +115,27 @@ def test_rttm_and_json(dialog, tmp_path):
     assert sr == SR and len(x) == len(audio.audio)
 
 
+def test_display_embeds_mp3(dialog, monkeypatch):
+    pytest.importorskip("IPython")
+    import io
+    import IPython.display
+    import soundfile as sf
+    if "MP3" not in sf.available_formats():
+        pytest.skip("this soundfile build cannot write MP3")
+    shown = []
+    monkeypatch.setattr(IPython.display, "display", shown.append)
+    audio = to_audio(dialog, tts=ToneTTS(), seed=0)
+    audio.display()
+    assert shown[-1].mimetype == "audio/mpeg" and 'type="audio/mpeg"' in shown[-1]._repr_html_()
+    decoded, sr = sf.read(io.BytesIO(shown[-1].data))
+    assert sr == audio.sample_rate and abs(len(decoded) - len(audio.audio)) < 0.1 * sr  # MP3 pads a few frames
+    assert len(shown[-1].data) < len(audio.audio) * 2 / 4  # much smaller than 16-bit WAV
+    audio.display(audio_format="wav")
+    assert shown[-1].mimetype == "audio/wav"
+    with pytest.raises(ValueError):
+        audio.display(audio_format="ogg")
+
+
 def test_path_argument_saves_files(dialog, tmp_path):
     _render(dialog, path=str(tmp_path / "d.wav"))
     assert {"d.wav", "d.json", "d.rttm"} <= set(os.listdir(tmp_path))
@@ -376,6 +397,29 @@ def test_but_reverb_db_positions(tmp_path):
     assert info["speakers"] == ["SpkID01_2018_S", "SpkID01_2018_S"]
 
 
+def test_but_reverb_db_download(tmp_path, monkeypatch):
+    import tarfile
+    from sdialog.audio import but as but_module
+    archive = tmp_path / "BUT_ReverbDB.tgz"
+    with tarfile.open(archive, "w:gz") as tar:  # like the real archive: no top folder
+        tar.add(_fake_but(tmp_path / "src"), arcname=".")
+    calls = []
+
+    def fake_urlretrieve(url, filename, reporthook=None):
+        calls.append(url)
+        import shutil
+        shutil.copy(archive, filename)
+        reporthook(1, archive.stat().st_size, archive.stat().st_size)
+
+    monkeypatch.setattr(but_module.urllib.request, "urlretrieve", fake_urlretrieve)
+    with pytest.raises(FileNotFoundError, match="download=True"):
+        ButReverbDB(str(tmp_path / "db"))
+    but = ButReverbDB(str(tmp_path / "db"), download=True)
+    assert but.rooms == ["RoomA", "RoomB"] and calls == [but_module.URL]
+    assert sorted(os.listdir(tmp_path)) == ["BUT_ReverbDB.tgz", "db", "src"]  # no archive or .part files left
+    assert ButReverbDB(str(tmp_path / "db"), download=True).rooms == but.rooms and len(calls) == 1  # no new download
+
+
 def test_reverb_but_with_room_noise(dialog, tmp_path):
     but = ButReverbDB(str(_fake_but(tmp_path / "but")))
     audio = _render(dialog, reverb=but, noise={"type": "room", "snr": (10, 20)})
@@ -559,6 +603,17 @@ def test_batch(dialog, tmp_path):
     single = to_audio(dialog, tts=ToneTTS(), voices="random", seed=rows[1]["seed"])
     import soundfile as sf
     np.testing.assert_allclose(sf.read(rows[1]["audio"])[0], single.audio, atol=1e-4)
+
+
+def test_flac_output(dialog, tmp_path):
+    import soundfile as sf
+    audio = to_audio(dialog, path=str(tmp_path / "one"), tts=ToneTTS(), seed=0, audio_format="flac")
+    assert (tmp_path / "one.flac").exists() and not (tmp_path / "one.wav").exists()
+    np.testing.assert_allclose(sf.read(tmp_path / "one.flac")[0], audio.audio, atol=1e-4)  # lossless 16-bit
+    rows = dialogs_to_audio([dialog], str(tmp_path / "batch"), devices="cpu", tts_factory=_tone_factory, seed=0,
+                            voices="random", audio_format="flac")
+    assert rows[0]["audio"].endswith(".flac") and os.path.exists(rows[0]["audio"])
+    assert json.loads(open(tmp_path / "batch" / "index.jsonl").read())["audio"] == rows[0]["audio"]
 
 
 def test_batch_repeated_ids_do_not_overwrite(dialog, tmp_path):

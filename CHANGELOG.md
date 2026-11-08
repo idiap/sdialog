@@ -4,6 +4,19 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **sdialog.audio**:
+  - `ButReverbDB(path, download=True)` downloads BUT ReverbDB (8.7 GB) and extracts it into `path` the first time.
+  - `audio_format="flac"` in `to_audio()` and `dialogs_to_audio()`, to save lossless FLAC files (about half the size of WAV) instead of WAV.
+
+### Changed
+- **sdialog.audio**:
+  - `DialogAudio.display()` embeds the audio in the notebook as MP3, about 7 times smaller than WAV, so notebooks saved with their outputs stay small. `display(audio_format="wav")` embeds the exact samples, as before.
+
+---
+
 ## [0.8.2] 2026-11-05 🎙️
 
 ### Added

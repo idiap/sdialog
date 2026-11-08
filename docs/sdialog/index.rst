@@ -782,6 +782,7 @@ Quick Start
 
     audio = dialog.to_audio()
     audio.save("my_dialog")  # my_dialog.wav + my_dialog.json (annotations) + my_dialog.rttm
+    audio.save("my_dialog", audio_format="flac")  # lossless FLAC (about half the size) instead of WAV
 
 To make it sound like a phone call, a meeting room or a noisy far-field recording, use a preset (see `Presets`_):
 
@@ -899,7 +900,7 @@ Measured Rooms (BUT ReverbDB)
 
 Simulated rooms are empty shoeboxes. For the reverberation of real rooms, with their furniture, shapes and real microphones, use impulse responses measured in `BUT ReverbDB <https://speech.fit.vut.cz/software/but-speech-fit-reverb-database>`_: 9 rooms (offices, meeting and lecture rooms, hotel rooms) recorded from several loudspeaker positions by 31 microphones, with each room's own background noise recorded at every microphone.
 
-SDialog does not include the database. Download the impulse responses with their background noise and metadata from the `BUT ReverbDB website <https://speech.fit.vut.cz/software/but-speech-fit-reverb-database>`__ (``BUT_ReverbDB_rel_19_06_RIR-Only.tgz``, 8.7 GB; the retransmitted LibriSpeech part is not needed) and extract it into a folder of its own, as the archive has no top folder:
+SDialog does not include the database. With ``download=True``, ``ButReverbDB`` downloads the impulse responses with their background noise and metadata from the `BUT ReverbDB website <https://speech.fit.vut.cz/software/but-speech-fit-reverb-database>`__ (``BUT_ReverbDB_rel_19_06_RIR-Only.tgz``, 8.7 GB) and extracts them into the given folder the first time; later calls use that folder. It can also be downloaded by hand and extracted into a folder of its own, as the archive has no top folder (the retransmitted LibriSpeech part is not needed):
 
 .. code-block:: bash
 
@@ -907,13 +908,13 @@ SDialog does not include the database. Download the impulse responses with their
     mkdir BUT_ReverbDB && tar xzf BUT_ReverbDB_rel_19_06_RIR-Only.tgz -C BUT_ReverbDB
     # BUT_ReverbDB/VUT_FIT_L207/MicID01/SpkID01_20171223_S/01/{RIR,silence}/..., one folder per room
 
-Then pass that folder to ``ButReverbDB``. For each dialogue, a room and a microphone are drawn at random (from the ``to_audio`` seed) and each speaker gets a different loudspeaker position in that room. With ``noise="room"``, the background noise is the one recorded by that same microphone, so reverberation and noise match, as in a real recording:
+For each dialogue, a room and a microphone are drawn at random (from the ``to_audio`` seed) and each speaker gets a different loudspeaker position in that room. With ``noise="room"``, the background noise is the one recorded by that same microphone, so reverberation and noise match, as in a real recording:
 
 .. code-block:: python
 
     from sdialog.audio import ButReverbDB
 
-    but = ButReverbDB("/path/to/BUT_ReverbDB")    # or rooms=["VUT_FIT_L207", ...]; but.rooms lists them
+    but = ButReverbDB("BUT_ReverbDB", download=True)  # or rooms=["VUT_FIT_L207", ...]; but.rooms lists them
     audio = dialog.to_audio(reverb=but, noise={"type": "room", "snr": (10, 20)})
     print(audio.config["room"])   # room, microphone, loudspeaker positions and files used
 
@@ -986,6 +987,8 @@ Each dialogue gets its own seed. With ``seed`` set, the seed is derived from it 
     rows = dialogs_to_audio(dialogs, "audios/", preset="call_center", stereo=True)
     # audios/<dialog_id>.wav/.json/.rttm and audios/index.jsonl
     # (<dialog_id>_<position> for dialogues whose id appears more than once in the list)
+
+With ``audio_format="flac"``, the audio files are saved as lossless FLAC, about half the size of WAV, which is handy for large datasets to share.
 
 Using Other TTS Engines
 -----------------------
