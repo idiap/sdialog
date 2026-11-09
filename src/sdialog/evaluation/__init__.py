@@ -349,7 +349,7 @@ class ConversationalFeatures(BaseDialogScore):
         total_words = sum(turn_lengths)
 
         if not self.feature or "mean-turn-length" in self.feature:
-            results["mean-turn-length"] = float(np.mean(turn_lengths)) if turn_lengths else 0.0
+            results["mean_turn_length"] = float(np.mean(turn_lengths)) if turn_lengths else 0.0
 
         if not self.feature or "hesitation-rate" in self.feature:
             results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, total_words) * 100)

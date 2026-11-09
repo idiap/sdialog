@@ -4,6 +4,14 @@ All notable changes to SDialog will be documented here.
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **sdialog.evaluation**:
+  - `ConversationalFeatures` returns the mean turn length under the key `"mean_turn_length"` (it was `"mean-turn-length"`), like its other results. The feature name to request it is still `feature="mean-turn-length"`.
+
+---
+
 ## [0.8.3] 2026-11-08 🎧
 
 ### Added

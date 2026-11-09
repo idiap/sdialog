@@ -61,7 +61,7 @@ def datasets():
 
 def test_conversational_features_values():
     features = ConversationalFeatures()(DIALOG)
-    assert features["mean-turn-length"] == pytest.approx(np.mean([len(t) for t in DIALOG]))
+    assert features["mean_turn_length"] == pytest.approx(np.mean([len(t) for t in DIALOG]))
     assert features["back_channel_rate"] == 50.0  # "yeah" and "Okay."
     assert features["question_rate"] == 25.0
     assert features["turn_taking_ratio"] == 1.0  # two speakers, two turns each
