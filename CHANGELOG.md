@@ -8,7 +8,7 @@ All notable changes to SDialog will be documented here.
 
 ### Changed
 - **sdialog.evaluation**:
-  - `ConversationalFeatures` returns the mean turn length under the key `"mean_turn_length"` (it was `"mean-turn-length"`), like its other results. The feature name to request it is still `feature="mean-turn-length"`.
+  - `ReadabilityScore` and `ConversationalFeatures` name their results with dashes, like the feature names used to request them (e.g. `"flesch-reading-ease"`, `"question-rate"` instead of `"flesch_reading_ease"`, `"question_rate"`), and their default names are `"readability-score"` and `"conversational-features"`.
 
 ---
 

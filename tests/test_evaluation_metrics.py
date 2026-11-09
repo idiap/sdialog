@@ -61,12 +61,12 @@ def datasets():
 
 def test_conversational_features_values():
     features = ConversationalFeatures()(DIALOG)
-    assert features["mean_turn_length"] == pytest.approx(np.mean([len(t) for t in DIALOG]))
-    assert features["back_channel_rate"] == 50.0  # "yeah" and "Okay."
-    assert features["question_rate"] == 25.0
-    assert features["turn_taking_ratio"] == 1.0  # two speakers, two turns each
-    assert features["hesitation_rate"] > 0 and features["filler_word_density"] > 0
-    assert 0 < features["lexical_diversity"] <= 1
+    assert features["mean-turn-length"] == pytest.approx(np.mean([len(t) for t in DIALOG]))
+    assert features["back-channel-rate"] == 50.0  # "yeah" and "Okay."
+    assert features["question-rate"] == 25.0
+    assert features["turn-taking-ratio"] == 1.0  # two speakers, two turns each
+    assert features["hesitation-rate"] > 0 and features["filler-word-density"] > 0
+    assert 0 < features["lexical-diversity"] <= 1
 
 
 def test_conversational_features_selection_and_speaker():
@@ -74,7 +74,7 @@ def test_conversational_features_selection_and_speaker():
     assert score.name == "question-rate"
     assert score(DIALOG) == 50.0  # one of Alice's two turns is a question
     both = ConversationalFeatures(feature=["question-rate", "back-channel-rate"])(DIALOG)
-    assert set(both) == {"question_rate", "back_channel_rate"}
+    assert set(both) == {"question-rate", "back-channel-rate"}
     with pytest.raises(ValueError):
         ConversationalFeatures(feature="nope")
 
@@ -113,7 +113,7 @@ def test_readability_scores():
     hard = make_dialog("Institutionalization necessitates extraordinarily comprehensive administrative coordination.",
                        "Unquestionably, organizational transformation is considerably complicated.")
     all_scores = ReadabilityScore()(simple)
-    assert set(all_scores) == {"gunning_fog", "flesch_reading_ease", "coleman_liau", "linsear_write", "dale_chall"}
+    assert set(all_scores) == {"gunning-fog", "flesch-reading-ease", "coleman-liau", "linsear-write", "dale-chall"}
     assert GunningFogScore()(hard) > GunningFogScore()(simple)
     assert FleschReadingEaseScore()(hard) < FleschReadingEaseScore()(simple)
     assert ColemanLiauScore()(hard) > ColemanLiauScore()(simple)

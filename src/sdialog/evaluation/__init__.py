@@ -211,7 +211,7 @@ class ConversationalFeatures(BaseDialogScore):
     :type feature: Optional[List[Literal["mean-turn-length", "hesitation-rate", "turn-taking-ratio",
                                          "question-rate", "lexical-diversity", "back-channel-rate",
                                          "filler-word-density"]]]
-    :param name: Internal score name (defaults to ``"conversational_features"`` or
+    :param name: Internal score name (defaults to ``"conversational-features"`` or
                  the single feature name if only one provided).
     :type name: str
     :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
@@ -239,7 +239,7 @@ class ConversationalFeatures(BaseDialogScore):
             if feature and isinstance(feature, list) and len(feature) == 1:
                 name = feature[0]
 
-        super().__init__(name=name or "conversational_features")
+        super().__init__(name=name or "conversational-features")
         self.feature = feature
         self.speaker = speaker
 
@@ -349,29 +349,29 @@ class ConversationalFeatures(BaseDialogScore):
         total_words = sum(turn_lengths)
 
         if not self.feature or "mean-turn-length" in self.feature:
-            results["mean_turn_length"] = float(np.mean(turn_lengths)) if turn_lengths else 0.0
+            results["mean-turn-length"] = float(np.mean(turn_lengths)) if turn_lengths else 0.0
 
         if not self.feature or "hesitation-rate" in self.feature:
-            results["hesitation_rate"] = (self.count_hesitations(all_text) / max(1, total_words) * 100)
+            results["hesitation-rate"] = (self.count_hesitations(all_text) / max(1, total_words) * 100)
 
         if not self.feature or "turn-taking-ratio" in self.feature:
-            results["turn_taking_ratio"] = self.calculate_turn_taking_ratio(original_dialog)
+            results["turn-taking-ratio"] = self.calculate_turn_taking_ratio(original_dialog)
 
         if not self.feature or "question-rate" in self.feature:
             question_turns = sum(1 for turn in dialog if '?' in str(turn))
-            results["question_rate"] = (question_turns / max(1, len(dialog)) * 100)
+            results["question-rate"] = (question_turns / max(1, len(dialog)) * 100)
 
         if not self.feature or "lexical-diversity" in self.feature:
             words = re.findall(r'\b[a-zA-Z]+\b', all_text.lower())
             unique_words = len(set(words))
-            results["lexical_diversity"] = (unique_words / max(1, len(words))) if words else 0.0
+            results["lexical-diversity"] = (unique_words / max(1, len(words))) if words else 0.0
 
         if not self.feature or "back-channel-rate" in self.feature:
             back_channel_turns = sum(1 for turn in dialog if self.is_back_channel(turn.text))
-            results["back_channel_rate"] = (back_channel_turns / max(1, len(dialog)) * 100)
+            results["back-channel-rate"] = (back_channel_turns / max(1, len(dialog)) * 100)
 
         if not self.feature or "filler-word-density" in self.feature:
-            results["filler_word_density"] = (self.count_filler_words(all_text) / max(1, total_words) * 100)
+            results["filler-word-density"] = (self.count_filler_words(all_text) / max(1, total_words) * 100)
 
         return results if len(results) > 1 else list(results.values())[0]
 
@@ -414,7 +414,7 @@ class ReadabilityScore(BaseDialogScore):
 
     :type feature: Optional[List[Literal["gunning-fog", "flesch-reading-ease",
                                          "coleman-liau", "linsear-write", "dale-chall"]]]
-    :param name: Internal score name (defaults to ``"readability_score"`` or
+    :param name: Internal score name (defaults to ``"readability-score"`` or
                  the single feature name if only one provided).
     :type name: str
     :param speaker: If set, only turns by this speaker (case-insensitive) are considered.
@@ -444,7 +444,7 @@ class ReadabilityScore(BaseDialogScore):
             if feature and isinstance(feature, list) and len(feature) == 1:
                 name = feature[0]
 
-        super().__init__(name=name or "readability_score")
+        super().__init__(name=name or "readability-score")
         self.feature = feature
         self.speaker = speaker
 
@@ -620,15 +620,15 @@ class ReadabilityScore(BaseDialogScore):
         results = {}
         all_text = "\n".join(turn.text for turn in dialog)  # without the "Speaker:" prefixes
         if not self.feature or "gunning-fog" in self.feature:
-            results["gunning_fog"] = self.calculate_gunning_fog(all_text)
+            results["gunning-fog"] = self.calculate_gunning_fog(all_text)
         if not self.feature or "flesch-reading-ease" in self.feature:
-            results["flesch_reading_ease"] = self.calculate_flesch_reading_ease(all_text)
+            results["flesch-reading-ease"] = self.calculate_flesch_reading_ease(all_text)
         if not self.feature or "coleman-liau" in self.feature:
-            results["coleman_liau"] = self.calculate_coleman_liau(all_text)
+            results["coleman-liau"] = self.calculate_coleman_liau(all_text)
         if not self.feature or "linsear-write" in self.feature:
-            results["linsear_write"] = self.calculate_linsear_write(all_text)
+            results["linsear-write"] = self.calculate_linsear_write(all_text)
         if not self.feature or "dale-chall" in self.feature:
-            results["dale_chall"] = self.calculate_dale_chall(all_text)
+            results["dale-chall"] = self.calculate_dale_chall(all_text)
 
         return results if len(results) > 1 else list(results.values())[0]
 
