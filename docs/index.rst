@@ -190,7 +190,7 @@ Score dialogs with built-in metrics and LLM judges, and compare datasets with ag
 
 .. code-block:: python
 
-    from sdialog.evaluation import LLMJudgeRealDialog, LinguisticFeatureScore
+    from sdialog.evaluation import LLMJudgeRealDialog, FleschReadingEaseScore
     from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator
     from sdialog.evaluation import DatasetComparator
 
@@ -198,7 +198,7 @@ Score dialogs with built-in metrics and LLM judges, and compare datasets with ag
     candidate = [...]   # list[Dialog]
 
     judge  = LLMJudgeRealDialog()
-    flesch = LinguisticFeatureScore(feature="flesch-reading-ease")
+    flesch = FleschReadingEaseScore()
 
     comparator = DatasetComparator([
         FrequencyEvaluator(judge, name="Realistic dialog rate"),

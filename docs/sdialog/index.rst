@@ -625,8 +625,10 @@ Evaluation Suite
 
 Categories:
 
-1. **Linguistic / Readability**: :class:`~sdialog.evaluation.LinguisticFeatureScore`
-   - mean-turn-length, hesitation-rate, gunning-fog, flesch-reading-ease.
+1. **Readability / Conversational**: :class:`~sdialog.evaluation.ReadabilityScore` & :class:`~sdialog.evaluation.ConversationalFeatures`
+   - gunning-fog, flesch-reading-ease, coleman-liau, linsear-write, dale-chall.
+   - mean-turn-length, hesitation-rate, turn-taking-ratio, question-rate, lexical-diversity, back-channel-rate, filler-word-density.
+   - One class per metric too, e.g. :class:`~sdialog.evaluation.FleschReadingEaseScore`, :class:`~sdialog.evaluation.HesitationRateScore`.
 2. **Flow Graph Based**: :class:`~sdialog.evaluation.DialogFlowScore` (likelihood) & :class:`~sdialog.evaluation.DialogFlowPPL` (perplexity-like) against reference dialog graph.
 3. **Embedding Similarity**: :class:`~sdialog.evaluation.SentenceTransformerDialogEmbedder` + evaluators such as :class:`~sdialog.evaluation.ReferenceCentroidEmbeddingEvaluator`.
 4. **Distribution Divergence** (score-level): :class:`~sdialog.evaluation.KDEDistanceEvaluator`, :class:`~sdialog.evaluation.FrechetDistanceEvaluator`.
@@ -644,14 +646,14 @@ Let's explore how to evaluate our generated dialogues using SDialog's comprehens
 .. code-block:: python
 
     from sdialog.evaluation import (
-        LinguisticFeatureScore, DialogFlowScore, LLMJudgeRealDialog, LLMJudgeRealDialogLikertScore,
+        HesitationRateScore, FleschReadingEaseScore, DialogFlowScore, LLMJudgeRealDialog, LLMJudgeRealDialogLikertScore,
         MeanEvaluator, FrequencyEvaluator, StatsEvaluator,
         DatasetComparator
     )
 
     # Linguistic analysis
-    hesitation_score = LinguisticFeatureScore(feature="hesitation-rate")
-    readability_score = LinguisticFeatureScore(feature="flesch-reading-ease")
+    hesitation_score = HesitationRateScore()
+    readability_score = FleschReadingEaseScore()
 
     # Flow-based evaluation (requires reference dialogues)
     flow_evaluator = DialogFlowScore(reference_dialogs)

@@ -379,17 +379,19 @@ Evaluation and Analysis
 
 Linguistic Feature Metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-Let's start measuring the quality of our dialogues! We'll compute readability and style indicators using :class:`~sdialog.evaluation.LinguisticFeatureScore` to understand how our generated conversations compare to natural human speech.
+Let's start measuring the quality of our dialogues! We'll compute readability and style indicators using :class:`~sdialog.evaluation.ReadabilityScore` and :class:`~sdialog.evaluation.ConversationalFeatures` to understand how our generated conversations compare to natural human speech.
 
 .. code-block:: python
 
-    from sdialog.evaluation import LinguisticFeatureScore
+    from sdialog.evaluation import ReadabilityScore, ConversationalFeatures, HesitationRateScore
 
-    feat_all = LinguisticFeatureScore()  # all features
-    hes_rate = LinguisticFeatureScore(feature="hesitation-rate")
+    readability = ReadabilityScore()           # all readability metrics
+    conversational = ConversationalFeatures()  # all conversational features
+    hes_rate = HesitationRateScore()           # a single feature
 
-    print(feat_all(dialog))  # dict of metrics
-    print(hes_rate(dialog))  # single float
+    print(readability(dialog))     # dict of metrics
+    print(conversational(dialog))  # dict of metrics
+    print(hes_rate(dialog))        # single float
 
 Flow-Based Scores (Perplexity & Likelihood)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -559,10 +561,11 @@ When working with multiple datasets or comparing different models, we need compr
 
 .. code-block:: python
 
-    from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator, DatasetComparator, LLMJudgeRealDialog, LinguisticFeatureScore
+    from sdialog.evaluation import FrequencyEvaluator, MeanEvaluator, DatasetComparator, LLMJudgeRealDialog
+    from sdialog.evaluation import FleschReadingEaseScore
 
     judge_real = LLMJudgeRealDialog()
-    flesch = LinguisticFeatureScore(feature="flesch-reading-ease")
+    flesch = FleschReadingEaseScore()
 
     comparator = DatasetComparator([
         FrequencyEvaluator(judge_real, name="Realistic rate"),
@@ -578,9 +581,9 @@ Let's get statistical! To compare score distributions between different dialogue
 
 .. code-block:: python
 
-    from sdialog.evaluation import KDEDistanceEvaluator, FrechetDistanceEvaluator
+    from sdialog.evaluation import KDEDistanceEvaluator, FrechetDistanceEvaluator, MeanTurnLengthScore
 
-    turn_len_score = LinguisticFeatureScore(feature="mean-turn-length")
+    turn_len_score = MeanTurnLengthScore()
     kde_eval = KDEDistanceEvaluator(dialog_score=turn_len_score, reference_dialogues=[dialog])
     frechet_eval = FrechetDistanceEvaluator(dialog_score=turn_len_score, reference_dialogues=[dialog])
 
