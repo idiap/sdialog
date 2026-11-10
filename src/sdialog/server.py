@@ -37,6 +37,7 @@ except ImportError:
 
 from . import Event
 from .agents import Agent
+from .chat_ui import ChatUI, register_routes, remove_routes
 from .agent_pool import AgentPool
 from .rate_limit import RateLimiter
 
@@ -218,7 +219,8 @@ class Server:
               log_level: str = "info",
               max_requests_per_minute: Optional[int] = 30,
               max_requests_per_hour: Optional[int] = 300,
-              max_workers: Optional[int] = None) -> None:
+              max_workers: Optional[int] = None,
+              chat_ui: Union[bool, ChatUI] = False) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API.
 
@@ -253,6 +255,10 @@ class Server:
                             inspectors, and stateful agents (a single conversation), serve one request at a time.
                             With several workers, the agent's tools must be thread-safe.
         :type max_workers: Optional[int]
+        :param chat_ui: If True, also serve a web chat GUI to talk to the agents at ``/chat`` (e.g.
+                        ``http://localhost:1333/chat``), which can also be embedded in other pages; pass a
+                        :class:`~sdialog.chat_ui.ChatUI` to customize it.
+        :type chat_ui: Union[bool, ChatUI]
 
 
         Example:
@@ -274,10 +280,14 @@ class Server:
                 # Output:
                 # Starting server for agents on localhost:1333
                 # > 2 registered agents: Scientist:latest, Bot:latest
+
+                # Or also with a web chat GUI on http://localhost:1333/chat
+                Server.serve([user, bot], port=1333, chat_ui=True)
         """
         cls._setup_agents(agents, model_names, stateless, debug)
         cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
         cls._set_max_workers(max_workers)
+        cls._set_chat_ui(chat_ui, host, port)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"> {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -291,7 +301,8 @@ class Server:
                 # Use the threaded version as fallback
                 # Agents were already added in _setup_agents
                 return cls.serve_in_thread([], host, port, stateless, debug, None, log_level,
-                                           max_requests_per_minute, max_requests_per_hour, max_workers)
+                                           max_requests_per_minute, max_requests_per_hour, max_workers,
+                                           chat_ui)
             else:
                 # Re-raise if it's a different RuntimeError
                 raise
@@ -307,7 +318,8 @@ class Server:
                           log_level: str = "info",
                           max_requests_per_minute: Optional[int] = 30,
                           max_requests_per_hour: Optional[int] = 300,
-                          max_workers: Optional[int] = None) -> None:
+                          max_workers: Optional[int] = None,
+                          chat_ui: Union[bool, ChatUI] = False) -> None:
         """
         Serve SDialog agents as an OpenAI-compatible RESTful API (async version).
 
@@ -340,10 +352,15 @@ class Server:
                             inspectors, and stateful agents (a single conversation), serve one request at a time.
                             With several workers, the agent's tools must be thread-safe.
         :type max_workers: Optional[int]
+        :param chat_ui: If True, also serve a web chat GUI to talk to the agents at ``/chat`` (e.g.
+                        ``http://localhost:1333/chat``), which can also be embedded in other pages; pass a
+                        :class:`~sdialog.chat_ui.ChatUI` to customize it.
+        :type chat_ui: Union[bool, ChatUI]
         """
         cls._setup_agents(agents, model_names, stateless, debug)
         cls._set_rate_limits(max_requests_per_minute, max_requests_per_hour)
         cls._set_max_workers(max_workers)
+        cls._set_chat_ui(chat_ui, host, port)
 
         logger.info(f"Starting server for agents on {host}:{port}")
         logger.info(f"- {len(cls.list_agents())} registered agents: {', '.join(cls.list_agents())}")
@@ -475,7 +492,8 @@ class Server:
                         log_level: str = "info",
                         max_requests_per_minute: Optional[int] = 30,
                         max_requests_per_hour: Optional[int] = 300,
-                        max_workers: Optional[int] = None) -> None:
+                        max_workers: Optional[int] = None,
+                        chat_ui: Union[bool, ChatUI] = False) -> None:
         """
         Serve SDialog agents in a separate thread (alternative for Jupyter).
 
@@ -509,6 +527,10 @@ class Server:
                             inspectors, and stateful agents (a single conversation), serve one request at a time.
                             With several workers, the agent's tools must be thread-safe.
         :type max_workers: Optional[int]
+        :param chat_ui: If True, also serve a web chat GUI to talk to the agents at ``/chat`` (e.g.
+                        ``http://localhost:1333/chat``), which can also be embedded in other pages; pass a
+                        :class:`~sdialog.chat_ui.ChatUI` to customize it.
+        :type chat_ui: Union[bool, ChatUI]
         :return: The thread object running the server.
         :rtype: threading.Thread
         """
@@ -521,7 +543,7 @@ class Server:
             try:
                 loop.run_until_complete(
                     cls.serve_async(agents, host, port, stateless, debug, model_names, log_level,
-                                    max_requests_per_minute, max_requests_per_hour, max_workers)
+                                    max_requests_per_minute, max_requests_per_hour, max_workers, chat_ui)
                 )
             except KeyboardInterrupt:
                 logger.info("Server stopped by user")
@@ -548,6 +570,19 @@ class Server:
         for pool in cls._pools.values():
             pool.close()
         cls._pools = {}
+
+    @classmethod
+    def _set_chat_ui(cls, chat_ui: Union[bool, ChatUI], host: str, port: int) -> None:
+        """Add the web chat GUI routes to the app (or remove those of a previous call if ``chat_ui`` is False)."""
+        if not chat_ui:
+            remove_routes(cls._app)
+            return
+        chat_ui = ChatUI() if chat_ui is True else chat_ui
+        register_routes(cls._app, cls, chat_ui)
+        if not cls._stateless:
+            logger.warning("The chat GUI keeps conversations in the browser, which works with stateless=True; "
+                           "a stateful agent keeps a single conversation shared by all chat users.")
+        logger.info(f"Chat GUI on http://{'localhost' if host == '0.0.0.0' else host}:{port}{chat_ui.path}")
 
     @classmethod
     def _get_pool(cls, model_name: str) -> AgentPool:

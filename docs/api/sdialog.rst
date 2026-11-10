@@ -158,6 +158,17 @@ sdialog.server
 
 ----
 
+sdialog.chat_ui
+---------------
+
+.. automodule:: sdialog.chat_ui
+   :member-order: groupwise
+   :members: ChatUI
+   :show-inheritance:
+
+
+----
+
 sdialog.whatsapp
 ----------------
 

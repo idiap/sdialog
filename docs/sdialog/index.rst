@@ -386,6 +386,51 @@ For serving multiple agents under a single endpoint, use ``Server``'s :meth:`~sd
 
 **Parallel requests.** Each agent processes up to ``max_workers`` requests at the same time (8 by default), each on a fresh clone of the agent that shares its model (:meth:`~sdialog.agents.Agent.clone`), e.g. ``support.serve(port=1333, max_workers=16)``. Stateful agents (``stateless=False``) keep a single conversation, so they process one request at a time, and so do agents with a local Hugging Face model or with inspectors, since parallel calls would not be faster. With several workers, the agent's tools and custom functions (e.g. ``postprocess_fn``) may run at the same time for different requests, so they must be thread-safe; pass ``max_workers=1`` otherwise.
 
+.. _serving_agents_chat_ui:
+
+Web Chat GUI
+~~~~~~~~~~~~
+
+With ``chat_ui=True``, the server also serves a web chat to talk to the agent, at ``/chat``:
+
+.. code-block:: python
+
+    support.serve(port=1333, chat_ui=True)
+    # Open http://localhost:1333/chat in your browser
+
+The chat is a self-contained page (no external resources or build step) with light and dark themes. Users can keep several conversations, listed in a side panel. These are saved in the user's browser (``localStorage``) and sent in full with each message, so nothing is stored on the server; they are only available in the browser where they were started. When several agents are served (``Server.serve([agent1, agent2], chat_ui=True)``), users choose the agent when starting a new conversation.
+
+To customize it, pass a :class:`~sdialog.chat_ui.ChatUI` instead of ``True``:
+
+.. code-block:: python
+
+    from sdialog.chat_ui import ChatUI
+
+    support.serve(port=1333, chat_ui=ChatUI(
+        path="/support",                # served at http://localhost:1333/support
+        title="Help desk",              # default: the agent's name
+        multiple_conversations=False,   # a single conversation; "New chat" replaces it
+        markdown=True,                  # render replies as Markdown (default: plain text)
+        show_events=True,               # show reasoning and tool calls (collapsed) above each reply
+        embed_origins=["https://example.org"],  # sites allowed to embed it (default: any site)
+    ))
+
+``show_events`` is meant for development: reasoning, orchestration instructions and tool outputs may contain information that end users should not see.
+
+**Embedding the chat in other pages.** The chat adapts to being embedded: in an ``<iframe>`` it switches to a compact layout, with the conversation list in a drawer. There are two ways to add it to a page:
+
+.. code-block:: html
+
+    <!-- 1. As part of the page -->
+    <iframe src="https://your-server:1333/chat" style="width: 400px; height: 600px; border: 0"></iframe>
+
+    <!-- 2. As a floating chat button that opens the chat in a panel -->
+    <script src="https://your-server:1333/chat/widget.js" defer></script>
+
+The button accepts optional ``data-position="left"``, ``data-color="#0f766e"``, ``data-label="Chat with us"`` and ``data-open="true"`` attributes. Add ``?embed=1`` or ``?embed=0`` to the chat URL to force the compact or full layout. Pages served over HTTPS can only embed a chat that is also served over HTTPS (e.g. behind a reverse proxy). Browsers keep the conversations of an embedded chat separately for each site that embeds it.
+
+Chat messages count towards the server's rate limits, like other chat requests. The chat needs ``stateless=True`` (the default): a stateful agent keeps a single conversation, shared by everyone using the chat.
+
 .. _serving_agents_whatsapp:
 
 Serving Agents on WhatsApp

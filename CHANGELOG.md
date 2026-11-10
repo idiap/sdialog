@@ -6,6 +6,10 @@ All notable changes to SDialog will be documented here.
 
 ## [Unreleased]
 
+### Added
+- **sdialog.server**:
+  - `agent.serve(chat_ui=True)` also serves a web chat GUI at `/chat`, with several conversations saved in the user's browser, light and dark themes, and a compact layout when embedded in other pages, with an `<iframe>` or with the floating chat button of `/chat/widget.js`. `ChatUI(...)` sets its path, title, single or multiple conversations, Markdown replies, whether to show the agent's reasoning and tool calls, and which sites can embed it.
+
 ### Changed
 - **sdialog.evaluation**:
   - `ReadabilityScore` and `ConversationalFeatures` name their results with dashes, like the feature names used to request them (e.g. `"flesch-reading-ease"`, `"question-rate"` instead of `"flesch_reading_ease"`, `"question_rate"`), and their default names are `"readability-score"` and `"conversational-features"`.

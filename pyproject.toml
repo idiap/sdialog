@@ -48,7 +48,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 sdialog = ["**/*.yaml", "**/*.j2", "evaluation/dialog2flow/util/visualization/**",
-           "audio/tts/dia2/_dia2/LICENSE"]
+           "audio/tts/dia2/_dia2/LICENSE", "chat_ui/static/*"]
 
 [tool.pytest.ini_options]
 pythonpath = "src/"

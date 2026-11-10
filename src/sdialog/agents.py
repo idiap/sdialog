@@ -28,6 +28,7 @@ from .config import config
 from jinja2 import Template
 
 from . import Dialog, Turn, Event, Instruction, Context
+from .chat_ui import ChatUI
 from .personas import BasePersona
 from .orchestrators import BaseOrchestrator
 from .interpretability import ResponseHook, ActivationHook, Inspector
@@ -728,7 +729,8 @@ class Agent:
               log_level: str = "info",
               max_requests_per_minute: Optional[int] = 30,
               max_requests_per_hour: Optional[int] = 300,
-              max_workers: Optional[int] = None):
+              max_workers: Optional[int] = None,
+              chat_ui: Union[bool, ChatUI] = False):
         """
         Starts a REST API server to interact with the agent.
 
@@ -754,12 +756,17 @@ class Agent:
                             Hugging Face model or inspectors serve one request at a time. With several workers, the
                             agent's tools must be thread-safe.
         :type max_workers: Optional[int]
+        :param chat_ui: If True, also serve a web chat GUI to talk to the agent at ``/chat`` (e.g.
+                        ``http://localhost:1333/chat``), which can also be embedded in other pages; pass a
+                        :class:`~sdialog.chat_ui.ChatUI` to customize it.
+        :type chat_ui: Union[bool, ChatUI]
         """
         from .server import Server
 
         return Server.serve(agents=self, host=host, port=port, stateless=stateless, debug=debug, log_level=log_level,
                             max_requests_per_minute=max_requests_per_minute,
-                            max_requests_per_hour=max_requests_per_hour, max_workers=max_workers)
+                            max_requests_per_hour=max_requests_per_hour, max_workers=max_workers,
+                            chat_ui=chat_ui)
 
     def serve_whatsapp(self,
                        port: int = 1234,
