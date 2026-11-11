@@ -20,7 +20,7 @@ import warnings
 from tqdm.auto import tqdm
 from math import exp, log, sqrt
 from pydantic import Field, create_model
-from typing import Annotated, Optional, Literal, Union, List, Dict, Tuple
+from typing import Annotated, Any, Optional, Literal, Union, List, Dict, Tuple
 
 from scipy import linalg
 from scipy.stats import norm, gaussian_kde
@@ -3106,3 +3106,76 @@ class DatasetComparator:
 
 # Alias for backward compatibility and simplicity
 Comparator = DatasetComparator
+
+
+METRICS = {
+    "readability": ReadabilityScore,
+    "conversational": ConversationalFeatures,
+    "mean-turn-length": MeanTurnLengthScore,
+    "hesitation-rate": HesitationRateScore,
+    "turn-taking-ratio": TurnTakingRatioScore,
+    "question-rate": QuestionRateScore,
+    "lexical-diversity": LexicalDiversityScore,
+    "back-channel-rate": BackChannelRateScore,
+    "filler-word-density": FillerWordDensityScore,
+    "gunning-fog": GunningFogScore,
+    "flesch-reading-ease": FleschReadingEaseScore,
+    "coleman-liau": ColemanLiauScore,
+    "linsear-write": LinsearWriteScore,
+    "dale-chall": DaleChallScore,
+}
+
+
+def evaluate_dialog(dialog: Dialog,
+                    metrics: Optional[Union[str, BaseDialogScore, List[Union[str, BaseDialogScore]]]] = None
+                    ) -> Dict[str, Any]:
+    """
+    Evaluate a single dialog with one or more metrics, returning each metric's result unchanged.
+
+    Strings are shortcuts for the default setup of a metric (see ``METRICS``); LLM judges and dialog flow
+    scores need a model or reference data, so pass them as configured instances.
+
+    Example:
+
+        .. code-block:: python
+
+            from sdialog.evaluation import evaluate_dialog, ReadabilityScore
+
+            evaluate_dialog(dialog)                                  # readability and conversational features
+            evaluate_dialog(dialog, "readability")                   # same as ReadabilityScore()(dialog)
+            evaluate_dialog(dialog, ["question-rate", ReadabilityScore(speaker="AI")])
+            # -> {"question-rate": 25.0, "readability-score": {...}}
+
+    :param dialog: The dialog to evaluate.
+    :type dialog: Dialog
+    :param metrics: A metric name or ``BaseDialogScore`` instance, or a list of them. If ``None`` (default),
+                    ``["readability", "conversational"]``.
+    :type metrics: Optional[Union[str, BaseDialogScore, List[Union[str, BaseDialogScore]]]]
+    :return: The result of the metric as is if a single metric (not in a list) is given; otherwise a dict with
+             one key per metric (the given string, or the metric name) and its result as value.
+    :rtype: Dict[str, Any]
+    :raises ValueError: If a metric name is unknown or two metrics have the same key.
+    :raises TypeError: If a metric is neither a ``str`` nor a ``BaseDialogScore``.
+    """
+    single = metrics is not None and not isinstance(metrics, list)
+    if metrics is None:
+        metrics = ["readability", "conversational"]
+    elif single:
+        metrics = [metrics]
+
+    results = {}
+    for metric in metrics:
+        if isinstance(metric, str):
+            if metric not in METRICS:
+                raise ValueError(f"Unknown metric '{metric}'. Valid names: {sorted(METRICS)}. "
+                                 "Pass a configured BaseDialogScore instance for other metrics.")
+            key, score = metric, METRICS[metric]()
+        elif isinstance(metric, BaseDialogScore):
+            key, score = metric.name or upper_camel_to_dash(type(metric).__name__), metric
+        else:
+            raise TypeError(f"Metrics must be a str or a BaseDialogScore, got {type(metric).__name__}.")
+        if key in results:
+            raise ValueError(f"Two metrics have the same key '{key}'; pass name= to tell them apart.")
+        results[key] = score(dialog)
+
+    return next(iter(results.values())) if single else results

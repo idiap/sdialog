@@ -276,3 +276,47 @@ def test_dataset_comparator(tmp_path, capsys):
 def test_base_dataset_evaluator_is_abstract():
     with pytest.raises(TypeError):
         BaseDatasetEvaluator()
+
+
+class TurnCount(BaseDialogScore):
+    def score(self, dialog):
+        return len(dialog.turns)
+
+
+def test_dialog_evaluate_default():
+    d = make_dialog("Hello brooo, how are you?", "I am chill, thanks for asking.")
+    res = d.evaluate()
+    assert set(res) == {"readability", "conversational"}
+    assert res["readability"] == ReadabilityScore()(d)
+    assert res["conversational"] == ConversationalFeatures()(d)
+
+
+def test_dialog_evaluate_one_string():
+    d = make_dialog("Is this a question?", "No.")
+    assert d.evaluate("question-rate") == QuestionRateScore()(d)
+    assert d.evaluate("readability") == ReadabilityScore()(d)
+
+
+def test_dialog_evaluate_several_strings_and_an_instance():
+    d = make_dialog("Is this a question?", "No.")
+    res = d.evaluate(["readability", "question-rate"])
+    assert res == {"readability": ReadabilityScore()(d), "question-rate": QuestionRateScore()(d)}
+    res = d.evaluate([ReadabilityScore(speaker="Alice"), TurnCount()])
+    assert res == {"readability-score": ReadabilityScore(speaker="Alice")(d), "turn-count": 2}
+
+
+def test_dialog_evaluate_custom_score_instance():
+    d = make_dialog("a", "b", "c")
+    assert d.evaluate(TurnCount()) == 3
+
+
+def test_dialog_evaluate_errors():
+    d = make_dialog("a", "b")
+    with pytest.raises(ValueError, match="question-rate"):
+        d.evaluate("nope")
+    with pytest.raises(TypeError):
+        d.evaluate(42)
+    with pytest.raises(TypeError):
+        d.evaluate(["readability", 3])
+    with pytest.raises(ValueError, match="name="):
+        d.evaluate([ReadabilityScore(), ReadabilityScore()])

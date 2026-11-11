@@ -27,9 +27,12 @@ import tempfile
 from tqdm.auto import tqdm
 from pydantic import BaseModel, Field
 from print_color import print as cprint
-from typing import List, Union, Optional, Any, Pattern, Dict
+from typing import List, Union, Optional, Any, Pattern, Dict, TYPE_CHECKING
 
 from .base import BaseAttributeModel
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .evaluation.base import BaseDialogScore
 from .util import __version__, make_serializable, get_timestamp, remove_newlines, get_universal_id, _get_dynamic_version
 
 __version__ = __version__
@@ -563,6 +566,37 @@ class Dialog(BaseModel):
 
         return to_audio(self, path=path, preset=preset, voices=voices, stereo=stereo,
                         sample_rate=sample_rate, seed=seed, **kwargs)
+
+    def evaluate(self,
+                 metrics: Optional[Union[str, "BaseDialogScore", List[Union[str, "BaseDialogScore"]]]] = None
+                 ) -> Dict[str, Any]:
+        """
+        Evaluates the dialogue with one or more metrics (see :func:`sdialog.evaluation.evaluate_dialog`).
+
+        Each metric's result is exactly what calling the metric on the dialog returns.
+
+        Example:
+
+            .. code-block:: python
+
+                from sdialog.evaluation import ReadabilityScore, LLMJudgeRealDialog
+
+                dialog.evaluate()                               # readability and conversational features
+                dialog.evaluate("readability")                  # same as ReadabilityScore()(dialog)
+                dialog.evaluate(["readability", "question-rate"])
+                dialog.evaluate([ReadabilityScore(speaker="AI"), LLMJudgeRealDialog(model="openai:gpt-4.1")])
+
+        :param metrics: A metric name (e.g. "readability", "question-rate") or ``BaseDialogScore`` instance, or a
+                        list of them. If ``None`` (default), ``["readability", "conversational"]``.
+        :type metrics: Optional[Union[str, BaseDialogScore, List[Union[str, BaseDialogScore]]]]
+        :return: The metric's result as is for a single metric (not in a list); otherwise a dict with one key per
+                 metric and its result.
+        :rtype: Dict[str, Any]
+        :raises ValueError: If a metric name is unknown or two metrics have the same key.
+        :raises TypeError: If a metric is neither a ``str`` nor a ``BaseDialogScore``.
+        """
+        from sdialog.evaluation import evaluate_dialog  # import lazily: heavy imports and circular with this module
+        return evaluate_dialog(self, metrics)
 
     @staticmethod
     def from_huggingface(repo_id: str,

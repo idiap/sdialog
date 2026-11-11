@@ -7,6 +7,7 @@ All notable changes to SDialog will be documented here.
 ## [Unreleased]
 
 ### Added
+- **sdialog**: `Dialog.evaluate()` evaluates a dialog with metric names (e.g. `"readability"`, `"question-rate"`) or any `BaseDialogScore` instance, returning each metric's result unchanged (`sdialog.evaluation.evaluate_dialog`). Without arguments it computes the readability and conversational features.
 - **sdialog.server**:
   - `agent.serve(chat_ui=True)` also serves a web chat GUI at `/chat`, with several conversations saved in the user's browser, light and dark themes, and a compact layout when embedded in other pages, with an `<iframe>` or with the floating chat button of `/chat/widget.js`. `ChatUI(...)` sets its path, title, single or multiple conversations, Markdown replies, whether to show the agent's reasoning and tool calls, and which sites can embed it.
 
