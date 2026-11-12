@@ -1,4 +1,4 @@
-<a href="https://sdialog.github.io/"><img src="https://raw.githubusercontent.com/idiap/sdialog/master/docs/_static/logo-banner.png" alt="SDialog Logo" title="SDialog" height="150" /></a>
+<a href="https://sdialog.github.io/"><img src="https://raw.githubusercontent.com/idiap/sdialog/main/docs/_static/logo-banner.png" alt="SDialog Logo" title="SDialog" height="150" /></a>
 
 [![Documentation Status](https://app.readthedocs.org/projects/sdialog/badge/?version=latest)](https://sdialog.readthedocs.io)
 [![CI](https://img.shields.io/github/actions/workflow/status/idiap/sdialog/ci.yml?label=CI)](https://github.com/idiap/sdialog/actions/workflows/ci.yml)
@@ -11,36 +11,33 @@
 Quick links: [Website](https://sdialog.github.io/) • [GitHub](https://github.com/idiap/sdialog) • [Docs](https://sdialog.readthedocs.io) • [API](https://sdialog.readthedocs.io/en/latest/api/sdialog.html) • [Paper](https://aclanthology.org/2026.eacl-demo.23/) • [Demo (video)](demo.md) • [Tutorials](https://github.com/idiap/sdialog/tree/main/tutorials) • [Datasets (HF)](https://huggingface.co/datasets/sdialog) • [Issues](https://github.com/idiap/sdialog/issues)
 
 ---
-SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It aims to bridge **agent construction → user simulation → dialog generation → evaluation** in a single reproducible workflow, so you can generate reliable, controllable dialog systems or data at scale.
-
-It standardizes a Dialog schema and offers persona‑driven multi‑agent simulation with LLMs, composable orchestration, built‑in metrics, and mechanistic interpretability.
+SDialog is an MIT-licensed open-source toolkit for building, simulating, and evaluating LLM-based conversational agents end-to-end. It brings **agent construction → user simulation → dialog generation → evaluation → serving** together in a single reproducible workflow: build persona-driven agents with tools and orchestration, test them against simulated users, generate dialog datasets (as text or realistic audio), score them, look inside the model, and put the agents in front of real users.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/idiap/sdialog/master/docs/_static/sdialog-modules.png" alt="SDialog Logo" title="SDialog" height="650" />
+  <img src="https://raw.githubusercontent.com/idiap/sdialog/main/docs/_static/sdialog-modules.png" alt="SDialog modules" title="SDialog modules" height="650" />
 </p>
 
 ## ✨ Key features
-- Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#project-vision--community-call))_
+- Standard dialog schema with JSON import/export _(aiming to standardize dialog dataset formats [with your help 🙏](#-project-vision--community-call))_
 - Persona‑driven multi‑agent simulation with contexts, tools, and thoughts
 - Composable orchestration for precise control over behavior and flow
 - Built‑in evaluation (metrics + LLM‑as‑judge) for comparison and iteration
 - Native mechanistic interpretability (inspect and steer activations)
-- Serve agents to real users through an OpenAI-compatible API (e.g. Open WebUI) or on WhatsApp
+- Audio generation: turn dialogs into realistic, annotated conversations (voices, rooms, noise, telephone codecs)
+- Serve agents to real users through an OpenAI-compatible API (e.g. Open WebUI), a built-in web chat you can embed in any page, or WhatsApp
 - Easy creation of user-defined components by inheriting from base classes (personas, metrics, orchestrators, etc.)
-- Interoperability across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more.
-
-If you are building conversational systems, benchmarking dialog models, producing synthetic training corpora, simulating diverse users to test or probe conversational systems, or analyzing internal model behavior, SDialog provides an end‑to‑end workflow.
-
+- Interoperability across OpenAI, Hugging Face, Ollama, AWS Bedrock, Google GenAI, Anthropic, and more
 
 ## ⚡ Installation
 
 ```bash
-pip install sdialog
+pip install sdialog          # Python >= 3.9
+pip install sdialog[audio]   # optional: audio generation
 ```
 
 ## 🏁 Quickstart tour
 
-Here's a short, hands‑on example: a support agent helps a customer disputing a double charge. We add a small refund rule and two simple tools, generate three dialogs for evaluation, then serve the agent on port 1333 for Open WebUI or any OpenAI‑compatible client.
+A support agent helps a customer disputing a double charge. We give the agent two tools and a refund rule, simulate three conversations with an LLM-played customer, check each one with an LLM judge, and finally serve the agent to real users.
 
 ```python
 import sdialog
@@ -48,69 +45,81 @@ from sdialog import Context
 from sdialog.agents import Agent
 from sdialog.personas import SupportAgent, Customer
 from sdialog.orchestrators import SimpleReflexOrchestrator
+from sdialog.evaluation import LLMJudgeYesNo
 
-# First, let's set our preferred default backend:model and parameters
-sdialog.config.llm("openai:gpt-4.1", temperature=1, api_key="YOUR_KEY")  # or export OPENAI_API_KEY=YOUR_KEY
-# sdialog.config.llm("ollama:qwen3:14b")  # etc.
+# Pick any backend:model (here OpenAI, with OPENAI_API_KEY set), or e.g. "ollama:qwen3:14b" to run locally for free
+sdialog.config.llm("openai:gpt-4.1", temperature=1)
 
-# Let's define our personas (use built-ins like in this example, or create your own!)
+# Personas: built-in ones like these, or your own
 support_persona = SupportAgent(name="Ava", politeness="high", communication_style="friendly")
 customer_persona = Customer(name="Riley", issue="double charge", desired_outcome="refund")
 
-# (Optional) Let's define two mock tools (just plain Python functions) for our support agent
-def verify_account(user_id):
+# Tools are plain Python functions (the docstring tells the agent what they do)
+def verify_account(user_id: str) -> dict:
     """Verify user account by user id."""
     return {"user_id": user_id, "verified": True}
-def refund(amount):
+
+def refund(amount: float) -> dict:
     """Process a refund for the given amount."""
     return {"status": "refunded", "amount": amount}
 
-# (Optional) Let's also include a small rule-based orchestrator for our support agent
-react_refund = SimpleReflexOrchestrator(
-  condition=lambda utt: "refund" in utt.lower(),
-  instruction="Follow refund policy; verify account, apologize, refund.",
-)
+support_agent = Agent(persona=support_persona, tools=[verify_account, refund], name="Support")
+simulated_customer = Agent(persona=customer_persona, first_utterance="Hi!", name="Customer")
 
-# Now, let's create the agents!
-support_agent = Agent(
-  persona=support_persona,
-  think=True,  # Let's also enable thinking mode
-  tools=[verify_account, refund],
-  name="Support"
+# Orchestrators steer an agent during the conversation, e.g. when the customer asks for a refund
+refund_rule = SimpleReflexOrchestrator(
+    condition=lambda utt: "refund" in utt.lower(),
+    instruction="Follow the refund policy: verify the account, apologize, then refund.",
 )
-simulated_customer = Agent(
-  persona=customer_persona,
-  first_utterance="Hi!",
-  name="Customer"
-)
+support_agent = support_agent | refund_rule
 
-# Since we have one orchestrator, let's attach it to our target agent
-support_agent = support_agent | react_refund
-
-# Let's generate 3 dialogs between them! (we can evaluate them later)
-# (Optional) Let's also define a concrete conversational context for the agents in these dialogs
+# Simulate 3 conversations in a web chat and check each one with an LLM judge
 web_chat = Context(location="chat", environment="web", circumstances="billing")
+judge = LLMJudgeYesNo("Did the support agent verify the customer's account before the refund?", reason=True)
 for ix in range(3):
-  dialog = simulated_customer.dialog_with(support_agent, context=web_chat)  # Generate the dialog
-  dialog.to_file(f"dialog_{ix}.json")  # Save it
-  dialog.print(all=True)  # And pretty print it with all its events (thoughts, orchestration, etc.)
+    dialog = simulated_customer.dialog_with(support_agent, context=web_chat)
+    dialog.print(all=True)  # including tool calls and orchestration
+    dialog.to_file(f"dialog_{ix}.json")
+    print("Verified first?", judge.judge(dialog).positive)
 
-# Finally, let's serve our support agent to interact with real users (OpenAI-compatible API)
-#    Point Open WebUI or any OpenAI-compatible client to: http://localhost:1333
-support_agent.serve(port=1333)
-# ...or let them chat with it on WhatsApp (Meta WhatsApp Cloud API)
+# Finally, serve the agent to real users: an OpenAI-compatible API (e.g. for Open WebUI)
+# at http://localhost:1333, plus a web chat at http://localhost:1333/chat
+support_agent.serve(port=1333, chat_ui=True)
+# ...or on WhatsApp (Meta WhatsApp Cloud API)
 # support_agent.serve_whatsapp()
 ```
+
+<details>
+<summary>Example output (first dialog)</summary>
+
+```
+[Customer] Hi!
+[Support] Hello! How can I help you with your billing today?
+[Customer] Hi, I noticed I was charged twice for the same item on my recent bill. Can you help me get a refund for the extra charge?
+[instruct-SimpleReflexOrchestrator] (Support) Follow the refund policy: verify the account, apologize, then refund.
+[tool-call] (Support) {'name': 'verify_account', 'args': {'user_id': 'user_id'}}
+[tool-output] {'name': 'verify_account', 'output': '{"user_id": "user_id", "verified": true}'}
+[Support] I'm so sorry for the inconvenience with the double charge. I'll process a refund for the extra amount right away. Could you please confirm the exact amount you'd like refunded?
+[Customer] Sure! The extra charge was $29.99, so I'd like a refund for that amount, please.
+...
+[tool-call] (Support) {'name': 'refund', 'args': {'amount': 29.99}}
+[Support] Thank you for confirming! I've processed a refund of $29.99 for the extra charge. ...
+...
+Verified first? False
+```
+
+The agent never asked for the customer's ID, it called `verify_account` with a placeholder, and the judge caught it. The other two dialogs asked for the ID first and passed (`True`).
+</details>
+
 > [!TIP]
 > - Choose your [LLMs and backends freely](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#configuration-layer).
-> - Personas and context can be [automatically generated](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) (e.g. generate different customer profiles!).
+> - Personas and contexts can be [automatically generated](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#attribute-generators) (e.g. many different customer profiles!).
 
 > [!NOTE]
-> - See ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/agents/1.agents_with_tools_and_thoughts.ipynb) for a more complete example.
-> - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for more details on server options.
-> - See [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp) to set up a Meta app and serve agents on WhatsApp.
+> - See the ["agents with tools and thoughts" tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/agents/1.agents_with_tools_and_thoughts.ipynb) for a more complete example.
+> - See [Serving Agents via REST API](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents) for the server options, [Web Chat GUI](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#web-chat-gui) to customize the chat and embed it in other pages, and [Serving Agents on WhatsApp](https://sdialog.readthedocs.io/en/latest/sdialog/index.html#serving-agents-on-whatsapp) to set up a Meta app.
 
-### 🧪 Testing remote systems with simulated users
+## 🧪 Testing remote systems with simulated users
 
 <details>
 <summary>Probe OpenAI‑compatible deployed systems with controllable simulated users and capture dialogs for evaluation.</summary>
@@ -125,15 +134,15 @@ You can also use SDialog as a controllable test harness for any OpenAI‑compati
 
 Core idea: wrap your system as an `Agent` using `openai:` as the prefix of your model name string, talk to it with simulated user `Agent`s, and capture `Dialog`s you can save, diff, and score.
 
-Below is a minimal example where our simulated customer interacts once with your hypothetical remote endpoint:
+Below is a minimal example where the simulated customer from the Quickstart talks to your hypothetical remote endpoint:
 
 ```python
 # Our remote system (your conversational backend exposing an OpenAI-compatible API)
 system = Agent(
-  model="openai:your/model",  # Model name exposed by your server
-  openai_api_base="http://your-endpoint.com:8000/v1",  # Base URL of the service
-  openai_api_key="EMPTY",  # Or a real key if required
-  name="System"
+    model="openai:your/model",  # Model name exposed by your server
+    openai_api_base="http://your-endpoint.com:8000/v1",  # Base URL of the service
+    openai_api_key="EMPTY",  # Or a real key if required
+    name="System"
 )
 
 # Let's make our simulated customer talk with the system
@@ -142,7 +151,7 @@ dialog.to_file("dialog_0.json")
 ```
 </details>
 
-### 💾 Loading and saving dialogs
+## 💾 Loading and saving dialogs
 
 <details>
 <summary>Import, export, and transform dialogs from JSON, text, CSV, or Hugging Face datasets.</summary>
@@ -188,6 +197,8 @@ See [Dialog section](https://sdialog.readthedocs.io/en/latest/sdialog/index.html
 Dialogs can be evaluated using the different components available inside the `sdialog.evaluation` module.
 Use [built‑in metrics](https://sdialog.readthedocs.io/en/latest/api/sdialog.html#module-sdialog.evaluation)—conversational features, readability, embedding-based, LLM-as-judge, flow-based, functional correctness (30+ metrics across six categories)—or easily create new ones, then aggregate and compare datasets (sets of dialogs) via `Comparator`.
 
+For instance, after running the Quickstart with two different models and saving their dialogs in `output/model-A` and `output/model-B`:
+
 ```python
 from sdialog import Dialog
 from sdialog.evaluation import LLMJudgeYesNo, ToolSequenceValidator
@@ -195,19 +206,19 @@ from sdialog.evaluation import FrequencyEvaluator, Comparator
 
 # Two quick checks: did the agent ask for verification, and did it call tools in order?
 judge_verify = LLMJudgeYesNo(
-  "Did the support agent try to verify the customer?",
-  reason=True,
+    "Did the support agent try to verify the customer?",
+    reason=True,
 )
 tool_seq = ToolSequenceValidator(["verify_account", "refund"])
 
 comparator = Comparator([
-  FrequencyEvaluator(judge_verify, name="Asked for verification"),
-  FrequencyEvaluator(tool_seq, name="Correct tool order"),
+    FrequencyEvaluator(judge_verify, name="Asked for verification"),
+    FrequencyEvaluator(tool_seq, name="Correct tool order"),
 ])
 
 results = comparator({
-  "model-A": Dialog.from_folder("output/model-A"),
-  "model-B": Dialog.from_folder("output/model-B"),
+    "model-A": Dialog.from_folder("output/model-A"),
+    "model-B": Dialog.from_folder("output/model-B"),
 })
 comparator.plot()
 ```
@@ -238,7 +249,7 @@ agent("How are you?")
 agent("Cool!")
 
 # Let's get the last response's first token activation vector!
-act = inspector[-1][0].act # [response index][token index]
+act = inspector[-1][0].act  # [response index][token index]
 ```
 
 Steering intervention (subtracting a direction):
@@ -253,7 +264,6 @@ agent_steered("You are an extremely upset assistant")  # Agent "can't get angry 
 
 > [!TIP]
 > See [the tutorial](https://github.com/idiap/sdialog/blob/main/tutorials/interpretability/1.agent%2Binspector_refusal.ipynb) on using SDialog to remove the refusal capability from LLaMA 3.2.
-
 
 ## 🔊 Audio generation
 
