@@ -282,6 +282,19 @@ class TestChatCompletions:
         assert data["object"] == "chat.completion"
         assert "choices" in data
 
+    def test_model_name_without_tag(self, server_client, mock_agent):
+        """Test that a model name without a tag means its "latest" tag, like in Ollama."""
+        Server.add_agent(mock_agent, "test-model:latest")
+
+        request_data = {"model": "test-model", "messages": [{"role": "user", "content": "Hello"}]}
+        response = server_client.post("/v1/chat/completions", json=request_data)
+        assert response.status_code == 200
+        assert response.json()["model"] == "test-model:latest"
+        assert server_client.post("/api/chat", json=request_data).status_code == 200
+        assert server_client.post("/api/show", json={"name": "test-model"}).status_code == 200
+        Server.reset_agent("test-model")
+        assert mock_agent.call_count == 0
+
     def test_chat_completion_debug_flag_propagated(self, server_client, mock_agent):
         """Test that server debug mode is forwarded to the agent call."""
         Server._setup_agents(mock_agent, debug=True)

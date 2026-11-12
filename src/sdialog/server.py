@@ -153,6 +153,11 @@ class Server:
     _max_workers: Optional[int] = None  # None: AgentPool's default
     _pools: Dict[str, AgentPool] = {}  # model name -> pool of the agent and its clones, created on first request
 
+    @staticmethod
+    def _full_model_name(model_name: str) -> str:
+        # Like Ollama, a name without a tag means its "latest" tag (e.g. "Support" is "Support:latest")
+        return model_name if ":" in model_name else f"{model_name}:latest"
+
     @classmethod
     def _setup_agents(cls,
                       agents: Union[Agent, List[Agent]],
@@ -188,8 +193,7 @@ class Server:
             else:
                 model_name = model_names[ix]
 
-            if ":" not in model_name:
-                model_name = f"{model_name}:latest"
+            model_name = cls._full_model_name(model_name)
 
             # Register the agent
             agent._can_finish = False  # Disable internal end-of-dialog detection; turn-taking is client-driven
@@ -742,8 +746,9 @@ class Server:
                 body = await request.json()
                 model_name = body.get("name", "")
 
-                if model_name not in cls._agents:
+                if cls._full_model_name(model_name) not in cls._agents:
                     raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found")
+                model_name = cls._full_model_name(model_name)
 
                 agent = cls._agents[model_name]
                 return {
@@ -880,11 +885,12 @@ class Server:
         :rtype: Union[JSONResponse, StreamingResponse]
         """
         # Check if model exists
-        if request.model not in cls._agents:
+        if cls._full_model_name(request.model) not in cls._agents:
             raise HTTPException(
                 status_code=404,
                 detail=f"Model '{request.model}' not found. Available models: {list(cls._agents.keys())}"
             )
+        request.model = cls._full_model_name(request.model)
 
         try:
             events = await cls._generate_events(request)
@@ -943,12 +949,13 @@ class Server:
         :return: Generator yielding Ollama streaming response chunks.
         """
         # Check if model exists
-        if request.model not in cls._agents:
+        if cls._full_model_name(request.model) not in cls._agents:
             error_response = {
                 "error": f"Model '{request.model}' not found. Available models: {list(cls._agents.keys())}"
             }
             yield json.dumps(error_response) + "\n"
             return
+        request.model = cls._full_model_name(request.model)
 
         try:
             events = await cls._generate_events(request)
@@ -1141,7 +1148,8 @@ class Server:
         :param seed: Optional seed for the reset.
         :type seed: Optional[int]
         """
-        if model_name in cls._agents:
+        if cls._full_model_name(model_name) in cls._agents:
+            model_name = cls._full_model_name(model_name)
             with cls._agent_locks[model_name]:
                 cls._agents[model_name].reset(seed=seed)
             logger.info(f"Reset agent '{model_name}'")
