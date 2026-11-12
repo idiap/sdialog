@@ -35,12 +35,12 @@ from .util import __version__, make_serializable, get_timestamp, remove_newlines
 __version__ = __version__
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='[%(asctime)s] %(levelname)s:%(name)s:%(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
+# Show SDialog's own info messages, but not those of other libraries (e.g. one per HTTP request)
+logging.getLogger(__name__).setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Arguments of the removed legacy audio pipeline, rejected by Dialog.to_audio() with a clear error

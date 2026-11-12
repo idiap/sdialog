@@ -1,5 +1,7 @@
 import csv
 import os
+import subprocess
+import sys
 
 from sdialog.config import config
 from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version, Context
@@ -284,3 +286,12 @@ def test_context_print(capsys):
     assert "location" in out.lower()
     assert "Lab" in out
     assert "Study" in out
+
+
+def test_import_logs_info_only_for_sdialog():
+    # In a fresh process, since pytest sets up logging itself
+    code = ("import logging, sdialog; "
+            "print(logging.getLogger('sdialog.util').isEnabledFor(logging.INFO), "
+            "logging.getLogger('httpx2').isEnabledFor(logging.INFO))")
+    output = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    assert output.split() == ["True", "False"]
