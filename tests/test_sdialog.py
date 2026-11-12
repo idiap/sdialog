@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 
+import sdialog
 from sdialog.config import config
 from sdialog import Dialog, Turn, Event, Instruction, _get_dynamic_version, Context
 
@@ -289,9 +290,13 @@ def test_context_print(capsys):
 
 
 def test_import_logs_info_only_for_sdialog():
-    # In a fresh process, since pytest sets up logging itself
+    # In a fresh process, since pytest sets up logging itself. The process imports the same sdialog as pytest,
+    # which may not be installed (pytest finds it through its pythonpath setting)
     code = ("import logging, sdialog; "
             "print(logging.getLogger('sdialog.util').isEnabledFor(logging.INFO), "
             "logging.getLogger('httpx2').isEnabledFor(logging.INFO))")
-    output = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
-    assert output.split() == ["True", "False"]
+    src = os.path.dirname(os.path.dirname(sdialog.__file__))
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [src, os.environ.get("PYTHONPATH")]))}
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.split() == ["True", "False"]
