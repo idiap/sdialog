@@ -121,6 +121,15 @@ class TestChatUIOptions:
         title = re.search(r"<title>(.*)</title>", html).group(1)
         assert title == "&lt;/script&gt;&lt;script&gt;alert(1)&lt;/script&gt;{{base}}"
 
+    def test_host_links(self):
+        assert ChatUI().host_links == "new-tab"
+        assert ChatUI().page_config(["Support:latest"])["hostLinks"] == "new-tab"
+        assert ChatUI(host_links="history").page_config(["Support:latest"])["hostLinks"] == "history"
+        for value in ["navigate", "history"]:
+            assert f'var serverLinks = "{value}";' in ChatUI(host_links=value).render_widget()
+        with pytest.raises(ValueError, match="host_links"):
+            ChatUI(host_links="same-tab")
+
 
 class TestEventsToUI:
 
@@ -159,6 +168,14 @@ class TestChatUIRoutes:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith(media_type)
         assert len(response.content) > 1000
+        assert response.headers["cache-control"] == "no-cache"
+        assert response.headers["x-content-type-options"] == "nosniff"
+
+    def test_widget_gets_the_host_links_setting(self, client):
+        assert 'var serverLinks = "new-tab";' in client.get("/chat/widget.js").text
+        Server._set_chat_ui(ChatUI(host_links="history"), "0.0.0.0", 1333)
+        assert 'var serverLinks = "history";' in client.get("/chat/widget.js").text
+        assert page_config(client.get("/chat"))["hostLinks"] == "history"
 
     def test_reply_gets_the_whole_conversation(self, client, agent):
         messages = [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello!"},

@@ -14,6 +14,10 @@
   var embedded = params.has("embed") ? params.get("embed") !== "0" : isInFrame();
   var inWidget = params.get("widget") === "1";
   var STORAGE_VERSION = 1;
+  var LINK_MODES = ["new-tab", "navigate", "history"];
+  // Origin of the page with the chat button (widget.js), whose links are handed to it (see ChatUI.host_links)
+  var hostOrigin = inWidget && window.parent !== window ? parseHostOrigin(params.get("host")) : null;
+  var hostLinks = LINK_MODES.indexOf(params.get("links")) !== -1 ? params.get("links") : config.hostLinks;
 
   var el = {};
   ["app", "sidebar", "scrim", "conversation-list", "new-chat", "new-chat-side", "open-sidebar", "close-sidebar",
@@ -29,6 +33,17 @@
 
   function isInFrame() {
     try { return window.self !== window.top; } catch (e) { return true; }
+  }
+
+  function parseHostOrigin(value) {
+    var url;
+    try { url = new URL(value); } catch (e) { return null; }
+    if (url.origin !== value || (url.protocol !== "https:" && url.protocol !== "http:")) return null;
+    // Where the browser tells (not Firefox), the page embedding the chat must be that site. Otherwise, a wrong
+    // origin only means that link messages are dropped, since they are sent to that origin only
+    var ancestors = window.location.ancestorOrigins;
+    if (ancestors && ancestors.length && ancestors[0] !== value) return null;
+    return value;
   }
 
   /* Storage */
@@ -392,7 +407,11 @@
     }
     text = text.replace(/\u0000/g, "")
       .replace(/`([^`\n]+)`/g, function (_, code) { return keep("<code>" + escapeHtml(code) + "</code>"); })
-      .replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, function (_, label, url) {
+      .replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+|\/(?!\/)[^\s)]*)\)/g, function (link, label, url) {
+        if (url.charAt(0) === "/") {  // a path on the site with the chat button, if any
+          if (!hostOrigin) return link;
+          url = hostOrigin + url;
+        }
         return keep("<a href=\"" + escapeHtml(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
                     escapeHtml(label) + "</a>");
       });
@@ -533,6 +552,19 @@
       window.parent.postMessage({ type: "sdialog-chat:close" }, "*");
     });
   }
+
+  // Links to the host site are opened by the chat button's script in that page (plain clicks only, so that
+  // Ctrl/Cmd+click still opens a new tab)
+  el.messages.addEventListener("click", function (event) {
+    if (!hostOrigin || hostLinks === "new-tab" || event.defaultPrevented || event.button !== 0 ||
+        event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    var link = event.target.closest ? event.target.closest(".bubble.md a[href]") : null;
+    var url;
+    try { url = link && new URL(link.href); } catch (e) { return; }
+    if (!url || url.origin !== hostOrigin) return;
+    event.preventDefault();
+    window.parent.postMessage({ type: "sdialog-chat:link", url: url.href }, hostOrigin);
+  });
 
   el.composer.addEventListener("submit", function (event) {
     event.preventDefault();

@@ -8,7 +8,7 @@ All notable changes to SDialog will be documented here.
 
 ### Added
 - **sdialog.server**:
-  - `agent.serve(chat_ui=True)` also serves a web chat GUI at `/chat`, with several conversations saved in the user's browser, light and dark themes, and a compact layout when embedded in other pages, with an `<iframe>` or with the floating chat button of `/chat/widget.js`. `ChatUI(...)` sets its path, title, single or multiple conversations, Markdown replies, whether to show the agent's reasoning and tool calls, and which sites can embed it.
+  - `agent.serve(chat_ui=True)` also serves a web chat GUI at `/chat`, with several conversations saved in the user's browser, light and dark themes, and a compact layout when embedded in other pages, with an `<iframe>` or with the floating chat button of `/chat/widget.js`. `ChatUI(...)` sets its path, title, single or multiple conversations, Markdown replies, whether to show the agent's reasoning and tool calls, which sites can embed it, and whether links to the site with the chat button open in a new tab or in that page (`host_links="navigate"`, or `"history"` for single-page apps).
 
 ### Changed
 - **sdialog.evaluation**:

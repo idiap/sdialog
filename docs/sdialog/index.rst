@@ -429,6 +429,33 @@ To customize it, pass a :class:`~sdialog.chat_ui.ChatUI` instead of ``True``:
 
 The button accepts optional ``data-position="left"``, ``data-color="#0f766e"``, ``data-label="Chat with us"`` and ``data-open="true"`` attributes. Add ``?embed=1`` or ``?embed=0`` to the chat URL to force the compact or full layout. Pages served over HTTPS can only embed a chat that is also served over HTTPS (e.g. behind a reverse proxy). Browsers keep the conversations of an embedded chat separately for each site that embeds it.
 
+**Links to the host site.** Links in the chat open in a new tab. With the chat button, links to the site that embeds it, including paths such as ``[Show on map](/?building=42)``, can instead be opened in that page while the chat stays open, with ``ChatUI(host_links=...)``:
+
+- ``"new-tab"`` (default): a new tab, like any other link.
+- ``"navigate"``: a normal page load of the link in the host page.
+- ``"history"``: for single-page apps, the link is shown without reloading the page: ``history.pushState()`` followed by a ``popstate`` event, which most routers listen to.
+
+Links to other sites always open in a new tab. A page can override the server's setting with ``data-links="new-tab|navigate|history"`` on the ``<script>`` element, or handle the links itself: the cancelable ``sdialog-chat:link`` event is dispatched on ``window`` first, with the URL in ``event.detail.url``. For example, for a single-page app that keeps its view in the URL (e.g. ``/?building=42``):
+
+.. code-block:: python
+
+    support = Agent(name="Support", response_details="To show a building on the map, "
+                    "write a link like [Show on map](/?building=<id>).")
+    support.serve(port=1333, chat_ui=ChatUI(markdown=True, host_links="history"))
+
+.. code-block:: html
+
+    <script src="https://your-server:1333/chat/widget.js" defer></script>
+    <script>
+      // Optional: use the app's router instead of the popstate event
+      window.addEventListener("sdialog-chat:link", function (event) {
+        event.preventDefault();
+        router.push(event.detail.url.slice(location.origin.length));  // e.g. Vue Router
+      });
+    </script>
+
+Links are only rendered with ``markdown=True``.
+
 Chat messages count towards the server's rate limits, like other chat requests. The chat needs ``stateless=True`` (the default): a stateful agent keeps a single conversation, shared by everyone using the chat.
 
 .. _serving_agents_whatsapp:

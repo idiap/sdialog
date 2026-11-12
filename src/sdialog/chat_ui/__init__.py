@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_FILES = {"chat.js": "text/javascript", "chat.css": "text/css", "widget.js": "text/javascript"}
 ROUTE_PREFIX = "sdialog_chat_ui"  # Name prefix of the chat routes, to replace them when served again
+HOST_LINKS = ("new-tab", "navigate", "history")
 
 
 @dataclass
@@ -47,6 +48,13 @@ class ChatUI:
     :param embed_origins: Origins of the pages allowed to embed the chat in an ``<iframe>`` (e.g.
                           ``["https://example.org"]``), besides the server itself. None (default) allows any page.
     :type embed_origins: Optional[List[str]]
+    :param host_links: What links to the website hosting the chat button (``widget.js``) do when clicked in the
+                       chat: ``"new-tab"`` (default) opens them in a new tab, like any other link; ``"navigate"``
+                       loads them in the host page; ``"history"`` shows them in the host page without reloading
+                       it, for single-page apps: ``history.pushState()`` followed by a ``popstate`` event. Links
+                       to other sites always open in a new tab. Pages can override it with the ``data-links``
+                       attribute of the ``widget.js`` script.
+    :type host_links: str
 
     Example:
 
@@ -63,6 +71,10 @@ class ChatUI:
             # Or with options
             support.serve(port=1333, chat_ui=ChatUI(title="Help desk", markdown=True,
                                                     embed_origins=["https://example.org"]))
+
+            # Links to the host site (e.g. "[Show on map](/?building=42)") update the page of a single-page
+            # app that embeds the chat button, instead of opening a new tab
+            support.serve(port=1333, chat_ui=ChatUI(markdown=True, host_links="history"))
     """
     path: str = "/chat"
     title: Optional[str] = None
@@ -70,6 +82,7 @@ class ChatUI:
     markdown: bool = False
     show_events: bool = False
     embed_origins: Optional[List[str]] = None
+    host_links: str = "new-tab"
 
     def __post_init__(self):
         self.path = "/" + self.path.strip("/")
@@ -77,6 +90,9 @@ class ChatUI:
             raise ValueError("ChatUI path cannot be the root path '/'")
         if isinstance(self.embed_origins, str):
             self.embed_origins = [self.embed_origins]
+        if self.host_links not in HOST_LINKS:
+            raise ValueError(f"ChatUI host_links must be one of {', '.join(map(repr, HOST_LINKS))}, "
+                             f"not {self.host_links!r}")
 
     def frame_ancestors(self) -> Optional[str]:
         """Value of the CSP ``frame-ancestors`` directive (None: any page can embed the chat)."""
@@ -106,7 +122,8 @@ class ChatUI:
                 "storageKey": f"sdialog-chat:{self.path}",
                 "multipleConversations": self.multiple_conversations,
                 "markdown": self.markdown,
-                "showEvents": self.show_events}
+                "showEvents": self.show_events,
+                "hostLinks": self.host_links}
 
     def render_page(self, model_names: List[str]) -> str:
         """Return the chat page's HTML, with its settings embedded as JSON."""
@@ -117,6 +134,11 @@ class ChatUI:
         values = {"config": config_json, "title": _escape_html(config["title"]), "base": _escape_html(self.path)}
         # Single pass, so that placeholders inside the values (e.g. a title "{{base}}") are left as they are
         return re.sub(r"\{\{(config|title|base)\}\}", lambda match: values[match.group(1)], html)
+
+    def render_widget(self) -> str:
+        """Return the chat button's script (``widget.js``), with the server's settings."""
+        script = (STATIC_DIR / "widget.js").read_text(encoding="utf-8")
+        return script.replace('"{{host_links}}"', json.dumps(self.host_links))
 
 
 def display_name(model_name: str) -> str:
@@ -203,7 +225,10 @@ def register_routes(app, server, chat_ui: ChatUI) -> None:
         return HTMLResponse(chat_ui.render_page(server.list_agents()), headers=chat_ui.page_headers())
 
     def static_file(name: str):
-        content = (STATIC_DIR / name).read_bytes()
+        if name == "widget.js":
+            content = chat_ui.render_widget().encode("utf-8")
+        else:
+            content = (STATIC_DIR / name).read_bytes()
 
         async def get_file():
             # The widget script is loaded by other sites, so it is also served to cross-origin requests

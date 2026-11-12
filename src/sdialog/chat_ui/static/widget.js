@@ -8,6 +8,20 @@
  *   data-color="#0f766e"         button color (default: indigo)
  *   data-label="Chat with us"    accessible name of the button (default: "Open chat")
  *   data-open="true"             open the chat when the page loads
+ *   data-links="history"         what links to this website do when clicked in the chat, overriding the
+ *                                server's ChatUI(host_links=...): "new-tab" opens them in a new tab,
+ *                                "navigate" loads them in this page, "history" shows them without reloading
+ *                                (history.pushState() and a "popstate" event, for single-page apps)
+ *
+ * Before handling a link, a cancelable "sdialog-chat:link" event is dispatched on window, with the link's URL in
+ * event.detail.url; call event.preventDefault() to handle the link yourself:
+ *
+ *   window.addEventListener("sdialog-chat:link", function (event) {
+ *     event.preventDefault();
+ *     myRouter.push(event.detail.url);
+ *   });
+ *
+ * Links to other websites always open in a new tab.
  *
  * SPDX-FileCopyrightText: Copyright © 2025 Idiap Research Institute <contact@idiap.ch>
  * SPDX-FileContributor: Sergio Burdisso <sergio.burdisso@idiap.ch>
@@ -20,7 +34,16 @@
   if (!script || window.__sdialogChatWidget) return;
   window.__sdialogChatWidget = true;
 
-  var chatUrl = script.src.replace(/\/widget\.js(\?.*)?$/, "") + "?embed=1&widget=1";
+  var LINK_MODES = ["new-tab", "navigate", "history"];
+  var serverLinks = "{{host_links}}";  // replaced by the server with ChatUI(host_links=...)
+  var linkMode = script.getAttribute("data-links");
+  if (LINK_MODES.indexOf(linkMode) === -1) {
+    linkMode = LINK_MODES.indexOf(serverLinks) !== -1 ? serverLinks : "new-tab";
+  }
+
+  // The chat learns this page's origin and the link mode from its URL, so it knows them from the first render
+  var chatUrl = script.src.replace(/\/widget\.js(\?.*)?$/, "") + "?embed=1&widget=1" +
+    "&host=" + encodeURIComponent(location.origin) + "&links=" + linkMode;
   var chatOrigin = new URL(chatUrl).origin;
   var side = script.getAttribute("data-position") === "left" ? "left" : "right";
   var color = script.getAttribute("data-color") || "#4f46e5";
@@ -92,8 +115,25 @@
     if (event.key === "Escape" && isOpen) setOpen(false);
   });
   window.addEventListener("message", function (event) {
-    if (event.origin === chatOrigin && event.data && event.data.type === "sdialog-chat:close") setOpen(false);
+    if (event.origin !== chatOrigin || !event.data) return;
+    if (event.data.type === "sdialog-chat:close") setOpen(false);
+    else if (event.data.type === "sdialog-chat:link") openLink(event.data.url);
   });
+
+  function openLink(url) {
+    var target;
+    try { target = new URL(url, location.href); } catch (e) { return; }
+    // Only links to this website (which also rules out "javascript:" and other schemes)
+    if (typeof url !== "string" || target.origin !== location.origin || linkMode === "new-tab") return;
+    var linkEvent = new CustomEvent("sdialog-chat:link", { detail: { url: target.href }, cancelable: true });
+    if (!window.dispatchEvent(linkEvent)) return;  // handled by the page
+    if (linkMode === "navigate") {
+      location.assign(target.href);
+    } else {
+      history.pushState(null, "", target.href);
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    }
+  }
 
   function mount() {
     document.body.appendChild(panel);
