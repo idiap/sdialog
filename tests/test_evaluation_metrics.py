@@ -301,6 +301,8 @@ def test_dialog_evaluate_several_strings_and_an_instance():
     d = make_dialog("Is this a question?", "No.")
     res = d.evaluate(["readability", "question-rate"])
     assert res == {"readability": ReadabilityScore()(d), "question-rate": QuestionRateScore()(d)}
+    assert d.evaluate(("readability", "turn-length")) == {"readability": ReadabilityScore()(d),
+                                                          "turn-length": TurnLength()(d)}
     res = d.evaluate([ReadabilityScore(speaker="Alice"), TurnCount()])
     assert res == {"readability-score": ReadabilityScore(speaker="Alice")(d), "turn-count": 2}
 

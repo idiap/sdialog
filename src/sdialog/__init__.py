@@ -30,10 +30,10 @@ from print_color import print as cprint
 from typing import List, Union, Optional, Any, Pattern, Dict, TYPE_CHECKING
 
 from .base import BaseAttributeModel
+from .util import __version__, make_serializable, get_timestamp, remove_newlines, get_universal_id, _get_dynamic_version
 
 if TYPE_CHECKING:  # pragma: no cover
     from .evaluation.base import BaseDialogScore
-from .util import __version__, make_serializable, get_timestamp, remove_newlines, get_universal_id, _get_dynamic_version
 
 __version__ = __version__
 

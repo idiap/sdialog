@@ -3112,6 +3112,7 @@ METRICS = {
     "readability": ReadabilityScore,
     "conversational": ConversationalFeatures,
     "mean-turn-length": MeanTurnLengthScore,
+    "turn-length": TurnLength,
     "hesitation-rate": HesitationRateScore,
     "turn-taking-ratio": TurnTakingRatioScore,
     "question-rate": QuestionRateScore,
@@ -3157,7 +3158,7 @@ def evaluate_dialog(dialog: Dialog,
     :raises ValueError: If a metric name is unknown or two metrics have the same key.
     :raises TypeError: If a metric is neither a ``str`` nor a ``BaseDialogScore``.
     """
-    single = metrics is not None and not isinstance(metrics, list)
+    single = metrics is not None and not isinstance(metrics, (list, tuple))
     if metrics is None:
         metrics = ["readability", "conversational"]
     elif single:
