@@ -711,6 +711,16 @@ Categories:
 7. **Dataset Aggregators**: :class:`~sdialog.evaluation.DatasetComparator` to compare multiple evaluators.
 8. **Statistics / Frequency**: :class:`~sdialog.evaluation.StatsEvaluator` (mean/std/min/max/median), :class:`~sdialog.evaluation.MeanEvaluator`, :class:`~sdialog.evaluation.FrequencyEvaluator`.
 
+**Quick evaluation of one dialog:** :meth:`Dialog.evaluate() <sdialog.Dialog.evaluate>` wraps the per-dialog metrics. It takes metric names (shortcuts for each metric's default setup, e.g. ``"readability"``, ``"question-rate"``), configured :class:`~sdialog.evaluation.base.BaseDialogScore` instances (such as LLM judges or your own subclasses), or a list of them, and returns each metric's result unchanged, with one key per metric when several are given. Without arguments it computes the readability and conversational features, which are fast and need no model.
+
+.. code-block:: python
+
+    from sdialog.evaluation import ReadabilityScore
+
+    dialog.evaluate()                                          # readability and conversational features
+    dialog.evaluate("readability")                             # same as ReadabilityScore()(dialog)
+    dialog.evaluate(["question-rate", ReadabilityScore(speaker="AI")])
+
 **Evaluation Examples:**
 
 Let's explore how to evaluate our generated dialogues using SDialog's comprehensive evaluation suite. We'll walk through different evaluation approaches to assess dialogue quality from multiple perspectives:
