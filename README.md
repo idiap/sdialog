@@ -379,6 +379,9 @@ This project follows the [all-contributors](https://github.com/all-contributors/
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/jordiluque"><img src="https://avatars.githubusercontent.com/u/67098497?v=4?s=100" width="100px;" alt="Jordi Luque"/><br /><sub><b>Jordi Luque</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=jordiluque" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/amitbhakt"><img src="https://avatars.githubusercontent.com/u/23396105?v=4?s=100" width="100px;" alt="Amit Bhakt"/><br /><sub><b>Amit Bhakt</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=amitbhakt" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.arjunbuilds.me/"><img src="https://avatars.githubusercontent.com/u/156437180?v=4?s=100" width="100px;" alt="Arjun jaiswal"/><br /><sub><b>Arjun jaiswal</b></sub></a><br /><a href="https://github.com/idiap/sdialog/commits?author=Arjun8242" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
