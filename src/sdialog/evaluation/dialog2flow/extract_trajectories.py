@@ -276,9 +276,13 @@ def dialog2trajectories(
                 model_kwargs={"use_safetensors": True},
             )
 
-        domains[domain]["emb"] = sentence_encoder.encode(domains[domain]["text"],
+        # Dialogues often repeat the same utterances (e.g. greetings), so each unique text is encoded only once
+        # and its embedding is then copied to every turn that has that text
+        unique_texts, text_ids = np.unique(domains[domain]["text"], return_inverse=True)
+        unique_embs = np.asarray(sentence_encoder.encode(unique_texts.tolist(),
                                                          show_progress_bar=True,  # show_progress_bar=verbose,
-                                                         batch_size=batch_size, device=device)
+                                                         batch_size=batch_size, device=device))
+        domains[domain]["emb"] = unique_embs[text_ids.reshape(-1)]
         # GloVe can return some Zero vectors, which invalidate the use of cosine distance, seting
         # one coordinate to 1 as a quick work around to prevent division by zero error:
         domains[domain]["emb"][np.where(~np.any(domains[domain]["emb"], axis=1))[0], 0] = 1
@@ -313,24 +317,26 @@ def dialog2trajectories(
             else:
                 distance_threshold = threshold
 
+            speaker_texts = domains[domain]["text"][speaker_mask]
+            speaker_embs = domains[domain]["emb"][speaker_mask]
             clustering = AgglomerativeClustering(
                 n_clusters=n_clusters,
                 linkage=linkage,
                 metric="cosine",
-                compute_distances=True,
+                compute_distances=bool(dendrogram),  # merge distances are only needed to plot the dendrogram
                 distance_threshold=distance_threshold
-            ).fit(domains[domain]["emb"][speaker_mask])
+            ).fit(speaker_embs)
             predictions = clustering.labels_
 
             # Getting utterance closer to the centroid
             cluster_ids = np.unique(predictions)
             cluster_topk_utts = [None] * cluster_ids.shape[0]
-            centroids = np.zeros((cluster_ids.shape[0], domains[domain]["emb"][0].shape[0]))
+            centroids = np.zeros((cluster_ids.shape[0], speaker_embs.shape[1]))
             for ix, cluster_id in enumerate(cluster_ids):
-                cluster_utts = domains[domain]["text"][speaker_mask][predictions == cluster_id]
-                cluster_embs = domains[domain]["emb"][speaker_mask][predictions == cluster_id]
+                cluster_utts = speaker_texts[predictions == cluster_id]
+                cluster_embs = speaker_embs[predictions == cluster_id]
 
-                index = SimpleNeighbors(domains[domain]["emb"].shape[1], metric="cosine")
+                index = SimpleNeighbors(speaker_embs.shape[1], metric="cosine")
                 index.feed([(utt, cluster_embs[cix]) for cix, utt in enumerate(cluster_utts)])
                 index.build()
 

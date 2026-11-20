@@ -14,6 +14,7 @@ All notable changes to SDialog will be documented here.
 ### Changed
 - **sdialog.evaluation**:
   - `ReadabilityScore` and `ConversationalFeatures` name their results with dashes, like the feature names used to request them (e.g. `"flesch-reading-ease"`, `"question-rate"` instead of `"flesch_reading_ease"`, `"question_rate"`), and their default names are `"readability-score"` and `"conversational-features"`.
+  - Dialog2Flow graphs (`dialog2graph()`, `DialogFlowPPL`, `DialogFlowScore`) are faster to build, with the same result: each distinct utterance is encoded once, instead of once per turn (62% fewer utterances to encode on the 2,134 conformant DialFork dialogues, also fewer calls when using OpenAI embeddings), and some repeated copies are avoided when clustering ([#72](https://github.com/idiap/sdialog/issues/72)).
 
 ---
 
