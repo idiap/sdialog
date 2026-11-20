@@ -1187,6 +1187,9 @@ class DialogFlowPPL(BaseDialogFlowScore):
     :type name: Optional[str]
     :param verbose: Verbosity flag.
     :type verbose: bool
+    :param max_clustering_turns: If set, cluster large reference sets approximately from a sample of at most this
+        many turns per speaker (much faster). None (default) clusters all turns exactly.
+    :type max_clustering_turns: Optional[int]
     :param d2f_kwargs: Extra kwargs to dialog2graph.
     :type d2f_kwargs: dict
     """
@@ -1198,6 +1201,7 @@ class DialogFlowPPL(BaseDialogFlowScore):
                  use_only_known_edges: bool = False,
                  name: str = None,
                  verbose: bool = False,
+                 max_clustering_turns: int = None,
                  **d2f_kwargs):
         """Initialize flow perplexity evaluator."""
         self.use_only_known_edges = use_only_known_edges
@@ -1211,6 +1215,7 @@ class DialogFlowPPL(BaseDialogFlowScore):
             use_softmax=use_softmax,
             name=name,
             verbose=verbose,
+            max_clustering_turns=max_clustering_turns,
             **d2f_kwargs
         )
 
@@ -1277,6 +1282,9 @@ class DialogFlowScore(BaseDialogFlowScore):
     :type graph: Any
     :param nodes: Pre-built node metadata (optional).
     :type nodes: dict
+    :param max_clustering_turns: If set, cluster large reference sets approximately from a sample of at most this
+        many turns per speaker (much faster). None (default) clusters all turns exactly.
+    :type max_clustering_turns: Optional[int]
     :param d2f_kwargs: Extra kwargs to dialog2graph.
     :type d2f_kwargs: dict
     """
@@ -1291,6 +1299,7 @@ class DialogFlowScore(BaseDialogFlowScore):
                  verbose: bool = False,
                  graph=None,
                  nodes=None,
+                 max_clustering_turns: int = None,
                  **d2f_kwargs):
         """Initialize flow likelihood score evaluator."""
         self.use_only_known_edges = use_only_known_edges
@@ -1307,6 +1316,7 @@ class DialogFlowScore(BaseDialogFlowScore):
             graph=graph,
             nodes=nodes,
             verbose=verbose,
+            max_clustering_turns=max_clustering_turns,
             **d2f_kwargs
         )
 

@@ -219,6 +219,9 @@ class BaseDialogFlowScore(BaseDialogScore):
     :param nodes: Optional precomputed node metadata dictionary.
     :param name: Optional score name override (auto if None).
     :param verbose: Verbosity flag forwarded to graph construction.
+    :param max_clustering_turns: If set, a speaker with more reference turns than this is clustered approximately
+        from a sample of this many turns, which is much faster for large reference sets.
+        None (default) clusters all turns exactly.
     :param d2f_kwargs: Additional dialog2graph customization parameters.
     :raises ValueError: If reference_dialogues is invalid.
     """
@@ -233,9 +236,13 @@ class BaseDialogFlowScore(BaseDialogScore):
                  nodes=None,
                  name: str = None,
                  verbose: bool = False,
+                 max_clustering_turns: int = None,
                  **d2f_kwargs):
         """Initialize the flow score model by Building or loading a dialog flow graph from reference dialogs."""
         super().__init__(name=name if name else "dfs" + ("" if use_softmax else "-hard"), ai_speaker=ai_speaker)
+
+        if max_clustering_turns is not None:  # only when set, so the cache keys of exact graphs stay the same
+            d2f_kwargs["max_clustering_turns"] = max_clustering_turns
 
         d2f_kwargs = {"node_llm_labels_enabled": False,
                       "out_png": False,

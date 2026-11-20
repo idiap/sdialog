@@ -136,6 +136,88 @@ def plot_dendrogram(model, title, path, labels=None, **kwargs):
     plt.show()
 
 
+LARGE_CLUSTERING_HINT = 20000  # turns of one speaker above which exact clustering gets slow and memory hungry
+
+
+def _merge_close_clusters(embs: np.ndarray, labels: np.ndarray, distance_threshold: float) -> np.ndarray:
+    """
+    Keep merging clusters with average linkage, starting from the given ones, until no two are closer than
+    `distance_threshold`. With unit-length embeddings, the average cosine distance between the turns of two
+    clusters is 1 - (sum_a . sum_b) / (n_a * n_b), so only the sum and size of each cluster are needed.
+    """
+    cluster_ids, labels = np.unique(labels, return_inverse=True)
+    sums = np.stack([embs[labels == c].sum(axis=0) for c in range(len(cluster_ids))])
+    sizes = np.bincount(labels).astype(float)
+    merged_into = np.arange(len(cluster_ids))
+    while len(sums) > 1:
+        distances = 1 - (sums @ sums.T) / np.outer(sizes, sizes)
+        np.fill_diagonal(distances, np.inf)
+        i, j = np.unravel_index(distances.argmin(), distances.shape)
+        if distances[i, j] >= distance_threshold:
+            break
+        sums[i] += sums[j]
+        sizes[i] += sizes[j]
+        sums, sizes = np.delete(sums, j, axis=0), np.delete(sizes, j)
+        merged_into[merged_into == j] = i
+        merged_into[merged_into > j] -= 1
+    return merged_into[labels]
+
+
+def _sampled_agglomerative_clustering(embs: np.ndarray,
+                                      max_turns: int,
+                                      n_clusters: int = None,
+                                      distance_threshold: float = None,
+                                      random_seed: int = seed) -> np.ndarray:
+    """
+    Approximate the average-linkage (cosine) clustering of many turns by clustering only a sample of them.
+
+    1. Cluster a random sample of at most `max_turns` turns, as the exact clustering would.
+    2. Assign every turn to the cluster with the smallest average cosine distance to its sampled turns.
+    3. With `distance_threshold`, turns farther than the threshold from every cluster are clustered on their own
+       (so that new steps are not lost), and clusters closer than the threshold are then merged, continuing
+       average linkage at cluster level.
+
+    Results are reproducible for a given `random_seed`.
+
+    :param embs: Turn embeddings, one row per turn.
+    :param max_turns: Maximum number of turns to cluster exactly.
+    :param n_clusters: Fixed number of clusters (used instead of `distance_threshold`).
+    :param distance_threshold: Average-linkage cosine distance threshold.
+    :param random_seed: Seed of the sample.
+    :return: Cluster id of each turn, from 0 to the number of clusters - 1.
+    """
+    embs = embs.astype(np.float64)
+    embs /= np.linalg.norm(embs, axis=1, keepdims=True)
+    rng = np.random.default_rng(random_seed)
+    sample_size = min(max(max_turns, n_clusters or 0), len(embs))  # room for n_clusters clusters
+    sample = np.sort(rng.choice(len(embs), sample_size, replace=False))
+
+    sample_labels = AgglomerativeClustering(
+        n_clusters=n_clusters,
+        linkage="average",
+        metric="cosine",
+        distance_threshold=distance_threshold
+    ).fit(embs[sample]).labels_
+    cluster_means = np.stack([embs[sample][sample_labels == c].mean(axis=0) for c in np.unique(sample_labels)])
+
+    # 1 - (turn . cluster mean) is the average cosine distance from the turn to the cluster's sampled turns
+    similarity = embs @ cluster_means.T
+    labels = similarity.argmax(axis=1)
+    if distance_threshold is not None:
+        too_far = (1 - similarity.max(axis=1)) > distance_threshold
+        if too_far.sum() > 1:
+            labels[too_far] = len(cluster_means) + AgglomerativeClustering(
+                n_clusters=None,
+                linkage="average",
+                metric="cosine",
+                distance_threshold=distance_threshold
+            ).fit(embs[too_far]).labels_
+        elif too_far.sum() == 1:
+            labels[too_far] = len(cluster_means)
+        labels = _merge_close_clusters(embs, labels, distance_threshold)
+    return np.unique(labels, return_inverse=True)[1].reshape(-1)
+
+
 def dialog2trajectories(
     input_dialogues: Union[str, List[Dialog]],
     system_speaker_name: str = None,
@@ -151,9 +233,23 @@ def dialog2trajectories(
     batch_size: int = 128,
     use_closest_as_centroid_emb: bool = False,
     verbose: bool = True,
+    max_clustering_turns: int = None,
 ) -> str:
+    """
+    Cluster the utterances of the dialogues and save each dialogue as a sequence of cluster ids (trajectories).
+
+    :param max_clustering_turns: If set, a speaker with more turns than this is clustered approximately: a random
+        sample of this many turns is clustered as usual, and every turn is then assigned to its closest cluster,
+        which is much faster and lighter for large collections. If None (default), all turns are clustered exactly.
+    :return: Path to the saved trajectories JSON file.
+    """
     global speaker2mame, name2speaker
     log_level = logging.INFO if verbose else logging.DEBUG
+
+    if max_clustering_turns is not None and (isinstance(max_clustering_turns, bool)
+                                             or not isinstance(max_clustering_turns, (int, np.integer))
+                                             or max_clustering_turns < 2):
+        raise ValueError(f"`max_clustering_turns` must be None or an integer >= 2, got {max_clustering_turns!r}")
 
     speaker2mame, name2speaker = {}, {}
     if system_speaker_name:
@@ -319,14 +415,27 @@ def dialog2trajectories(
 
             speaker_texts = domains[domain]["text"][speaker_mask]
             speaker_embs = domains[domain]["emb"][speaker_mask]
-            clustering = AgglomerativeClustering(
-                n_clusters=n_clusters,
-                linkage=linkage,
-                metric="cosine",
-                compute_distances=bool(dendrogram),  # merge distances are only needed to plot the dendrogram
-                distance_threshold=distance_threshold
-            ).fit(speaker_embs)
-            predictions = clustering.labels_
+            if max_clustering_turns is not None and len(speaker_embs) > max_clustering_turns:
+                logger.log(log_level, f"Clustering a sample of {max_clustering_turns} {speaker} turns "
+                                      f"(out of {len(speaker_embs)}), "
+                                      "then assigning all turns to the clusters.")
+                clustering = None  # no full merge tree to plot
+                predictions = _sampled_agglomerative_clustering(speaker_embs,
+                                                                max_turns=max_clustering_turns,
+                                                                n_clusters=n_clusters,
+                                                                distance_threshold=distance_threshold)
+            else:
+                if max_clustering_turns is None and len(speaker_embs) > LARGE_CLUSTERING_HINT:
+                    logger.info(f"Clustering {len(speaker_embs)} {speaker} turns exactly can be slow and use a "
+                                "lot of memory; set `max_clustering_turns` (e.g. 5000) to cluster a sample instead.")
+                clustering = AgglomerativeClustering(
+                    n_clusters=n_clusters,
+                    linkage=linkage,
+                    metric="cosine",
+                    compute_distances=bool(dendrogram),  # merge distances are only needed to plot the dendrogram
+                    distance_threshold=distance_threshold
+                ).fit(speaker_embs)
+                predictions = clustering.labels_
 
             # Getting utterance closer to the centroid
             cluster_ids = np.unique(predictions)
@@ -391,7 +500,10 @@ def dialog2trajectories(
                                                        "info": cluster_topk_utts[tid],
                                                        "id": f"{speaker[0].lower()}{tid}"}
 
-            if dendrogram:
+            if dendrogram and clustering is None:
+                logger.warning(f"No dendrogram for {speaker} utterances: they were clustered from a sample "
+                               "(`max_clustering_turns`), so there is no merge tree of all turns to plot.")
+            elif dendrogram:
                 plots_path = os.path.join(output_path, "plots")
                 if multi_domain:
                     plots_path = os.path.join(plots_path, domain)
@@ -456,8 +568,17 @@ def dialog2graph(
     target_domains: List[str] = None,
     batch_size: int = 128,
     use_closest_as_centroid_emb: bool = False,
-    verbose: bool = True
+    verbose: bool = True,
+    max_clustering_turns: int = None
 ) -> Tuple[DiGraph, Dict[str, Dict]]:
+    """
+    Build a dialog flow graph from dialogues: utterances are clustered into nodes, and turn sequences into edges.
+
+    :param max_clustering_turns: If set, a speaker with more turns than this is clustered approximately from a
+        sample of this many turns (much faster for large collections). None (default) clusters
+        all turns exactly. See ``dialog2trajectories()``.
+    :return: The graph and the information of its nodes.
+    """
 
     path_trajectories = dialog2trajectories(
         input_dialogues=input_dialogues,
@@ -473,7 +594,8 @@ def dialog2graph(
         target_domains=target_domains,
         batch_size=batch_size,
         use_closest_as_centroid_emb=use_closest_as_centroid_emb,
-        verbose=verbose
+        verbose=verbose,
+        max_clustering_turns=max_clustering_turns
     )
 
     return trajectory2graph(
