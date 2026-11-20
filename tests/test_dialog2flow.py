@@ -152,6 +152,22 @@ def test_dialog2trajectories(tmp_path):
         dialog2trajectories([{"not": "a dialog"}], **flow_kwargs(tmp_path))
 
 
+def test_dialog2trajectories_encodes_each_unique_text_once(tmp_path, monkeypatch):
+    """Repeated utterances are encoded once, and every turn still gets the embedding of its own text."""
+    encoded = []
+
+    class CountingEncoder(FakeEncoder):
+        def encode(self, texts, **kwargs):
+            encoded.extend([texts] if isinstance(texts, str) else list(texts))
+            return super().encode(texts, **kwargs)
+
+    monkeypatch.setattr("sdialog.evaluation.dialog2flow.extract_trajectories.SentenceTransformer", CountingEncoder)
+    dialog2trajectories(REFERENCE, system_speaker_name="Bot", thresholds=[0.6, 0.6], dendrogram=False,
+                        **flow_kwargs(tmp_path))
+    all_texts = [t.text for d in REFERENCE for t in d.turns]
+    assert len(encoded) == len(set(encoded)) == len(set(all_texts)) < len(all_texts)
+
+
 def test_dialog_flow_ppl(tmp_path):
     ppl = DialogFlowPPL(REFERENCE, ai_speaker="Bot", **flow_kwargs(tmp_path))
     assert ppl.name == "dfppl-ai"
