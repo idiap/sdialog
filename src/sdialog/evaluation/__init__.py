@@ -2410,7 +2410,7 @@ class FrechetBERTDistanceEvaluator(BaseDatasetEvaluator):
 
         diff = mu_src - mu_tgt
 
-        covmean, _ = linalg.sqrtm(sigma_src.dot(sigma_tgt), disp=False)
+        covmean = linalg.sqrtm(sigma_src.dot(sigma_tgt))  # `disp` was deprecated in scipy 1.16, removed in 1.18
         if np.iscomplexobj(covmean):
             if not np.allclose(np.imag(covmean), 0, atol=1e-6):
                 logger.warning("linalg.sqrtm returned complex values; taking real part of result.")
