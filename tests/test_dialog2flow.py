@@ -168,6 +168,22 @@ def test_dialog2trajectories_encodes_each_unique_text_once(tmp_path, monkeypatch
     assert len(encoded) == len(set(encoded)) == len(set(all_texts)) < len(all_texts)
 
 
+def test_dendrogram_is_saved_without_showing_it(tmp_path, monkeypatch):
+    """plt.show() blocked scripts and tests until the window was closed; the plots are saved to files instead."""
+    import matplotlib.pyplot as plt
+
+    def fail_show(*args, **kwargs):
+        raise AssertionError("plt.show() must not be called")
+
+    monkeypatch.setattr(plt, "show", fail_show)
+    plt.close("all")
+    dialog2trajectories(REFERENCE, system_speaker_name="Bot", thresholds=[0.6, 0.6], dendrogram=True,
+                        **flow_kwargs(tmp_path))
+    plots = sorted(os.listdir(tmp_path / "d2f" / "plots"))
+    assert len(plots) == 2 and all(p.startswith("dendrogram_") and p.endswith(".png") for p in plots)
+    assert plt.get_fignums() == []  # each plot is closed after saving, so the next one starts from a new figure
+
+
 def test_dialog_flow_ppl(tmp_path):
     ppl = DialogFlowPPL(REFERENCE, ai_speaker="Bot", **flow_kwargs(tmp_path))
     assert ppl.name == "dfppl-ai"
