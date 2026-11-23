@@ -8,7 +8,7 @@ import pytest
 from sdialog import Dialog, Turn
 from sdialog.evaluation import DialogFlowPPL, DialogFlowScore
 from sdialog.evaluation.dialog2flow import dialog2graph, DEFAULT_TOKEN_START
-from sdialog.evaluation.dialog2flow.extract_trajectories import dialog2trajectories
+from sdialog.evaluation.dialog2flow.extract_trajectories import dialog2trajectories, _sampled_agglomerative_clustering
 from sdialog.evaluation.dialog2flow.util import get_cluster_label, init_gpt
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage
@@ -212,3 +212,90 @@ def test_dialog_flow_score_from_folder(tmp_path):
                            output_path=str(tmp_path / "d2f"))(support_dialog(9)) > 0
     with pytest.raises(ValueError):
         DialogFlowScore([])
+
+
+def _trajectory_ids(path):
+    with open(os.path.join(os.path.dirname(path), "clusters", "fakeencoder", "cluster-id-sequences.json")) as reader:
+        return reader.read()
+
+
+def test_max_clustering_turns_none_or_large_is_exact(tmp_path):
+    """Nothing changes unless the option is set and a speaker has more turns than it."""
+    runs = {}
+    for name, max_turns in (("exact", None), ("large", 10_000)):
+        path = dialog2trajectories(REFERENCE, system_speaker_name="Bot", thresholds=[0.6, 0.6], dendrogram=False,
+                                   embedding_model="FakeEncoder", output_path=str(tmp_path / name), verbose=False,
+                                   max_clustering_turns=max_turns)
+        runs[name] = _trajectory_ids(path)
+    assert runs["exact"] == runs["large"]
+
+
+def test_max_clustering_turns_sampled_is_reproducible(tmp_path, caplog):
+    dialogs = [support_dialog(i) for i in range(30)]
+    runs = []
+    for name in ("a", "b"):
+        path = dialog2trajectories(dialogs, system_speaker_name="Bot", thresholds=[0.6, 0.6], dendrogram=True,
+                                   embedding_model="FakeEncoder", output_path=str(tmp_path / name), verbose=False,
+                                   max_clustering_turns=5)
+        runs.append(_trajectory_ids(path))
+    assert runs[0] == runs[1]  # same seed, same clusters
+    assert "No dendrogram" in caplog.text  # there is no merge tree of all turns to plot
+    graph, _ = dialog2graph(dialogs, system_speaker_name="Bot", node_llm_labels_enabled=False, out_png=False,
+                            max_clustering_turns=5, **flow_kwargs(tmp_path))
+    assert graph.number_of_edges() > 0
+
+
+@pytest.mark.parametrize("bad", [0, 1, True, 2.5, "100"])
+def test_max_clustering_turns_invalid(tmp_path, bad):
+    with pytest.raises(ValueError, match="max_clustering_turns"):
+        dialog2trajectories(REFERENCE, max_clustering_turns=bad, **flow_kwargs(tmp_path))
+
+
+def test_large_exact_clustering_logs_hint(tmp_path, caplog, monkeypatch):
+    monkeypatch.setattr("sdialog.evaluation.dialog2flow.extract_trajectories.LARGE_CLUSTERING_HINT", 3)
+    with caplog.at_level("INFO"):
+        dialog2trajectories(REFERENCE, system_speaker_name="Bot", dendrogram=False, **flow_kwargs(tmp_path))
+    assert "max_clustering_turns" in caplog.text
+
+
+def _blobs(sizes, dim=16, noise=0.05, seed=0):
+    rng = np.random.default_rng(seed)
+    centers = np.eye(dim)[:len(sizes)]
+    embs = np.concatenate([centers[k] + noise * rng.normal(size=(n, dim)) for k, n in enumerate(sizes)])
+    truth = np.concatenate([[k] * n for k, n in enumerate(sizes)])
+    return embs, truth
+
+
+def test_sampled_agglomerative_clustering_recovers_clusters():
+    embs, truth = _blobs([60, 40, 30])
+    labels = _sampled_agglomerative_clustering(embs, max_turns=20, distance_threshold=0.5)
+    assert sorted(set(labels)) == list(range(len(set(labels))))  # ids from 0 to n - 1
+    assert len(set(zip(truth, labels))) == len(set(truth)) == len(set(labels))  # same partition as the truth
+    fixed = _sampled_agglomerative_clustering(embs, max_turns=20, n_clusters=3)
+    assert len(set(fixed)) == 3
+
+
+def test_sampled_agglomerative_clustering_keeps_unsampled_rare_cluster():
+    """A small group missed by the sample still gets its own cluster instead of joining a far one."""
+    embs, truth = _blobs([80, 80, 3])
+    for seed in range(5):
+        labels = _sampled_agglomerative_clustering(embs, max_turns=6, distance_threshold=0.5, random_seed=seed)
+        rare = set(labels[truth == 2])
+        assert len(rare) == 1 and not rare & set(labels[truth != 2])
+
+
+def test_sampled_agglomerative_clustering_is_reproducible():
+    embs, _ = _blobs([50, 50, 5], noise=0.3)
+    runs = [_sampled_agglomerative_clustering(embs, max_turns=20, distance_threshold=0.5, random_seed=7)
+            for _ in range(2)]
+    assert (runs[0] == runs[1]).all()
+
+
+def test_dialog_flow_scores_accept_max_clustering_turns(tmp_path):
+    score = DialogFlowScore(REFERENCE, ai_speaker="Bot", max_clustering_turns=3, **flow_kwargs(tmp_path))
+    assert score.d2f_kwargs["max_clustering_turns"] == 3  # part of the cache key
+    assert 0 < score(support_dialog(9)) <= 1
+    ppl = DialogFlowPPL(REFERENCE, ai_speaker="Bot", max_clustering_turns=3, **flow_kwargs(tmp_path))
+    assert ppl(support_dialog(9)) > 0
+    exact = DialogFlowScore(REFERENCE, ai_speaker="Bot", **flow_kwargs(tmp_path))
+    assert "max_clustering_turns" not in exact.d2f_kwargs  # unchanged cache key when the option is not used
