@@ -62,11 +62,12 @@ def get_turn_tag(speaker_name: str) -> str:
     Returns the tag for the turn based on the speaker name.
     """
     speaker_name = speaker_name.lower()
-    if speaker_name in speakers:
-        return speaker_name
-
     if speaker_name not in name2speaker:
-        name2speaker[speaker_name] = speakers[len(name2speaker) % len(speakers)]
+        if speaker_name in speakers:  # a speaker literally named "system" or "user" keeps that tag
+            name2speaker[speaker_name] = speaker_name
+        else:  # other names get the first tag not taken yet (the system tag first)
+            free_tags = [tag for tag in speakers if tag not in name2speaker.values()]
+            name2speaker[speaker_name] = free_tags[0] if free_tags else speakers[len(name2speaker) % len(speakers)]
         if name2speaker[speaker_name] not in speaker2mame:  # Added only once, we assume only two speakers
             speaker2mame[name2speaker[speaker_name]] = speaker_name
 

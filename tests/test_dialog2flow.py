@@ -168,6 +168,23 @@ def test_dialog2trajectories_encodes_each_unique_text_once(tmp_path, monkeypatch
     assert len(encoded) == len(set(encoded)) == len(set(all_texts)) < len(all_texts)
 
 
+def renamed(dialogs, names):
+    return [Dialog(id=d.id, turns=[Turn(speaker=names[t.speaker], text=t.text) for t in d.turns]) for d in dialogs]
+
+
+@pytest.mark.parametrize("names,ai_speaker,expected", [
+    ({"Customer": "User", "Bot": "System"}, "System", {"system": "system", "user": "user"}),  # as sdialog.datasets.STAR
+    ({"Customer": "User", "Bot": "System"}, None, {"system": "system", "user": "user"}),
+    ({"Customer": "User", "Bot": "Agent"}, None, {"user": "user", "agent": "system"}),  # "User" speaks first
+])
+def test_speakers_named_system_and_user(tmp_path, names, ai_speaker, expected):
+    """Speakers literally named "System"/"User" used to be missing from the graph metadata, so scoring failed."""
+    reference = renamed(REFERENCE, names)
+    score = DialogFlowScore(reference, ai_speaker=ai_speaker, **flow_kwargs(tmp_path))
+    assert score.speakers == expected
+    assert 0 < score(renamed([UNRELATED], names)[0]) < score(renamed([support_dialog(9)], names)[0]) <= 1
+
+
 def test_dialog_flow_ppl(tmp_path):
     ppl = DialogFlowPPL(REFERENCE, ai_speaker="Bot", **flow_kwargs(tmp_path))
     assert ppl.name == "dfppl-ai"
