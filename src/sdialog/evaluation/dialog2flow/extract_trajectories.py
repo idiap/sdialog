@@ -133,7 +133,7 @@ def plot_dendrogram(model, title, path, labels=None, **kwargs):
     plt.ylabel('cosine distance', fontsize=12)
     plt.title(title)
     plt.savefig(path, dpi=300)
-    plt.show()
+    plt.close()  # the plot is saved to `path`; close it so each plot starts from a new figure
 
 
 def dialog2trajectories(
